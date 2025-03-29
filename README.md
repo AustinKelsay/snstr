@@ -1,4 +1,5 @@
 # SNSTR - Simple Nostr Software Toolkit for Retards
+### Still Under Construction 🚧
 
 SNSTR is a lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
 
