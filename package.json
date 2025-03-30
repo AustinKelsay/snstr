@@ -19,7 +19,7 @@
     "example:public": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/basic-usage.ts",
     "example:public:dm": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/direct-message.ts",
     "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
-    "test:encryption": "ts-node test-encryption.ts"
+    "test:encryption": "jest tests/crypto.test.ts -t 'NIP-04'"
   },
   "keywords": [
     "nostr",

@@ -144,5 +144,59 @@ describe('Crypto Utilities', () => {
         decryptMessage(encrypted, evePrivateKey, alicePublicKey);
       }).toThrow();
     });
+    
+    test('should produce different ciphertexts for the same message to different recipients', async () => {
+      // Create Charlie as a third party
+      const charlieKeypair = await generateKeypair();
+      const charliePrivateKey = charlieKeypair.privateKey;
+      const charliePublicKey = charlieKeypair.publicKey;
+      
+      const message = 'This is a confidential message';
+      
+      // Alice encrypts for Bob
+      const encryptedForBob = encryptMessage(message, alicePrivateKey, bobPublicKey);
+      
+      // Alice encrypts same message for Charlie
+      const encryptedForCharlie = encryptMessage(message, alicePrivateKey, charliePublicKey);
+      
+      // The two encrypted messages should be different
+      expect(encryptedForBob).not.toBe(encryptedForCharlie);
+      
+      // But both should decrypt to the original message by their intended recipient
+      expect(decryptMessage(encryptedForBob, bobPrivateKey, alicePublicKey)).toBe(message);
+      expect(decryptMessage(encryptedForCharlie, charliePrivateKey, alicePublicKey)).toBe(message);
+    });
+    
+    test('should handle various message types including special characters', () => {
+      const testMessages = [
+        'Hello, world!',
+        'Special chars: !@#$%^&*()_+{}|:"<>?~`-=[]\\;\',./Æ©®',
+        'Unicode: 你好，世界！こんにちは！',
+        'Emoji: 👋🌍🔐🔑',
+        'Very long message: ' + 'X'.repeat(1000),
+        JSON.stringify({ hello: 'world', nested: { data: [1, 2, 3] } }),
+        ''  // Empty message
+      ];
+      
+      testMessages.forEach(message => {
+        const encrypted = encryptMessage(message, alicePrivateKey, bobPublicKey);
+        const decrypted = decryptMessage(encrypted, bobPrivateKey, alicePublicKey);
+        expect(decrypted).toBe(message);
+      });
+    });
+    
+    test('decryption should fail on tampered messages', () => {
+      const message = 'This is a secure message';
+      const encrypted = encryptMessage(message, alicePrivateKey, bobPublicKey);
+      
+      // Tamper with the message by changing a character in the encrypted part
+      const parts = encrypted.split('?iv=');
+      const tampered = parts[0].substring(0, parts[0].length - 1) + 'X' + '?iv=' + parts[1];
+      
+      // Decryption should throw an error
+      expect(() => {
+        decryptMessage(tampered, bobPrivateKey, alicePublicKey);
+      }).toThrow();
+    });
   });
 }); 
