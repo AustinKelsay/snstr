@@ -1,18 +1,28 @@
 import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
 import { NostrRelay } from '../src/utils/ephemeral-relay';
 
+// Set this to false to use external relays instead of ephemeral relay
+const USE_EPHEMERAL = process.env.USE_EPHEMERAL !== 'false';
+
 async function main() {
   try {
-    // Start an ephemeral relay on port 3000
-    console.log('Starting ephemeral relay on port 3000...');
-    const relay = new NostrRelay(3000, 60); // Purge every 60 seconds
-    await relay.start();
-    console.log('Ephemeral relay started');
+    let client: Nostr;
+    let ephemeralRelay: NostrRelay | null = null;
 
-    // Initialize Nostr client with our ephemeral relay
-    const client = new Nostr([
-      relay.url
-    ]);
+    if (USE_EPHEMERAL) {
+      // Start an ephemeral relay on port 3000
+      console.log('Starting ephemeral relay on port 3000...');
+      ephemeralRelay = new NostrRelay(3000, 60); // Purge every 60 seconds
+      await ephemeralRelay.start();
+      console.log('Ephemeral relay started');
+
+      // Initialize Nostr client with our ephemeral relay
+      client = new Nostr([ephemeralRelay.url]);
+    } else {
+      // Initialize Nostr client with public relays
+      console.log('Using public relays: wss://relay.primal.net');
+      client = new Nostr(['wss://relay.primal.net']);
+    }
 
     // Generate or set keys
     console.log('Generating keypair...');
@@ -59,9 +69,14 @@ async function main() {
       }
     );
     
+    // Message content depends on which relay we're using
+    const messageContent = USE_EPHEMERAL 
+      ? 'Hello from SNSTR with ephemeral relay!'
+      : 'Hello from SNSTR with primal.net relay!';
+    
     // Publish a note
     console.log('Publishing a note...');
-    const note = await client.publishTextNote('Hello from SNSTR with ephemeral relay!');
+    const note = await client.publishTextNote(messageContent);
     console.log(`Published note with ID: ${note?.id}`);
     
     // Publish another note after a delay
@@ -79,9 +94,11 @@ async function main() {
     client.unsubscribe(subscriptionIds);
     client.disconnectFromRelays();
     
-    // Shut down the ephemeral relay
-    console.log('Shutting down relay...');
-    relay.close();
+    // Shut down the ephemeral relay if we used one
+    if (ephemeralRelay) {
+      console.log('Shutting down ephemeral relay...');
+      ephemeralRelay.close();
+    }
     
     console.log('Done!');
   } catch (error) {

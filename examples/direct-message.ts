@@ -1,6 +1,9 @@
 import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
 import { NostrRelay } from '../src/utils/ephemeral-relay';
 
+// Set this to false to use external relays instead of ephemeral relay
+const USE_EPHEMERAL = process.env.USE_EPHEMERAL !== 'false';
+
 /**
  * This example demonstrates NIP-04 encrypted direct messaging between two users.
  * 
@@ -14,16 +17,27 @@ import { NostrRelay } from '../src/utils/ephemeral-relay';
  */
 async function main() {
   try {
-    // Start an ephemeral relay on port 3001
-    console.log('Starting ephemeral relay on port 3001...');
-    const ephemeralRelay = new NostrRelay(3001, 60); // Purge every 60 seconds
-    await ephemeralRelay.start();
-    console.log('Ephemeral relay started');
-    
-    // Initialize Nostr clients - one for Alice, one for Bob
-    // Both will connect to our local ephemeral relay
-    const alice = new Nostr([ephemeralRelay.url]);
-    const bob = new Nostr([ephemeralRelay.url]);
+    let alice: Nostr;
+    let bob: Nostr;
+    let ephemeralRelay: NostrRelay | null = null;
+
+    if (USE_EPHEMERAL) {
+      // Start an ephemeral relay on port 3001
+      console.log('Starting ephemeral relay on port 3001...');
+      ephemeralRelay = new NostrRelay(3001, 60); // Purge every 60 seconds
+      await ephemeralRelay.start();
+      console.log('Ephemeral relay started');
+      
+      // Initialize Nostr clients with our ephemeral relay
+      alice = new Nostr([ephemeralRelay.url]);
+      bob = new Nostr([ephemeralRelay.url]);
+    } else {
+      // Initialize Nostr clients with public relays
+      console.log('Using public relays: wss://relay.primal.net and wss://relay.nostr.band');
+      const relays = ['wss://relay.primal.net', 'wss://relay.nostr.band'];
+      alice = new Nostr(relays);
+      bob = new Nostr(relays);
+    }
 
     // Generate keypairs for both users
     console.log('Generating keypairs...');
@@ -74,7 +88,9 @@ async function main() {
     // Alice sends an encrypted direct message to Bob
     // The message is encrypted with Alice's private key and Bob's public key
     console.log('\nAlice sending encrypted message to Bob...');
-    const messageContent = "Hello Bob! This is a secret message that only you can read.";
+    const messageContent = USE_EPHEMERAL 
+      ? "Hello Bob! This is a secret message that only you can read via our ephemeral relay."
+      : "Hello Bob! This is a secret message that only you can read via public relays.";
     
     try {
       // This will:
@@ -95,7 +111,7 @@ async function main() {
     
     // Alice sends a second message
     console.log('\nAlice sending a second message to Bob...');
-    const secondMessage = "This is another secret message using our local ephemeral relay!";
+    const secondMessage = "This is another secret message. Secure communication is important!";
     
     try {
       const dmEvent2 = await alice.publishDirectMessage(secondMessage, bobKeys.publicKey);
@@ -117,9 +133,11 @@ async function main() {
       console.error('Error disconnecting:', error);
     }
     
-    // Shut down the ephemeral relay
-    console.log('Shutting down relay...');
-    ephemeralRelay.close();
+    // Shut down the ephemeral relay if we used one
+    if (ephemeralRelay) {
+      console.log('Shutting down ephemeral relay...');
+      ephemeralRelay.close();
+    }
     
     console.log('Done!');
   } catch (error) {

@@ -16,6 +16,8 @@
     "example:crypto": "ts-node examples/crypto-demo.ts",
     "example:ephemeral": "VERBOSE=true ts-node examples/basic-usage.ts",
     "example:ephemeral:dm": "VERBOSE=true ts-node examples/direct-message.ts",
+    "example:public": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/basic-usage.ts",
+    "example:public:dm": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/direct-message.ts",
     "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
     "test:encryption": "ts-node test-encryption.ts"
   },

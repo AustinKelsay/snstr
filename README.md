@@ -27,8 +27,8 @@ import { Nostr, RelayEvent } from 'snstr';
 async function main() {
   // Initialize with relays
   const client = new Nostr([
-    'wss://relay.damus.io',
-    'wss://relay.nostr.info'
+    'wss://relay.primal.net',
+    'wss://relay.nostr.band'
   ]);
 
   // Generate keypair
@@ -168,6 +168,39 @@ async function main() {
 main().catch(console.error);
 ```
 
+## Using Public Relays vs Ephemeral Relay
+
+The examples in SNSTR can run with either the built-in ephemeral relay or connect to public Nostr relays. This is controlled by the `USE_EPHEMERAL` environment variable:
+
+```typescript
+// In your code:
+const USE_EPHEMERAL = process.env.USE_EPHEMERAL !== 'false';
+
+// Then conditionally create clients
+let client: Nostr;
+if (USE_EPHEMERAL) {
+  // Use ephemeral relay
+  const ephemeralRelay = new NostrRelay(3000);
+  await ephemeralRelay.start();
+  client = new Nostr([ephemeralRelay.url]);
+} else {
+  // Use public relays
+  client = new Nostr(['wss://relay.primal.net', 'wss://relay.nostr.band']);
+}
+```
+
+The library includes scripts for both approaches:
+
+```bash
+# Run with ephemeral relay (default)
+npm run example:ephemeral
+npm run example:ephemeral:dm
+
+# Run with public relays (Primal.net and Nostr.band)
+npm run example:public
+npm run example:public:dm
+```
+
 ## Testing
 
 The project includes a comprehensive test suite that uses the ephemeral relay for all tests, eliminating the need for external connections during testing.
@@ -219,10 +252,10 @@ npm run build
 ### Running examples
 
 ```bash
-# Basic example
+# Basic example (default ephemeral relay)
 npm run example
 
-# Direct messaging example
+# Direct messaging example (default ephemeral relay)
 npm run example:dm
 
 # Cryptography demo
@@ -231,6 +264,10 @@ npm run example:crypto
 # Examples with ephemeral relay and verbose logging
 npm run example:ephemeral
 npm run example:ephemeral:dm
+
+# Examples with public relays (Primal.net and Nostr.band)
+npm run example:public
+npm run example:public:dm
 
 # Test encryption/decryption directly
 npm run test:encryption
