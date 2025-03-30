@@ -1,98 +1,109 @@
-import { generateKeypair, encryptMessage, decryptMessage, getPublicKey, getSharedSecret } from '../src/utils/crypto';
+import { 
+  generateKeypair, 
+  getPublicKey,
+  encryptNIP04, 
+  decryptNIP04, 
+  getNIP04SharedSecret
+} from '../src';
 
 /**
- * This example demonstrates the direct use of cryptographic functions
- * for Nostr, with a focus on NIP-04 encryption for direct messages.
+ * Demo of the Nostr cryptography functions
  * 
- * NIP-04 uses ECDH (Elliptic Curve Diffie-Hellman) to create a shared secret
- * and AES-256-CBC for encrypting the message content.
+ * This script demonstrates:
+ * 1. Generating keypairs
+ * 2. Encryption/decryption with NIP-04
+ * 3. How shared secrets work
  */
 async function main() {
-  console.log('===== Nostr Cryptography Demo =====\n');
-  
-  // Generate two keypairs (Alice and Bob)
-  console.log('Generating keypairs...');
-  const aliceKeypair = await generateKeypair();
-  console.log('Alice:');
-  console.log('  Private key:', aliceKeypair.privateKey);
-  console.log('  Public key:', aliceKeypair.publicKey);
-  
-  const bobKeypair = await generateKeypair();
-  console.log('\nBob:');
-  console.log('  Private key:', bobKeypair.privateKey);
-  console.log('  Public key:', bobKeypair.publicKey);
-  
-  // Demonstrate extracting public key from private key
-  console.log('\nVerifying public key derivation:');
-  const derivedPublicKey = getPublicKey(aliceKeypair.privateKey);
-  console.log('  Derived public key matches:', derivedPublicKey === aliceKeypair.publicKey);
-  
-  // Demonstrate NIP-04 encryption/decryption
-  console.log('\n===== NIP-04 Direct Message Encryption =====\n');
-  
-  const message = 'Hello Bob! This is a secret message that only you can read.';
-  console.log('Original message:', message);
-  
-  // Alice encrypts a message for Bob
-  console.log('\nAlice encrypts message for Bob...');
-  const encryptedMessage = encryptMessage(
-    message,
-    aliceKeypair.privateKey,
-    bobKeypair.publicKey
-  );
-  console.log('Encrypted format (NIP-04):', encryptedMessage);
-  
-  // Examine the parts of the encrypted message
-  const [ciphertext, iv] = encryptedMessage.split('?iv=');
-  console.log('  Ciphertext:', ciphertext);
-  console.log('  IV:', iv);
-  
-  // Display information about the shared secret
-  console.log('\nShared secret information:');
-  console.log('  When Alice encrypts for Bob, she uses:');
-  console.log('    - Her private key and Bob\'s public key');
-  
-  console.log('  When Bob decrypts from Alice, he uses:');
-  console.log('    - His private key and Alice\'s public key');
-  
-  console.log('\nAlice and Bob derive the same shared secret:');
-  const aliceSharedSecret = getSharedSecret(aliceKeypair.privateKey, bobKeypair.publicKey);
-  const bobSharedSecret = getSharedSecret(bobKeypair.privateKey, aliceKeypair.publicKey);
-  console.log('  Same shared secret:', Buffer.from(aliceSharedSecret).toString('hex') === 
-                                        Buffer.from(bobSharedSecret).toString('hex'));
-  
-  // Bob decrypts the message from Alice
-  console.log('\nBob decrypts message from Alice...');
-  const decryptedMessage = decryptMessage(
-    encryptedMessage,
-    bobKeypair.privateKey,
-    aliceKeypair.publicKey
-  );
-  console.log('Decrypted message:', decryptedMessage);
-  console.log('Decryption successful:', decryptedMessage === message);
-  
-  // Demonstrate that only the intended recipient can decrypt
-  console.log('\n===== Security Verification =====\n');
-  
-  // Create a third party (Eve)
-  const eveKeypair = await generateKeypair();
-  console.log('Eve (third party) tries to decrypt the message...');
-  
   try {
-    const eveDecryption = decryptMessage(
+    // 1. Generate keypairs
+    console.log('Generating keypairs...');
+    
+    // Alice's keypair
+    const aliceKeypair = await generateKeypair();
+    console.log(`Alice's private key: ${aliceKeypair.privateKey.slice(0, 8)}...`);
+    console.log(`Alice's public key:  ${aliceKeypair.publicKey.slice(0, 8)}...`);
+    
+    // Bob's keypair
+    const bobKeypair = await generateKeypair();
+    console.log(`Bob's private key:   ${bobKeypair.privateKey.slice(0, 8)}...`);
+    console.log(`Bob's public key:    ${bobKeypair.publicKey.slice(0, 8)}...`);
+    
+    // Eve is eavesdropping
+    const eveKeypair = await generateKeypair();
+    console.log(`Eve's private key:   ${eveKeypair.privateKey.slice(0, 8)}...`);
+    console.log(`Eve's public key:    ${eveKeypair.publicKey.slice(0, 8)}...`);
+    
+    // 2. NIP-04 Encryption/Decryption
+    console.log('\n----- NIP-04 Encryption Demo -----');
+    
+    // Alice wants to send a private message to Bob
+    const message = 'Hello Bob! This is a secret message from Alice.';
+    console.log(`\nOriginal message: "${message}"`);
+    
+    // Alice encrypts the message using her private key and Bob's public key
+    const encryptedMessage = encryptNIP04(
+      message,
+      aliceKeypair.privateKey,
+      bobKeypair.publicKey
+    );
+    console.log(`\nEncrypted message: ${encryptedMessage}`);
+    
+    // Bob receives the message and decrypts it using his private key and Alice's public key
+    console.log('\nBob decrypts the message...');
+    const decryptedMessage = decryptNIP04(
       encryptedMessage,
-      eveKeypair.privateKey,
+      bobKeypair.privateKey,
       aliceKeypair.publicKey
     );
-    console.log('Eve\'s decryption attempt:', eveDecryption);
-    console.log('Eve decrypted correctly:', eveDecryption === message);
+    console.log(`Decrypted message: "${decryptedMessage}"`);
+    
+    // Even if Eve intercepts the message, she cannot decrypt it without Bob's private key
+    console.log('\nEve tries to decrypt the message...');
+    try {
+      const eveDecryption = decryptNIP04(
+        encryptedMessage,
+        eveKeypair.privateKey,
+        aliceKeypair.publicKey
+      );
+      console.log(`Eve decrypted: "${eveDecryption}"`);
+    } catch (error) {
+      console.log('Eve failed to decrypt the message!');
+    }
+    
+    // 3. Shared Secret Demo
+    console.log('\n----- Shared Secret Demo -----');
+    
+    // Alice and Bob compute a shared secret (should be the same value)
+    const aliceSharedSecret = getNIP04SharedSecret(
+      aliceKeypair.privateKey,
+      bobKeypair.publicKey
+    );
+    
+    const bobSharedSecret = getNIP04SharedSecret(
+      bobKeypair.privateKey,
+      aliceKeypair.publicKey
+    );
+    
+    // Convert to hex for display
+    const aliceHex = Buffer.from(aliceSharedSecret).toString('hex');
+    const bobHex = Buffer.from(bobSharedSecret).toString('hex');
+    
+    console.log('\nShared secret computed by Alice:');
+    console.log(aliceHex.slice(0, 32) + '...');
+    
+    console.log('\nShared secret computed by Bob:');
+    console.log(bobHex.slice(0, 32) + '...');
+    
+    // Verify they match (they should always match)
+    if (aliceHex === bobHex) {
+      console.log('\n✅ Success! Shared secrets match.');
+    } else {
+      console.log('\n❌ Error! Shared secrets do not match.');
+    }
   } catch (error) {
-    console.log('Eve failed to decrypt properly (expected)');
+    console.error('Error:', error);
   }
-  
-  console.log('\nDemo complete!');
 }
 
-main().catch(error => {
-  console.error('Error in demo:', error);
-}); 
+main(); 

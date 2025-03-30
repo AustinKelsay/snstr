@@ -10,12 +10,22 @@ export {
   generateKeypair, 
   getPublicKey, 
   signEvent, 
-  verifySignature, 
-  encryptMessage, 
-  decryptMessage 
+  verifySignature
 } from './utils/crypto';
 
 export { createEvent } from './utils/event';
+
+// Export NIP-04 utilities
+export {
+  encrypt as encryptNIP04,
+  decrypt as decryptNIP04,
+  getSharedSecret as getNIP04SharedSecret
+} from './nip04';
+
+// For backward compatibility
+import { encrypt, decrypt } from './nip04';
+export const encryptMessage = encrypt;
+export const decryptMessage = decrypt;
 
 // Export NIP-44 utilities
 export { 

@@ -14,6 +14,7 @@
     "example": "ts-node examples/basic-usage.ts",
     "example:dm": "ts-node examples/direct-message.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
+    "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip44": "ts-node examples/nip44-demo.ts",
     "example:ephemeral": "VERBOSE=true ts-node examples/basic-usage.ts",
     "example:ephemeral:dm": "VERBOSE=true ts-node examples/direct-message.ts",
@@ -21,7 +22,8 @@
     "example:public:dm": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/direct-message.ts",
     "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
     "test:encryption": "jest tests/crypto.test.ts -t 'NIP-04'",
-    "test:nip44": "jest tests/crypto.test.ts -t 'NIP-44'"
+    "test:nip04": "jest tests/nip04/encryption.test.ts",
+    "test:nip44": "jest tests/nip44"
   },
   "keywords": [
     "nostr",

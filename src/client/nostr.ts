@@ -1,6 +1,7 @@
 import { Relay } from './relay';
 import { NostrEvent, Filter, RelayEvent } from '../types/nostr';
-import { getPublicKey, generateKeypair, signEvent, decryptMessage } from '../utils/crypto';
+import { getPublicKey, generateKeypair, signEvent } from '../utils/crypto';
+import { decrypt as decryptNIP04 } from '../nip04';
 import { createSignedEvent, createTextNote, createDirectMessage, createMetadataEvent } from '../utils/event';
 
 export class Nostr {
@@ -90,6 +91,8 @@ export class Nostr {
 
   /**
    * Decrypt a direct message received from another user
+   * 
+   * Uses NIP-04 encryption which is the standard for kind:4 direct messages
    */
   public decryptDirectMessage(event: NostrEvent): string {
     if (!this.privateKey) {
@@ -122,7 +125,7 @@ export class Nostr {
     
     // Decrypt the message using our private key and the sender's pubkey
     try {
-      return decryptMessage(event.content, this.privateKey, senderPubkey);
+      return decryptNIP04(event.content, this.privateKey, senderPubkey);
     } catch (error) {
       console.error('Failed to decrypt message:', error);
       throw new Error('Failed to decrypt message. Make sure you are the intended recipient.');

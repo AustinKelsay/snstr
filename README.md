@@ -345,27 +345,29 @@ SNSTR supports both NIP-04 and NIP-44 encryption schemes for direct messages:
 ### NIP-04 (AES-CBC)
 
 ```typescript
-import { generateKeypair, encryptMessage, decryptMessage } from 'snstr';
+import { generateKeypair, encryptNIP04, decryptNIP04 } from 'snstr';
 
 const aliceKeypair = await generateKeypair();
 const bobKeypair = await generateKeypair();
 
 // Alice encrypts a message for Bob
-const encrypted = encryptMessage(
+const encrypted = encryptNIP04(
   'Hello Bob!',
   aliceKeypair.privateKey,
   bobKeypair.publicKey
 );
 
 // Bob decrypts the message from Alice
-const decrypted = decryptMessage(
+const decrypted = decryptNIP04(
   encrypted,
   bobKeypair.privateKey,
   aliceKeypair.publicKey
 );
 ```
 
-### NIP-44 (XChaCha20-Poly1305)
+For more details on the NIP-04 implementation, see [docs/nip04/README.md](docs/nip04/README.md).
+
+### NIP-44 (ChaCha20 with HMAC-SHA256)
 
 ```typescript
 import { generateKeypair, encryptNIP44, decryptNIP44 } from 'snstr';
@@ -388,7 +390,7 @@ const decrypted = decryptNIP44(
 );
 ```
 
-For more details on the NIP-44 implementation, see [README-NIP44.md](README-NIP44.md).
+For more details on the NIP-44 implementation, see [docs/nip44/README.md](docs/nip44/README.md).
 
 ## License
 

@@ -1,5 +1,6 @@
 import { EventTemplate, NostrEvent } from '../types/nostr';
-import { getEventHash, signEvent, getPublicKey, encryptMessage } from './crypto';
+import { getEventHash, signEvent, getPublicKey } from './crypto';
+import { encrypt as encryptNIP04 } from '../nip04';
 
 /**
  * Create an unsigned event from a template
@@ -48,7 +49,7 @@ export function createTextNote(content: string, tags: string[][] = []): EventTem
 
 /**
  * Create a direct message event (kind 4)
- * Encrypts the content according to NIP-04
+ * Encrypts the content using NIP-04 specification
  */
 export function createDirectMessage(
   content: string,
@@ -57,7 +58,7 @@ export function createDirectMessage(
   tags: string[][] = []
 ): EventTemplate {
   // Encrypt the content using NIP-04
-  const encryptedContent = encryptMessage(content, senderPrivateKey, recipientPubkey);
+  const encryptedContent = encryptNIP04(content, senderPrivateKey, recipientPubkey);
   
   return {
     kind: 4,

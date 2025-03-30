@@ -1,6 +1,7 @@
 import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
 import { NostrRelay } from '../src/utils/ephemeral-relay';
-import { generateKeypair, encryptMessage } from '../src/utils/crypto';
+import { generateKeypair } from '../src/utils/crypto';
+import { encrypt as encryptNIP04 } from '../src/nip04';
 
 // Use ephemeral relay for all tests
 const RELAY_TEST_PORT = 3555;
@@ -193,7 +194,7 @@ describe('Nostr Client', () => {
       const content = 'Secret message';
       
       // Create encrypted content
-      const encryptedContent = encryptMessage(
+      const encryptedContent = encryptNIP04(
         content,
         senderKeys.privateKey,
         recipientKeys.publicKey
