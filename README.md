@@ -9,7 +9,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Generate and manage keypairs
 - Publish and subscribe to events
 - Create and verify signed events
-- Encrypt and decrypt direct messages (NIP-04)
+- Encrypt and decrypt direct messages (NIP-04 and NIP-44)
 - Create different types of events (notes, metadata, DMs)
 - Built-in ephemeral relay for testing and development
 
@@ -168,6 +168,54 @@ async function main() {
 main().catch(console.error);
 ```
 
+## Encryption with NIP-44
+
+SNSTR includes a complete implementation of [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md), which provides more secure direct messaging encryption than the older NIP-04 standard. NIP-44 uses ChaCha20 with HMAC-SHA256 authentication to prevent tampering.
+
+```typescript
+import { 
+  generateKeypair, 
+  encryptNIP44, 
+  decryptNIP44 
+} from 'snstr';
+
+async function main() {
+  // Generate keypairs for Alice and Bob
+  const aliceKeypair = await generateKeypair();
+  const bobKeypair = await generateKeypair();
+  
+  // Alice encrypts a message for Bob
+  const encrypted = encryptNIP44(
+    'Hello Bob, this is a secure message!',
+    aliceKeypair.privateKey,
+    bobKeypair.publicKey
+  );
+  
+  console.log(`Encrypted: ${encrypted}`);
+  
+  // Bob decrypts the message from Alice
+  const decrypted = decryptNIP44(
+    encrypted,
+    bobKeypair.privateKey,
+    aliceKeypair.publicKey
+  );
+  
+  console.log(`Decrypted: ${decrypted}`);
+}
+
+main().catch(console.error);
+```
+
+### Key Features of NIP-44 Implementation
+
+- **Authenticated Encryption**: Uses ChaCha20 + HMAC-SHA256 to prevent message tampering
+- **Message Length Hiding**: Pads messages to hide their exact length
+- **Proper Key Derivation**: Uses HKDF instead of raw ECDH output for better security
+- **Forward-Compatible**: Includes version byte for future algorithm upgrades
+- **Constant-Time Operations**: Prevents timing attacks during cryptographic operations
+- **Comprehensive Validation**: Thorough input validation and error handling
+- **Test Vectors**: Validated against official NIP-44 test vectors
+
 ## Using Public Relays vs Ephemeral Relay
 
 The examples in SNSTR can run with either the built-in ephemeral relay or connect to public Nostr relays. This is controlled by the `USE_EPHEMERAL` environment variable:
@@ -213,6 +261,12 @@ The project includes a comprehensive test suite that uses the ephemeral relay fo
   - `relay.test.ts`: Tests for the Relay class using ephemeral relay
   - `nostr.test.ts`: Tests for the Nostr client using ephemeral relay
   
+- **NIP-44 Tests**: Tests for the NIP-44 encryption implementation
+  - `nip44/nip44-compatibility.test.ts`: Compatibility with official NIP-44 spec
+  - `nip44/nip44-official-vectors.test.ts`: Tests against official test vectors
+  - `nip44/nip44-padding-hmac.test.ts`: Tests for padding and HMAC implementation
+  - `nip44/nip44-vectors.test.ts`: Additional test cases for robustness
+  
 - **Integration Tests**: Tests that simulate real usage
   - `integration.test.ts`: End-to-end tests using ephemeral relay
 
@@ -230,6 +284,12 @@ Run a specific test file:
 npm test -- tests/crypto.test.ts
 ```
 
+Run just the NIP-44 tests:
+
+```bash
+npm test -- tests/nip44
+```
+
 ### Test Coverage
 
 The test suite aims for high coverage of all critical paths and edge cases:
@@ -237,6 +297,7 @@ The test suite aims for high coverage of all critical paths and edge cases:
 - Key generation and management
 - Event signing and verification 
 - NIP-04 encryption/decryption
+- NIP-44 encryption/decryption
 - Relay connections and behavior
 - Event publishing and subscription
 - Error handling
@@ -261,6 +322,9 @@ npm run example:dm
 # Cryptography demo
 npm run example:crypto
 
+# NIP-44 encryption demo
+npm run example:nip44
+
 # Examples with ephemeral relay and verbose logging
 npm run example:ephemeral
 npm run example:ephemeral:dm
@@ -269,9 +333,62 @@ npm run example:ephemeral:dm
 npm run example:public
 npm run example:public:dm
 
-# Test encryption/decryption directly
-npm run test:encryption
+# Test encryption/decryption
+npm run test:encryption   # Run NIP-04 tests
+npm run test:nip44        # Run NIP-44 tests
 ```
+
+## Encryption Support
+
+SNSTR supports both NIP-04 and NIP-44 encryption schemes for direct messages:
+
+### NIP-04 (AES-CBC)
+
+```typescript
+import { generateKeypair, encryptMessage, decryptMessage } from 'snstr';
+
+const aliceKeypair = await generateKeypair();
+const bobKeypair = await generateKeypair();
+
+// Alice encrypts a message for Bob
+const encrypted = encryptMessage(
+  'Hello Bob!',
+  aliceKeypair.privateKey,
+  bobKeypair.publicKey
+);
+
+// Bob decrypts the message from Alice
+const decrypted = decryptMessage(
+  encrypted,
+  bobKeypair.privateKey,
+  aliceKeypair.publicKey
+);
+```
+
+### NIP-44 (XChaCha20-Poly1305)
+
+```typescript
+import { generateKeypair, encryptNIP44, decryptNIP44 } from 'snstr';
+
+const aliceKeypair = await generateKeypair();
+const bobKeypair = await generateKeypair();
+
+// Alice encrypts a message for Bob with NIP-44
+const encrypted = encryptNIP44(
+  'Hello Bob!',
+  aliceKeypair.privateKey,
+  bobKeypair.publicKey
+);
+
+// Bob decrypts the message from Alice
+const decrypted = decryptNIP44(
+  encrypted,
+  bobKeypair.privateKey,
+  aliceKeypair.publicKey
+);
+```
+
+For more details on the NIP-44 implementation, see [README-NIP44.md](README-NIP44.md).
 
 ## License
 

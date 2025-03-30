@@ -21,4 +21,11 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Compiled JavaScript in TS source directories
+src/**/*.js
+src/**/*.js.map
+
+# Temporary files
+tmp/
+
 .cursor

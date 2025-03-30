@@ -7,16 +7,15 @@ const USE_EPHEMERAL = process.env.USE_EPHEMERAL !== 'false';
 async function main() {
   try {
     let client: Nostr;
-    let ephemeralRelay: NostrRelay | null = null;
+    let ephemeralRelay: NostrRelay | undefined;
 
     if (USE_EPHEMERAL) {
-      // Start an ephemeral relay on port 3000
-      console.log('Starting ephemeral relay on port 3000...');
-      ephemeralRelay = new NostrRelay(3000, 60); // Purge every 60 seconds
+      // Use an ephemeral relay for testing
+      console.log('Starting ephemeral relay on port 3001...');
+      ephemeralRelay = new NostrRelay(3001);
       await ephemeralRelay.start();
-      console.log('Ephemeral relay started');
-
-      // Initialize Nostr client with our ephemeral relay
+      console.log(`Ephemeral relay running at ${ephemeralRelay.url}`);
+      
       client = new Nostr([ephemeralRelay.url]);
     } else {
       // Initialize Nostr client with public relays

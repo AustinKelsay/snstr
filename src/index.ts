@@ -1,34 +1,26 @@
-// Client
+// Export client classes
 export { Nostr } from './client/nostr';
 export { Relay } from './client/relay';
 
-// Types
-export {
-  NostrEvent,
-  EventTemplate,
-  Filter,
-  Subscription,
-  RelayEvent,
-  RelayEventHandler,
-} from './types/nostr';
+// Export types
+export * from './types/nostr';
 
-// Crypto utilities
-export {
-  getEventHash,
-  signEvent,
-  verifySignature,
-  generateKeypair,
-  getPublicKey,
-  getSharedSecret,
-  encryptMessage,
-  decryptMessage,
+// Export utilities
+export { 
+  generateKeypair, 
+  getPublicKey, 
+  signEvent, 
+  verifySignature, 
+  encryptMessage, 
+  decryptMessage 
 } from './utils/crypto';
 
-// Event utilities
-export {
-  createEvent,
-  createSignedEvent,
-  createTextNote,
-  createDirectMessage,
-  createMetadataEvent,
-} from './utils/event'; 
+export { createEvent } from './utils/event';
+
+// Export NIP-44 utilities
+export { 
+  encrypt as encryptNIP44, 
+  decrypt as decryptNIP44, 
+  generateNonce as generateNIP44Nonce,
+  getSharedSecret as getNIP44SharedSecret
+} from './nip44'; 
