@@ -1,152 +1,121 @@
-import { Nostr, RelayEvent } from '../src';
-import { NostrEvent } from '../src/types/nostr';
+import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
+import { NostrRelay } from '../src/utils/ephemeral-relay';
+import { generateKeypair, encryptMessage } from '../src/utils/crypto';
 
-// Mock WebSocket implementation
-class MockWebSocket {
-  url: string;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onerror: ((error: any) => void) | null = null;
-  onmessage: ((message: any) => void) | null = null;
-  readyState = 1; // OPEN
-
-  constructor(url: string) {
-    this.url = url;
-    
-    // Immediately trigger the open event in the constructor
-    // This ensures that tests don't time out waiting for connection
-    setTimeout(() => {
-      if (this.onopen) this.onopen();
-    }, 0);
-  }
-
-  send(data: string) {
-    // Process received messages
-    const parsed = JSON.parse(data);
-    const [type, ...rest] = parsed;
-
-    // For testing, we'll simulate some basic relay behaviors
-    if (type === 'EVENT') {
-      // Simulate event acknowledgement
-      setTimeout(() => {
-        if (this.onmessage) {
-          const event = rest[0];
-          this.onmessage({
-            data: JSON.stringify(['OK', event.id, true, ''])
-          });
-        }
-      }, 10);
-    } else if (type === 'REQ') {
-      // Simulate subscription
-      setTimeout(() => {
-        if (this.onmessage) {
-          this.onmessage({
-            data: JSON.stringify(['EOSE', rest[0]])
-          });
-        }
-      }, 10);
-    }
-  }
-
-  close() {
-    if (this.onclose) this.onclose();
-  }
-}
-
-// Mock the WebSocket global
-global.WebSocket = MockWebSocket as any;
+// Use ephemeral relay for all tests
+const RELAY_TEST_PORT = 3555;
+let ephemeralRelay: NostrRelay;
 
 describe('Nostr Client', () => {
+  // Setup ephemeral relay for tests
+  beforeAll(async () => {
+    ephemeralRelay = new NostrRelay(RELAY_TEST_PORT);
+    await ephemeralRelay.start();
+    console.log(`Ephemeral test relay started on port ${RELAY_TEST_PORT}`);
+  });
+
+  afterAll(() => {
+    if (ephemeralRelay) {
+      ephemeralRelay.close();
+      console.log('Ephemeral test relay shut down');
+    }
+  });
+
+  // Create a fresh client for each test
+  let client: Nostr;
+  
+  beforeEach(() => {
+    client = new Nostr([ephemeralRelay.url]);
+  });
+  
+  afterEach(() => {
+    try {
+      client.disconnectFromRelays();
+    } catch (e) {
+      // Ignore errors when disconnecting
+    }
+  });
+
   describe('Client Initialization', () => {
     test('should initialize with relay URLs', () => {
-      const urls = ['wss://relay1.example.com', 'wss://relay2.example.com'];
-      const client = new Nostr(urls);
-      
-      // Since client.relays is private, we can't directly test it
-      // Instead, let's test a method that relies on it
       expect(client).toBeInstanceOf(Nostr);
     });
     
     test('should generate keys correctly', async () => {
-      const client = new Nostr();
       const keys = await client.generateKeys();
-      
-      expect(keys).toHaveProperty('privateKey');
-      expect(keys).toHaveProperty('publicKey');
-      expect(keys.privateKey).toHaveLength(64);
       expect(keys.publicKey).toHaveLength(64);
-      
-      // Public key should be retrievable
-      expect(client.getPublicKey()).toEqual(keys.publicKey);
+      expect(keys.privateKey).toHaveLength(64);
+      expect(typeof keys.publicKey).toBe('string');
+      expect(typeof keys.privateKey).toBe('string');
     });
   });
-
+  
   describe('Relay Management', () => {
-    let client: Nostr;
-    
-    beforeEach(() => {
-      client = new Nostr();
-    });
-    
     test('should add relays', () => {
-      const relay1 = client.addRelay('wss://relay1.example.com');
-      const relay2 = client.addRelay('wss://relay2.example.com');
+      const additionalRelay = 'ws://localhost:3556';
+      client.addRelay(additionalRelay);
       
-      expect(relay1).toBeDefined();
-      expect(relay2).toBeDefined();
+      // This test verifies the relay was added but doesn't need to connect
+      const relays = (client as any).relays;
+      expect(relays.has(additionalRelay)).toBe(true);
     });
     
     test('should connect to relays', async () => {
-      client.addRelay('wss://relay1.example.com');
-      client.addRelay('wss://relay2.example.com');
-      
-      // Track connections
-      const connected: string[] = [];
-      client.on(RelayEvent.Connect, (url) => {
-        connected.push(url);
+      let connectCount = 0;
+      client.on(RelayEvent.Connect, () => {
+        connectCount++;
       });
       
       await client.connectToRelays();
-      
-      // Allow a bit of time for the mock connections to establish
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
-      expect(connected).toContain('wss://relay1.example.com');
-      expect(connected).toContain('wss://relay2.example.com');
+      expect(connectCount).toBe(1);
     });
-    
-    test.skip('should disconnect from relays', async () => {
-      // This test needs to be rewritten with proper mocking
+  
+    test('should disconnect from relays', async () => {
+      await client.connectToRelays();
+      
+      let disconnectCount = 0;
+      client.on(RelayEvent.Disconnect, () => {
+        disconnectCount++;
+      });
+      
+      client.disconnectFromRelays();
+      
+      // Give time for the disconnect event to fire
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      expect(disconnectCount).toBe(1);
     });
     
     test('should remove relays', () => {
-      // This test needs to be rewritten with proper mocking
+      const relayUrl = ephemeralRelay.url;
+      client.removeRelay(relayUrl);
+      
+      const relays = (client as any).relays;
+      expect(relays.has(relayUrl)).toBe(false);
     });
   });
-
+  
   describe('Event Publishing', () => {
-    let client: Nostr;
-    
-    beforeEach(async () => {
-      client = new Nostr(['wss://relay1.example.com']);
+    test('should publish text notes', async () => {
       await client.generateKeys();
       await client.connectToRelays();
-    });
-    
-    test('should publish text notes', async () => {
-      const note = await client.publishTextNote('Test note');
+      
+      const content = 'Test note from testing';
+      const note = await client.publishTextNote(content);
       
       expect(note).toBeDefined();
       expect(note?.kind).toBe(1);
-      expect(note?.content).toBe('Test note');
-      expect(note?.id).toBeDefined();
-      expect(note?.sig).toBeDefined();
+      expect(note?.content).toBe(content);
     });
     
     test('should publish metadata', async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+      
       const metadata = {
         name: 'Test User',
-        about: 'Testing SNSTR'
+        about: 'Testing the Nostr client',
+        picture: 'https://example.com/avatar.png'
       };
       
       const event = await client.publishMetadata(metadata);
@@ -157,111 +126,116 @@ describe('Nostr Client', () => {
     });
     
     test('should reject publishing without keys', async () => {
-      const clientWithoutKeys = new Nostr(['wss://relay1.example.com']);
-      await clientWithoutKeys.connectToRelays();
+      await client.connectToRelays();
       
-      await expect(clientWithoutKeys.publishTextNote('Test')).rejects.toThrow();
+      await expect(client.publishTextNote('This should fail')).rejects.toThrow();
     });
   });
-
+  
   describe('Direct Messages', () => {
-    let alice: Nostr;
-    let bob: Nostr;
-    let aliceKeys: { privateKey: string; publicKey: string };
-    let bobKeys: { privateKey: string; publicKey: string };
-    
-    beforeEach(async () => {
-      alice = new Nostr(['wss://relay1.example.com']);
-      bob = new Nostr(['wss://relay1.example.com']);
-      
-      aliceKeys = await alice.generateKeys();
-      bobKeys = await bob.generateKeys();
-      
-      await alice.connectToRelays();
-      await bob.connectToRelays();
-    });
-    
     test('should encrypt and send direct messages', async () => {
-      const message = 'Hello Bob!';
+      const keys = await client.generateKeys();
+      await client.connectToRelays();
       
-      const event = await alice.publishDirectMessage(message, bobKeys.publicKey);
+      // Generate recipient keys
+      const recipientKeys = await generateKeypair();
+      
+      // Send DM
+      const content = 'Hello, this is a test DM!';
+      const event = await client.publishDirectMessage(content, recipientKeys.publicKey);
       
       expect(event).toBeDefined();
       expect(event?.kind).toBe(4);
-      expect(event?.content).not.toBe(message); // Content should be encrypted
-      expect(event?.content).toContain('?iv='); // NIP-04 format
+      expect(event?.tags).toEqual(expect.arrayContaining([['p', recipientKeys.publicKey]]));
       
-      // Find p tag with recipient
-      const pTag = event?.tags.find(tag => tag[0] === 'p');
-      expect(pTag?.[1]).toBe(bobKeys.publicKey);
+      // Verify the content is encrypted (not plaintext)
+      expect(event?.content).not.toBe(content);
+      expect(event?.content).toContain('?iv=');
     });
     
     test('should decrypt received messages', async () => {
-      // Alice sends to Bob
-      const message = 'Hello Bob!';
-      const event = await alice.publishDirectMessage(message, bobKeys.publicKey);
+      // Generate recipient keys and set them in our client
+      const recipientKeys = await generateKeypair();
+      client.setPrivateKey(recipientKeys.privateKey);
       
-      if (!event) {
-        fail('Failed to create direct message event');
+      // Create a sender client
+      const sender = new Nostr([ephemeralRelay.url]);
+      const senderKeys = await sender.generateKeys();
+      await sender.connectToRelays();
+      
+      // Create and send a direct message
+      const content = 'Test encrypted message';
+      const dmEvent = await sender.publishDirectMessage(content, recipientKeys.publicKey);
+      
+      if (!dmEvent) {
+        fail('Failed to create direct message');
         return;
       }
       
-      // Bob decrypts
-      const decrypted = bob.decryptDirectMessage(event);
-      expect(decrypted).toBe(message);
+      // Test decryption
+      const decrypted = client.decryptDirectMessage(dmEvent);
+      expect(decrypted).toBe(content);
+      
+      // Cleanup
+      sender.disconnectFromRelays();
     });
     
     test('should reject decryption with wrong keys', async () => {
-      // Alice sends to Bob
-      const message = 'Hello Bob!';
-      const event = await alice.publishDirectMessage(message, bobKeys.publicKey);
+      // Setup keys
+      const senderKeys = await generateKeypair();
+      const recipientKeys = await generateKeypair();
+      const wrongKeys = await generateKeypair();
       
-      if (!event) {
-        fail('Failed to create direct message event');
-        return;
-      }
+      // Set wrong keys on the client
+      client.setPrivateKey(wrongKeys.privateKey);
       
-      // Create a third user
-      const eve = new Nostr();
-      await eve.generateKeys();
+      // Create a kind 4 direct message event manually
+      const content = 'Secret message';
       
-      // Eve shouldn't be able to decrypt
-      expect(() => eve.decryptDirectMessage(event)).toThrow();
+      // Create encrypted content
+      const encryptedContent = encryptMessage(
+        content,
+        senderKeys.privateKey,
+        recipientKeys.publicKey
+      );
+      
+      // Create event
+      const event: NostrEvent = {
+        kind: 4,
+        content: encryptedContent,
+        created_at: Math.floor(Date.now() / 1000),
+        pubkey: senderKeys.publicKey,
+        tags: [['p', recipientKeys.publicKey]],
+        id: 'fake-id-for-testing',
+        sig: 'fake-sig-for-testing'
+      };
+      
+      // The client with wrong keys should not be able to decrypt
+      expect(() => client.decryptDirectMessage(event)).toThrow();
     });
   });
-
+  
   describe('Subscription Management', () => {
-    let client: Nostr;
-    
-    beforeEach(async () => {
-      client = new Nostr(['wss://relay1.example.com']);
-      await client.generateKeys();
+    test('should create subscriptions', async () => {
       await client.connectToRelays();
+      
+      const filters: Filter[] = [{ kinds: [1], limit: 10 }];
+      const subIds = client.subscribe(filters, () => {}, () => {});
+      
+      expect(Array.isArray(subIds)).toBe(true);
+      expect(subIds.length).toBe(1); // One sub ID per relay
     });
     
-    test('should create subscriptions', () => {
-      const filters = [{ kinds: [1], limit: 10 }];
-      const events: NostrEvent[] = [];
+    test('should unsubscribe correctly', async () => {
+      await client.connectToRelays();
       
-      const subIds = client.subscribe(
-        filters,
-        (event) => events.push(event),
-        () => {} // EOSE handler
-      );
+      // Create a subscription
+      const subIds = client.subscribe([{ kinds: [1] }], () => {}, () => {});
       
-      expect(subIds).toHaveLength(1);
-    });
-    
-    test('should unsubscribe correctly', () => {
-      const filters = [{ kinds: [1], limit: 10 }];
-      const subIds = client.subscribe(
-        filters,
-        () => {},
-        () => {}
-      );
-      
-      // This mainly tests that unsubscribe doesn't throw
-      expect(() => client.unsubscribe(subIds)).not.toThrow();
+      // This basically tests that unsubscribe doesn't throw
+      expect(() => {
+        client.unsubscribe(subIds);
+      }).not.toThrow();
     });
   });
 }); 

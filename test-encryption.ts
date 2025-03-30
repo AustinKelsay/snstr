@@ -1,6 +1,9 @@
 import { generateKeypair, encryptMessage, decryptMessage, getPublicKey } from './src/utils/crypto';
 
-// Test the encryption/decryption flow directly
+/**
+ * Simple test for NIP-04 encryption/decryption.
+ * Run with: ts-node test-encryption.ts
+ */
 async function testEncryption() {
   console.log('Testing NIP-04 encryption/decryption...');
   

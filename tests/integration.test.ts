@@ -1,20 +1,33 @@
 import { Nostr, NostrEvent, RelayEvent } from '../src';
+import { NostrRelay } from '../src/utils/ephemeral-relay';
 
-// Mark as integration test that can be skipped in CI environments
 describe('Integration Tests', () => {
-  // Set longer timeout for integration tests that connect to real relays
+  // Set longer timeout for integration tests 
   jest.setTimeout(15000);
   
-  // Check if we're in a CI environment where we might want to skip these tests
-  const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === 'true';
-  const testFn = runIntegrationTests ? test : test.skip;
+  // Initialize ephemeral relay before tests
+  let ephemeralRelay: NostrRelay;
+  const TEST_RELAY_PORT = 3333;
   
-  testFn('should perform basic client usage flow', async () => {
-    // Initialize Nostr client with test relays
-    // Use less popular relays for testing to avoid overwhelming main relays
+  beforeAll(async () => {
+    // Start an ephemeral relay for testing
+    ephemeralRelay = new NostrRelay(TEST_RELAY_PORT, 60); // Purge events every 60 seconds
+    await ephemeralRelay.start();
+    console.log(`Ephemeral test relay started on port ${TEST_RELAY_PORT}`);
+  });
+  
+  afterAll(() => {
+    // Clean up the relay after tests
+    if (ephemeralRelay) {
+      ephemeralRelay.close();
+      console.log('Ephemeral test relay shut down');
+    }
+  });
+  
+  test('should perform basic client usage flow', async () => {
+    // Initialize Nostr client with our ephemeral relay
     const client = new Nostr([
-      'wss://relay.damus.io',
-      'wss://relay.nostr.info'
+      ephemeralRelay.url
     ]);
     
     try {
@@ -31,8 +44,8 @@ describe('Integration Tests', () => {
       
       await client.connectToRelays();
       
-      // We should connect to at least one relay
-      expect(connectCount).toBeGreaterThan(0);
+      // We should connect to exactly one relay
+      expect(connectCount).toBe(1);
       
       // Publish a test note with random data to prevent duplicate detection
       const randomId = Math.random().toString(36).substring(7);
@@ -61,14 +74,15 @@ describe('Integration Tests', () => {
       );
       
       // Wait for events to be received
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // We should receive our published event and EOSE
       expect(eoseReceived).toBe(true);
+      expect(receivedEvents.length).toBeGreaterThan(0);
       
-      // We might receive our event, but since Nostr is eventually consistent
-      // and relays might be slow, we won't strictly assert this
-      // The important part is that the code runs without errors
+      // Verify that we got our event back
+      const foundOurEvent = receivedEvents.some(e => e.content === noteContent);
+      expect(foundOurEvent).toBe(true);
       
       // Gracefully disconnect
       client.disconnectFromRelays();
@@ -79,10 +93,10 @@ describe('Integration Tests', () => {
     }
   });
   
-  testFn('should handle direct messages between users', async () => {
+  test('should handle direct messages between users', async () => {
     // Create two clients for Alice and Bob
-    const alice = new Nostr(['wss://relay.damus.io']);
-    const bob = new Nostr(['wss://relay.damus.io']);
+    const alice = new Nostr([ephemeralRelay.url]);
+    const bob = new Nostr([ephemeralRelay.url]);
     
     try {
       // Generate keypairs
@@ -99,39 +113,34 @@ describe('Integration Tests', () => {
       const messageId = Math.random().toString(36).substring(7);
       const messageContent = `Secret test message ${messageId}`;
       
+      // Bob subscribes to messages addressed to him before Alice sends anything
+      const receivedMessages: string[] = [];
+      
+      bob.subscribe(
+        [{ 
+          kinds: [4],
+          '#p': [bobKeys.publicKey]
+        }],
+        (event) => {
+          try {
+            const decrypted = bob.decryptDirectMessage(event);
+            receivedMessages.push(decrypted);
+          } catch (error) {
+            // Ignore decryption errors for events not from Alice
+          }
+        }
+      );
+      
       // Alice sends message to Bob
       const dmEvent = await alice.publishDirectMessage(messageContent, bobKeys.publicKey);
       expect(dmEvent).toBeDefined();
       expect(dmEvent?.kind).toBe(4);
       
-      // If we're running in a real environment, test Bob receiving the message
-      if (process.env.TEST_REALTIME_DM === 'true') {
-        // Bob subscribes to messages addressed to him
-        const receivedMessages: string[] = [];
-        
-        bob.subscribe(
-          [{ 
-            kinds: [4],
-            '#p': [bobKeys.publicKey]
-          }],
-          (event) => {
-            try {
-              const decrypted = bob.decryptDirectMessage(event);
-              receivedMessages.push(decrypted);
-            } catch (error) {
-              // Ignore decryption errors for events not from Alice
-            }
-          }
-        );
-        
-        // Wait for subscription to receive events
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        
-        // Check if our message was received
-        // This might fail in CI environments due to relay latency
-        const messageReceived = receivedMessages.includes(messageContent);
-        console.log(`Direct message received: ${messageReceived}`);
-      }
+      // Wait for subscription to receive events
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check if our message was received
+      expect(receivedMessages).toContain(messageContent);
       
       // Test direct decryption if we have the event
       if (dmEvent) {

@@ -1,4 +1,5 @@
 import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
+import { NostrRelay } from '../src/utils/ephemeral-relay';
 
 /**
  * This example demonstrates NIP-04 encrypted direct messaging between two users.
@@ -13,10 +14,16 @@ import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
  */
 async function main() {
   try {
+    // Start an ephemeral relay on port 3001
+    console.log('Starting ephemeral relay on port 3001...');
+    const ephemeralRelay = new NostrRelay(3001, 60); // Purge every 60 seconds
+    await ephemeralRelay.start();
+    console.log('Ephemeral relay started');
+    
     // Initialize Nostr clients - one for Alice, one for Bob
-    // In a real application, these would be running on different devices
-    const alice = new Nostr(['wss://relay.damus.io', 'wss://relay.nostr.info']);
-    const bob = new Nostr(['wss://relay.damus.io', 'wss://relay.nostr.info']);
+    // Both will connect to our local ephemeral relay
+    const alice = new Nostr([ephemeralRelay.url]);
+    const bob = new Nostr([ephemeralRelay.url]);
 
     // Generate keypairs for both users
     console.log('Generating keypairs...');
@@ -82,9 +89,24 @@ async function main() {
       console.error('Error sending message:', error);
     }
     
-    // Wait for 10 seconds to receive messages
-    console.log('\nWaiting for 10 seconds to receive messages...');
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    // Wait for 5 seconds to receive messages
+    console.log('\nWaiting for 5 seconds to receive messages...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Alice sends a second message
+    console.log('\nAlice sending a second message to Bob...');
+    const secondMessage = "This is another secret message using our local ephemeral relay!";
+    
+    try {
+      const dmEvent2 = await alice.publishDirectMessage(secondMessage, bobKeys.publicKey);
+      console.log(`Alice sent second message with ID: ${dmEvent2?.id}`);
+    } catch (error) {
+      console.error('Error sending second message:', error);
+    }
+    
+    // Wait another 5 seconds
+    console.log('\nWaiting for 5 more seconds...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Gracefully disconnect from relays
     console.log('Disconnecting from relays...');
@@ -94,6 +116,10 @@ async function main() {
     } catch (error) {
       console.error('Error disconnecting:', error);
     }
+    
+    // Shut down the ephemeral relay
+    console.log('Shutting down relay...');
+    ephemeralRelay.close();
     
     console.log('Done!');
   } catch (error) {

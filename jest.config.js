@@ -3,10 +3,8 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testMatch: ['**/*.test.ts'],
-  // Skip integration tests by default unless RUN_INTEGRATION_TESTS=true
-  testPathIgnorePatterns: [
-    process.env.RUN_INTEGRATION_TESTS !== 'true' ? 'integration.test.ts' : ''
-  ],
+  // No need to exclude integration tests since they use the ephemeral relay
+  testPathIgnorePatterns: [],
   // Add reasonable test timeout
   testTimeout: 10000,
   // Display detailed coverage information

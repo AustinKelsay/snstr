@@ -1,6 +1,9 @@
 const { generateKeypair, encryptMessage, decryptMessage, getPublicKey } = require('./src/utils/crypto');
 
-// Test the encryption/decryption flow directly
+/**
+ * Simple test for NIP-04 encryption/decryption.
+ * Run with: node test-encryption.js
+ */
 async function testEncryption() {
   console.log('Testing NIP-04 encryption/decryption...');
   

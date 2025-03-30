@@ -8,12 +8,16 @@
     "build": "tsc",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "test:integration": "RUN_INTEGRATION_TESTS=true jest tests/integration.test.ts",
+    "test:integration": "jest tests/integration.test.ts",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write src/**/*.ts",
     "example": "ts-node examples/basic-usage.ts",
     "example:dm": "ts-node examples/direct-message.ts",
-    "example:crypto": "ts-node examples/crypto-demo.ts"
+    "example:crypto": "ts-node examples/crypto-demo.ts",
+    "example:ephemeral": "VERBOSE=true ts-node examples/basic-usage.ts",
+    "example:ephemeral:dm": "VERBOSE=true ts-node examples/direct-message.ts",
+    "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
+    "test:encryption": "ts-node test-encryption.ts"
   },
   "keywords": [
     "nostr",
@@ -35,6 +39,8 @@
     "@noble/ciphers": "^0.4.1",
     "@noble/curves": "^1.8.1",
     "@noble/hashes": "^1.3.3",
-    "websocket-polyfill": "^0.0.3"
+    "websocket-polyfill": "^0.0.3",
+    "ws": "^8.15.1",
+    "zod": "^3.22.4"
   }
 } 
