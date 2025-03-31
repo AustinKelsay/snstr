@@ -25,11 +25,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 
 ## Installation
 
-> **Note:** This package is not yet published to npm. The installation instructions below will work once the package is published.
-
-```bash
-npm install snstr
-```
+coming soon
 
 ## Basic Usage
 
