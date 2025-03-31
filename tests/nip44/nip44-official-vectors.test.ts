@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const testVectors = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../../nip44/vectors/nip44-official-vectors.json'), 'utf8')
+  fs.readFileSync(path.join(__dirname, '../../src/nip44/vectors/nip44-official-vectors.json'), 'utf8')
 );
 
 // Helper function to get the public key for a given private key

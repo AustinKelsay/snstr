@@ -30,7 +30,7 @@ function getPublicKeyHex(privateKeyHex: string): string {
 describe('NIP-44 Official Compatibility Tests', () => {
   // Test vectors loaded from the official NIP-44 test vectors file
   const testVectors = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '../../nip44/vectors/nip44-official-vectors.json'), 'utf8')
+    fs.readFileSync(path.join(__dirname, '../../src/nip44/vectors/nip44-official-vectors.json'), 'utf8')
   );
   
   describe('Conversation Key Derivation', () => {

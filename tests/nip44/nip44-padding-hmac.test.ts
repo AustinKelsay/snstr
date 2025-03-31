@@ -14,7 +14,7 @@ import {
 
 // Load official test vectors
 const testVectors = JSON.parse(
-  fs.readFileSync(path.join(__dirname, '../../nip44/vectors/nip44-official-vectors.json'), 'utf8')
+  fs.readFileSync(path.join(__dirname, '../../src/nip44/vectors/nip44-official-vectors.json'), 'utf8')
 );
 
 describe('NIP-44 Padding Implementation', () => {

@@ -15,7 +15,7 @@
     "example:dm": "ts-node examples/direct-message.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
-    "example:nip44": "ts-node examples/nip44-demo.ts",
+    "example:nip44": "ts-node examples/nip44/nip44-demo.ts",
     "example:nip19": "ts-node examples/nip19-demo.ts",
     "example:nip19:verbose": "VERBOSE=true ts-node examples/nip19-demo.ts",
     "example:ephemeral": "VERBOSE=true ts-node examples/basic-usage.ts",
