@@ -14,7 +14,18 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Built-in ephemeral relay for testing and development
 - Verify NIP-05 identifiers and discover recommended relays
 
+## Supported NIPs
+
+SNSTR currently implements the following Nostr Implementation Possibilities (NIPs):
+
+- NIP-01: Basic protocol functionality (events, subscriptions, relay connections)
+- NIP-04: Encrypted direct messages using AES-CBC
+- NIP-05: DNS identifier verification and relay discovery
+- NIP-44: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
+
 ## Installation
+
+> **Note:** This package is not yet published to npm. The installation instructions below will work once the package is published.
 
 ```bash
 npm install snstr
