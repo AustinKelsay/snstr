@@ -12,6 +12,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Encrypt and decrypt direct messages (NIP-04 and NIP-44)
 - Create different types of events (notes, metadata, DMs)
 - Built-in ephemeral relay for testing and development
+- Verify NIP-05 identifiers and discover recommended relays
 
 ## Installation
 
@@ -167,6 +168,51 @@ async function main() {
 
 main().catch(console.error);
 ```
+
+## NIP-05 Identity Verification
+
+SNSTR includes a complete implementation of [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md), which allows mapping Nostr public keys to DNS-based identifiers (like username@domain.com).
+
+```typescript
+import { 
+  verifyNIP05, 
+  getPublicKeyFromNIP05,
+  getRelaysFromNIP05 
+} from 'snstr';
+
+async function main() {
+  // Verify if a NIP-05 identifier matches a public key
+  const isValid = await verifyNIP05(
+    'username@example.com',
+    'pubkey_in_hex_format'
+  );
+  
+  console.log(`Verification result: ${isValid ? 'Valid ✅' : 'Invalid ❌'}`);
+  
+  // Find a public key from a NIP-05 identifier
+  const pubkey = await getPublicKeyFromNIP05('username@example.com');
+  if (pubkey) {
+    console.log(`Found public key: ${pubkey}`);
+    
+    // Get recommended relays for this identifier
+    const relays = await getRelaysFromNIP05('username@example.com');
+    if (relays && relays.length > 0) {
+      console.log('Recommended relays:');
+      relays.forEach(relay => console.log(`  - ${relay}`));
+    }
+  }
+}
+
+main().catch(console.error);
+```
+
+### Key Features of NIP-05 Implementation
+
+- **DNS-based Verification**: Links Nostr public keys to human-readable identifiers
+- **Relay Discovery**: Finds recommended relays for users from their NIP-05 identifiers
+- **Root Domain Support**: Properly handles `_@domain.com` format for domain-level identifiers
+- **Error Handling**: Gracefully handles network errors and invalid responses
+- **Well-Known URL**: Follows the standard protocol for `.well-known/nostr.json` discovery
 
 ## Encryption with NIP-44
 

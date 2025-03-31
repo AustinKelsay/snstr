@@ -78,3 +78,11 @@ export {
   Prefix,
   TLVType
 } from './nip19'; 
+
+// Export NIP-05 utilities
+export {
+  verifyNIP05,
+  lookupNIP05,
+  getPublicKeyFromNIP05,
+  getRelaysFromNIP05
+} from './nip05'; 

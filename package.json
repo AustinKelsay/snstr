@@ -18,6 +18,8 @@
     "example:nip44": "ts-node examples/nip44/nip44-demo.ts",
     "example:nip19": "ts-node examples/nip19-demo.ts",
     "example:nip19:verbose": "VERBOSE=true ts-node examples/nip19-demo.ts",
+    "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
+    "example:nip05:verbose": "VERBOSE=true ts-node examples/nip05/nip05-demo.ts",
     "example:ephemeral": "VERBOSE=true ts-node examples/basic-usage.ts",
     "example:ephemeral:dm": "VERBOSE=true ts-node examples/direct-message.ts",
     "example:public": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/basic-usage.ts",
@@ -26,7 +28,8 @@
     "test:encryption": "jest tests/crypto.test.ts -t 'NIP-04'",
     "test:nip04": "jest tests/nip04/encryption.test.ts",
     "test:nip44": "jest tests/nip44",
-    "test:nip19": "jest tests/nip19.test.ts"
+    "test:nip19": "jest tests/nip19.test.ts",
+    "test:nip05": "jest tests/nip05.test.ts"
   },
   "keywords": [
     "nostr",
