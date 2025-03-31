@@ -322,7 +322,7 @@ npm run example:dm
 # Cryptography demo
 npm run example:crypto
 
-# NIP-44 encryption demo
+# NIP-44 encryption demo (runs examples/nip44/nip44-demo.ts)
 npm run example:nip44
 
 # Examples with ephemeral relay and verbose logging
@@ -390,7 +390,7 @@ const decrypted = decryptNIP44(
 );
 ```
 
-For more details on the NIP-44 implementation, see [docs/nip44/README.md](docs/nip44/README.md).
+For more details on the NIP-44 implementation, see [src/nip44/README.md](src/nip44/README.md).
 
 ## License
 
