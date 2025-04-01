@@ -11,8 +11,6 @@ import {
   decodeEvent,
   encodeAddress,
   decodeAddress,
-  encodeRelay,
-  decodeRelay,
   decode
 } from '../src/nip19';
 
@@ -148,25 +146,6 @@ try {
     console.log(`Decoded naddr: ${JSON.stringify(decodedNaddr)}`);
   } catch (error) {
     console.error(`Error decoding naddr: ${error instanceof Error ? error.message : 'unknown error'}`);
-  }
-  
-  // Test deprecated nrelay format (should show warnings but work)
-  console.log("\nDeprecated nrelay format (expect warnings):");
-  const relayData = {
-    url: 'wss://relay.nostr.org'
-  };
-  const nrelay = encodeRelay(relayData);
-  console.log(`Relay data: ${JSON.stringify(relayData)}`);
-  console.log(`Encoded nrelay: ${nrelay}`);
-  
-  try {
-    const decodedNrelay = decodeRelay(nrelay);
-    console.log(`Decoded nrelay: ${JSON.stringify(decodedNrelay)}`);
-    
-    const genericDecoded = decode(nrelay);
-    console.log(`Generic decode of nrelay: ${JSON.stringify(genericDecoded)}`);
-  } catch (error) {
-    console.error(`Error with nrelay: ${error instanceof Error ? error.message : 'unknown error'}`);
   }
   
 } catch (error) {

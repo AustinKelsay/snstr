@@ -8,7 +8,6 @@ export enum Prefix {
   Profile = 'nprofile',
   Event = 'nevent',
   Address = 'naddr',
-  Relay = 'nrelay', // Deprecated in favor of explicit relay references within nprofile/nevent/naddr
 }
 
 // TLV types
@@ -274,13 +273,6 @@ function decodeTLV(data: Uint8Array): TLV[] {
 export interface ProfileData {
   pubkey: string;
   relays?: string[];
-}
-
-/**
- * Interface for Relay data (nrelay) - deprecated but supported for backward compatibility
- */
-export interface RelayData {
-  url: string;
 }
 
 /**
@@ -687,135 +679,50 @@ function bytesToHex(bytes: Uint8Array): string {
 }
 
 /**
- * Encodes relay data to an nrelay (deprecated)
- */
-export function encodeRelay(data: RelayData): string {
-  console.warn('WARNING: nrelay format is deprecated. Use relay references within nprofile, nevent, or naddr instead.');
-  
-  const encoder = new TextEncoder();
-  const urlBytes = encoder.encode(data.url);
-  
-  const entries: TLV[] = [
-    {
-      type: TLVType.Special,
-      value: urlBytes
-    }
-  ];
-  
-  const tlvData = encodeTLV(entries);
-  return encodeBech32WithLimit(Prefix.Relay, bech32.toWords(tlvData));
-}
-
-/**
- * Decodes an nrelay to relay data (deprecated)
- */
-export function decodeRelay(nrelay: string): RelayData {
-  console.warn('WARNING: nrelay format is deprecated. Use relay references within nprofile, nevent, or naddr instead.');
-  
-  try {
-    const { prefix, words } = decodeBech32WithLimit(nrelay);
-    if (prefix !== Prefix.Relay) {
-      throw new Error(`Invalid prefix: expected '${Prefix.Relay}', got '${prefix}'`);
-    }
-
-    const data = bech32.fromWords(words);
-    const entries = decodeTLV(data);
-    
-    let url = '';
-    
-    for (const entry of entries) {
-      if (entry.type === TLVType.Special) {
-        url = new TextDecoder().decode(entry.value);
-        break;
-      }
-    }
-    
-    if (!url) {
-      throw new Error('Missing URL in nrelay');
-    }
-    
-    return { url };
-  } catch (error) {
-    handleDecodingError(error, 'nrelay');
-  }
-}
-
-/**
  * Parses any NIP-19 entity and returns its type and data
  */
 export function decode(bech32Str: string): {
   type: string;
-  data: string | ProfileData | EventData | AddressData | RelayData;
+  data: string | ProfileData | EventData | AddressData;
 } {
-  // First, identify what prefix we're dealing with to know how to handle the string
-  let prefix: string;
   try {
-    // Just peek at the prefix without full decoding
-    const parts = bech32Str.split('1');
-    if (parts.length < 2) {
-      throw new Error('Invalid bech32 format: missing separator character');
-    }
+    const { prefix, words } = decodeBech32WithLimit(bech32Str);
     
-    prefix = parts[0].toLowerCase();
-    
-    // Quick validation to catch obvious format errors
-    if (!prefix || prefix.length === 0) {
-      throw new Error('Invalid bech32 format: empty prefix');
-    }
-    
-    if (!/^[a-z]+$/.test(prefix)) {
-      throw new Error(`Invalid bech32 format: prefix "${prefix}" contains invalid characters (only a-z allowed)`);
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error) || 'unknown error';
-    throw new Error(`Invalid bech32 string format: ${errorMessage}`);
-  }
-
-  // Now handle each prefix type appropriately
-  try {
     switch (prefix) {
       case Prefix.PublicKey:
         return {
           type: 'npub',
-          data: decodePublicKey(bech32Str),
+          data: bytesToHex(bech32.fromWords(words))
         };
       case Prefix.PrivateKey:
         return {
           type: 'nsec',
-          data: decodePrivateKey(bech32Str),
+          data: bytesToHex(bech32.fromWords(words))
         };
       case Prefix.Note:
         return {
           type: 'note',
-          data: decodeNoteId(bech32Str),
+          data: bytesToHex(bech32.fromWords(words))
         };
       case Prefix.Profile:
         return {
           type: 'nprofile',
-          data: decodeProfile(bech32Str),
+          data: decodeProfile(bech32Str)
         };
       case Prefix.Event:
         return {
           type: 'nevent',
-          data: decodeEvent(bech32Str),
+          data: decodeEvent(bech32Str)
         };
       case Prefix.Address:
         return {
           type: 'naddr',
-          data: decodeAddress(bech32Str),
-        };
-      case Prefix.Relay:
-        console.warn('WARNING: nrelay format is deprecated. Use relay references within nprofile, nevent, or naddr instead.');
-        return {
-          type: 'nrelay',
-          data: decodeRelay(bech32Str),
+          data: decodeAddress(bech32Str)
         };
       default:
-        throw new Error(`Unknown prefix: "${prefix}" - valid prefixes are: ${Object.values(Prefix).join(', ')}`);
+        throw new Error(`Unknown prefix: ${prefix}`);
     }
   } catch (error) {
-    // For the general decoder, we want to include the original error with context
-    const errorMessage = error instanceof Error ? error.message : String(error) || 'Unknown error';
-    throw new Error(`Failed to decode bech32 string with prefix "${prefix}": ${errorMessage}`);
+    handleDecodingError(error, 'bech32 string');
   }
 } 
