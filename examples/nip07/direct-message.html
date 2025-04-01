@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nostr NIP-07 Direct Messages</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    input, textarea {
+      width: 100%;
+      margin: 10px 0;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 100px;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #1d9bf0;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    .message {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .message.sent {
+      background-color: #e6f7ff;
+      border-color: #91d5ff;
+    }
+    .message.received {
+      background-color: #f6ffed;
+      border-color: #b7eb8f;
+    }
+    .message.error {
+      background-color: #fff2f0;
+      border-color: #ffccc7;
+    }
+    #status {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Nostr NIP-07 Direct Messages</h1>
+  <div id="status">Checking for NIP-07 extension...</div>
+  
+  <h2>1. Connect to Relays</h2>
+  <input id="relay-input" placeholder="Enter relay URLs (comma separated, e.g. wss://relay.damus.io,wss://nos.lol)" 
+         value="wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band">
+  <button id="connect-button">Connect</button>
+  
+  <h2>2. Send a Direct Message</h2>
+  <input id="recipient-input" placeholder="Recipient's public key (hex)" />
+  <textarea id="message-input" placeholder="Type your message here..."></textarea>
+  <button id="send-button">Send Message</button>
+  
+  <h2>3. Conversation</h2>
+  <div id="messages"></div>
+  
+  <script src="direct-message-bundle.js"></script>
+</body>
+</html> 

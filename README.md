@@ -22,6 +22,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - NIP-04: Encrypted direct messages using AES-CBC
 - NIP-05: DNS identifier verification and relay discovery
 - NIP-44: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
+- NIP-07: Browser extension integration for key management and signing
 
 ## Installation
 
@@ -268,6 +269,59 @@ main().catch(console.error);
 - **Constant-Time Operations**: Prevents timing attacks during cryptographic operations
 - **Comprehensive Validation**: Thorough input validation and error handling
 - **Test Vectors**: Validated against official NIP-44 test vectors
+
+## Browser Extensions (NIP-07)
+
+SNSTR includes a complete implementation of [NIP-07](https://github.com/nostr-protocol/nips/blob/master/07.md), which allows web applications to interact with browser extensions that manage Nostr keys and signing.
+
+```typescript
+import { 
+  Nip07Nostr, 
+  hasNip07Support, 
+  getNip07PublicKey 
+} from 'snstr';
+
+async function main() {
+  // Check if a NIP-07 extension is available
+  if (!hasNip07Support()) {
+    console.error('NIP-07 extension not available');
+    return;
+  }
+  
+  // Get the public key from the extension
+  const publicKey = await getNip07PublicKey();
+  console.log(`Using public key: ${publicKey}`);
+  
+  // Create a client that uses the extension for signing
+  const client = new Nip07Nostr([
+    'wss://relay.damus.io',
+    'wss://relay.nostr.band'
+  ]);
+  
+  await client.connectToRelays();
+  
+  // Initialize with the extension's public key
+  await client.initializeWithNip07();
+  
+  // Publish a note (will be signed by the extension)
+  const note = await client.publishTextNote('Hello from SNSTR using NIP-07!');
+  console.log(`Published note with ID: ${note?.id}`);
+  
+  // No need to handle private keys - they never leave the extension!
+}
+
+main().catch(console.error);
+```
+
+### Key Features of NIP-07 Implementation
+
+- **Browser Extension Integration**: Connect to extensions like nos2x, Alby, or noStrudel
+- **Security**: Private keys never leave the browser extension
+- **Signing**: Events are signed by the extension, not your application
+- **Encryption**: Supports both NIP-04 and NIP-44 encryption through the extension
+- **Transparent API**: Same API as regular SNSTR client, but uses extension for cryptographic operations
+- **Fallbacks**: Gracefully falls back between encryption methods if needed
+- **Error Handling**: Clear error messages when extension functionality is unavailable
 
 ## Using Public Relays vs Ephemeral Relay
 

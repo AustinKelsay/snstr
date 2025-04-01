@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SNSTR NIP-07 Example</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    textarea, input {
+      width: 100%;
+      margin: 10px 0;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    textarea {
+      height: 100px;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #1d9bf0;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    .note {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    #status {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+    }
+    .button-row {
+      display: flex;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Nostr NIP-07 Example</h1>
+  <div id="status">Checking for NIP-07 extension...</div>
+  
+  <h2>1. Connect to Relays</h2>
+  <input id="relay-input" placeholder="Enter relay URLs (comma separated, e.g. wss://relay.damus.io,wss://nos.lol)" 
+         value="wss://relay.damus.io,wss://nos.lol,wss://relay.nostr.band">
+  <button id="connect-button">Connect</button>
+  
+  <h2>2. Publish a Note</h2>
+  <textarea id="note-input" placeholder="Type your note content here..."></textarea>
+  <button id="publish-button">Publish Note</button>
+  
+  <h2>3. Your Notes</h2>
+  <div id="notes"></div>
+  
+  <script src="browser-bundle.js"></script>
+</body>
+</html> 

@@ -76,3 +76,17 @@ export {
   getPublicKeyFromNIP05,
   getRelaysFromNIP05
 } from './nip05'; 
+
+// Export NIP-07 utilities
+export {
+  hasNip07Support,
+  getPublicKey as getNip07PublicKey,
+  signEvent as signEventWithNip07,
+  encryptNip04 as encryptNip04WithExtension,
+  decryptNip04 as decryptNip04WithExtension,
+  encryptNip44 as encryptNip44WithExtension,
+  decryptNip44 as decryptNip44WithExtension
+} from './nip07';
+
+// Export NIP-07 adapter
+export { Nip07Nostr } from './nip07/adapter'; 
