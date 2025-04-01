@@ -22,11 +22,6 @@ export {
   getSharedSecret as getNIP04SharedSecret
 } from './nip04';
 
-// For backward compatibility
-import { encrypt, decrypt } from './nip04';
-export const encryptMessage = encrypt;
-export const decryptMessage = decrypt;
-
 // Export NIP-44 utilities
 export { 
   encrypt as encryptNIP44, 
@@ -68,11 +63,6 @@ export {
   encodeAddress,
   decodeAddress,
   AddressData,
-  
-  // Relay (nrelay) - deprecated
-  encodeRelay,
-  decodeRelay,
-  RelayData,
   
   // Enums
   Prefix,
