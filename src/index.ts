@@ -89,4 +89,18 @@ export {
 } from './nip07';
 
 // Export NIP-07 adapter
-export { Nip07Nostr } from './nip07/adapter'; 
+export { Nip07Nostr } from './nip07/adapter';
+
+// Export NIP-46 utilities
+export { 
+  SimpleNIP46Client,
+  SimpleNIP46Bunker,
+  NostrRemoteSignerClient,
+  NostrRemoteSignerBunker, 
+  NIP46Method,
+  NIP46Request, 
+  NIP46Response, 
+  NIP46ClientOptions,
+  NIP46BunkerOptions,
+  NIP46Metadata
+} from './nip46/index'; 

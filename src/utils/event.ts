@@ -1,6 +1,46 @@
 import { EventTemplate, NostrEvent } from '../types/nostr';
-import { getEventHash, signEvent, getPublicKey } from './crypto';
+import { getPublicKey } from './crypto';
 import { encrypt as encryptNIP04 } from '../nip04';
+import { createHash } from 'crypto';
+import { schnorr } from '@noble/curves/secp256k1';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils';
+import { sha256Hex } from './crypto';
+import { signEvent as signEventCrypto } from './crypto';
+
+async function sha256Hash(data: string): Promise<string> {
+  return createHash('sha256').update(data).digest('hex');
+}
+
+export type UnsignedEvent = Omit<NostrEvent, 'id' | 'sig'>;
+
+export async function getEventHash(event: UnsignedEvent | NostrEvent): Promise<string> {
+  const serialized = JSON.stringify([
+    0,
+    event.pubkey,
+    event.created_at,
+    event.kind,
+    event.tags,
+    event.content
+  ]);
+
+  return sha256Hex(serialized);
+}
+
+async function signEvent(
+  event: Omit<NostrEvent, 'sig'>,
+  privateKey: string
+): Promise<NostrEvent> {
+  const signatureBytes = await schnorr.sign(
+    hexToBytes(event.id),
+    hexToBytes(privateKey)
+  );
+  const signature = bytesToHex(signatureBytes);
+
+  return {
+    ...event,
+    sig: signature
+  };
+}
 
 /**
  * Create an unsigned event from a template
@@ -22,28 +62,29 @@ export function createEvent(
  * Create and sign an event
  */
 export async function createSignedEvent(
-  template: EventTemplate,
-  privateKey: string,
-  pubkey?: string
+  event: UnsignedEvent,
+  privateKey: string
 ): Promise<NostrEvent> {
-  // Get the public key from the private key if not provided
-  const _pubkey = pubkey || getPublicKey(privateKey);
-  const unsignedEvent = createEvent(template, _pubkey);
-  const idEvent = {
-    ...unsignedEvent,
-    id: getEventHash(unsignedEvent),
+  const id = await getEventHash(event);
+  const sig = await signEventCrypto(id, privateKey);
+
+  return {
+    ...event,
+    id,
+    sig
   };
-  return await signEvent(idEvent, privateKey);
 }
 
 /**
  * Create a text note event (kind 1)
  */
-export function createTextNote(content: string, tags: string[][] = []): EventTemplate {
+export function createTextNote(content: string, tags: string[][] = []): UnsignedEvent {
   return {
+    pubkey: '',
+    created_at: Math.floor(Date.now() / 1000),
     kind: 1,
-    content,
     tags,
+    content
   };
 }
 
@@ -54,16 +95,18 @@ export function createTextNote(content: string, tags: string[][] = []): EventTem
 export function createDirectMessage(
   content: string,
   recipientPubkey: string,
-  senderPrivateKey: string,
+  privateKey: string,
   tags: string[][] = []
-): EventTemplate {
+): UnsignedEvent {
   // Encrypt the content using NIP-04
-  const encryptedContent = encryptNIP04(content, senderPrivateKey, recipientPubkey);
-  
+  const encryptedContent = encryptNIP04(content, privateKey, recipientPubkey);
+
   return {
+    pubkey: '',
+    created_at: Math.floor(Date.now() / 1000),
     kind: 4,
-    content: encryptedContent,
     tags: [['p', recipientPubkey], ...tags],
+    content: encryptedContent
   };
 }
 
@@ -71,11 +114,14 @@ export function createDirectMessage(
  * Create a metadata event (kind 0)
  */
 export function createMetadataEvent(
-  metadata: Record<string, any>
-): EventTemplate {
+  metadata: Record<string, any>,
+  privateKey: string
+): UnsignedEvent {
   return {
+    pubkey: '',
+    created_at: Math.floor(Date.now() / 1000),
     kind: 0,
-    content: JSON.stringify(metadata),
     tags: [],
+    content: JSON.stringify(metadata)
   };
 } 

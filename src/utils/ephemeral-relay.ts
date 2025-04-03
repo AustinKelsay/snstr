@@ -147,7 +147,66 @@ export class NostrRelay {
   }
 
   close() {
-    this.wss.close()
+    return new Promise<void>(async (resolve) => {
+      // Close all existing client connections
+      if (this._wss) {
+        // Close all client connections first
+        if (this._wss.clients && this._wss.clients.size > 0) {
+          DEBUG && console.log(`[ relay ] closing ${this._wss.clients.size} active connections`);
+          const closePromises: Promise<void>[] = [];
+          
+          this._wss.clients.forEach(client => {
+            closePromises.push(new Promise<void>((resolveClient) => {
+              try {
+                // Send close frame and terminate
+                client.close(1000, 'Server shutting down');
+                
+                // Add backup termination after a short timeout
+                setTimeout(() => {
+                  if (client.readyState !== WebSocket.CLOSED) {
+                    try {
+                      client.terminate();
+                    } catch (e) {
+                      // Ignore errors during termination
+                    }
+                  }
+                  resolveClient();
+                }, 200);
+              } catch (e) {
+                // Ignore errors during client termination
+                resolveClient();
+              }
+            }));
+          });
+          
+          // Wait for all clients to terminate with a timeout
+          await Promise.race([
+            Promise.all(closePromises),
+            new Promise(r => setTimeout(r, 1000)) // Fallback timeout
+          ]);
+        }
+        
+        // Close the server and resolve when closed
+        this._wss.close(() => {
+          this._wss = null;
+          
+          // Clear subscriptions and cache
+          this._subs.clear();
+          this._cache = [];
+          
+          DEBUG && console.log('[ relay ] closed and cleaned up');
+          
+          // Ensure we release all event listeners
+          this._emitter.removeAllListeners();
+          
+          // Add a small delay to ensure all resources are properly released
+          setTimeout(resolve, 300);
+        });
+      } else {
+        // If server was never created, resolve immediately
+        resolve();
+      }
+    });
   }
 
   store(event: SignedEvent) {
@@ -198,29 +257,61 @@ class ClientSession {
   }
 
   _handler(message: string) {
-    let verb: string, payload: any
-
+    let parsed: any[]
     try {
-      [verb, ...payload] = JSON.parse(message)
-      assert(typeof verb === 'string')
-
-      switch (verb) {
-        case 'REQ':
-          const [id, ...filters] = sub_schema.parse(payload)
-          return this._onreq(id, filters)
-        case 'EVENT':
-          const event = event_schema.parse(payload.at(0))
-          return this._onevent(event)
-        case 'CLOSE':
-          const subid = str.parse(payload.at(0))
-          return this._onclose(subid)
-        default:
-          this.log.info('unable to handle message type:', verb)
-          this.send(['NOTICE', '', 'Unable to handle message'])
-      }
+      parsed = JSON.parse(message)
+      DEBUG && console.log(`[ ${this._sid} ]`, 'received:', parsed)
     } catch (e) {
-      this.log.debug('failed to parse message:\n\n', message)
-      return this.send(['NOTICE', '', 'Unable to parse message'])
+      DEBUG && console.log(`[ ${this._sid} ]`, 'message is not JSON:', message)
+      return this.socket.send(JSON.stringify(['NOTICE', 'invalid: message is not JSON']))
+    }
+
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      DEBUG && console.log(`[ ${this._sid} ]`, 'message is not an array:', parsed)
+      return this.socket.send(JSON.stringify(['NOTICE', 'invalid: message is not an array']))
+    }
+
+    switch (parsed[0]) {
+      case 'EVENT': {
+        if (parsed.length !== 2) {
+          DEBUG && console.log(`[ ${this._sid} ]`, 'EVENT message missing params:', parsed)
+          return this.socket.send(JSON.stringify(['NOTICE', 'invalid: EVENT message missing params']))
+        }
+        this._onevent(parsed[1])
+        return
+      }
+
+      case 'REQ': {
+        if (parsed.length < 2) {
+          DEBUG && console.log(`[ ${this._sid} ]`, 'REQ message missing params:', parsed)
+          return this.socket.send(JSON.stringify(['NOTICE', 'invalid: REQ message missing params']))
+        }
+        const sub_id = parsed[1]
+        const filters = parsed.slice(2)
+        this._onreq(sub_id, filters)
+        return
+      }
+
+      case 'CLOSE': {
+        if (parsed.length !== 2) {
+          DEBUG && console.log(`[ ${this._sid} ]`, 'CLOSE message missing params:', parsed)
+          return this.socket.send(JSON.stringify(['NOTICE', 'invalid: CLOSE message missing params']))
+        }
+        const sub_id = parsed[1]
+        this._onclose(sub_id)
+        return
+      }
+
+      // For NIP-46 we don't need to validate the structure, just broadcast the event
+      default: {
+        // Broadcast the event to all clients so NIP-46 can work
+        this.relay.wss.clients.forEach(client => {
+          if (client !== this.socket && client.readyState === WebSocket.OPEN) {
+            client.send(message);
+          }
+        });
+        return
+      }
     }
   }
 
@@ -233,26 +324,79 @@ class ClientSession {
     this.log.info('socket encountered an error:\n\n', err)
   }
 
-  _onevent(event: SignedEvent) {
-    this.log.client('received event id:', event.id)
-    this.log.debug('event:', event)
-
-    if (!verify_event(event)) {
-      this.log.debug('event failed validation:', event)
-      this.send(['OK', event.id, false, 'event failed validation'])
-      return
-    }
-
-    this.send(['OK', event.id, true, ''])
-    this.relay.store(event)
-
-    for (const { filters, instance, sub_id } of this.relay.subs.values()) {
-      for (const filter of filters) {
-        if (match_filter(event, filter)) {
-          instance.log.client(`event matched subscription: ${sub_id}`)
-          instance.send(['EVENT', sub_id, event])
+  _onevent(event: SignedEvent | any) {
+    try {
+      // For NIP-46 events (kind 24133), skip validation and just store/broadcast
+      if (event.kind === 24133) {
+        this.relay.store(event);
+        
+        // Find subscriptions that match this event and notify them
+        for (const [uid, sub] of this.relay.subs.entries()) {
+          const subFilters = sub.filters;
+          
+          // Check if the subscription is interested in this event
+          for (const filter of subFilters) {
+            if (filter.kinds?.includes(24133)) {
+              // If subscription has a #p filter, make sure the event has that p tag
+              const pFilters = Object.entries(filter)
+                .filter(([key]) => key === '#p')
+                .map(([_, value]) => value as string[])
+                .flat();
+              
+              if (pFilters.length > 0) {
+                // Only send if the event has a matching p tag
+                const eventPTags = event.tags
+                  .filter((tag: string[]) => tag[0] === 'p')
+                  .map((tag: string[]) => tag[1]);
+                
+                if (!pFilters.some(p => eventPTags.includes(p))) {
+                  continue;
+                }
+              }
+              
+              // Send the event to this subscription
+              const [clientId, subId] = uid.split('/');
+              if (clientId === this.sid) {
+                this.send(['EVENT', subId, event]);
+              } else {
+                // Find the client session and send
+                Array.from(this.relay.wss.clients)
+                  .forEach(client => {
+                    client.send(JSON.stringify(['EVENT', subId, event]));
+                  });
+              }
+              
+              DEBUG && this.log.debug(`Sent event to subscription ${uid}`);
+              break;
+            }
+          }
         }
+        
+        // Send OK message
+        this.socket.send(JSON.stringify(['OK', event.id, true, '']));
+        return;
       }
+
+      // For regular events, validate as usual
+      if (!verify_event(event)) {
+        this.log.client('event has invalid signature')
+        return
+      }
+
+      VERBOSE && this.log.raw('received event:', event)
+
+      // Do we already have this event?
+      if (this.relay.cache.some(e => e.id === event.id)) {
+        this.log.client('event already in cache')
+        this.send(['OK', event.id, false, 'duplicate'])
+        return
+      }
+
+      // Store and broadcast event
+      this.relay.store(event)
+      this.send(['OK', event.id, true, ''])
+    } catch (error) {
+      console.error('Failed to process event:', error);
     }
   }
 
@@ -260,33 +404,39 @@ class ClientSession {
     sub_id: string,
     filters: EventFilter[]
   ): void {
-    this.log.client('received subscription request:', sub_id)
-    this.log.debug('filters:', filters)
-    // Add the subscription to our set.
-    this.addSub(sub_id, filters)
-    // For each filter:
-    for (const filter of filters) {
-      // Set the limit count, if any.
-      let limit_count = filter.limit
-      // For each event in the cache:
-      for (const event of this.relay.cache) {
-        // If there is no limit, or we are above the limit:
-        if (limit_count === undefined || limit_count > 0) {
-          // If the event matches the current filter:
-          if (match_filter(event, filter)) {
-            // Send the event to the client.
-            this.send(['EVENT', sub_id, event])
-            this.log.client(`event matched in cache: ${event.id}`)
-            this.log.client(`event matched subscription: ${sub_id}`)
-          }
-          // Update the limit count.
-          if (limit_count !== undefined) limit_count -= 1
+    if (filters.length === 0) {
+      this.log.client('request has no filters')
+      return
+    }
+
+    // Add subscription
+    this.addSub(sub_id, ...filters)
+
+    // Send all matching events from the cache
+    let count = 0
+    for (const event of this.relay.cache) {
+      for (const filter of filters) {
+        if (match_filter(event, filter)) {
+          count += 1
+          this.send(['EVENT', sub_id, event])
         }
       }
     }
-    // Send an end of subscription event.
-    this.log.debug('sending EOSE for subscription:', sub_id)
-    this.send(['EOSE', sub_id])
+
+    // Handle NIP-46 subscriptions (kind 24133)
+    const has24133Filter = filters.some(f => f.kinds?.includes(24133));
+    if (has24133Filter) {
+      // Send NIP-46 specific message to confirm subscription
+      this.send(['EOSE', sub_id]);
+      return;
+    }
+
+    DEBUG && this.log.debug(`sent ${count} matching events from cache`)
+
+    // Signal end of stored events
+    if (count === 0 || filters.some(f => f.limit && f.limit !== 0)) {
+      this.send(['EOSE', sub_id])
+    }
   }
 
   get log() {
@@ -294,6 +444,7 @@ class ClientSession {
       client: (...msg: any[]) => VERBOSE && console.log(`[ client ][ ${this._sid} ]`, ...msg),
       debug: (...msg: any[]) => DEBUG && console.log(`[ debug  ][ ${this._sid} ]`, ...msg),
       info: (...msg: any[]) => VERBOSE && console.log(`[ info   ][ ${this._sid} ]`, ...msg),
+      raw: (...msg: any[]) => VERBOSE && console.log(`[ raw    ][ ${this._sid} ]`, ...msg),
     }
   }
 
@@ -312,7 +463,14 @@ class ClientSession {
   }
 
   send(message: any[]) {
-    this._socket.send(JSON.stringify(message))
+    try {
+      const json = JSON.stringify(message)
+      DEBUG && this.log.debug('sending:', message)
+      this.socket.send(json)
+    } catch (error) {
+      console.error(`Failed to send message to client ${this._sid}:`, error)
+    }
+    return this
   }
 }
 

@@ -1,9 +1,10 @@
 import {
+  getPublicKey,
   generateKeypair,
   encryptNIP44,
   decryptNIP44,
   getNIP44SharedSecret,
-} from '../../src';
+} from '../../../src';
 
 async function main() {
   console.log('🔒 NIP-44 Encryption Demo');

@@ -8,6 +8,17 @@ export interface NostrEvent {
   sig: string;
 }
 
+export type NostrFilter = {
+  ids?: string[];
+  authors?: string[];
+  kinds?: number[];
+  '#e'?: string[];
+  '#p'?: string[];
+  since?: number;
+  until?: number;
+  limit?: number;
+};
+
 export interface EventTemplate {
   kind: number;
   content: string;

@@ -56,9 +56,15 @@ export class Nostr {
     return this.publicKey;
   }
 
-  public async publishEvent(event: NostrEvent): Promise<void> {
-    const publishPromises = Array.from(this.relays.values()).map((relay) => relay.publish(event));
-    await Promise.all(publishPromises);
+  public async publishEvent(event: NostrEvent): Promise<NostrEvent | null> {
+    try {
+      const publishPromises = Array.from(this.relays.values()).map((relay) => relay.publish(event));
+      await Promise.all(publishPromises);
+      return event;
+    } catch (error) {
+      console.error('Failed to publish event:', error);
+      return null;
+    }
   }
 
   public async publishTextNote(content: string, tags: string[][] = []): Promise<NostrEvent | null> {
@@ -67,7 +73,8 @@ export class Nostr {
     }
 
     const noteTemplate = createTextNote(content, tags);
-    const signedEvent = await createSignedEvent(noteTemplate, this.privateKey, this.publicKey);
+    noteTemplate.pubkey = this.publicKey;
+    const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
     
     await this.publishEvent(signedEvent);
     return signedEvent;
@@ -83,7 +90,8 @@ export class Nostr {
     }
 
     const dmTemplate = createDirectMessage(content, recipientPubkey, this.privateKey, tags);
-    const signedEvent = await createSignedEvent(dmTemplate, this.privateKey, this.publicKey);
+    dmTemplate.pubkey = this.publicKey;
+    const signedEvent = await createSignedEvent(dmTemplate, this.privateKey);
     
     await this.publishEvent(signedEvent);
     return signedEvent;
@@ -137,8 +145,8 @@ export class Nostr {
       throw new Error('Private key is not set');
     }
 
-    const metadataTemplate = createMetadataEvent(metadata);
-    const signedEvent = await createSignedEvent(metadataTemplate, this.privateKey, this.publicKey);
+    const metadataTemplate = createMetadataEvent(metadata, this.privateKey);
+    const signedEvent = await createSignedEvent(metadataTemplate, this.privateKey);
     
     await this.publishEvent(signedEvent);
     return signedEvent;
@@ -166,6 +174,14 @@ export class Nostr {
   public unsubscribe(subscriptionIds: string[]): void {
     this.relays.forEach((relay) => {
       subscriptionIds.forEach((id) => relay.unsubscribe(id));
+    });
+  }
+
+  public unsubscribeAll(): void {
+    // Clear all subscriptions on all relays
+    this.relays.forEach((relay) => {
+      // The Relay class handles clearing its internal subscription map
+      relay.disconnect();
     });
   }
 

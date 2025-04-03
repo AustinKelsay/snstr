@@ -5,14 +5,20 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 
 ## Features
 
-- Connect to multiple Nostr relays
-- Generate and manage keypairs
-- Publish and subscribe to events
-- Create and verify signed events
-- Encrypt and decrypt direct messages (NIP-04 and NIP-44)
-- Create different types of events (notes, metadata, DMs)
-- Built-in ephemeral relay for testing and development
-- Verify NIP-05 identifiers and discover recommended relays
+### Core Functionality
+- Event creation and signing
+- Message encryption/decryption (NIP-04 and NIP-44)
+- Relay connections with automatic reconnect
+- Filter-based subscriptions
+
+### Advanced Features
+- NIP-01: Basic protocol
+- NIP-04: Encrypted Direct Messages
+- NIP-05: Mapping Nostr keys to DNS-based internet identifiers
+- NIP-07: Web browser extension
+- NIP-19: bech32-encoded entities
+- NIP-44: Versioned Encryption
+- NIP-46: Remote Signing Protocol (Nostr Connect)
 
 ## Supported NIPs
 
@@ -23,6 +29,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - NIP-05: DNS identifier verification and relay discovery
 - NIP-44: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
 - NIP-07: Browser extension integration for key management and signing
+- NIP-46: Remote signing (bunker) support for secure key management
 
 ## Installation
 
@@ -498,6 +505,88 @@ const decrypted = decryptNIP44(
 ```
 
 For more details on the NIP-44 implementation, see [src/nip44/README.md](src/nip44/README.md).
+
+## Remote Signing with NIP-46
+
+SNSTR includes a complete implementation of [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md), which enables secure remote signing through a "bunker" that holds your private keys.
+
+### Client Example
+
+```typescript
+import { NostrRemoteSignerClient } from 'snstr';
+
+async function main() {
+  // Create a client with connection options
+  const client = new NostrRemoteSignerClient({
+    relays: ['wss://relay.example.com'],
+    permissions: ['sign_event:1', 'sign_event:4'], // Request specific event kind permissions
+    name: 'My Nostr App',
+    url: 'https://myapp.example.com'
+  });
+
+  // Connect to a remote signer using its public key
+  await client.connect('bunker_pubkey_here');
+
+  // Get the user's public key from the bunker
+  const userPubkey = await client.getPublicKey();
+  console.log('User public key:', userPubkey);
+
+  // Sign an event remotely
+  const signedEvent = await client.signEvent({
+    kind: 1,
+    content: 'Hello from a remote signer!',
+    created_at: Math.floor(Date.now() / 1000),
+    tags: []
+  });
+
+  console.log('Signed event:', signedEvent);
+}
+
+main().catch(console.error);
+```
+
+### Bunker Example
+
+```typescript
+import { NostrRemoteSignerBunker } from 'snstr';
+
+async function main() {
+  // Create a bunker instance
+  const bunker = new NostrRemoteSignerBunker({
+    relays: ['wss://relay.example.com'],
+    userPubkey: 'user_pubkey_here',
+    secret: 'optional_secret_for_auth' // Optional
+  });
+
+  // Set the user's private key (this never leaves the bunker)
+  bunker.setUserPrivateKey('user_private_key_here');
+
+  // Start the bunker
+  await bunker.start();
+
+  // Get the connection string to share with clients
+  const connectionString = bunker.getConnectionString();
+  console.log('Share this with clients:', connectionString);
+  // Example output: bunker://signer_pubkey?relay=wss%3A%2F%2Frelay.example.com&secret=optional_secret
+
+  // The bunker will now automatically handle signing requests from authorized clients
+}
+
+main().catch(console.error);
+```
+
+### Key Features of NIP-46 Implementation
+
+- **Secure Key Management**: Private keys never leave the bunker
+- **Permission System**: Fine-grained control over what events clients can sign
+- **Connection Secrets**: Optional authentication for client connections
+- **NIP-44 Encryption**: All communication between client and bunker is encrypted
+- **Multiple Relay Support**: Connect through multiple relays for redundancy
+- **Automatic Response Handling**: Asynchronous request/response handling
+- **Connection String Generation**: Easy sharing of bunker connection details
+- **Metadata Support**: Clients can provide app name, URL, and icon
+- **Timeout Handling**: Automatic cleanup of stale requests
+- **Error Handling**: Comprehensive error handling and validation
 
 ## License
 

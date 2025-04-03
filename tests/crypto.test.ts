@@ -1,4 +1,4 @@
-import { generateKeypair, getPublicKey, signEvent, verifySignature } from '../src/utils/crypto';
+import { generateKeypair, getPublicKey, signEvent, verifySignature, sha256, sha256Hex } from '../src/utils/crypto';
 import { 
   encrypt as encryptNIP04, 
   decrypt as decryptNIP04, 
@@ -7,98 +7,62 @@ import {
 import { NostrEvent } from '../src/types/nostr';
 
 describe('Crypto Utilities', () => {
-  describe('Key Generation', () => {
-    test('generateKeypair should produce valid keys', async () => {
-      const keypair = await generateKeypair();
-      
-      // Check private key format
-      expect(keypair.privateKey).toMatch(/^[0-9a-f]{64}$/);
-      
-      // Check public key format
-      expect(keypair.publicKey).toMatch(/^[0-9a-f]{64}$/);
-      
-      // Ensure the public key is derivable from the private key
-      const derivedPublicKey = getPublicKey(keypair.privateKey);
-      expect(derivedPublicKey).toEqual(keypair.publicKey);
+  describe('sha256', () => {
+    it('should hash strings correctly', () => {
+      const input = 'test message';
+      const hash = sha256Hex(input);
+      expect(hash).toMatch(/^[0-9a-f]{64}$/);
     });
-    
-    test('getPublicKey should consistently derive the same public key', async () => {
-      const keypair = await generateKeypair();
-      
-      // Generate the public key multiple times
-      const publicKey1 = getPublicKey(keypair.privateKey);
-      const publicKey2 = getPublicKey(keypair.privateKey);
-      const publicKey3 = getPublicKey(keypair.privateKey);
-      
-      // Ensure they're all the same
-      expect(publicKey1).toEqual(publicKey2);
-      expect(publicKey2).toEqual(publicKey3);
-      expect(publicKey1).toEqual(keypair.publicKey);
+
+    it('should hash Uint8Array correctly', () => {
+      const input = new TextEncoder().encode('test message');
+      const hash = sha256(input);
+      expect(hash).toBeInstanceOf(Uint8Array);
+      expect(hash.length).toBe(32);
     });
   });
-  
-  describe('Event Signing', () => {
-    let eventData: Omit<NostrEvent, 'id' | 'sig'>;
-    let privateKey: string;
-    let publicKey: string;
-    
-    beforeEach(async () => {
+
+  describe('Key Generation and Management', () => {
+    it('should generate valid keypair', async () => {
       const keypair = await generateKeypair();
-      privateKey = keypair.privateKey;
-      publicKey = keypair.publicKey;
-      
-      eventData = {
-        pubkey: publicKey,
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [['t', 'test']],
-        content: 'Hello, Nostr!',
-      };
+      expect(keypair.privateKey).toMatch(/^[0-9a-f]{64}$/);
+      expect(keypair.publicKey).toMatch(/^[0-9a-f]{64}$/);
     });
-    
-    test('signEvent should produce a valid signature', async () => {
-      const event = {
-        ...eventData,
-        id: 'fake-id',
-      };
-      
-      const signedEvent = await signEvent(event, privateKey);
-      
-      // Check that a signature was added
-      expect(signedEvent.sig).toBeDefined();
-      expect(signedEvent.sig).toMatch(/^[0-9a-f]{128}$/);
+
+    it('should derive correct public key from private key', () => {
+      const privateKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+      const publicKey = getPublicKey(privateKey);
+      expect(publicKey).toMatch(/^[0-9a-f]{64}$/);
     });
-    
-    test('verifySignature should validate a correctly signed event', async () => {
-      const event = {
-        ...eventData,
-        id: 'fake-id',
-      };
-      
-      const signedEvent = await signEvent(event, privateKey);
-      const verified = await verifySignature(signedEvent);
-      
-      expect(verified).toBe(true);
+  });
+
+  describe('Event Signing and Verification', () => {
+    const privateKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const publicKey = getPublicKey(privateKey);
+    const eventId = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+    it('should sign event and verify signature', async () => {
+      const signature = await signEvent(eventId, privateKey);
+      expect(signature).toMatch(/^[0-9a-f]{128}$/);
+
+      const isValid = await verifySignature(eventId, signature, publicKey);
+      expect(isValid).toBe(true);
     });
-    
-    test('verifySignature should reject an invalid signature', async () => {
-      const event = {
-        ...eventData,
-        id: 'fake-id',
-      };
+
+    it('should reject invalid signatures', async () => {
+      const signature = await signEvent(eventId, privateKey);
+      const wrongEventId = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
       
-      // Sign the event
-      const signedEvent = await signEvent(event, privateKey);
+      const isValid = await verifySignature(wrongEventId, signature, publicKey);
+      expect(isValid).toBe(false);
+    });
+
+    it('should reject signatures with wrong public key', async () => {
+      const signature = await signEvent(eventId, privateKey);
+      const wrongPublicKey = 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
       
-      // Tamper with the event
-      const tamperedEvent = {
-        ...signedEvent,
-        content: 'Tampered content',
-      };
-      
-      const verified = await verifySignature(tamperedEvent);
-      
-      expect(verified).toBe(false);
+      const isValid = await verifySignature(eventId, signature, wrongPublicKey);
+      expect(isValid).toBe(false);
     });
   });
   

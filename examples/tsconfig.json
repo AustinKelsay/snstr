@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../dist-examples",
+    "rootDir": "..",
+    "baseUrl": "..",
+    "paths": {
+      "snstr": ["src"],
+      "snstr/*": ["src/*"]
+    }
+  },
+  "include": ["./**/*"],
+  "exclude": ["node_modules", "dist"]
+} 

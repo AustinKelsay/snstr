@@ -57,15 +57,29 @@ export class Relay {
     if (!this.ws) return;
     
     try {
-      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
-        this.ws.close();
+      // Clear all subscriptions to prevent further processing
+      this.subscriptions.clear();
+      
+      // Close the WebSocket if it's open or connecting
+      if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+        // First try to send CLOSE messages for any active subscriptions
+        try {
+          this.ws.close();
+        } catch (e) {
+          // Ignore close errors, the connection might already be closed or invalid
+        }
+        
+        // Reset the connection promise if it exists
+        this.connectionPromise = null;
       }
     } catch (error) {
       console.error(`Error closing WebSocket for ${this.url}:`, error);
+    } finally {
+      // Reset all state variables
+      this.ws = null;
+      this.connected = false;
+      this.triggerEvent(RelayEvent.Disconnect, this.url);
     }
-    
-    this.ws = null;
-    this.connected = false;
   }
 
   public on<T extends RelayEvent>(event: T, callback: RelayEventHandler[T]): void {
@@ -122,18 +136,31 @@ export class Relay {
     if (!Array.isArray(data)) return;
 
     const [type, ...rest] = data;
+    const debug = process.env.DEBUG?.includes('nostr:*') || false;
+
+    if (debug) {
+      console.log(`Relay(${this.url}): Received message type: ${type}`);
+      console.log(`Relay(${this.url}): Message data:`, JSON.stringify(rest).substring(0, 200));
+    }
 
     switch (type) {
       case 'EVENT': {
         const [subscriptionId, event] = rest;
+        if (debug) {
+          console.log(`Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event?.kind}, id: ${event?.id?.slice(0, 8)}...`);
+        }
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription) {
+          if (debug) console.log(`Relay(${this.url}): Found subscription, calling onEvent handler`);
           subscription.onEvent(event);
+        } else {
+          if (debug) console.log(`Relay(${this.url}): No subscription found for id: ${subscriptionId}`);
         }
         break;
       }
       case 'EOSE': {
         const [subscriptionId] = rest;
+        if (debug) console.log(`Relay(${this.url}): End of stored events for subscription ${subscriptionId}`);
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription && subscription.onEOSE) {
           subscription.onEOSE();
@@ -142,10 +169,12 @@ export class Relay {
       }
       case 'NOTICE': {
         const [notice] = rest;
+        if (debug) console.log(`Relay(${this.url}): Notice: ${notice}`);
         this.triggerEvent(RelayEvent.Notice, this.url, notice);
         break;
       }
       default:
+        if (debug) console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
         break;
     }
   }
