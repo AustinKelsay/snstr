@@ -3,6 +3,37 @@
 
 SNSTR is a lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
 
+## Table of Contents
+
+- [Features](#features)
+- [Supported NIPs](#supported-nips)
+- [Installation](#installation)
+- [API Reference](#api-reference)
+  - [Core Classes](#core-classes)
+  - [Cryptographic Functions](#cryptographic-functions)
+  - [Nostr Client Methods](#nostr-client-methods)
+  - [Relay Methods](#relay-methods)
+  - [Event Utilities](#event-utilities)
+  - [Ephemeral Relay](#ephemeral-relay)
+  - [NIP-04: Encrypted Direct Messages](#nip-04-encrypted-direct-messages-aes-cbc)
+  - [NIP-44: Versioned Encryption](#nip-44-versioned-encryption-chacha20--hmac)
+  - [NIP-19: Bech32-Encoded Entities](#nip-19-bech32-encoded-entities)
+  - [NIP-05: DNS Identifiers](#nip-05-dns-identifiers)
+  - [NIP-07: Browser Extensions](#nip-07-browser-extensions)
+  - [NIP-46: Remote Signing Protocol](#nip-46-remote-signing-protocol)
+- [Basic Usage](#basic-usage)
+- [Using the Ephemeral Relay](#using-the-ephemeral-relay)
+- [Direct Messaging Example](#direct-messaging-example)
+- [NIP-05 Identity Verification](#nip-05-identity-verification)
+- [Encryption with NIP-44](#encryption-with-nip-44)
+- [Browser Extensions (NIP-07)](#browser-extensions-nip-07)
+- [Using Public Relays vs Ephemeral Relay](#using-public-relays-vs-ephemeral-relay)
+- [Testing](#testing)
+- [Development](#development)
+- [Encryption Support](#encryption-support)
+- [Remote Signing with NIP-46](#remote-signing-with-nip-46)
+- [Examples](#examples)
+
 ## Features
 
 ### Core Functionality
@@ -34,6 +65,323 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 ## Installation
 
 coming soon
+
+## API Reference
+
+### Core Classes
+
+```typescript
+// Main client for interacting with Nostr
+import { Nostr } from 'snstr';
+
+// Individual relay connection management
+import { Relay } from 'snstr';
+```
+
+### Cryptographic Functions
+
+```typescript
+// Key generation and management
+import { 
+  generateKeypair,
+  getPublicKey, 
+  signEvent, 
+  verifySignature 
+} from 'snstr';
+
+// Create Nostr events
+import { createEvent } from 'snstr';
+```
+
+### NIP-04: Encrypted Direct Messages (AES-CBC)
+
+```typescript
+import { 
+  encryptNIP04,
+  decryptNIP04,
+  getNIP04SharedSecret 
+} from 'snstr';
+```
+
+### NIP-44: Versioned Encryption (ChaCha20 + HMAC)
+
+```typescript
+import { 
+  encryptNIP44, 
+  decryptNIP44, 
+  generateNIP44Nonce,
+  getNIP44SharedSecret 
+} from 'snstr';
+```
+
+### NIP-19: Bech32-Encoded Entities
+
+```typescript
+import {
+  // Core encoding/decoding
+  encodeBech32,
+  decodeBech32,
+  decode,
+  
+  // Public keys (npub)
+  encodePublicKey,
+  decodePublicKey,
+  
+  // Private keys (nsec)
+  encodePrivateKey,
+  decodePrivateKey,
+  
+  // Note IDs (note)
+  encodeNoteId,
+  decodeNoteId,
+  
+  // Profiles (nprofile)
+  encodeProfile,
+  decodeProfile,
+  
+  // Events (nevent)
+  encodeEvent,
+  decodeEvent,
+  
+  // Addresses (naddr)
+  encodeAddress,
+  decodeAddress,
+  
+  // Enums and types
+  Prefix,
+  TLVType
+} from 'snstr';
+```
+
+### NIP-05: DNS Identifiers
+
+```typescript
+import {
+  verifyNIP05,
+  lookupNIP05,
+  getPublicKeyFromNIP05,
+  getRelaysFromNIP05
+} from 'snstr';
+```
+
+### NIP-07: Browser Extensions
+
+```typescript
+import {
+  // NIP-07 browser extension wrapper
+  Nip07Nostr,
+  
+  // Utility functions
+  hasNip07Support,
+  getNip07PublicKey,
+  signEventWithNip07,
+  encryptNip04WithExtension,
+  decryptNip04WithExtension,
+  encryptNip44WithExtension,
+  decryptNip44WithExtension
+} from 'snstr';
+```
+
+### NIP-46: Remote Signing Protocol
+
+```typescript
+import { 
+  // Client for connecting to remote signers
+  SimpleNIP46Client,
+  NostrRemoteSignerClient,
+  
+  // Server-side bunker implementation
+  SimpleNIP46Bunker,
+  NostrRemoteSignerBunker,
+  
+  // Types
+  NIP46Method,
+  NIP46Request, 
+  NIP46Response, 
+  NIP46ClientOptions,
+  NIP46BunkerOptions,
+  NIP46Metadata,
+  
+  // Utilities
+  generateKeypair,
+  generateRequestId,
+  createRequest,
+  createSuccessResponse,
+  createErrorResponse,
+  Logger,
+  LogLevel
+} from 'snstr';
+```
+
+### Core Types
+
+```typescript
+import {
+  // Event structure
+  NostrEvent,
+  EventTemplate,
+  
+  // Subscription and filters
+  NostrFilter,
+  Filter,
+  Subscription,
+  
+  // Relay events
+  RelayEvent,
+  RelayEventHandler
+} from 'snstr';
+```
+
+### Testing Utilities
+
+```typescript
+import { NostrRelay } from 'snstr/utils/ephemeral-relay';
+```
+
+### Nostr Client Methods
+
+The main `Nostr` class provides the following methods:
+
+```typescript
+// Initialize client with relay URLs
+const client = new Nostr(['wss://relay.example.com']);
+
+// Relay management
+client.addRelay(url: string): Relay
+client.removeRelay(url: string): void
+client.connectToRelays(): Promise<void>
+client.disconnectFromRelays(): void
+
+// Key management
+client.setPrivateKey(privateKey: string): void
+client.generateKeys(): Promise<{ privateKey: string; publicKey: string }>
+client.getPublicKey(): string | undefined
+
+// Event publishing
+client.publishEvent(event: NostrEvent): Promise<NostrEvent | null>
+client.publishTextNote(content: string, tags?: string[][]): Promise<NostrEvent | null>
+client.publishDirectMessage(content: string, recipientPubkey: string, tags?: string[][]): Promise<NostrEvent | null>
+client.publishMetadata(metadata: Record<string, any>): Promise<NostrEvent | null>
+
+// Direct message decryption
+client.decryptDirectMessage(event: NostrEvent): string
+
+// Subscriptions
+client.subscribe(
+  filters: Filter[],
+  onEvent: (event: NostrEvent, relay: string) => void,
+  onEOSE?: () => void
+): string[]
+client.unsubscribe(subscriptionIds: string[]): void
+client.unsubscribeAll(): void
+
+// Event handling
+client.on(event: RelayEvent, callback: (relay: string, ...args: any[]) => void): void
+```
+
+### Relay Methods
+
+The `Relay` class provides the following methods for working with individual Nostr relays:
+
+```typescript
+// Initialize a relay connection
+const relay = new Relay('wss://relay.example.com');
+
+// Connection management
+relay.connect(): Promise<boolean>
+relay.disconnect(): void
+
+// Event handling
+relay.on<T extends RelayEvent>(event: T, callback: RelayEventHandler[T]): void
+
+// Publishing
+relay.publish(event: NostrEvent): Promise<boolean>
+
+// Subscriptions
+relay.subscribe(
+  filters: Filter[],
+  onEvent: (event: NostrEvent) => void,
+  onEOSE?: () => void
+): string
+relay.unsubscribe(id: string): void
+```
+
+### Event Utilities
+
+The library provides the following utilities for creating and manipulating Nostr events:
+
+```typescript
+// Event creation
+import { 
+  createEvent,
+  createSignedEvent,
+  createTextNote,
+  createDirectMessage,
+  createMetadataEvent,
+  getEventHash
+} from 'snstr';
+
+// Create an unsigned event from a template
+const unsignedEvent = createEvent(
+  { kind: 1, content: 'Hello world', tags: [] },
+  publicKey
+);
+
+// Create and sign an event 
+const signedEvent = await createSignedEvent(unsignedEvent, privateKey);
+
+// Create a text note (kind 1)
+const textNote = createTextNote('Hello world', [['t', 'nostr']]);
+
+// Create an encrypted direct message (kind 4)
+const directMessage = createDirectMessage(
+  'Hello, this is private',
+  recipientPublicKey,
+  myPrivateKey
+);
+
+// Create a metadata event (kind 0)
+const metadataEvent = createMetadataEvent(
+  { name: 'Alice', about: 'Nostr user', picture: 'https://example.com/pic.jpg' },
+  privateKey
+);
+
+// Calculate the event hash (for verification)
+const eventHash = await getEventHash(event);
+```
+
+### Ephemeral Relay
+
+The library provides an in-memory relay implementation for testing and development:
+
+```typescript
+import { NostrRelay } from 'snstr/utils/ephemeral-relay';
+
+// Create an ephemeral relay on port 3000
+// Optional: purge events every 60 seconds
+const relay = new NostrRelay(3000, 60);
+
+// Start the relay server
+await relay.start();
+
+// Get the relay URL for clients to connect to
+const relayUrl = relay.url; // 'ws://localhost:3000'
+
+// Access cached events and subscriptions
+const cachedEvents = relay.cache;
+const activeSubscriptions = relay.subs;
+
+// Register a callback for when the relay is connected
+relay.onconnect(() => {
+  console.log('Relay is listening for connections');
+});
+
+// Manually store an event in the relay
+relay.store(signedEvent);
+
+// Close the relay and clean up resources
+await relay.close();
+```
 
 ## Basic Usage
 
