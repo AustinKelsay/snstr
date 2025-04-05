@@ -104,3 +104,34 @@ export {
   NIP46BunkerOptions,
   NIP46Metadata
 } from './nip46/index'; 
+
+// NIP-57: Lightning Zaps
+export {
+  createZapRequest,
+  createZapReceipt,
+  validateZapReceipt,
+  parseZapSplit,
+  calculateZapSplitAmounts,
+  ZAP_REQUEST_KIND,
+  ZAP_RECEIPT_KIND,
+  ZapRequestOptions,
+  ZapReceiptOptions,
+  ZapValidationResult,
+  LnurlPayResponse
+} from './nip57';
+
+export {
+  NostrZapClient,
+  ZapClient,
+  ZapClientOptions,
+  ZapInvoiceResult,
+  ZapFilterOptions
+} from './nip57/client';
+
+export {
+  fetchLnurlPayMetadata,
+  supportsNostrZaps,
+  decodeLnurl,
+  buildZapCallbackUrl,
+  extractLnurlMetadata
+} from './nip57/utils'; 
