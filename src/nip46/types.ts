@@ -50,24 +50,24 @@ export interface NIP46ClientOptions extends NIP46ConnectionOptions {
   image?: string;
   timeout?: number; // Request timeout in milliseconds
   preferredEncryption?: 'nip04' | 'nip44';
+  debug?: boolean;
 }
 
 /**
  * Bunker-specific options
  */
 export interface NIP46BunkerOptions {
-  relays: string[];
-  timeout?: number;
-  requireAuthChallenge?: boolean;
-  authChallengeTimeout?: number;
   userPubkey: string;
   signerPubkey?: string;
+  relays?: string[];
+  secret?: string;
+  defaultPermissions?: string[];
+  requireAuthChallenge?: boolean;
   authUrl?: string;
   authTimeout?: number;
-  defaultPermissions?: string[];
-  secret?: string;
-  preferredEncryption?: 'nip04' | 'nip44';
   metadata?: NIP46Metadata;
+  preferredEncryption?: 'nip04' | 'nip44';
+  debug?: boolean;
 }
 
 /**

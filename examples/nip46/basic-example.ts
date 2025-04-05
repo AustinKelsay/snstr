@@ -26,9 +26,16 @@ async function main() {
     console.log('User pubkey:', userKeypair.publicKey);
     console.log('Signer pubkey:', signerKeypair.publicKey);
     
-    // Create bunker
+    // Create and start bunker
     console.log('\nStarting bunker...');
-    const bunker = new SimpleNIP46Bunker(relays, userKeypair.publicKey, signerKeypair.publicKey);
+    const bunker = new SimpleNIP46Bunker(
+      [relay.url],
+      userKeypair.publicKey,
+      signerKeypair.publicKey,
+      {
+        defaultPermissions: ['sign_event:1', 'get_public_key', 'ping']
+      }
+    );
     
     // Set private keys (these never leave the bunker)
     bunker.setUserPrivateKey(userKeypair.privateKey);
@@ -74,7 +81,7 @@ async function main() {
     console.log('Signature:', signedNote.sig.substring(0, 20) + '...');
     
     // Verify the signature is valid
-    const validSig = verifySignature(signedNote.id, signedNote.sig, signedNote.pubkey);
+    const validSig = await verifySignature(signedNote.id, signedNote.sig, signedNote.pubkey);
     console.log('Signature valid:', validSig);
     
     // Clean up

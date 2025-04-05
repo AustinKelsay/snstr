@@ -479,7 +479,7 @@ const decrypted = decryptNIP04(
 );
 ```
 
-For more details on the NIP-04 implementation, see [docs/nip04/README.md](docs/nip04/README.md).
+For more details on the NIP-04 implementation, see [src/nip04/README.md](src/nip04/README.md).
 
 ### NIP-44 (ChaCha20 with HMAC-SHA256)
 
@@ -510,22 +510,34 @@ For more details on the NIP-44 implementation, see [src/nip44/README.md](src/nip
 
 SNSTR includes a complete implementation of [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md), which enables secure remote signing through a "bunker" that holds your private keys.
 
+For a visual explanation and architecture diagrams, see [examples/nip46/ARCHITECTURE.md](examples/nip46/ARCHITECTURE.md).
+
+### Unified Example
+
+The easiest way to get started with NIP-46 is through our unified example:
+
+```bash
+npm run example:nip46:unified
+```
+
+This example demonstrates:
+- Setting up a bunker with proper permissions
+- Connecting a client to the bunker
+- Remotely signing events
+- Verifying signatures
+
 ### Client Example
 
 ```typescript
-import { NostrRemoteSignerClient } from 'snstr';
+import { SimpleNIP46Client } from 'snstr';
 
 async function main() {
-  // Create a client with connection options
-  const client = new NostrRemoteSignerClient({
-    relays: ['wss://relay.example.com'],
-    permissions: ['sign_event:1', 'sign_event:4'], // Request specific event kind permissions
-    name: 'My Nostr App',
-    url: 'https://myapp.example.com'
-  });
+  // Create a client with relays to use for communication
+  const client = new SimpleNIP46Client(['wss://relay.example.com']);
 
-  // Connect to a remote signer using its public key
-  await client.connect('bunker_pubkey_here');
+  // Connect to a remote signer using a connection string
+  // Format: bunker://signer_pubkey?relay=wss%3A%2F%2Frelay.example.com
+  await client.connect('bunker_connection_string_here');
 
   // Get the user's public key from the bunker
   const userPubkey = await client.getPublicKey();
@@ -548,18 +560,25 @@ main().catch(console.error);
 ### Bunker Example
 
 ```typescript
-import { NostrRemoteSignerBunker } from 'snstr';
+import { SimpleNIP46Bunker, generateKeypair } from 'snstr';
 
 async function main() {
+  // Generate or load keypairs
+  const userKeypair = await generateKeypair();
+  
   // Create a bunker instance
-  const bunker = new NostrRemoteSignerBunker({
-    relays: ['wss://relay.example.com'],
-    userPubkey: 'user_pubkey_here',
-    secret: 'optional_secret_for_auth' // Optional
-  });
+  const bunker = new SimpleNIP46Bunker(
+    ['wss://relay.example.com'],  // Relays to use for communication
+    userKeypair.publicKey,        // User public key (identity)
+    userKeypair.publicKey,        // Signer public key (same as user key in this example)
+    {
+      defaultPermissions: ['sign_event:1', 'get_public_key', 'ping'] 
+    }
+  );
 
-  // Set the user's private key (this never leaves the bunker)
-  bunker.setUserPrivateKey('user_private_key_here');
+  // Set the private keys (these never leave the bunker)
+  bunker.setUserPrivateKey(userKeypair.privateKey);
+  bunker.setSignerPrivateKey(userKeypair.privateKey);
 
   // Start the bunker
   await bunker.start();
@@ -567,27 +586,28 @@ async function main() {
   // Get the connection string to share with clients
   const connectionString = bunker.getConnectionString();
   console.log('Share this with clients:', connectionString);
-  // Example output: bunker://signer_pubkey?relay=wss%3A%2F%2Frelay.example.com&secret=optional_secret
-
-  // The bunker will now automatically handle signing requests from authorized clients
+  // Example output: bunker://signer_pubkey?relay=wss%3A%2F%2Frelay.example.com
 }
 
 main().catch(console.error);
 ```
 
-### Key Features of NIP-46 Implementation
+## Examples
 
-- **Secure Key Management**: Private keys never leave the bunker
-- **Permission System**: Fine-grained control over what events clients can sign
-- **Connection Secrets**: Optional authentication for client connections
-- **NIP-44 Encryption**: All communication between client and bunker is encrypted
-- **Multiple Relay Support**: Connect through multiple relays for redundancy
-- **Automatic Response Handling**: Asynchronous request/response handling
-- **Connection String Generation**: Easy sharing of bunker connection details
-- **Metadata Support**: Clients can provide app name, URL, and icon
-- **Timeout Handling**: Automatic cleanup of stale requests
-- **Error Handling**: Comprehensive error handling and validation
+For complete examples of how to use SNSTR, see the [examples directory](./examples/README.md). We've organized examples by feature and NIP, with a consistent structure and naming convention.
 
-## License
+You can run any example using the npm scripts:
 
-MIT
+```bash
+# Basic usage example
+npm run example
+
+# NIP-specific examples
+npm run example:nip04   # Encrypted direct messages (NIP-04)
+npm run example:nip05   # DNS identifiers (NIP-05)
+npm run example:nip19   # bech32-encoded entities (NIP-19)
+npm run example:nip44   # Versioned encryption (NIP-44)
+npm run example:nip46   # Remote signing protocol (NIP-46)
+```
+
+See the [examples README](./examples/README.md) for the full list of available examples and more details on how to run them.

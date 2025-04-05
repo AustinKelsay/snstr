@@ -6,10 +6,6 @@ import {
 import { LogLevel } from '../../../src/nip46/utils/logger';
 import { NostrRelay } from '../../../src/utils/ephemeral-relay';
 
-/**
- * Advanced example demonstrating NIP-46 remote signing and encryption
- * with permission handling, connection management, and best practices.
- */
 async function main() {
   console.log('=== NIP-46 Remote Signing Advanced Demo ===\n');
 
@@ -17,34 +13,33 @@ async function main() {
   const relay = new NostrRelay(3000);
   await relay.start();
   console.log('Started ephemeral relay at:', relay.url);
+  
   const relays = [relay.url];
-
+  
   // Generate test keypairs
   console.log('\nGenerating keypairs...');
   const userKeypair = await generateKeypair();
   const signerKeypair = await generateKeypair();
-
+  
   console.log(`User public key: ${userKeypair.publicKey}`);
   console.log(`Signer public key: ${signerKeypair.publicKey}`);
-
-  // Create a bunker instance with debug logging
+  
+  // Create and configure bunker
   console.log('\nStarting bunker...');
   const bunker = new SimpleNIP46Bunker(
-    relays,
-    userKeypair.publicKey,
-    signerKeypair.publicKey
+      [relay.url],
+      userKeypair.publicKey,
+      signerKeypair.publicKey,
+      {
+          defaultPermissions: [
+              'sign_event:1',   // Allow signing kind 1 notes
+              'get_public_key', // Allow retrieving the user's public key
+              'ping',           // Allow ping/pong heartbeats
+              'nip04_encrypt',  // Allow NIP-04 encryption
+              'nip04_decrypt'   // Allow NIP-04 decryption
+          ]
+      }
   );
-
-  // Set default permissions for all clients
-  bunker.setDefaultPermissions([
-    'sign_event:1',  // Allow signing Kind 1 (text notes)
-    'sign_event:4',  // Allow signing Kind 4 (encrypted DMs)
-    'nip04_encrypt:*', // Allow encryption with anyone
-    'nip04_decrypt:*'  // Allow decryption with anyone
-  ]);
-
-  // Enable debug logging
-  bunker.setLogLevel(LogLevel.DEBUG);
 
   // Set the private keys (in a real application, these would be securely stored)
   bunker.setUserPrivateKey(userKeypair.privateKey);
@@ -101,14 +96,18 @@ async function main() {
     const message = 'This is a secret message for testing encryption';
     console.log(`Message to encrypt: ${message}`);
     
-    const encrypted = await client.nip04Encrypt(thirdPartyKeypair.publicKey, message);
-    console.log(`Encrypted: ${encrypted}`);
+    try {
+      const encrypted = await client.nip04Encrypt(thirdPartyKeypair.publicKey, message);
+      console.log(`Encrypted: ${encrypted}`);
 
-    // Test NIP-04 decryption
-    console.log('\nTesting NIP-04 decryption...');
-    const decrypted = await client.nip04Decrypt(thirdPartyKeypair.publicKey, encrypted);
-    console.log(`Decrypted: ${decrypted}`);
-    console.log(`Original message recovered: ${decrypted === message ? 'Yes' : 'No'}`);
+      // Test NIP-04 decryption
+      console.log('\nTesting NIP-04 decryption...');
+      const decrypted = await client.nip04Decrypt(thirdPartyKeypair.publicKey, encrypted);
+      console.log(`Decrypted: ${decrypted}`);
+      console.log(`Original message recovered: ${decrypted === message ? 'Yes' : 'No'}`);
+    } catch (error) {
+      console.error('Error in NIP-04 demo:', error);
+    }
 
     // Try to sign an event without permission
     console.log('\nTesting permission restrictions...');
@@ -126,7 +125,6 @@ async function main() {
     } catch (error: any) {
       console.log('Failed to sign unauthorized event (expected):', error.message);
     }
-
   } catch (error: any) {
     console.error('Error in demo:', error.message);
     if (error.stack) {
@@ -142,6 +140,4 @@ async function main() {
   }
 }
 
-main().catch(error => {
-  console.error('Unhandled error in main:', error);
-}); 
+main().catch(console.error); 

@@ -1,3 +1,6 @@
+// Increase default timeout for all tests in this file
+jest.setTimeout(10000);
+
 import { 
   SimpleNIP46Client,
   SimpleNIP46Bunker,
@@ -20,7 +23,7 @@ describe('NIP-46 Remote Signing', () => {
     // Generate test keypairs
     userKeypair = await generateKeypair();
     console.log("Test user keypair:", userKeypair.publicKey);
-  }, 60000);
+  }, 15000);
 
   beforeEach(async () => {
     // Create bunker instance with user key
@@ -38,10 +41,10 @@ describe('NIP-46 Remote Signing', () => {
 
     // Create client instance with longer timeout
     client = new SimpleNIP46Client([relay.url], { 
-      timeout: 5000,
+      timeout: 3000,
       logLevel: LogLevel.DEBUG
     });
-  }, 10000);
+  }, 5000);
 
   afterAll(async () => {
     try {
@@ -63,8 +66,8 @@ describe('NIP-46 Remote Signing', () => {
     }
       
     // Final delay to ensure everything is properly cleared
-    await new Promise(resolve => setTimeout(resolve, 2000));
-  }, 60000);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }, 15000);
 
   afterEach(async () => {
     try {
@@ -86,8 +89,8 @@ describe('NIP-46 Remote Signing', () => {
     }
     
     // Add a delay to ensure all connections are properly closed
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }, 30000);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }, 5000);
 
   describe('Connection and Validation', () => {
     test('Basic connection and key retrieval', async () => {
@@ -96,7 +99,7 @@ describe('NIP-46 Remote Signing', () => {
       
       const pubkey = await client.getPublicKey();
       expect(pubkey).toBe(userKeypair.publicKey);
-    }, 15000);
+    });
   });
 
   describe('Event Signing', () => {
@@ -124,7 +127,7 @@ describe('NIP-46 Remote Signing', () => {
         console.error("Sign event error:", error);
         throw error;
       }
-    }, 15000);
+    });
   });
 
   describe('Encryption', () => {
@@ -151,7 +154,7 @@ describe('NIP-46 Remote Signing', () => {
         console.error("Encryption error:", error);
         throw error; 
       }
-    }, 15000);
+    });
   });
 
   describe('Utility Methods', () => {
@@ -161,6 +164,6 @@ describe('NIP-46 Remote Signing', () => {
       
       const response = await client.ping();
       expect(response).toBe(true);
-    }, 15000);
+    });
   });
 }); 

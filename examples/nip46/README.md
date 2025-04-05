@@ -1,143 +1,64 @@
-# NIP-46 (Nostr Connect) Examples
+# NIP-46 Remote Signing
 
-This directory contains examples showcasing how to use the NIP-46 Remote Signing protocol implementation in the `snstr` library.
+## Overview
 
-## What is NIP-46?
+NIP-46 is a protocol that enables remote signing of Nostr events, allowing separation of private keys (in a "bunker") from client applications while maintaining security through encrypted communication.
 
-NIP-46 (Nostr Connect) is a protocol that allows for secure remote signing of Nostr events. It enables separation between:
+See [ARCHITECTURE.md](./ARCHITECTURE.md) for diagrams and a visual explanation of how NIP-46 works.
 
-* A **Bunker** (signer): holds private keys and performs cryptographic operations
-* A **Client**: requests operations from the bunker without needing direct access to private keys
+## Key Concepts
 
-This separation enhances security by keeping private keys isolated, while still allowing applications to interact with Nostr.
+- **Bunker**: A secure server that holds private keys and signs events on request
+- **Client**: An application that requests signatures from the bunker
+- **User Keypair**: The identity keypair used to sign Nostr events
+- **Signer Keypair**: The keypair used for encrypted communication between client and bunker
+- **Connection String**: Format `bunker://{signer_pubkey}?relay={relay_url}`
 
-## NIP-46 Implementation
+## Examples
 
-This library provides two sets of implementations:
+### Unified Example (`unified-example.ts`) - RECOMMENDED
 
-### 1. Simple/Modular Implementation (Recommended)
-
-The new modular implementation is easier to use and understand:
-
-* `SimpleNIP46Client`: Lightweight client for requesting operations
-* `SimpleNIP46Bunker`: Straightforward bunker for handling signing requests
-* Improved logging with `LogLevel` enum for better debugging
-* Clean separation of concerns and better error handling
-
-### 2. Full-Featured Implementation (Original)
-
-The original implementation offers more customization:
-
-* `NostrRemoteSignerClient`: Feature-rich client with extensive options
-* `NostrRemoteSignerBunker`: Configurable bunker with advanced settings
-* More complex but with additional flexibility
-
-## Examples Structure
-
-The examples are organized by complexity:
-
-### Minimal Examples
-
-Basic examples to get started quickly:
-
-* `minimal.ts`: The simplest possible implementation
-* Demonstrates client-bunker connection and basic signing
-
-### Simple Examples
-
-Slightly more detailed examples:
-
-* Examples in the `simple/` directory
-* More detailed logging and error handling
-* Various basic use cases
-
-### Advanced Examples
-
-Complex scenarios and debugging tools:
-
-* `advanced/remote-signing-demo.ts`: Full demonstration with encryption, permissions, and more
-* `advanced/debug-example.ts`: Enhanced logging and step-by-step verification for troubleshooting
-
-## How to Run Examples
-
-1. Make sure you have compiled the library:
+A single comprehensive example that shows the core functionality:
 
 ```bash
-npm run build
+npm run example:nip46:unified
 ```
 
-2. Run an example using ts-node:
+Key features demonstrated:
+- Setting up a bunker with proper permissions
+- Connecting a client to the bunker
+- Remotely signing events
+- Verifying signatures
 
-```bash
-npx ts-node examples/nip46/minimal.ts
-# or
-npx ts-node examples/nip46/advanced/remote-signing-demo.ts
-```
+### Other Examples
 
-3. For debugging with more verbose output, use:
+For specific use cases or educational purposes:
 
-```bash
-npx ts-node examples/nip46/advanced/debug-example.ts
-```
+1. **Minimal** (`minimal.ts`): The most basic functionality
+2. **Advanced** (`advanced/`): More complex features including auth challenges
+3. **From Scratch** (`from-scratch/`): Implementation without using library classes
 
-## Key Features Demonstrated
+## Implementation Details
 
-* Creating and managing bunkers and clients
-* Secure connection establishment
-* Remote event signing
-* NIP-04 encryption and decryption
-* Permission management
-* Error handling and debugging
+This library provides two implementations:
 
-## Implementing in Your Application
+1. **Simple Implementation** (`SimpleNIP46Client` / `SimpleNIP46Bunker`)
+   - Lightweight with core functionality
+   - Uses NIP-04 encryption only
+   - Basic permissions support
 
-To integrate NIP-46 in your application:
+2. **Full-featured Implementation** (`NostrRemoteSignerClient` / `NostrRemoteSignerBunker`)
+   - Advanced features including auth challenges
+   - Supports both NIP-04 and NIP-44 encryption
+   - Extensive permissions system and metadata
 
-1. Create a bunker with your user's private key:
+## Best Practices
 
-```typescript
-import { SimpleNIP46Bunker } from 'snstr';
+- Always use `await` with `verifySignature` as it returns a Promise
+- Be explicit about allowed permissions when setting up a bunker
+- Use separate keypairs for user identity and signer communication in production
+- Store private keys securely in real applications
 
-const bunker = new SimpleNIP46Bunker(
-  relays,
-  userPublicKey,
-  signerPublicKey
-);
-bunker.setUserPrivateKey(userPrivateKey);
-await bunker.start();
-```
+## Specification
 
-2. Share the connection string with clients:
-
-```typescript
-const connectionString = bunker.getConnectionString();
-// Share this connection string securely
-```
-
-3. Connect clients to the bunker:
-
-```typescript
-import { SimpleNIP46Client } from 'snstr';
-
-const client = new SimpleNIP46Client(relays);
-await client.connect(connectionString);
-```
-
-4. Use the client to sign events remotely:
-
-```typescript
-const event = {
-  kind: 1,
-  content: 'Hello, Nostr!',
-  created_at: Math.floor(Date.now() / 1000),
-  tags: []
-};
-
-const signedEvent = await client.signEvent(event);
-```
-
-## Security Considerations
-
-* **Private Keys**: Never share private keys between applications
-* **Permissions**: Configure bunker permissions carefully
-* **Encryption**: Use separate relays for NIP-46 communication when possible 
+For full details, see [NIP-46 Specification](https://github.com/nostr-protocol/nips/blob/master/46.md). 

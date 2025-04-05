@@ -61,9 +61,11 @@ async function main() {
       console.log(`Signed event ID: ${signedEvent.id}`);
       console.log(`Signed by: ${signedEvent.pubkey}`);
       
-      // Verify signature
-      const valid = verifySignature(signedEvent.id, signedEvent.sig, signedEvent.pubkey);
-      console.log(`Signature valid: ${valid}`);
+      console.log(JSON.stringify(signedEvent, null, 2));
+      
+      // Verify the signature
+      const valid = await verifySignature(signedEvent.id, signedEvent.sig, signedEvent.pubkey);
+      console.log('Valid signature?', valid);
   
       // Clean up
       console.log('\nCleaning up...');

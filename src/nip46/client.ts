@@ -31,6 +31,7 @@ export class NostrRemoteSignerClient {
   private authWindow: Window | null;
   private connected = false;
   private subId: string | null = null;
+  private debug: boolean;
 
   constructor(options: NIP46ClientOptions = {}) {
     this.options = {
@@ -47,13 +48,17 @@ export class NostrRemoteSignerClient {
     this.nostr = new Nostr(this.options.relays);
     this.preferredEncryption = this.options.preferredEncryption || DEFAULT_ENCRYPTION;
     this.authWindow = null;
+    this.debug = options.debug || false;
   }
 
   /**
    * Set up subscription to receive responses from the signer
    */
   private async setupSubscription(): Promise<void> {
+    if (this.debug) console.log('[NIP46 CLIENT] Setting up subscription...');
+    
     if (this.subId) {
+      if (this.debug) console.log('[NIP46 CLIENT] Cleaning up previous subscription:', this.subId);
       this.nostr.unsubscribe([this.subId]);
     }
 
@@ -65,11 +70,18 @@ export class NostrRemoteSignerClient {
       kinds: [24133],
       '#p': [this.clientKeypair.publicKey]
     };
+    
+    if (this.debug) {
+      console.log('[NIP46 CLIENT] Subscribing with filter:', JSON.stringify(filter));
+      console.log('[NIP46 CLIENT] Client pubkey:', this.clientKeypair.publicKey);
+    }
 
     this.subId = this.nostr.subscribe(
       [filter],
       (event) => this.handleResponse(event)
     )[0];
+    
+    if (this.debug) console.log('[NIP46 CLIENT] Subscription created with ID:', this.subId);
   }
 
   /**
@@ -99,41 +111,63 @@ export class NostrRemoteSignerClient {
    * @throws {Error} If connection fails or validation fails
    */
   public async connect(connectionString: string): Promise<string> {
+    if (this.debug) console.log('[NIP46 CLIENT] Connecting to signer with string:', connectionString);
     try {
       // Generate client keypair if needed
       if (!this.clientKeypair) {
         this.clientKeypair = await generateKeypair();
+        if (this.debug) console.log('[NIP46 CLIENT] Generated client pubkey:', this.clientKeypair.publicKey);
       }
 
       // Connect to relays
+      if (this.debug) console.log('[NIP46 CLIENT] Connecting to relays:', this.options.relays);
       await this.nostr.connectToRelays();
+      if (this.debug) console.log('[NIP46 CLIENT] Connected to relays');
 
       // Parse connection info
       const connectionInfo = this.parseConnectionString(connectionString);
       this.signerPubkey = connectionInfo.pubkey;
+      if (this.debug) {
+        console.log('[NIP46 CLIENT] Signer pubkey:', this.signerPubkey);
+        console.log('[NIP46 CLIENT] Connection info:', JSON.stringify({
+          type: connectionInfo.type,
+          relays: connectionInfo.relays,
+          hasSecret: !!connectionInfo.secret,
+          permissions: connectionInfo.permissions
+        }));
+      }
 
       // Update relays if needed
       if (connectionInfo.relays?.length) {
+        if (this.debug) console.log('[NIP46 CLIENT] Updating relays to:', connectionInfo.relays);
         this.options.relays = connectionInfo.relays;
         this.nostr = new Nostr(connectionInfo.relays);
         await this.nostr.connectToRelays();
+        if (this.debug) console.log('[NIP46 CLIENT] Reconnected to updated relays');
       }
 
       // Set up subscription
       await this.setupSubscription();
 
       // Send connect request
+      if (this.debug) console.log('[NIP46 CLIENT] Sending connect request to signer');
+      const perms = [...new Set([
+        ...(this.options.permissions || []),
+        ...(connectionInfo.permissions || [])
+      ])].join(',');
+      if (this.debug) console.log('[NIP46 CLIENT] Requesting permissions:', perms);
+      
       const response = await this.sendRequest(NIP46Method.CONNECT, [
         this.signerPubkey,
         connectionInfo.secret || this.options.secret || '',
-        [...new Set([
-          ...(this.options.permissions || []),
-          ...(connectionInfo.permissions || [])
-        ])].join(',')
+        perms
       ]);
+      
+      if (this.debug) console.log('[NIP46 CLIENT] Received connect response:', JSON.stringify(response));
 
       // Handle auth challenge
       if (response.auth_url) {
+        if (this.debug) console.log('[NIP46 CLIENT] Auth challenge received, URL:', response.auth_url);
         // Wait for authentication to complete (will be handled by handleResponse)
         const authTimeout = this.options.timeout || DEFAULT_TIMEOUT;
         await new Promise<void>((resolve, reject) => {
@@ -161,26 +195,33 @@ export class NostrRemoteSignerClient {
       } else {
         // Validate response
         if (response.error) {
+          console.error('[NIP46 CLIENT] Connection failed:', response.error);
           throw new Error(`Connection failed: ${response.error}`);
         }
 
         if (connectionInfo.type === 'nostrconnect' && 
             connectionInfo.secret && 
             response.result !== connectionInfo.secret) {
+          console.error('[NIP46 CLIENT] Secret validation failed');
           throw new Error('Connection secret validation failed');
         }
 
         this.connected = true;
+        if (this.debug) console.log('[NIP46 CLIENT] Connection successful');
       }
 
       // Get user's public key (required by NIP-46)
+      if (this.debug) console.log('[NIP46 CLIENT] Getting user pubkey');
       this.userPubkey = await this.getPublicKey();
       if (!this.userPubkey) {
+        console.error('[NIP46 CLIENT] Failed to get user pubkey');
         throw new Error('Failed to get user public key');
       }
+      if (this.debug) console.log('[NIP46 CLIENT] User pubkey received:', this.userPubkey);
       
       return this.userPubkey;
     } catch (error) {
+      console.error('[NIP46 CLIENT] Connection error:', error);
       await this.cleanup();
       throw error;
     }
@@ -364,12 +405,18 @@ export class NostrRemoteSignerClient {
    * Send a request to the remote signer
    */
   private async sendRequest(method: NIP46Method, params: string[]): Promise<NIP46Response> {
+    if (this.debug) {
+      console.log('[NIP46 CLIENT] Sending request:', method);
+      console.log('[NIP46 CLIENT] Request params:', JSON.stringify(params));
+    }
+    
     if (!this.clientKeypair || !this.signerPubkey) {
       throw new Error('Client not initialized');
     }
 
     // Generate a random ID for the request
     const id = Math.random().toString(36).substring(2, 15);
+    if (this.debug) console.log('[NIP46 CLIENT] Request ID:', id);
     
     const request: NIP46Request = {
       id,
@@ -381,16 +428,20 @@ export class NostrRemoteSignerClient {
       // Set a timeout to reject the promise if we don't get a response
       const timeout = setTimeout(() => {
         if (this.pendingRequests.has(id)) {
+          console.error('[NIP46 CLIENT] Request timed out:', method, id);
           this.pendingRequests.delete(id);
           reject(new Error(`Request timed out: ${method}`));
         }
       }, this.options.timeout || DEFAULT_TIMEOUT);
+
+      if (this.debug) console.log('[NIP46 CLIENT] Request timeout set for', this.options.timeout || DEFAULT_TIMEOUT, 'ms');
 
       // Store the request with its callbacks
       this.pendingRequests.set(id, { 
         resolve: (response) => {
           // Make sure we only resolve once
           if (this.pendingRequests.has(id)) {
+            if (this.debug) console.log('[NIP46 CLIENT] Resolving request:', id);
             clearTimeout(timeout);
             this.pendingRequests.delete(id);
             resolve(response);
@@ -399,6 +450,7 @@ export class NostrRemoteSignerClient {
         reject: (error) => {
           // Make sure we only reject once
           if (this.pendingRequests.has(id)) {
+            console.error('[NIP46 CLIENT] Rejecting request:', id, error);
             clearTimeout(timeout);
             this.pendingRequests.delete(id);
             reject(error);
@@ -408,8 +460,10 @@ export class NostrRemoteSignerClient {
       });
 
       // Send the request
+      if (this.debug) console.log('[NIP46 CLIENT] Sending encrypted request:', id);
       this.sendEncryptedRequest(request).catch((error) => {
         if (this.pendingRequests.has(id)) {
+          console.error('[NIP46 CLIENT] Error sending request:', id, error);
           clearTimeout(timeout);
           this.pendingRequests.delete(id);
           reject(error);
@@ -422,6 +476,8 @@ export class NostrRemoteSignerClient {
    * Encrypt and send a request to the signer
    */
   private async sendEncryptedRequest(request: NIP46Request): Promise<void> {
+    if (this.debug) console.log('[NIP46 CLIENT] Encrypting request:', request.id);
+    
     if (!this.clientKeypair || !this.signerPubkey) {
       throw new Error('Client not initialized');
     }
@@ -430,47 +486,60 @@ export class NostrRemoteSignerClient {
     let encryptedContent: string;
     try {
       const jsonStr = JSON.stringify(request);
+      if (this.debug) {
+        console.log('[NIP46 CLIENT] Request JSON:', jsonStr);
+        console.log('[NIP46 CLIENT] Using encryption method:', this.preferredEncryption);
+      }
       
       if (this.preferredEncryption === 'nip44') {
         try {
+          if (this.debug) console.log('[NIP46 CLIENT] Attempting NIP-44 encryption');
           encryptedContent = encryptNIP44(
             jsonStr,
             this.clientKeypair.privateKey,
             this.signerPubkey
           );
+          if (this.debug) console.log('[NIP46 CLIENT] NIP-44 encryption successful');
         } catch (e) {
           // Fall back to NIP-04
+          if (this.debug) console.log('[NIP46 CLIENT] NIP-44 encryption failed, falling back to NIP-04');
           encryptedContent = encryptNIP04(
             jsonStr,
             this.clientKeypair.privateKey,
             this.signerPubkey
           );
           this.preferredEncryption = 'nip04';
+          if (this.debug) console.log('[NIP46 CLIENT] NIP-04 fallback successful');
         }
       } else {
         try {
+          if (this.debug) console.log('[NIP46 CLIENT] Attempting NIP-04 encryption');
           encryptedContent = encryptNIP04(
             jsonStr,
             this.clientKeypair.privateKey,
             this.signerPubkey
           );
+          if (this.debug) console.log('[NIP46 CLIENT] NIP-04 encryption successful');
         } catch (e) {
           // Fall back to NIP-44
+          if (this.debug) console.log('[NIP46 CLIENT] NIP-04 encryption failed, falling back to NIP-44');
           encryptedContent = encryptNIP44(
             jsonStr,
             this.clientKeypair.privateKey,
             this.signerPubkey
           );
           this.preferredEncryption = 'nip44';
+          if (this.debug) console.log('[NIP46 CLIENT] NIP-44 fallback successful');
         }
       }
     } catch (error) {
+      console.error('[NIP46 CLIENT] Encryption failed:', error);
       throw new Error(`Failed to encrypt request: ${error}`);
     }
 
     // Create and publish the event
     try {
-      await this.nostr.publishEvent({
+      const event = {
         kind: 24133,
         pubkey: this.clientKeypair.publicKey,
         created_at: Math.floor(Date.now() / 1000),
@@ -478,8 +547,22 @@ export class NostrRemoteSignerClient {
         content: encryptedContent,
         id: '',
         sig: ''
-      });
+      };
+      
+      if (this.debug) {
+        console.log('[NIP46 CLIENT] Publishing event:', {
+          kind: event.kind,
+          pubkey: event.pubkey,
+          created_at: event.created_at,
+          tags: event.tags,
+          content_length: event.content.length
+        });
+      }
+      
+      await this.nostr.publishEvent(event);
+      if (this.debug) console.log('[NIP46 CLIENT] Event published successfully');
     } catch (error) {
+      console.error('[NIP46 CLIENT] Failed to publish event:', error);
       throw new Error(`Failed to publish request: ${error}`);
     }
   }
@@ -488,29 +571,48 @@ export class NostrRemoteSignerClient {
    * Handle a response from the signer
    */
   private async handleResponse(event: NostrEvent): Promise<void> {
+    if (this.debug) {
+      console.log('[NIP46 CLIENT] Received response event:', {
+        id: event.id,
+        pubkey: event.pubkey,
+        kind: event.kind,
+        tags: event.tags,
+        content_length: event.content.length
+      });
+    }
+    
     try {
       // If we're not connected or don't have a client keypair, ignore this event
-      if (!this.connected || !this.clientKeypair || !this.signerPubkey) {
+      if (!this.clientKeypair) {
+        if (this.debug) console.log('[NIP46 CLIENT] Client not initialized, ignoring response');
         return;
       }
 
       // Ensure the event is from our signer
-      if (event.pubkey !== this.signerPubkey) {
+      if (this.signerPubkey && event.pubkey !== this.signerPubkey) {
+        if (this.debug) console.log('[NIP46 CLIENT] Response not from our signer, ignoring. Expected:', this.signerPubkey, 'Got:', event.pubkey);
         return;
       }
 
       // Decrypt event content
+      if (this.debug) console.log('[NIP46 CLIENT] Attempting to decrypt response');
       const decryptResult = await this.decryptContent(event.content, event.pubkey);
       if (!decryptResult.success) {
         // Silently ignore decrypt failures - they might be for other clients
+        if (this.debug) console.log('[NIP46 CLIENT] Failed to decrypt response:', decryptResult.error);
         return;
       }
 
+      if (this.debug) console.log('[NIP46 CLIENT] Decrypted with method:', decryptResult.method);
       const data = decryptResult.data;
+      if (this.debug) console.log('[NIP46 CLIENT] Decrypted data:', data);
+      
       const response: NIP46Response = JSON.parse(data);
+      if (this.debug) console.log('[NIP46 CLIENT] Parsed response:', JSON.stringify(response));
 
       // Handle auth URL: open the auth URL in a popup or redirect
       if (response.auth_url) {
+        if (this.debug) console.log('[NIP46 CLIENT] Auth URL detected:', response.auth_url);
         this.handleAuthChallenge(response);
         return;
       }
@@ -519,11 +621,12 @@ export class NostrRemoteSignerClient {
       const pendingRequest = this.pendingRequests.get(response.id);
       if (!pendingRequest) {
         // Response for a request that no longer exists or timed out
-        // This is normal and can happen when requests time out
-        // No need to warn about it
+        if (this.debug) console.log('[NIP46 CLIENT] No pending request found for ID:', response.id);
         return;
       }
 
+      if (this.debug) console.log('[NIP46 CLIENT] Found pending request for ID:', response.id);
+      
       // Clear timeout and remove from pending requests
       clearTimeout(pendingRequest.timeout);
       this.pendingRequests.delete(response.id);
@@ -531,7 +634,7 @@ export class NostrRemoteSignerClient {
       // Handle the response
       pendingRequest.resolve(response);
     } catch (error: any) {
-      console.error('Error handling response:', error.message);
+      console.error('[NIP46 CLIENT] Error handling response:', error.message);
     }
   }
 
