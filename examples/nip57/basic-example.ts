@@ -165,6 +165,34 @@ async function main() {
     console.log(`   Pubkey: ${info.pubkey.slice(0, 8)}...: ${info.amount / 1000} sats`);
   });
 
+  // Demonstrate bolt11 invoice parsing and validation
+  console.log('\nDemonstrating bolt11 invoice parsing and validation...');
+  
+  // Import bolt11 parsing utility
+  const { parseBolt11Invoice } = require('../../src/nip57/utils');
+  
+  // Sample invoice with description hash (this is from the Lightning Network test vectors)
+  const validInvoice = 'lnbc25m1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5vdhkven9v5sxyetpdeessp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs9q5sqqqqqqqqqqqqqqqpqsq67gye39hfg3zd8rgc80k32tvy9xk2xunwm5lzexnvpx6fd77en8qaq424dxgt56cag2dpt359k3ssyhetktkpqh24jqnjyw6uqd08sgptq44qu';
+  
+  try {
+    const invoiceData = parseBolt11Invoice(validInvoice);
+    console.log('Parsed bolt11 invoice:');
+    console.log(JSON.stringify(invoiceData, null, 2));
+    
+    console.log('\nIn a real application, the zap validation would:');
+    console.log('1. Parse the bolt11 invoice to extract the description hash');
+    console.log('2. Calculate the SHA-256 hash of the zap request JSON');
+    console.log('3. Verify that these hashes match to ensure the payment was for this specific zap request');
+    
+    // Show how this protects against tampering
+    console.log('\nThis security check prevents:');
+    console.log('- Reusing a zap receipt for a different event');
+    console.log('- Creating fake zap receipts without actual payments');
+    console.log('- Modifying the zap request parameters after payment');
+  } catch (error) {
+    console.error('Error parsing bolt11 invoice:', error);
+  }
+
   // Clean up after 2 seconds
   setTimeout(async () => {
     client.unsubscribe(subId);

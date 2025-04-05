@@ -4,6 +4,7 @@
 
 import { LnurlPayResponse } from './index';
 import { bech32 } from '@scure/base';
+import { decode } from 'light-bolt11-decoder';
 
 /**
  * Fetches and validates LNURL pay metadata from a URL
@@ -89,6 +90,70 @@ export function decodeLnurl(lnurl: string): string | null {
 }
 
 /**
+ * Parses a bolt11 invoice and extracts relevant data
+ * @param bolt11 The bolt11 invoice string
+ * @returns Object with parsed data or null if parsing failed
+ */
+export function parseBolt11Invoice(bolt11: string): { 
+  paymentHash?: string; 
+  descriptionHash?: string; 
+  amount?: string; 
+  timestamp?: number;
+  description?: string;
+} | null {
+  try {
+    // Use any to bypass type issues
+    const decoded = decode(bolt11) as any;
+    
+    // Extract fields from the decoded invoice
+    const result: {
+      paymentHash?: string;
+      descriptionHash?: string;
+      amount?: string;
+      timestamp?: number;
+      description?: string;
+    } = {};
+    
+    // Find timestamp
+    const timestampSection = decoded.sections.find((s: any) => s.name === 'timestamp');
+    if (timestampSection) {
+      result.timestamp = timestampSection.value;
+    }
+    
+    // Find amount
+    const amountSection = decoded.sections.find((s: any) => s.name === 'amount');
+    if (amountSection && amountSection.value) {
+      result.amount = amountSection.value.toString();
+    }
+    
+    // Find payment hash
+    const paymentHashSection = decoded.sections.find((s: any) => s.name === 'payment_hash');
+    if (paymentHashSection && paymentHashSection.value) {
+      result.paymentHash = paymentHashSection.value;
+    }
+    
+    // Find description
+    const descriptionSection = decoded.sections.find((s: any) => s.name === 'description');
+    if (descriptionSection && descriptionSection.value) {
+      result.description = descriptionSection.value;
+    }
+    
+    // Find description hash (tag 'h')
+    const descriptionHashSection = decoded.sections.find(
+      (s: any) => s.name === 'description_hash' || s.name === 'purpose_commit_hash'
+    );
+    if (descriptionHashSection && descriptionHashSection.value) {
+      result.descriptionHash = descriptionHashSection.value;
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error parsing bolt11 invoice:', error);
+    return null;
+  }
+}
+
+/**
  * Builds a LNURL callback URL with a zap request
  * @param callbackUrl Base LNURL callback URL
  * @param zapRequestEvent JSON string of the zap request event
@@ -143,5 +208,6 @@ export default {
   supportsNostrZaps,
   decodeLnurl,
   buildZapCallbackUrl,
-  extractLnurlMetadata
+  extractLnurlMetadata,
+  parseBolt11Invoice
 }; 

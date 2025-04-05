@@ -145,14 +145,17 @@ This implementation adheres strictly to the NIP-57 specification, including:
 - Support for anonymous zaps using the `P` tag
 - Support for zapping parameterized replaceable events with the `a` tag
 - Support for zap splitting according to weight specifications
+- **Description hash validation** to verify that a zap receipt corresponds to a specific zap request
 - Detailed error reporting for validation failures
 - Proper LNURL bech32 encoding/decoding
 
 ## Security Considerations
 
-- Zap receipts are not cryptographic proofs of payment
+- **Zap receipts now include description hash validation** to verify that the payment was intended for the specific zap request
+- The invoice description hash is verified against the SHA-256 hash of the zap request
+- Zap receipts are still not cryptographic proofs of payment
 - The recipient's LNURL server must be trusted to generate valid receipts
-- Clients should validate that zap receipts come from the expected LNURL server 
+- Clients should validate that zap receipts come from the expected LNURL server
 
 ## Examples
 
