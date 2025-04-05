@@ -790,6 +790,16 @@ export class NostrRemoteSignerBunker {
       return true;
     }
     
+    // Check comma-separated permissions (e.g., "sign_event:1,sign_event:4")
+    for (const perm of client.permissions) {
+      if (perm.includes(',')) {
+        const permList = perm.split(',');
+        if (permList.includes(permission)) {
+          return true;
+        }
+      }
+    }
+    
     return false;
   }
 } 

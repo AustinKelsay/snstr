@@ -209,19 +209,22 @@ export class NostrRemoteSignerClient {
         this.connected = true;
         if (this.debug) console.log('[NIP46 CLIENT] Connection successful');
       }
-
-      // Get user's public key (required by NIP-46)
-      if (this.debug) console.log('[NIP46 CLIENT] Getting user pubkey');
-      this.userPubkey = await this.getPublicKey();
-      if (!this.userPubkey) {
-        console.error('[NIP46 CLIENT] Failed to get user pubkey');
-        throw new Error('Failed to get user public key');
-      }
-      if (this.debug) console.log('[NIP46 CLIENT] User pubkey received:', this.userPubkey);
       
-      return this.userPubkey;
+      // NIP-46 spec requires calling get_public_key after connect
+      // This is to differentiate between signer-pubkey and user-pubkey
+      try {
+        if (this.debug) console.log('[NIP46 CLIENT] Getting user public key');
+        this.userPubkey = await this.getPublicKey();
+        if (this.debug) console.log('[NIP46 CLIENT] User pubkey:', this.userPubkey);
+      } catch (error) {
+        console.error('[NIP46 CLIENT] Failed to get user public key:', error);
+        throw new Error('Failed to get user public key after connect');
+      }
+      
+      return this.userPubkey as string;
     } catch (error) {
       console.error('[NIP46 CLIENT] Connection error:', error);
+      // Clean up on error
       await this.cleanup();
       throw error;
     }
