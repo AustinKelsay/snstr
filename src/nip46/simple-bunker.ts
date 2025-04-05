@@ -1,6 +1,5 @@
 import { NostrEvent, NostrFilter } from '../types/nostr';
 import { Nostr } from '../client/nostr';
-import { getEventHash, signEvent, verifySignature } from '../utils/crypto';
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from '../nip04';
 import { NIP46Request, NIP46Response, createSuccessResponse, createErrorResponse } from './utils/request-response';
 import { Logger, LogLevel } from './utils/logger';
@@ -18,6 +17,7 @@ export interface SimpleNIP46BunkerOptions {
   logLevel?: LogLevel;
   defaultPermissions?: string[];
   secret?: string;
+  debug?: boolean;
 }
 
 /**
@@ -36,6 +36,7 @@ export class SimpleNIP46Bunker {
   private subId: string | null;
   private secret?: string;
   private logger: Logger;
+  private debug: boolean;
   
   /**
    * Create a new SimpleNIP46Bunker
@@ -59,9 +60,14 @@ export class SimpleNIP46Bunker {
     this.defaultPermissions = new Set(options.defaultPermissions || []);
     this.subId = null;
     this.secret = options.secret;
+    this.debug = options.debug || false;
+    
+    // For backward compatibility, set the logger level based on debug flag if not explicitly set
+    const logLevel = options.logLevel || (this.debug ? LogLevel.DEBUG : LogLevel.INFO);
+    
     this.logger = new Logger({
       prefix: 'Bunker',
-      level: options.logLevel || LogLevel.INFO
+      level: logLevel
     });
   }
   

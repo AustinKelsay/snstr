@@ -27,12 +27,12 @@ describe('NIP-46 Remote Signing', () => {
 
   beforeEach(async () => {
     // Create bunker instance with user key
-    bunker = new SimpleNIP46Bunker([relay.url], userKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker([relay.url], userKeypair.publicKey, undefined, {
+      debug: true, // Enable debug mode
+      logLevel: LogLevel.DEBUG
+    });
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(userKeypair.privateKey);
-    
-    // Enable debug logging
-    bunker.setLogLevel(LogLevel.DEBUG);
     
     // Set default permissions for all tests
     bunker.setDefaultPermissions(['sign_event', 'nip04_encrypt', 'nip04_decrypt']);
@@ -42,6 +42,7 @@ describe('NIP-46 Remote Signing', () => {
     // Create client instance with longer timeout
     client = new SimpleNIP46Client([relay.url], { 
       timeout: 3000,
+      debug: true, // Enable debug mode
       logLevel: LogLevel.DEBUG
     });
   }, 5000);

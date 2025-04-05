@@ -3,6 +3,7 @@ import {
   SimpleNIP46Bunker,
   generateKeypair
 } from '../../src';
+import { LogLevel } from '../../src/nip46';
 import { NostrRelay } from '../../src/utils/ephemeral-relay';
 
 describe('NIP-46 Connection Failures', () => {
@@ -55,7 +56,11 @@ describe('NIP-46 Connection Failures', () => {
 
   beforeEach(() => {
     // Create client for testing with shorter timeout for tests
-    client = new SimpleNIP46Client([relayUrl], { timeout: 1000 }); // Short timeout
+    client = new SimpleNIP46Client([relayUrl], { 
+      timeout: 1000,
+      debug: true,
+      logLevel: LogLevel.DEBUG
+    });
   });
 
   afterEach(async () => {
@@ -90,7 +95,11 @@ describe('NIP-46 Connection Failures', () => {
 
   test('Connect fails with non-existent relay', async () => {
     // Create a client with a non-existent relay - use a very short timeout
-    const nonExistentClient = new SimpleNIP46Client(['ws://localhost:9999'], { timeout: 1000 });
+    const nonExistentClient = new SimpleNIP46Client(['ws://localhost:9999'], { 
+      timeout: 1000,
+      debug: true,
+      logLevel: LogLevel.DEBUG
+    });
     
     // Generate a valid connection string but with a relay that doesn't exist
     const connectionString = `bunker://${signerKeypair.publicKey}?relay=ws://localhost:9999`;
@@ -110,7 +119,15 @@ describe('NIP-46 Connection Failures', () => {
 
   test('Connect times out when bunker is unreachable', async () => {
     // Start bunker
-    bunker = new SimpleNIP46Bunker([relayUrl], userKeypair.publicKey, signerKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl], 
+      userKeypair.publicKey, 
+      signerKeypair.publicKey,
+      { 
+        debug: true,
+        logLevel: LogLevel.DEBUG
+      }
+    );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
     await bunker.start();
@@ -126,7 +143,15 @@ describe('NIP-46 Connection Failures', () => {
 
   test('Ping fails when bunker is stopped', async () => {
     // Start bunker
-    bunker = new SimpleNIP46Bunker([relayUrl], userKeypair.publicKey, signerKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl], 
+      userKeypair.publicKey, 
+      signerKeypair.publicKey,
+      { 
+        debug: true,
+        logLevel: LogLevel.DEBUG
+      }
+    );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
     await bunker.start();

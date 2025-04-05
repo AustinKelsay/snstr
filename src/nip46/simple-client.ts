@@ -2,13 +2,14 @@ import { NostrEvent, NostrFilter } from '../types/nostr';
 import { Nostr } from '../client/nostr';
 import { generateKeypair } from '../utils/crypto';
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from '../nip04';
-import { NIP46Request, NIP46Response, createRequest, generateRequestId } from './utils/request-response';
+import { NIP46Request, NIP46Response, generateRequestId } from './utils/request-response';
 import { Logger, LogLevel } from './utils/logger';
 
 // Client options interface
 export interface SimpleNIP46ClientOptions {
   timeout?: number;
   logLevel?: LogLevel;
+  debug?: boolean;
 }
 
 /**
@@ -26,6 +27,7 @@ export class SimpleNIP46Client {
   private subId: string | null = null;
   private timeout: number;
   private logger: Logger;
+  private debug: boolean;
   
   /**
    * Create a new SimpleNIP46Client
@@ -40,9 +42,14 @@ export class SimpleNIP46Client {
     this.userPubkey = null;
     this.pendingRequests = new Map();
     this.timeout = options.timeout || 30000;
+    this.debug = options.debug || false;
+    
+    // For backward compatibility, set the logger level based on debug flag if not explicitly set
+    const logLevel = options.logLevel || (this.debug ? LogLevel.DEBUG : LogLevel.INFO);
+    
     this.logger = new Logger({ 
       prefix: 'Client',
-      level: options.logLevel || LogLevel.INFO
+      level: logLevel
     });
   }
   

@@ -31,7 +31,8 @@ describe('NIP-46 Auth Challenges', () => {
       signerPubkey: signerKeypair.publicKey,
       requireAuthChallenge: true,
       authUrl: 'https://example.com/auth',
-      authTimeout: 5000 // Short timeout for tests
+      authTimeout: 5000, // Short timeout for tests
+      debug: true // Enable debug mode for testing
     };
     
     // Create bunker
@@ -71,7 +72,8 @@ describe('NIP-46 Auth Challenges', () => {
     const bunkerOptions: NIP46BunkerOptions = {
       relays: ['wss://localhost:3000'], // Doesn't need to be a real relay for this test
       userPubkey: userKeypair.publicKey,
-      signerPubkey: signerKeypair.publicKey
+      signerPubkey: signerKeypair.publicKey,
+      debug: true // Enable debug mode for testing
     };
     
     bunker = new NostrRemoteSignerBunker(bunkerOptions);

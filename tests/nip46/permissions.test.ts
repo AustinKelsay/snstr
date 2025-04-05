@@ -4,6 +4,7 @@ import {
   generateKeypair,
   verifySignature
 } from '../../src';
+import { LogLevel } from '../../src/nip46';
 import { NostrRelay } from '../../src/utils/ephemeral-relay';
 
 describe('NIP-46 Permission Handling', () => {
@@ -25,7 +26,10 @@ describe('NIP-46 Permission Handling', () => {
     signerKeypair = await generateKeypair();
     
     // Create client
-    client = new SimpleNIP46Client([relayUrl]);
+    client = new SimpleNIP46Client([relayUrl], { 
+      debug: true,
+      logLevel: LogLevel.DEBUG
+    });
     
     // Give the relay time to start properly
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -66,7 +70,15 @@ describe('NIP-46 Permission Handling', () => {
 
   test('Bunker with default permissions allows specific kind', async () => {
     // Create bunker with default permissions for kind 1
-    bunker = new SimpleNIP46Bunker([relayUrl], userKeypair.publicKey, signerKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl], 
+      userKeypair.publicKey, 
+      signerKeypair.publicKey,
+      { 
+        debug: true,
+        logLevel: LogLevel.DEBUG 
+      }
+    );
     
     // Set private keys
     bunker.setUserPrivateKey(userKeypair.privateKey);
@@ -101,7 +113,15 @@ describe('NIP-46 Permission Handling', () => {
 
   test('Bunker with default permissions rejects unauthorized kind', async () => {
     // Create bunker with default permissions for kind 1 only
-    bunker = new SimpleNIP46Bunker([relayUrl], userKeypair.publicKey, signerKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl], 
+      userKeypair.publicKey, 
+      signerKeypair.publicKey,
+      { 
+        debug: true,
+        logLevel: LogLevel.DEBUG 
+      }
+    );
     
     // Set private keys
     bunker.setUserPrivateKey(userKeypair.privateKey);
@@ -131,7 +151,15 @@ describe('NIP-46 Permission Handling', () => {
 
   test('Bunker with wildcard permissions allows any kind', async () => {
     // Create bunker with wildcard permissions
-    bunker = new SimpleNIP46Bunker([relayUrl], userKeypair.publicKey, signerKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl], 
+      userKeypair.publicKey, 
+      signerKeypair.publicKey,
+      { 
+        debug: true,
+        logLevel: LogLevel.DEBUG 
+      }
+    );
     
     // Set private keys
     bunker.setUserPrivateKey(userKeypair.privateKey);
@@ -178,7 +206,15 @@ describe('NIP-46 Permission Handling', () => {
 
   test('Bunker with encryption permissions allows encryption', async () => {
     // Create bunker with encryption permissions
-    bunker = new SimpleNIP46Bunker([relayUrl], userKeypair.publicKey, signerKeypair.publicKey);
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl], 
+      userKeypair.publicKey, 
+      signerKeypair.publicKey,
+      { 
+        debug: true,
+        logLevel: LogLevel.DEBUG 
+      }
+    );
     
     // Set private keys
     bunker.setUserPrivateKey(userKeypair.privateKey);
