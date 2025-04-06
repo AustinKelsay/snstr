@@ -15,6 +15,7 @@ NIP-57 defines two event types:
 - 🧾 **LNURL Integration**: Utilities for working with LNURL pay endpoints
 - 💰 **Zap Splits**: Support for splitting zaps between multiple recipients
 - ✅ **Validation**: Comprehensive verification of zap receipts
+- 🔒 **Description Hash Verification**: Validates the bolt11 invoice description hash against the zap request
 - 🔍 **Easy Querying**: Simple fetch/query methods for zap-related data
 - 📊 **Stats**: Calculate total zap amounts and other statistics
 
@@ -67,6 +68,46 @@ const zapRequestTemplate = createZapRequest({
 ```
 
 This formatting is important for ensuring compatibility with other implementations of NIP-57.
+
+## Description Hash Verification
+
+This implementation includes a critical security feature: verification that the SHA-256 hash of the zap request matches the description_hash field in the bolt11 invoice. This helps prevent:
+
+1. **Zap receipt forgery**: A malicious actor creating fake zap receipts without making actual payments
+2. **Amount manipulation**: Creating a zap receipt that claims a different amount than was actually paid
+3. **Receipt reuse**: Reusing valid payment proofs for different recipients or events
+
+The validation function checks:
+- The zap receipt is signed by the expected LNURL server
+- The zap request signature is valid
+- Recipient and event IDs match between the zap request and receipt
+- The SHA-256 hash of the zap request matches the bolt11 invoice's description hash
+
+This feature provides an additional layer of security beyond just checking signatures and ensures the zap receipt corresponds to an actual Lightning Network payment.
+
+The code implementation:
+
+```typescript
+// Parse bolt11 invoice to extract description hash
+const parsedInvoice = parseBolt11Invoice(bolt11);
+if (!parsedInvoice || !parsedInvoice.descriptionHash) {
+  return { valid: false, message: 'Invoice is missing description hash' };
+}
+
+// Calculate SHA-256 hash of the zap request JSON
+const zapRequestJson = descriptionTag[1];
+const hashBytes = sha256(zapRequestJson);
+
+// Convert to hex for comparison
+const calculatedHash = Array.from(hashBytes)
+  .map(b => b.toString(16).padStart(2, '0'))
+  .join('');
+
+// Compare the hashes
+if (calculatedHash !== parsedInvoice.descriptionHash) {
+  return { valid: false, message: 'Description hash mismatch' };
+}
+```
 
 ## Basic Usage
 
@@ -195,13 +236,14 @@ This implementation adheres strictly to the NIP-57 specification, including:
 - Support for anonymous zaps using the `P` tag
 - Support for zapping parameterized replaceable events with the `a` tag
 - Support for zap splitting according to weight specifications
+- Comprehensive bolt11 invoice validation, including description hash verification
 - Detailed error reporting for validation failures
 - Proper LNURL bech32 encoding/decoding
 
 ## Security Considerations
 
-- Zap receipts are not cryptographic proofs of payment
-- The recipient's LNURL server must be trusted to generate valid receipts
+- Zap receipts include verification of the invoice description hash for added security
+- The library verifies that the bolt11 invoice actually commits to the zap request
 - Clients should validate that zap receipts come from the expected LNURL server 
 
 ## Examples

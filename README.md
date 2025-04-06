@@ -21,6 +21,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
   - [NIP-05: DNS Identifiers](#nip-05-dns-identifiers)
   - [NIP-07: Browser Extensions](#nip-07-browser-extensions)
   - [NIP-46: Remote Signing Protocol](#nip-46-remote-signing-protocol)
+  - [NIP-57: Lightning Zaps](#nip-57-lightning-zaps)
 - [Basic Usage](#basic-usage)
 - [Using the Ephemeral Relay](#using-the-ephemeral-relay)
 - [Direct Messaging Example](#direct-messaging-example)
@@ -50,6 +51,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - NIP-19: bech32-encoded entities
 - NIP-44: Versioned Encryption
 - NIP-46: Remote Signing Protocol (Nostr Connect)
+- NIP-57: Lightning Zaps
 
 ## Supported NIPs
 
@@ -61,6 +63,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - NIP-44: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
 - NIP-07: Browser extension integration for key management and signing
 - NIP-46: Remote signing (bunker) support for secure key management
+- NIP-57: Lightning Zaps protocol for integrating Bitcoin payments via the Lightning Network
 
 ## Installation
 
@@ -210,6 +213,37 @@ import {
   createErrorResponse,
   Logger,
   LogLevel
+} from 'snstr';
+```
+
+### NIP-57: Lightning Zaps
+
+```typescript
+import {
+  // Core zap functions
+  createZapRequest,
+  createZapReceipt,
+  validateZapReceipt,
+  
+  // Zap client for higher-level API
+  NostrZapClient,
+  ZapClient,
+  
+  // Zap split utilities
+  parseZapSplit,
+  calculateZapSplitAmounts,
+  
+  // Lightning utilities
+  fetchLnurlPayMetadata,
+  parseBolt11Invoice,
+  getLightningAddressUrl,
+  
+  // Types
+  ZapRequestOptions,
+  ZapReceiptOptions,
+  ZapValidationResult,
+  ZapStats,
+  LnurlPayResponse
 } from 'snstr';
 ```
 
@@ -678,6 +712,64 @@ main().catch(console.error);
 - **Fallbacks**: Gracefully falls back between encryption methods if needed
 - **Error Handling**: Clear error messages when extension functionality is unavailable
 
+## Lightning Zaps with NIP-57
+
+SNSTR includes a complete implementation of [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md), which standardizes the integration of Bitcoin Lightning Network payments (zaps) with Nostr.
+
+```typescript
+import { 
+  Nostr,
+  NostrZapClient,
+  createZapRequest,
+  getLightningAddressUrl
+} from 'snstr';
+
+async function main() {
+  // Initialize client
+  const client = new Nostr(['wss://relay.example.com']);
+  await client.setPrivateKey(privateKey);
+  await client.connectToRelays();
+  
+  // Create a ZapClient for easier interaction
+  const zapClient = new NostrZapClient({
+    client,
+    defaultRelays: ['wss://relay.example.com']
+  });
+  
+  // Convert Lightning address to LNURL endpoint
+  const lnurlEndpoint = getLightningAddressUrl('user@domain.com');
+  console.log(`LNURL endpoint: ${lnurlEndpoint}`);
+  
+  // Send a zap
+  await zapClient.sendZap({
+    recipientPubkey: 'recipient_pubkey',
+    lnurl: 'lightning_address_or_lnurl',
+    amount: 1000000, // 1000 sats in millisats
+    comment: 'Great post!'
+  }, myPrivateKey);
+  
+  // Fetch zaps received by a user
+  const receivedZaps = await zapClient.fetchUserReceivedZaps('user_pubkey');
+  
+  // Calculate zap statistics
+  const stats = await zapClient.getTotalZapsReceived('user_pubkey');
+  console.log(`Total: ${stats.total / 1000} sats across ${stats.count} zaps`);
+}
+
+main().catch(console.error);
+```
+
+### Key Features of NIP-57 Implementation
+
+- **Lightning Integration**: Connect Nostr events to Lightning Network payments
+- **Zap Requests & Receipts**: Create and validate zap requests and receipts
+- **Lightning Address Support**: Automatic handling of `user@domain.com` format addresses
+- **Security**: Proper validation of description hashes to prevent tampering
+- **Zap Splits**: Support for splitting payments between multiple recipients
+- **Statistics**: Calculate detailed zap statistics (totals, averages, etc.)
+- **Anonymous Zaps**: Support for sending zaps anonymously
+- **Client API**: High-level API for common zap operations
+
 ## Using Public Relays vs Ephemeral Relay
 
 The examples in SNSTR can run with either the built-in ephemeral relay or connect to public Nostr relays. This is controlled by the `USE_EPHEMERAL` environment variable:
@@ -729,6 +821,9 @@ The project includes a comprehensive test suite that uses the ephemeral relay fo
   - `nip44/nip44-padding-hmac.test.ts`: Tests for padding and HMAC implementation
   - `nip44/nip44-vectors.test.ts`: Additional test cases for robustness
   
+- **NIP-57 Tests**: Tests for the Lightning Zaps implementation
+  - `nip57/zap.test.ts`: Tests for zap request/receipt creation and validation
+  
 - **Integration Tests**: Tests that simulate real usage
   - `integration.test.ts`: End-to-end tests using ephemeral relay
 
@@ -752,6 +847,12 @@ Run just the NIP-44 tests:
 npm test -- tests/nip44
 ```
 
+Run just the NIP-57 tests:
+
+```bash
+npm test -- tests/nip57
+```
+
 ### Test Coverage
 
 The test suite aims for high coverage of all critical paths and edge cases:
@@ -762,6 +863,7 @@ The test suite aims for high coverage of all critical paths and edge cases:
 - NIP-44 encryption/decryption
 - Relay connections and behavior
 - Event publishing and subscription
+- Zap request/receipt creation and validation
 - Error handling
 
 ## Development
@@ -787,6 +889,12 @@ npm run example:crypto
 # NIP-44 encryption demo (runs examples/nip44/nip44-demo.ts)
 npm run example:nip44
 
+# NIP-57 zaps examples
+npm run example:nip57           # Basic zaps example
+npm run example:nip57:client    # ZapClient with signet Lightning address
+npm run example:nip57:validation # Invoice validation example
+npm run example:nip57:lnurl     # LNURL server simulation
+
 # Examples with ephemeral relay and verbose logging
 npm run example:ephemeral
 npm run example:ephemeral:dm
@@ -798,6 +906,7 @@ npm run example:public:dm
 # Test encryption/decryption
 npm run test:encryption   # Run NIP-04 tests
 npm run test:nip44        # Run NIP-44 tests
+npm run test:nip57        # Run NIP-57 tests
 ```
 
 ## Encryption Support
@@ -956,6 +1065,7 @@ npm run example:nip05   # DNS identifiers (NIP-05)
 npm run example:nip19   # bech32-encoded entities (NIP-19)
 npm run example:nip44   # Versioned encryption (NIP-44)
 npm run example:nip46   # Remote signing protocol (NIP-46)
+npm run example:nip57   # Lightning Zaps (NIP-57)
 ```
 
 See the [examples README](./examples/README.md) for the full list of available examples and more details on how to run them.

@@ -14,7 +14,48 @@ The [basic-example.ts](./basic-example.ts) demonstrates:
 Run it with:
 
 ```bash
-npm run example:nip57:basic
+npm run example:nip57
+```
+
+### ZapClient Example with Real Signet Lightning Address
+
+The [zap-client-example.ts](./zap-client-example.ts) demonstrates:
+- Using the `NostrZapClient` class for a more intuitive API
+- Fetching real bolt11 invoices from a signet Lightning address
+- Calculating statistics on zaps
+- Working with zap splits
+- Lightning address support (`user@domain.com` format)
+
+Run it with:
+
+```bash
+npm run example:nip57:client
+```
+
+### Invoice Validation Example
+
+The [invoice-validation-example.ts](./invoice-validation-example.ts) demonstrates:
+- The security features of NIP-57
+- How description hash validation works
+- How to prevent tampering in zap receipts
+
+Run it with:
+
+```bash
+npm run example:nip57:validation
+```
+
+### LNURL Server Simulation
+
+The [lnurl-server-simulation.ts](./lnurl-server-simulation.ts) demonstrates:
+- How a LNURL server processes zap requests
+- How to generate and validate zap receipts
+- The complete protocol flow
+
+Run it with:
+
+```bash
+npm run example:nip57:lnurl
 ```
 
 ## What is NIP-57?
@@ -40,6 +81,10 @@ Zaps can also be split between multiple recipients using the `zap` tag.
 5. Sender pays the invoice
 6. LNURL server creates and publishes a zap receipt
 7. Clients can validate and display the zap receipt
+
+## Lightning Address Support
+
+This implementation supports standard Lightning addresses in the format `user@domain.com`, which are automatically converted to the required `https://domain.com/.well-known/lnurlp/user` LNURL endpoint. The examples demonstrate this using a signet Lightning address (`snstrtest@vlt.ge`) which allows testing with real bolt11 invoices but without spending real money.
 
 ## Anonymous Zaps
 
