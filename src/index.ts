@@ -117,7 +117,8 @@ export {
   ZapRequestOptions,
   ZapReceiptOptions,
   ZapValidationResult,
-  LnurlPayResponse
+  LnurlPayResponse,
+  ZapStats
 } from './nip57';
 
 export {

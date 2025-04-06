@@ -1,6 +1,12 @@
 /**
  * NIP-57 Zap Client implementation
  * Provides high-level functionality for working with zaps in Nostr
+ * 
+ * The NostrZapClient provides a comprehensive interface for:
+ * - Sending zaps to users and events
+ * - Fetching and validating zap receipts
+ * - Calculating zap statistics
+ * - Working with zap splits
  */
 
 import { NostrEvent } from '../types/nostr';
@@ -25,7 +31,10 @@ import {
  * Options for the ZapClient
  */
 export interface ZapClientOptions {
+  /** The Nostr client instance to use for relay communication */
   nostrClient: Nostr;
+  
+  /** Default relay URLs to use when not specified explicitly */
   defaultRelays?: string[];
 }
 
@@ -33,10 +42,19 @@ export interface ZapClientOptions {
  * Result of generating a zap invoice
  */
 export interface ZapInvoiceResult {
+  /** The bolt11 invoice string */
   invoice: string;
+  
+  /** The zap request event that was used to generate the invoice */
   zapRequest: NostrEvent;
+  
+  /** The optional payment hash of the invoice */
   paymentHash?: string;
+  
+  /** Optional success action to be performed after payment */
   successAction?: any;
+  
+  /** Error message if invoice generation failed */
   error?: string;
 }
 
@@ -44,15 +62,53 @@ export interface ZapInvoiceResult {
  * Filter options for fetching zaps
  */
 export interface ZapFilterOptions {
+  /** Maximum number of zaps to fetch */
   limit?: number;
+  
+  /** Fetch zaps created after this timestamp */
   since?: number;
+  
+  /** Fetch zaps created before this timestamp */
   until?: number;
+  
+  /** Filter zaps by these author pubkeys */
   authors?: string[];
+  
+  /** Filter zaps for these event IDs */
   events?: string[];
 }
 
 /**
- * Simple client for working with zaps
+ * Statistics about zaps for a user or event
+ */
+export interface ZapStats {
+  /** Total amount received in millisats */
+  total: number;
+  
+  /** Number of zaps received */
+  count: number;
+  
+  /** Largest single zap amount in millisats */
+  largest?: number;
+  
+  /** Smallest single zap amount in millisats */
+  smallest?: number;
+  
+  /** Average zap amount in millisats */
+  average?: number;
+  
+  /** First zap timestamp */
+  firstAt?: number;
+  
+  /** Latest zap timestamp */
+  latestAt?: number;
+}
+
+/**
+ * Client for working with Lightning Zaps (NIP-57)
+ * 
+ * This client provides high-level methods for sending zaps,
+ * fetching zap receipts, and calculating zap statistics.
  */
 export class NostrZapClient {
   private client: Nostr;
@@ -63,7 +119,10 @@ export class NostrZapClient {
    * @param options Options for configuring the client
    */
   constructor(options: {
+    /** The Nostr client instance to use */
     client: Nostr;
+    
+    /** Default relay URLs to use when not specified explicitly */
     defaultRelays?: string[];
   }) {
     this.client = options.client;
@@ -72,8 +131,11 @@ export class NostrZapClient {
   
   /**
    * Check if a user can receive zaps
+   * 
+   * This method checks if a user's LNURL endpoint supports NIP-57 Nostr zaps.
+   * 
    * @param pubkey The user's public key
-   * @param lnurl Optional LNURL from profile
+   * @param lnurl Optional LNURL from profile (if known)
    * @returns Whether the user can receive zaps
    */
   async canReceiveZaps(pubkey: string, lnurl?: string): Promise<boolean> {
@@ -86,17 +148,42 @@ export class NostrZapClient {
   
   /**
    * Send a zap to a user or event
-   * @param options Zap options
+   * 
+   * This method:
+   * 1. Creates a zap request
+   * 2. Sends it to the recipient's LNURL server
+   * 3. Returns the invoice for payment
+   * 
+   * Note: After getting the invoice, you need to pay it with a Lightning wallet.
+   * The LNURL server will create and publish a zap receipt after payment.
+   * 
+   * @param options Zap options including recipient, amount, and comment
    * @param privateKey Private key for signing the request
+   * @returns Object with success status and invoice or error
    */
   async sendZap(options: {
+    /** Public key of the recipient */
     recipientPubkey: string;
+    
+    /** LNURL of the recipient */
     lnurl: string;
+    
+    /** Amount in millisats to send */
     amount: number;
+    
+    /** Optional comment to include with the zap */
     comment?: string;
+    
+    /** Event ID to zap (if zapping a specific event) */
     eventId?: string;
+    
+    /** A-tag coordinates (for parameterized replaceable events) */
     aTag?: string;
+    
+    /** Override default relays for zap receipt publishing */
     relays?: string[];
+    
+    /** Whether to send as an anonymous zap */
     anonymousZap?: boolean;
   }, privateKey: string): Promise<{
     success: boolean;
@@ -130,8 +217,10 @@ export class NostrZapClient {
   
   /**
    * Fetch zaps received by a user
+   * 
    * @param pubkey User's public key
    * @param options Filter options
+   * @returns Array of zap receipt events
    */
   async fetchUserReceivedZaps(
     pubkey: string, 
@@ -182,8 +271,10 @@ export class NostrZapClient {
   
   /**
    * Fetch zaps sent by a user
+   * 
    * @param pubkey User's public key
    * @param options Filter options
+   * @returns Array of zap receipt events
    */
   async fetchUserSentZaps(
     pubkey: string, 
@@ -198,16 +289,15 @@ export class NostrZapClient {
     // Then filter to only those sent by this user
     return allZapReceipts.filter(zapReceipt => {
       try {
-        // Get the description tag which contains the zap request
+        // Find description tag
         const descriptionTag = zapReceipt.tags.find(tag => tag[0] === 'description');
-        if (!descriptionTag) return false;
+        if (!descriptionTag || !descriptionTag[1]) return false;
         
-        // Parse the zap request
+        // Parse zap request
         const zapRequest = JSON.parse(descriptionTag[1]);
         
-        // Check if this zap was sent by our target pubkey
-        return zapRequest.pubkey === pubkey || 
-               zapRequest.tags.some((tag: string[]) => tag[0] === 'P' && tag[1] === pubkey);
+        // Check if the sender is the specified pubkey
+        return zapRequest.pubkey === pubkey;
       } catch (e) {
         return false;
       }
@@ -216,11 +306,13 @@ export class NostrZapClient {
   
   /**
    * Fetch zaps for a specific event
-   * @param eventId Event ID
+   * 
+   * @param eventId The event ID to get zaps for
    * @param options Filter options
+   * @returns Array of zap receipt events
    */
   async fetchEventZaps(
-    eventId: string, 
+    eventId: string,
     options: ZapFilterOptions = {}
   ): Promise<NostrEvent[]> {
     const filter = {
@@ -267,13 +359,15 @@ export class NostrZapClient {
   }
   
   /**
-   * Fetch all zap receipts matching filter options
+   * Fetch all zap receipts matching the filter criteria
+   * 
    * @param options Filter options
+   * @returns Array of zap receipt events
    */
-  private async fetchZapReceipts(options: ZapFilterOptions = {}): Promise<NostrEvent[]> {
+  async fetchZapReceipts(options: ZapFilterOptions = {}): Promise<NostrEvent[]> {
     const filter = {
       kinds: [9735],
-      limit: options.limit || 100
+      limit: options.limit || 20
     };
     
     if (options.since) {
@@ -319,47 +413,191 @@ export class NostrZapClient {
   
   /**
    * Validate a zap receipt
-   * @param zapReceipt Zap receipt to validate
-   * @param lnurlPubkey LNURL server public key
-   * @returns Validation result
+   * 
+   * This validates that:
+   * 1. The receipt is properly formatted
+   * 2. The signature is valid
+   * 3. The description hash in the bolt11 invoice matches the zap request
+   * 4. The amount matches between invoice and zap request
+   * 
+   * @param zapReceipt The zap receipt event to validate
+   * @param lnurlPubkey Public key of the LNURL server (if known)
+   * @returns Validation result with details
    */
   validateZapReceipt(
     zapReceipt: NostrEvent, 
-    lnurlPubkey: string
+    lnurlPubkey?: string
   ): ZapValidationResult {
-    return validateZapReceipt(zapReceipt, lnurlPubkey);
+    return validateZapReceipt(zapReceipt, lnurlPubkey || zapReceipt.pubkey);
   }
   
   /**
    * Calculate total zaps received by a user
-   * @param pubkey User public key
+   * 
+   * @param pubkey User's public key
    * @param options Filter options
+   * @returns Zap statistics
    */
   async getTotalZapsReceived(
     pubkey: string,
     options: ZapFilterOptions = {}
-  ): Promise<{ total: number, count: number }> {
-    const zapReceipts = await this.fetchUserReceivedZaps(pubkey, options);
+  ): Promise<ZapStats> {
+    const zaps = await this.fetchUserReceivedZaps(pubkey, options);
     
-    let total = 0;
+    if (zaps.length === 0) {
+      return { total: 0, count: 0 };
+    }
     
-    for (const receipt of zapReceipts) {
-      try {
-        // Validate receipt first
-        const validation = this.validateZapReceipt(receipt, receipt.pubkey);
-        if (!validation.valid || !validation.amount) continue;
+    // Initialize stats
+    const stats: ZapStats = {
+      total: 0,
+      count: 0,
+      largest: 0,
+      smallest: Number.MAX_SAFE_INTEGER,
+      average: 0,
+      firstAt: Number.MAX_SAFE_INTEGER,
+      latestAt: 0
+    };
+    
+    // Process each zap
+    for (const zap of zaps) {
+      const validation = this.validateZapReceipt(zap);
+      
+      if (validation.valid && validation.amount) {
+        stats.total += validation.amount;
+        stats.count++;
         
-        total += validation.amount;
-      } catch (e) {
-        // Skip invalid receipts
-        continue;
+        // Update largest/smallest
+        if (validation.amount > (stats.largest || 0)) {
+          stats.largest = validation.amount;
+        }
+        
+        if (validation.amount < (stats.smallest || Number.MAX_SAFE_INTEGER)) {
+          stats.smallest = validation.amount;
+        }
+        
+        // Update timestamps
+        if (zap.created_at < stats.firstAt!) {
+          stats.firstAt = zap.created_at;
+        }
+        
+        if (zap.created_at > stats.latestAt!) {
+          stats.latestAt = zap.created_at;
+        }
       }
     }
     
-    return {
-      total,
-      count: zapReceipts.length
+    // Calculate average
+    if (stats.count > 0) {
+      stats.average = Math.floor(stats.total / stats.count);
+    }
+    
+    // Reset smallest if no valid zaps were found
+    if (stats.smallest === Number.MAX_SAFE_INTEGER) {
+      stats.smallest = undefined;
+    }
+    
+    // Reset timestamps if no valid zaps were found
+    if (stats.firstAt === Number.MAX_SAFE_INTEGER) {
+      stats.firstAt = undefined;
+    }
+    
+    return stats;
+  }
+  
+  /**
+   * Calculate total zaps for a specific event
+   * 
+   * @param eventId Event ID to calculate zaps for
+   * @param options Filter options
+   * @returns Zap statistics
+   */
+  async getTotalZapsForEvent(
+    eventId: string,
+    options: ZapFilterOptions = {}
+  ): Promise<ZapStats> {
+    const zaps = await this.fetchEventZaps(eventId, options);
+    
+    if (zaps.length === 0) {
+      return { total: 0, count: 0 };
+    }
+    
+    // Initialize stats
+    const stats: ZapStats = {
+      total: 0,
+      count: 0,
+      largest: 0,
+      smallest: Number.MAX_SAFE_INTEGER,
+      average: 0,
+      firstAt: Number.MAX_SAFE_INTEGER,
+      latestAt: 0
     };
+    
+    // Process each zap
+    for (const zap of zaps) {
+      const validation = this.validateZapReceipt(zap);
+      
+      if (validation.valid && validation.amount) {
+        stats.total += validation.amount;
+        stats.count++;
+        
+        // Update largest/smallest
+        if (validation.amount > (stats.largest || 0)) {
+          stats.largest = validation.amount;
+        }
+        
+        if (validation.amount < (stats.smallest || Number.MAX_SAFE_INTEGER)) {
+          stats.smallest = validation.amount;
+        }
+        
+        // Update timestamps
+        if (zap.created_at < stats.firstAt!) {
+          stats.firstAt = zap.created_at;
+        }
+        
+        if (zap.created_at > stats.latestAt!) {
+          stats.latestAt = zap.created_at;
+        }
+      }
+    }
+    
+    // Calculate average
+    if (stats.count > 0) {
+      stats.average = Math.floor(stats.total / stats.count);
+    }
+    
+    // Reset smallest if no valid zaps were found
+    if (stats.smallest === Number.MAX_SAFE_INTEGER) {
+      stats.smallest = undefined;
+    }
+    
+    // Reset timestamps if no valid zaps were found
+    if (stats.firstAt === Number.MAX_SAFE_INTEGER) {
+      stats.firstAt = undefined;
+    }
+    
+    return stats;
+  }
+  
+  /**
+   * Parse zap split information from an event
+   * 
+   * @param event The event to parse zap split information from
+   * @returns Array of zap split recipients with weights
+   */
+  parseZapSplit(event: NostrEvent) {
+    return parseZapSplit(event);
+  }
+  
+  /**
+   * Calculate zap split amounts
+   * 
+   * @param totalAmount Total amount to split in millisats
+   * @param splitInfo Array of zap split recipients with weights
+   * @returns Array of recipients with calculated amounts
+   */
+  calculateZapSplitAmounts(totalAmount: number, splitInfo: ReturnType<typeof parseZapSplit>) {
+    return calculateZapSplitAmounts(totalAmount, splitInfo);
   }
 }
 
