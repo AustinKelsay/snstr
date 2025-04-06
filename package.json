@@ -39,8 +39,9 @@
     "example:nip46:advanced": "ts-node examples/nip46/advanced/remote-signing-demo.ts",
     "example:nip46:from-scratch": "ts-node examples/nip46/from-scratch/implementation-from-scratch.ts",
     "example:nip57": "ts-node examples/nip57/basic-example.ts",
-    "example:nip57:basic": "ts-node examples/nip57/basic-example.ts",
-    "example:nip57:lnurl": "ts-node examples/nip57/lnurl-server-simulation.ts"
+    "example:nip57:client": "ts-node examples/nip57/zap-client-example.ts",
+    "example:nip57:lnurl": "ts-node examples/nip57/lnurl-server-simulation.ts",
+    "example:nip57:validation": "ts-node examples/nip57/invoice-validation-example.ts"
   },
   "keywords": [
     "nostr",
