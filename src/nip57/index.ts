@@ -12,6 +12,10 @@
 import { NostrEvent, EventTemplate } from '../types/nostr';
 import { createEvent, getEventHash } from '../utils/event';
 import { sha256, signEvent, verifySignature } from '../utils/crypto';
+import { parseBolt11Invoice } from './utils';
+
+// Export types from client.ts
+export { NostrZapClient, ZapClientOptions, ZapInvoiceResult, ZapFilterOptions, ZapStats } from './client';
 
 // Constants
 export const ZAP_REQUEST_KIND = 9734;
@@ -84,8 +88,7 @@ export function createZapRequest(options: ZapRequestOptions, signerPubkey: strin
     ['p', options.recipientPubkey]
   ];
   
-  // Add relays - this is already correctly formatted according to NIP-57 spec
-  // "relays is a list of relays the recipient's wallet should publish its zap receipt to."
+  // Add relays
   tags.push(['relays', ...options.relays]);
   
   // Add optional tags
@@ -241,22 +244,52 @@ export function validateZapReceipt(zapReceipt: NostrEvent, lnurlPubkey: string):
     return { valid: false, message: `Event ID mismatch: ${eTag[1]} vs ${zapRequestETag[1]}` };
   }
   
-  // TODO: Validate that the description hash matches the bolt11 invoice
-  // This would require parsing the bolt11 invoice, which we don't have a library for yet
-  // In a full implementation, we would:
-  // 1. Extract the payment hash and description hash from the bolt11 invoice
-  // 2. Compute the SHA-256 hash of descriptionTag[1]
-  // 3. Verify that the description hash in the bolt11 matches our computed hash
-  
-  // Validate sender pubkey if present
-  const senderPubkey = pSenderTag ? pSenderTag[1] : zapRequest.pubkey;
+  // Validate description hash matches bolt11 invoice
+  try {
+    // Get bolt11 string from the tag
+    const bolt11 = bolt11Tag[1];
+    
+    // Parse bolt11 invoice to extract description hash
+    const parsedInvoice = parseBolt11Invoice(bolt11);
+    if (!parsedInvoice) {
+      return { valid: false, message: 'Failed to parse bolt11 invoice' };
+    }
+    
+    // Extract description hash from invoice
+    const invoiceDescriptionHash = parsedInvoice.descriptionHash;
+    if (!invoiceDescriptionHash) {
+      return { valid: false, message: 'Invoice is missing description hash' };
+    }
+    
+    // Calculate SHA-256 hash of the zap request JSON
+    const zapRequestJson = descriptionTag[1];
+    const hashBytes = sha256(zapRequestJson);
+    
+    // Convert calculated hash to hex string for comparison
+    const calculatedHash = Array.from(hashBytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    
+    // Compare the hashes
+    if (calculatedHash !== invoiceDescriptionHash) {
+      return { 
+        valid: false, 
+        message: `Description hash mismatch: invoice=${invoiceDescriptionHash}, calculated=${calculatedHash}` 
+      };
+    }
+  } catch (error) {
+    return { 
+      valid: false, 
+      message: `Error validating description hash: ${error instanceof Error ? error.message : String(error)}` 
+    };
+  }
   
   return {
     valid: true,
     amount,
-    sender: senderPubkey,
+    sender: zapRequest.pubkey,
     recipient: pTag[1],
-    eventId: eTag ? eTag[1] : undefined,
+    eventId: eTag?.[1],
     content: zapRequest.content
   };
 }

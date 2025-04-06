@@ -7,6 +7,34 @@ import { bech32 } from '@scure/base';
 import { decode } from 'light-bolt11-decoder';
 
 /**
+ * Converts a Lightning Address (user@domain.com) to a well-known LNURL endpoint URL
+ * @param lightningAddress Lightning Address in format user@domain.com
+ * @returns URL string or null if invalid address format
+ */
+export function getLightningAddressUrl(lightningAddress: string): string | null {
+  try {
+    // Check format
+    if (!lightningAddress || !lightningAddress.includes('@')) {
+      return null;
+    }
+    
+    // Split into username and domain
+    const [username, domain] = lightningAddress.split('@');
+    
+    // Validate parts
+    if (!username || !domain) {
+      return null;
+    }
+    
+    // Build the LNURL endpoint
+    return `https://${domain}/.well-known/lnurlp/${username}`;
+  } catch (error) {
+    console.error('Error converting Lightning Address:', error);
+    return null;
+  }
+}
+
+/**
  * Fetches and validates LNURL pay metadata from a URL
  * @param lnurlOrUrl LNURL (bech32-encoded) or direct URL
  * @returns LNURL pay response if valid and supports Nostr, null otherwise
@@ -14,9 +42,16 @@ import { decode } from 'light-bolt11-decoder';
 export async function fetchLnurlPayMetadata(lnurlOrUrl: string): Promise<LnurlPayResponse | null> {
   try {
     // Convert LNURL to URL if needed
-    const url = lnurlOrUrl.toLowerCase().startsWith('lnurl') 
-      ? decodeLnurl(lnurlOrUrl)
-      : lnurlOrUrl;
+    let url = lnurlOrUrl;
+    
+    // Handle Lightning Address (user@domain.com)
+    if (lnurlOrUrl.includes('@')) {
+      url = getLightningAddressUrl(lnurlOrUrl) || lnurlOrUrl;
+    }
+    // Handle LNURL (bech32-encoded)
+    else if (lnurlOrUrl.toLowerCase().startsWith('lnurl')) {
+      url = decodeLnurl(lnurlOrUrl) || lnurlOrUrl;
+    }
     
     if (!url) {
       return null;
@@ -209,5 +244,6 @@ export default {
   decodeLnurl,
   buildZapCallbackUrl,
   extractLnurlMetadata,
-  parseBolt11Invoice
+  parseBolt11Invoice,
+  getLightningAddressUrl
 }; 
