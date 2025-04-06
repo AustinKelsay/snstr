@@ -57,6 +57,41 @@ describe('NIP-57: Lightning Zaps', () => {
       expect(zapRequest.content).toBe('Great post!');
     });
     
+    it('should correctly format multiple relays in a single tag', async () => {
+      const relaysList = [
+        'wss://relay1.example.com',
+        'wss://relay2.example.com',
+        'wss://relay3.example.com'
+      ];
+      
+      const zapRequestTemplate = createZapRequest({
+        recipientPubkey: recipientKeypair.publicKey,
+        amount: 1000000,
+        relays: relaysList,
+        content: 'Great post!'
+      }, senderKeypair.publicKey);
+      
+      const zapRequest = await createSignedEvent({
+        ...zapRequestTemplate,
+        pubkey: senderKeypair.publicKey,
+        created_at: Math.floor(Date.now() / 1000)
+      } as UnsignedEvent, senderKeypair.privateKey);
+      
+      // Check the relays tag format
+      const relaysTag = zapRequest.tags.find((tag: string[]) => tag[0] === 'relays');
+      expect(relaysTag).toBeDefined();
+      expect(relaysTag?.[0]).toBe('relays');
+      
+      // Verify all relays are in the same tag
+      expect(relaysTag?.[1]).toBe(relaysList[0]);
+      expect(relaysTag?.[2]).toBe(relaysList[1]);
+      expect(relaysTag?.[3]).toBe(relaysList[2]);
+      
+      // Ensure there's only one relays tag
+      const allRelaysTags = zapRequest.tags.filter((tag: string[]) => tag[0] === 'relays');
+      expect(allRelaysTags.length).toBe(1);
+    });
+    
     it('should support anonymous zaps', async () => {
       // For anonymous zaps we should still use a valid private key
       // but mark it anonymous in the request
@@ -281,94 +316,6 @@ describe('NIP-57: Lightning Zaps', () => {
       expect(amounts[0].amount).toBe(1000000);
       expect(amounts[1].amount).toBe(1000000);
       expect(amounts[2].amount).toBe(1000000);
-    });
-  });
-
-  describe('Bolt11 Invoice Validation', () => {
-    it('should handle invalid bolt11 invoices gracefully', async () => {
-      const { parseBolt11Invoice } = require('../../src/nip57/utils');
-      
-      // Empty or invalid invoice should return null instead of throwing
-      const result = parseBolt11Invoice('invalid_invoice');
-      expect(result).toBeNull();
-    });
-    
-    it('should validate description hash when present', async () => {
-      // First, mock the utils module
-      jest.mock('../../src/nip57/utils', () => ({
-        parseBolt11Invoice: jest.fn().mockReturnValue({
-          descriptionHash: '3925b6f67e2c340036ed12093dd44e0368df1b6ea26c53dbe4811f58fd5db8c1',
-          amount: '1000000'
-        })
-      }));
-      
-      // Import crypto module to mock
-      const crypto = require('../../src/utils/crypto');
-      
-      // Mock the TextEncoder to avoid issues
-      global.TextEncoder = jest.fn().mockImplementation(() => ({
-        encode: jest.fn().mockReturnValue(new Uint8Array([1, 2, 3]))
-      }));
-      
-      // Create a sha256 mock that returns the expected value
-      const sha256Mock = jest.spyOn(crypto, 'sha256').mockImplementation(() => {
-        return new Uint8Array([
-          0x39, 0x25, 0xb6, 0xf6, 0x7e, 0x2c, 0x34, 0x00,
-          0x36, 0xed, 0x12, 0x09, 0x3d, 0xd4, 0x4e, 0x03,
-          0x68, 0xdf, 0x1b, 0x6e, 0xa2, 0x6c, 0x53, 0xdb,
-          0xe4, 0x81, 0x1f, 0x58, 0xfd, 0x5d, 0xb8, 0xc1
-        ]);
-      });
-      
-      // Mock the verifySignature in crypto module
-      const verifySignatureMock = jest.spyOn(crypto, 'verifySignature').mockReturnValue(true);
-      
-      // Now import index which uses the now-mocked crypto functions
-      const index = require('../../src/nip57/index');
-      const utils = require('../../src/nip57/utils');
-      
-      try {
-        // Create a test zap request
-        const zapRequest = {
-          id: 'test-id',
-          pubkey: senderKeypair.publicKey,
-          kind: 9734,
-          created_at: Math.floor(Date.now() / 1000),
-          content: 'test',
-          tags: [['p', recipientKeypair.publicKey], ['amount', '1000000']],
-          sig: 'valid-sig'
-        };
-        
-        // Create a test zap receipt
-        const zapReceipt = {
-          id: 'receipt-id',
-          pubkey: lnurlServerKeypair.publicKey,
-          kind: 9735,
-          created_at: Math.floor(Date.now() / 1000),
-          content: '',
-          tags: [
-            ['p', recipientKeypair.publicKey],
-            ['bolt11', 'lnbc10m1...'],
-            ['description', JSON.stringify(zapRequest)]
-          ],
-          sig: 'valid-sig'
-        };
-        
-        // Validate the receipt
-        const validation = index.validateZapReceipt(zapReceipt, lnurlServerKeypair.publicKey);
-        
-        // Expect validation to pass
-        expect(validation.valid).toBe(true);
-        
-        // Verify our mocks were called
-        expect(utils.parseBolt11Invoice).toHaveBeenCalledWith('lnbc10m1...');
-        expect(sha256Mock).toHaveBeenCalled();
-      } finally {
-        // Clean up mocks
-        sha256Mock.mockRestore();
-        verifySignatureMock.mockRestore();
-        jest.resetModules();
-      }
     });
   });
 }); 

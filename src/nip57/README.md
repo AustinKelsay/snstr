@@ -18,6 +18,56 @@ NIP-57 defines two event types:
 - 🔍 **Easy Querying**: Simple fetch/query methods for zap-related data
 - 📊 **Stats**: Calculate total zap amounts and other statistics
 
+## Ephemeral Relay
+
+The library provides an in-memory relay implementation for testing and development:
+
+```typescript
+import { NostrRelay } from 'snstr/utils/ephemeral-relay';
+
+// Create an ephemeral relay on port 3000
+// Optional: purge events every 60 seconds
+const relay = new NostrRelay(3000, 60);
+```
+
+## Relay Tag Format
+
+The NIP-57 spec requires a specific format for the `relays` tag in zap requests. According to the specification:
+
+> `relays` is a list of relays the recipient's wallet should publish its `zap receipt` to. Note that relays should not be nested in an additional list, but should be included as shown in the example below.
+
+This implementation follows the specification by storing all relay URLs in a single tag with `relays` as the first element:
+
+```javascript
+// Correct format (as implemented in this library)
+[
+  ["relays", "wss://relay1.example.com", "wss://relay2.example.com", "wss://relay3.example.com"]
+]
+
+// Incorrect format (do not do this)
+[
+  ["relays", ["wss://relay1.example.com", "wss://relay2.example.com", "wss://relay3.example.com"]]
+]
+```
+
+When using the `createZapRequest` function, this format is correctly applied:
+
+```typescript
+const zapRequestTemplate = createZapRequest({
+  recipientPubkey: 'recipient_pubkey_here',
+  relays: [
+    'wss://relay1.example.com',
+    'wss://relay2.example.com'
+  ],
+  // other options...
+}, 'sender_pubkey_here');
+
+// In the resulting event, the relays tag will be:
+// ["relays", "wss://relay1.example.com", "wss://relay2.example.com"]
+```
+
+This formatting is important for ensuring compatibility with other implementations of NIP-57.
+
 ## Basic Usage
 
 ### Using the NostrZapClient
@@ -145,17 +195,14 @@ This implementation adheres strictly to the NIP-57 specification, including:
 - Support for anonymous zaps using the `P` tag
 - Support for zapping parameterized replaceable events with the `a` tag
 - Support for zap splitting according to weight specifications
-- **Description hash validation** to verify that a zap receipt corresponds to a specific zap request
 - Detailed error reporting for validation failures
 - Proper LNURL bech32 encoding/decoding
 
 ## Security Considerations
 
-- **Zap receipts now include description hash validation** to verify that the payment was intended for the specific zap request
-- The invoice description hash is verified against the SHA-256 hash of the zap request
-- Zap receipts are still not cryptographic proofs of payment
+- Zap receipts are not cryptographic proofs of payment
 - The recipient's LNURL server must be trusted to generate valid receipts
-- Clients should validate that zap receipts come from the expected LNURL server
+- Clients should validate that zap receipts come from the expected LNURL server 
 
 ## Examples
 
