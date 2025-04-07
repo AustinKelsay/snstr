@@ -135,4 +135,30 @@ export {
   decodeLnurl,
   buildZapCallbackUrl,
   extractLnurlMetadata
-} from './nip57/utils'; 
+} from './nip57/utils';
+
+// NIP-47: Nostr Wallet Connect
+export {
+  // Client implementation
+  NostrWalletConnectClient,
+  parseNWCURL,
+  generateNWCURL,
+  
+  // Service implementation
+  NostrWalletService,
+  NostrWalletServiceOptions,
+  WalletImplementation,
+  
+  // Types
+  NIP47Method,
+  NIP47EventKind,
+  NIP47Request,
+  NIP47Response,
+  NIP47Error,
+  NIP47ErrorCode,
+  NIP47Notification,
+  NIP47NotificationType,
+  NIP47Transaction,
+  NIP47ConnectionOptions,
+  TransactionType
+} from './nip47'; 
