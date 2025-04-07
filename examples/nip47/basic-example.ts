@@ -315,8 +315,12 @@ async function main() {
       
       // Lookup the invoice
       console.log('\n[5] Looking up invoice by payment hash...');
-      const lookedUpInvoice = await client.lookupInvoice({ payment_hash: invoice.payment_hash });
-      console.log('Found invoice:', lookedUpInvoice);
+      if (invoice && invoice.payment_hash) {
+        const lookedUpInvoice = await client.lookupInvoice(invoice.payment_hash);
+        console.log('Found invoice:', lookedUpInvoice);
+      } else {
+        console.log('No invoice created or invoice missing payment hash');
+      }
       
       // Wait a moment between requests
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -351,6 +355,43 @@ async function main() {
       
     } catch (error) {
       console.error('Error during API calls:', error);
+    }
+
+    // Now demonstrate request expiration
+    console.log('\nDemonstrating request expiration:');
+    try {
+      // Set expiration to 1 second in the past
+      const pastExpiration = Math.floor(Date.now() / 1000) - 1;
+      console.log(`Setting request expiration to ${pastExpiration} (${new Date(pastExpiration * 1000).toISOString()})`);
+      
+      console.log('Attempting to get balance with expired request...');
+      const balanceResult = await client.getBalance({ expiration: pastExpiration });
+      console.log('This should not be reached due to expiration');
+    } catch (error: any) {
+      console.log(`Caught error as expected: ${error.message} (Code: ${error.code})`);
+    }
+
+    // Demonstrate error handling
+    console.log('\nDemonstrating error handling:');
+    try {
+      console.log('Attempting to look up non-existent invoice...');
+      const randomHash = randomHex(32);
+      await client.lookupInvoice(randomHash);
+      console.log('This should not be reached');
+    } catch (error: any) {
+      console.log(`Caught error as expected: ${error.message} (Code: ${error.code})`);
+      
+      // Show proper error handling
+      switch (error.code) {
+        case 'NOT_FOUND':
+          console.log('Invoice not found, showing appropriate UI message');
+          break;
+        case 'TIMEOUT':
+          console.log('Request timed out, suggesting to try again');
+          break;
+        default:
+          console.log(`Unexpected error: ${error.message}`);
+      }
     }
   } catch (error) {
     console.error('Error initializing client:', error);

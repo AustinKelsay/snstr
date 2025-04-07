@@ -16,6 +16,105 @@ Nostr Wallet Connect (NWC) provides a secure way for applications to interact wi
 - `NostrWalletService`: The server-side implementation, used by wallet providers to implement the NWC protocol.
 - `WalletImplementation`: Interface for wallet providers to implement the necessary wallet functionality.
 
+## Standard NIP-47 Features
+
+This implementation fully supports all features defined in the official [NIP-47 specification](https://github.com/nostr-protocol/nips/blob/master/47.md):
+
+### Standard Methods
+
+The following methods are part of the core NIP-47 specification:
+
+- `get_info`: Get information about the wallet service
+- `get_balance`: Get the wallet balance
+- `pay_invoice`: Pay a Lightning invoice
+- `make_invoice`: Create a Lightning invoice
+- `lookup_invoice`: Look up an invoice
+- `list_transactions`: List invoice and payment history
+- `sign_message`: Sign a message
+
+### Standard Notification Types
+
+These notification types are defined in the NIP-47 specification:
+
+- `payment_received`: Notification when a payment is received
+- `payment_sent`: Notification when a payment is sent
+
+### Standard Error Codes
+
+The following error codes are part of the core NIP-47 specification:
+
+- `UNAUTHORIZED`: The client is not authorized to perform the requested action
+- `INVALID_REQUEST`: The request was malformed or missing required parameters
+- `INSUFFICIENT_BALANCE`: Insufficient balance to complete the payment
+- `PAYMENT_FAILED`: The payment failed for some other reason
+- `INVOICE_EXPIRED`: The invoice has expired
+- `NOT_FOUND`: The requested resource was not found
+- `INTERNAL_ERROR`: An internal error occurred in the wallet service
+
+### Standard Request Expiration
+
+The implementation supports the request expiration feature as described in the NIP-47 specification. This allows clients to set an expiration timestamp on requests, after which the wallet service will automatically reject the request if it hasn't been processed yet.
+
+## Extended Features (Implementation-Specific)
+
+These features are extensions to the base NIP-47 specification and provide additional functionality not defined in the official spec:
+
+### Extended Methods
+
+The following methods are extensions not currently part of the standard NIP-47 specification:
+
+- `pay_keysend`: Send a keysend payment (not standardized in NIP-47)
+- `multi_pay_invoice`: Pay multiple invoices in a single request (not standardized in NIP-47)
+- `multi_pay_keysend`: Send multiple keysend payments in a single request (not standardized in NIP-47)
+
+### Client Authorization
+
+To enhance security, the wallet service can be configured to only accept requests from specific authorized clients:
+
+```typescript
+// Create and initialize the service with authorized clients
+const service = new NostrWalletService(
+  {
+    relays: ['wss://relay.example.com'],
+    pubkey: serviceKeypair.publicKey,
+    privkey: serviceKeypair.privateKey,
+    methods: [...],
+    // List of authorized client pubkeys
+    authorizedClients: ['client_pubkey_1', 'client_pubkey_2']
+  },
+  new MyWalletImplementation()
+);
+```
+
+When the `authorizedClients` option is provided, any requests from clients whose pubkey is not in the list will be rejected with an `UNAUTHORIZED_CLIENT` error. This provides an additional layer of security by ensuring that only trusted clients can interact with the wallet service.
+
+If `authorizedClients` is not provided or is an empty array, all clients will be authorized to use the service (not recommended for production environments).
+
+### Periodic INFO Event Republishing
+
+While the NIP-47 specification requires publishing an info event when the service starts, this implementation extends that behavior by periodically republishing the info event:
+
+```typescript
+const service = new NostrWalletService(
+  {
+    // ... other options ...
+    infoPublishInterval: 3600000, // 1 hour in milliseconds (default)
+  },
+  new MyWalletImplementation()
+);
+```
+
+This periodic republishing makes service discovery more reliable, especially for clients that connect after the service has been running for a while.
+
+### Extended Error Codes
+
+In addition to the standard NIP-47 error codes, this implementation provides additional error codes for more specific error handling:
+
+**Extended error codes (implementation-specific):**
+- `REQUEST_EXPIRED`: The request has expired before it could be processed
+- `TIMEOUT`: The request timed out waiting for a response
+- `UNAUTHORIZED_CLIENT`: The client's public key is not in the list of authorized clients
+
 ## Connection Details
 
 NWC uses specialized URIs in the format: `nostr+walletconnect://{pubkey}?relay={relay}&secret={secret}`. This implementation includes utilities for generating and parsing these URIs.
@@ -57,6 +156,20 @@ console.log(`Payment sent with preimage: ${payment.preimage}`);
 // List transactions
 const txList = await client.listTransactions({ limit: 10 });
 console.log(`Recent transactions:`, txList.transactions);
+
+// Using request expiration
+// Set expiration timestamp in seconds (30 seconds from now)
+const expirationTime = Math.floor(Date.now() / 1000) + 30;
+try {
+  const balance = await client.getBalance({ expiration: expirationTime });
+  console.log(`Wallet balance: ${balance} msats`);
+} catch (error) {
+  if (error.code === 'REQUEST_EXPIRED') {
+    console.error('Request expired before it could be processed');
+  } else {
+    console.error(`Error: ${error.message} (${error.code})`);
+  }
+}
 ```
 
 ## Service Implementation
@@ -119,39 +232,35 @@ await service.sendNotification(
 );
 ```
 
-## Supported Methods
+## Error Handling
 
-The implementation supports all methods defined in the NIP-47 specification:
+The implementation includes comprehensive error handling with standardized error codes. When an error occurs, a `NIP47ClientError` is thrown with a specific error code.
 
-- `get_info`: Get information about the wallet service
-- `get_balance`: Get the wallet balance
-- `pay_invoice`: Pay a Lightning invoice
-- `make_invoice`: Create a Lightning invoice
-- `lookup_invoice`: Look up an invoice
-- `list_transactions`: List invoice and payment history
-- `sign_message`: Sign a message
+### Error Handling Example
 
-## Notifications
-
-The implementation supports the following notification types:
-
-- `payment_received`: Notification when a payment is received
-- `payment_sent`: Notification when a payment is sent
+```typescript
+try {
+  await client.payInvoice('lnbc...');
+} catch (error) {
+  switch (error.code) {
+    case 'INSUFFICIENT_BALANCE':
+      console.error('Not enough funds to complete the payment');
+      break;
+    case 'INVOICE_EXPIRED':
+      console.error('The invoice has expired');
+      break;
+    case 'REQUEST_EXPIRED':
+      console.error('The request expired before it was processed');
+      break;
+    default:
+      console.error(`Error: ${error.message} (${error.code})`);
+  }
+}
+```
 
 ## Security Considerations
 
 - The connection secret is used as the client's private key and should be generated securely
 - All communication between client and service is E2E encrypted using NIP-04
 - The user's identity key is not used, avoiding linking payment activity to the user's identity
-
-## Error Handling
-
-Requests can return the following error codes:
-
-- `UNAUTHORIZED`: The client is not authorized to perform the requested action
-- `INVALID_REQUEST`: The request was malformed or missing required parameters
-- `INSUFFICIENT_BALANCE`: Insufficient balance to complete the payment
-- `PAYMENT_FAILED`: The payment failed for some other reason
-- `INVOICE_EXPIRED`: The invoice has expired
-- `NOT_FOUND`: The requested resource was not found
-- `INTERNAL_ERROR`: An internal error occurred in the wallet service 
+- Request expiration helps prevent replay attacks by limiting the time window in which a request is valid 

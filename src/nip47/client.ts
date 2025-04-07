@@ -1,7 +1,7 @@
 import { Nostr } from '../client/nostr';
 import { NostrEvent } from '../types/nostr';
 import { getPublicKey } from '../utils/crypto';
-import { createEvent, createSignedEvent } from '../utils/event';
+import { createEvent, createSignedEvent, getEventHash } from '../utils/event';
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from '../nip04';
 import { 
   NIP47Method, 
@@ -11,7 +11,23 @@ import {
   NIP47EventKind,
   NIP47NotificationType,
   NIP47Notification,
-  TransactionType
+  TransactionType,
+  NIP47ErrorCode,
+  GetInfoRequest,
+  GetBalanceRequest,
+  PayInvoiceRequest,
+  MakeInvoiceRequest,
+  LookupInvoiceRequest,
+  ListTransactionsRequest,
+  SignMessageRequest,
+  GetInfoResponse,
+  GetBalanceResponse,
+  PayInvoiceResponse,
+  MakeInvoiceResponse,
+  LookupInvoiceResponse,
+  ListTransactionsResponse,
+  SignMessageResponse,
+  NIP47Error
 } from './types';
 
 /**
@@ -68,6 +84,17 @@ export function generateNWCURL(options: NIP47ConnectionOptions): string {
   params.append('secret', options.secret);
 
   return `nostr+walletconnect://${options.pubkey}?${params.toString()}`;
+}
+
+// Custom error class for NIP-47 errors
+export class NIP47ClientError extends Error {
+  code: string;
+  
+  constructor(message: string, code: string) {
+    super(message);
+    this.name = 'NIP47ClientError';
+    this.code = code;
+  }
 }
 
 /**
@@ -359,158 +386,222 @@ export class NostrWalletConnectClient {
   /**
    * Send a request to the wallet service
    */
-  private async sendRequest<TRequest extends NIP47Request, TResponse extends NIP47Response>(
-    request: TRequest
-  ): Promise<TResponse> {
-    // Special case for getInfo which might be called during initialization
-    if (request.method !== NIP47Method.GET_INFO && !this.initialized) {
-      throw new Error('Client not initialized');
+  private async sendRequest(request: NIP47Request, expiration?: number): Promise<NIP47Response> {
+    if (!this.initialized) {
+      throw new NIP47ClientError('Client not initialized', 'NOT_INITIALIZED');
     }
-    
-    // Check if method is supported (except for getInfo during initialization)
-    if (request.method !== NIP47Method.GET_INFO && !this.supportedMethods.includes(request.method)) {
-      throw new Error(`Method ${request.method} not supported by this wallet service`);
+
+    // Create tags for the request
+    const tags: string[][] = [['p', this.pubkey]];
+
+    // Add expiration tag if provided
+    if (expiration) {
+      // Ensure expiration is a timestamp in seconds
+      const expirationTimestamp = Math.floor(expiration);
+      tags.push(['expiration', expirationTimestamp.toString()]);
     }
-    
+
     // Create event template
     const eventTemplate = {
       kind: NIP47EventKind.REQUEST,
-      tags: [
-        ['p', this.pubkey],
-        // Add expiration tag (5 minutes)
-        ['expiration', Math.floor(Date.now() / 1000 + 300).toString()]
-      ],
-      content: '' // Will be replaced with encrypted content
+      content: '',
+      tags
     };
-    
+
+    // Create the event
+    const event = createEvent(eventTemplate, this.clientPubkey);
+
     // Encrypt the request
-    console.log(`Encrypting request from ${this.clientPubkey} to ${this.pubkey}`);
-    
-    // Always use sender's private key, receiver's public key
-    const encryptedContent = encryptNIP04(
-      JSON.stringify(request),
-      this.clientPrivkey,
-      this.pubkey
-    );
-    
-    // Create an unsigned event
-    const unsignedEvent = createEvent(
-      { ...eventTemplate, content: encryptedContent }, 
-      this.clientPubkey
-    );
-    
-    // Sign the event
-    const signedEvent = await createSignedEvent(unsignedEvent, this.clientPrivkey);
-    
-    console.log(`Sending request event: ${signedEvent.id}, method: ${request.method}`);
-    
-    // Set up promise for the response
-    const responsePromise = new Promise<TResponse>((resolve, reject) => {
-      // Add a timeout
-      const timeoutId = setTimeout(() => {
-        console.log(`Request timed out for method: ${request.method}, id: ${signedEvent.id}`);
-        this.pendingRequests.delete(signedEvent.id);
-        // Log the current pending requests for debugging
-        console.log(`Current pending requests: ${Array.from(this.pendingRequests.keys()).join(', ')}`);
-        reject(new Error(`Request timed out: ${request.method}`));
-      }, 10000); // 10 second timeout (reduced for debugging)
-      
-      // Add the request to pending
-      this.pendingRequests.set(signedEvent.id, (response: NIP47Response) => {
-        console.log(`Resolver called for request ${signedEvent.id}`);
-        clearTimeout(timeoutId);
+    let encryptedContent: string;
+    try {
+      encryptedContent = encryptNIP04(
+        JSON.stringify(request),
+        this.clientPrivkey,
+        this.pubkey
+      );
+    } catch (error: any) {
+      throw new NIP47ClientError(`Failed to encrypt request: ${error?.message || 'Unknown error'}`, 'ENCRYPTION_FAILED');
+    }
+
+    event.content = encryptedContent;
+
+    // Generate event ID
+    let eventId: string;
+    try {
+      eventId = await getEventHash(event);
+    } catch (error: any) {
+      throw new NIP47ClientError(`Failed to generate event hash: ${error?.message || 'Unknown error'}`, 'HASH_GENERATION_FAILED');
+    }
+
+    // Create a promise to wait for the response
+    const responsePromise = new Promise<NIP47Response>((resolve, reject) => {
+      // Set timeout for request
+      const timeoutMs = 30000; // 30 seconds
+      const timeout = setTimeout(() => {
+        this.pendingRequests.delete(eventId);
+        reject(new NIP47ClientError('Request timed out', 'TIMEOUT'));
+      }, timeoutMs);
+
+      // Store the resolve function for later
+      this.pendingRequests.set(eventId, (response: NIP47Response) => {
+        clearTimeout(timeout);
         
+        // Check for errors in the response
         if (response.error) {
-          const error = new Error(response.error.message);
-          // @ts-ignore - Add the error code
-          error.code = response.error.code;
+          const error = new NIP47ClientError(
+            response.error.message || 'Unknown error',
+            response.error.code || 'UNKNOWN_ERROR'
+          );
           reject(error);
         } else {
-          resolve(response as TResponse);
+          resolve(response);
         }
       });
-      
-      // Log the current pending requests for debugging
-      console.log(`Added to pending requests: ${signedEvent.id}`);
-      console.log(`Current pending requests: ${Array.from(this.pendingRequests.keys()).join(', ')}`);
     });
-    
+
     try {
-      // Publish the event
+      // Sign and publish the event
+      const signedEvent = await createSignedEvent(event, this.clientPrivkey);
       await this.client.publishEvent(signedEvent);
-      console.log(`Request published with ID: ${signedEvent.id}`);
-      
-      // Wait for response
-      return await responsePromise;
-    } catch (error) {
-      // Clean up the pending request if there was an error publishing
-      this.pendingRequests.delete(signedEvent.id);
-      throw error;
+    } catch (error: any) {
+      this.pendingRequests.delete(eventId);
+      throw new NIP47ClientError(`Failed to publish request: ${error?.message || 'Unknown error'}`, 'PUBLISH_FAILED');
     }
+
+    // Wait for response
+    return responsePromise;
   }
 
   /**
    * Get wallet info
    */
-  public async getInfo(): Promise<any> {
-    const response = await this.sendRequest({
-      method: NIP47Method.GET_INFO,
-      params: {}
-    });
-    return response.result;
+  public async getInfo(options?: { expiration?: number }): Promise<GetInfoResponse['result']> {
+    try {
+      const request: GetInfoRequest = {
+        method: NIP47Method.GET_INFO,
+        params: {}
+      };
+      
+      const response = await this.sendRequest(request, options?.expiration);
+      
+      // If we got a successful response, update our capabilities
+      if (response.result) {
+        const info = response.result as GetInfoResponse['result'];
+        if (info?.methods) {
+          this.supportedMethods = info.methods;
+        }
+        if (info?.notifications) {
+          this.supportedNotifications = info.notifications;
+        }
+      }
+      
+      return response.result as GetInfoResponse['result'];
+    } catch (error: any) {
+      if (error instanceof NIP47ClientError) {
+        throw error;
+      }
+      throw new NIP47ClientError(`Error getting wallet info: ${error?.message || 'Unknown error'}`, 'GET_INFO_FAILED');
+    }
   }
 
   /**
    * Get wallet balance
    */
-  public async getBalance(): Promise<number> {
+  public async getBalance(options?: { expiration?: number }): Promise<number> {
     const response = await this.sendRequest({
       method: NIP47Method.GET_BALANCE,
       params: {}
-    });
+    }, options?.expiration);
     return response.result as number;
   }
 
   /**
    * Pay a lightning invoice
    */
-  public async payInvoice(invoice: string, amount?: number, maxfee?: number): Promise<any> {
-    const response = await this.sendRequest({
-      method: NIP47Method.PAY_INVOICE,
-      params: {
-        invoice,
-        amount,
-        maxfee
+  public async payInvoice(invoice: string, amount?: number, maxfee?: number, options?: { expiration?: number }): Promise<PayInvoiceResponse['result']> {
+    if (!invoice) {
+      throw new NIP47ClientError('Invoice is required', NIP47ErrorCode.INVALID_REQUEST);
+    }
+    
+    try {
+      const request: PayInvoiceRequest = {
+        method: NIP47Method.PAY_INVOICE,
+        params: {
+          invoice,
+          amount,
+          maxfee
+        }
+      };
+      
+      const response = await this.sendRequest(request, options?.expiration);
+      return response.result as PayInvoiceResponse['result'];
+    } catch (error: any) {
+      if (error instanceof NIP47ClientError) {
+        throw error;
       }
-    });
-    return response.result;
+      throw new NIP47ClientError(`Error paying invoice: ${error?.message || 'Unknown error'}`, 'PAY_INVOICE_FAILED');
+    }
   }
 
   /**
-   * Create a lightning invoice
+   * Make an invoice
    */
-  public async makeInvoice(amount: number, description: string, description_hash?: string, expiry?: number): Promise<any> {
-    const response = await this.sendRequest({
-      method: NIP47Method.MAKE_INVOICE,
-      params: {
-        amount,
-        description,
-        description_hash,
-        expiry
+  public async makeInvoice(amount: number, description: string, descriptionHash?: string, expiry?: number, options?: { expiration?: number }): Promise<MakeInvoiceResponse['result']> {
+    // Add parameter validation
+    if (amount === null || amount === undefined) {
+      throw new NIP47ClientError('Amount is required', NIP47ErrorCode.INVALID_REQUEST);
+    }
+    
+    if (!description && !descriptionHash) {
+      throw new NIP47ClientError('Description or description hash is required', NIP47ErrorCode.INVALID_REQUEST);
+    }
+    
+    try {
+      const request: MakeInvoiceRequest = {
+        method: NIP47Method.MAKE_INVOICE,
+        params: {
+          amount,
+          description,
+          description_hash: descriptionHash,
+          expiry
+        }
+      };
+      
+      const response = await this.sendRequest(request, options?.expiration);
+      return response.result as MakeInvoiceResponse['result'];
+    } catch (error: any) {
+      if (error instanceof NIP47ClientError) {
+        throw error;
       }
-    });
-    return response.result;
+      throw new NIP47ClientError(`Error creating invoice: ${error?.message || 'Unknown error'}`, 'MAKE_INVOICE_FAILED');
+    }
   }
 
   /**
-   * Look up an invoice by payment hash or bolt11 string
+   * Look up an invoice or payment
    */
-  public async lookupInvoice(params: { payment_hash?: string, invoice?: string }): Promise<any> {
-    const response = await this.sendRequest({
-      method: NIP47Method.LOOKUP_INVOICE,
-      params
-    });
-    return response.result;
+  public async lookupInvoice(paymentHash?: string, invoice?: string, options?: { expiration?: number }): Promise<LookupInvoiceResponse['result']> {
+    if (!paymentHash && !invoice) {
+      throw new NIP47ClientError('Payment hash or invoice is required', NIP47ErrorCode.INVALID_REQUEST);
+    }
+    
+    try {
+      const request: LookupInvoiceRequest = {
+        method: NIP47Method.LOOKUP_INVOICE,
+        params: {
+          payment_hash: paymentHash,
+          invoice
+        }
+      };
+      
+      const response = await this.sendRequest(request, options?.expiration);
+      return response.result as LookupInvoiceResponse['result'];
+    } catch (error: any) {
+      if (error instanceof NIP47ClientError) {
+        throw error;
+      }
+      throw new NIP47ClientError(`Error looking up invoice: ${error?.message || 'Unknown error'}`, 'LOOKUP_INVOICE_FAILED');
+    }
   }
 
   /**
@@ -523,11 +614,11 @@ export class NostrWalletConnectClient {
     offset?: number;
     unpaid?: boolean;
     type?: TransactionType | string;
-  } = {}): Promise<any> {
+  } = {}, options?: { expiration?: number }): Promise<any> {
     const response = await this.sendRequest({
       method: NIP47Method.LIST_TRANSACTIONS,
       params
-    });
+    }, options?.expiration);
     
     // Ensure we return a standardized format with a transactions array
     const result = response.result;
@@ -542,13 +633,13 @@ export class NostrWalletConnectClient {
   /**
    * Sign a message with the wallet's private key
    */
-  public async signMessage(message: string): Promise<any> {
+  public async signMessage(message: string, options?: { expiration?: number }): Promise<any> {
     const response = await this.sendRequest({
       method: NIP47Method.SIGN_MESSAGE,
       params: {
         message
       }
-    });
+    }, options?.expiration);
     return response.result;
   }
 } 

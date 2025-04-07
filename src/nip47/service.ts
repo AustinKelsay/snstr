@@ -10,7 +10,8 @@ import {
   NIP47EventKind,
   NIP47NotificationType,
   NIP47Notification,
-  WalletImplementation
+  WalletImplementation,
+  NIP47ErrorCode
 } from './types';
 
 /**
@@ -46,6 +47,13 @@ export interface NostrWalletServiceOptions {
    * Supported notification types
    */
   notificationTypes?: string[];
+  
+  /**
+   * List of authorized client public keys.
+   * If provided, only these clients will be able to use the service.
+   * If not provided, all clients will be authorized (not recommended for production).
+   */
+  authorizedClients?: string[];
 }
 
 /**
@@ -64,6 +72,7 @@ export class NostrWalletService {
   private supportedNotificationTypes: string[];
   private walletImpl: WalletImplementation;
   private subIds: string[] = [];
+  private authorizedClients: string[] = [];
   
   constructor(options: NostrWalletServiceOptions, walletImpl: WalletImplementation) {
     if (!options.pubkey) {
@@ -90,6 +99,7 @@ export class NostrWalletService {
     this.supportedNotificationTypes = options.notificationTypes || [];
     this.walletImpl = walletImpl;
     this.client = new Nostr(this.relays);
+    this.authorizedClients = options.authorizedClients || [];
   }
   
   /**
@@ -184,6 +194,39 @@ export class NostrWalletService {
       const clientPubkey = event.tags.find(tag => tag[0] === 'p')?.[1];
       if (!clientPubkey) {
         console.error('Request event missing p tag');
+        return;
+      }
+      
+      // Check for expiration
+      const expirationTag = event.tags.find(tag => tag[0] === 'expiration');
+      if (expirationTag && expirationTag.length > 1) {
+        const expiration = parseInt(expirationTag[1], 10);
+        const now = Math.floor(Date.now() / 1000);
+        
+        if (now > expiration) {
+          console.log(`Request ${event.id} has expired (${expiration} < ${now})`);
+          // Return error response for expired request
+          await this.sendErrorResponse(
+            clientPubkey,
+            event.pubkey,
+            NIP47ErrorCode.REQUEST_EXPIRED,
+            'Request has expired',
+            event.id
+          );
+          return;
+        }
+      }
+      
+      // Check if client is authorized when authorization list is provided
+      if (this.authorizedClients.length > 0 && !this.authorizedClients.includes(event.pubkey)) {
+        console.error(`Client ${event.pubkey} not authorized to use the service`);
+        await this.sendErrorResponse(
+          clientPubkey,
+          event.pubkey,
+          NIP47ErrorCode.UNAUTHORIZED_CLIENT,
+          'Client not authorized to use this wallet service',
+          event.id
+        );
         return;
       }
       
@@ -310,7 +353,7 @@ export class NostrWalletService {
           break;
           
         case NIP47Method.LIST_TRANSACTIONS:
-          result = await this.walletImpl.listTransactions(
+          const transactions = await this.walletImpl.listTransactions(
             request.params.from,
             request.params.until,
             request.params.limit,
@@ -318,6 +361,7 @@ export class NostrWalletService {
             request.params.unpaid,
             request.params.type
           );
+          result = { transactions };
           break;
           
         case NIP47Method.SIGN_MESSAGE:
@@ -396,5 +440,29 @@ export class NostrWalletService {
     
     // Publish the event
     await this.client.publishEvent(signedEvent);
+  }
+  
+  /**
+   * Send an error response to a client
+   */
+  private async sendErrorResponse(
+    clientPubkey: string, 
+    senderPubkey: string, 
+    errorCode: string, 
+    errorMessage: string, 
+    requestId: string
+  ): Promise<void> {
+    // Create error response
+    const response: NIP47Response = {
+      result_type: 'error',
+      result: null,
+      error: {
+        code: errorCode,
+        message: errorMessage
+      }
+    };
+    
+    // Send response
+    await this.sendResponse(senderPubkey, response, requestId);
   }
 } 

@@ -16,7 +16,12 @@ export enum NIP47Method {
   MAKE_INVOICE = 'make_invoice',
   LOOKUP_INVOICE = 'lookup_invoice',
   LIST_TRANSACTIONS = 'list_transactions',
-  SIGN_MESSAGE = 'sign_message'
+  SIGN_MESSAGE = 'sign_message',
+  
+  // Extended methods (not in the NIP-47 standard)
+  PAY_KEYSEND = 'pay_keysend',
+  MULTI_PAY_INVOICE = 'multi_pay_invoice',
+  MULTI_PAY_KEYSEND = 'multi_pay_keysend'
 }
 
 // NIP-47 notification types
@@ -33,7 +38,12 @@ export enum NIP47ErrorCode {
   PAYMENT_FAILED = 'PAYMENT_FAILED',
   INVOICE_EXPIRED = 'INVOICE_EXPIRED',
   NOT_FOUND = 'NOT_FOUND',
-  INTERNAL_ERROR = 'INTERNAL_ERROR'
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  REQUEST_EXPIRED = 'REQUEST_EXPIRED',
+  
+  // Extended error codes (implementation-specific)
+  TIMEOUT = 'TIMEOUT',
+  UNAUTHORIZED_CLIENT = 'UNAUTHORIZED_CLIENT'
 }
 
 // Transaction types

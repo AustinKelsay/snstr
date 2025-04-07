@@ -11,7 +11,8 @@ import {
   TransactionType,
   NIP47ConnectionOptions,
   generateNWCURL,
-  parseNWCURL
+  parseNWCURL,
+  NIP47ErrorCode
 } from '../../src/nip47';
 
 // Mock Implementation
@@ -74,7 +75,7 @@ class MockWalletImplementation implements WalletImplementation {
     };
   }
   
-  async listTransactions(): Promise<NIP47Transaction[]> {
+  async listTransactions(from?: number, until?: number, limit?: number, offset?: number, unpaid?: boolean, type?: string): Promise<NIP47Transaction[]> {
     return [
       {
         type: TransactionType.INCOMING,
@@ -100,7 +101,7 @@ class MockWalletImplementation implements WalletImplementation {
   
   async signMessage(message: string): Promise<{signature: string, message: string}> {
     return {
-      signature: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      signature: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       message
     };
   }
@@ -195,8 +196,12 @@ describe('NIP-47: Nostr Wallet Connect', () => {
       jest.setTimeout(10000);
       const info = await client.getInfo();
       expect(info).toBeDefined();
-      expect(info.methods).toContain(NIP47Method.GET_INFO);
-      expect(info.methods).toContain(NIP47Method.GET_BALANCE);
+      if (info) {
+        expect(info.methods).toContain(NIP47Method.GET_INFO);
+        expect(info.methods).toContain(NIP47Method.GET_BALANCE);
+      } else {
+        fail('Info result was null');
+      }
     });
     
     it('should get wallet balance', async () => {
@@ -210,41 +215,62 @@ describe('NIP-47: Nostr Wallet Connect', () => {
       jest.setTimeout(10000);
       const invoice = await client.makeInvoice(1000, 'Test invoice');
       expect(invoice).toBeDefined();
-      expect(invoice.invoice).toBeDefined();
-      expect(invoice.payment_hash).toBeDefined();
-      expect(invoice.amount).toBe(1000);
+      if (invoice) {
+        expect(invoice.invoice).toBeDefined();
+        expect(invoice.payment_hash).toBeDefined();
+        expect(invoice.amount).toBe(1000);
+      } else {
+        fail('Invoice was null');
+      }
     });
     
     it('should look up an invoice', async () => {
       jest.setTimeout(10000);
-      const invoice = await client.lookupInvoice({ payment_hash: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' });
+      const invoice = await client.lookupInvoice('abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789');
       expect(invoice).toBeDefined();
-      expect(invoice.payment_hash).toBeDefined();
-      expect(invoice.type).toBe(TransactionType.INCOMING);
+      if (invoice) {
+        expect(invoice.payment_hash).toBeDefined();
+        expect(invoice.type).toBe(TransactionType.INCOMING);
+      } else {
+        fail('Invoice lookup result was null');
+      }
     });
     
     it('should list transactions', async () => {
       jest.setTimeout(10000);
       const result = await client.listTransactions({ limit: 10 });
       expect(result).toBeDefined();
-      expect(Array.isArray(result.transactions)).toBe(true);
-      expect(result.transactions.length).toBeGreaterThan(0);
+      if (result) {
+        // Check that transactions is an array and has at least one item
+        expect(Array.isArray(result.transactions)).toBe(true);
+        expect(result.transactions.length).toBeGreaterThan(0);
+      } else {
+        fail('Transaction list result was null');
+      }
     });
     
     it('should pay an invoice', async () => {
       jest.setTimeout(10000);
       const payment = await client.payInvoice('lnbc10n1pdummy');
       expect(payment).toBeDefined();
-      expect(payment.preimage).toBeDefined();
-      expect(payment.payment_hash).toBeDefined();
+      if (payment) {
+        expect(payment.preimage).toBeDefined();
+        expect(payment.payment_hash).toBeDefined();
+      } else {
+        fail('Payment result was null');
+      }
     });
     
     it('should sign a message', async () => {
       jest.setTimeout(10000);
       const result = await client.signMessage('Test message');
       expect(result).toBeDefined();
-      expect(result.signature).toBeDefined();
-      expect(result.message).toBe('Test message');
+      if (result) {
+        expect(result.signature).toBeDefined();
+        expect(result.message).toBe('Test message');
+      } else {
+        fail('Sign message result was null');
+      }
     });
   });
   
@@ -278,6 +304,57 @@ describe('NIP-47: Nostr Wallet Connect', () => {
       expect(notification).toBeDefined();
       expect(notification.notification_type).toBe(NIP47NotificationType.PAYMENT_RECEIVED);
       expect(notification.notification.payment_hash).toBeDefined();
+    });
+  });
+  
+  describe('Error Handling', () => {
+    it('should handle expired requests', async () => {
+      jest.setTimeout(10000);
+      
+      // Create a request with an already expired timestamp
+      const expiredTime = Math.floor(Date.now() / 1000) - 60; // 60 seconds in the past
+      
+      try {
+        await client.getBalance({ expiration: expiredTime });
+        fail('Should have thrown an error for expired request');
+      } catch (error) {
+        expect(error).toBeDefined();
+        expect((error as { code: string }).code).toBe(NIP47ErrorCode.REQUEST_EXPIRED);
+      }
+    });
+    
+    it('should handle invalid method errors', async () => {
+      jest.setTimeout(10000);
+      
+      try {
+        // @ts-ignore - deliberately call with invalid parameters
+        await client.makeInvoice(null);
+        fail('Should have thrown an INVALID_REQUEST error');
+      } catch (error) {
+        expect(error).toBeDefined();
+        expect((error as { code: string }).code).toBe(NIP47ErrorCode.INVALID_REQUEST);
+      }
+    });
+    
+    it('should handle not found errors', async () => {
+      jest.setTimeout(10000);
+      
+      // Mock the wallet implementation to throw a NOT_FOUND error
+      const originalLookup = (service as any).walletImpl.lookupInvoice;
+      (service as any).walletImpl.lookupInvoice = () => {
+        throw { code: 'NOT_FOUND', message: 'Invoice not found' };
+      };
+      
+      try {
+        await client.lookupInvoice('nonexistent');
+        fail('Should have thrown a NOT_FOUND error');
+      } catch (error) {
+        expect(error).toBeDefined();
+        expect((error as { code: string }).code).toBe(NIP47ErrorCode.NOT_FOUND);
+      } finally {
+        // Restore original implementation
+        (service as any).walletImpl.lookupInvoice = originalLookup;
+      }
     });
   });
 }); 
