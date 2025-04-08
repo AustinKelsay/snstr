@@ -9,8 +9,10 @@ import {
   generateNWCURL,
   NIP47ConnectionOptions,
   NIP47NotificationType,
-  NIP47Notification
+  NIP47Notification,
+  NIP47ErrorCode
 } from '../../src';
+import { NIP47ClientError } from '../../src/nip47/client';
 import { NostrRelay } from '../../src/utils/ephemeral-relay';
 import { Nostr } from '../../src/client/nostr';
 
@@ -66,9 +68,20 @@ class DemoWallet implements WalletImplementation {
     const fee = Math.floor(paymentAmount * 0.01); // 1% fee
     
     if (paymentAmount + fee > this.balance) {
-      throw { code: 'INSUFFICIENT_BALANCE', message: 'Insufficient balance to make payment' };
+      throw { 
+        code: NIP47ErrorCode.INSUFFICIENT_BALANCE, 
+        message: 'Insufficient balance to make payment' 
+      };
     }
-    
+
+    // Simulate network failure occasionally
+    if (Math.random() < 0.3) {
+      throw { 
+        code: NIP47ErrorCode.CONNECTION_ERROR, 
+        message: 'Network error during payment processing' 
+      };
+    }
+
     // Deduct from balance
     this.balance -= (paymentAmount + fee);
     
@@ -393,16 +406,68 @@ async function main() {
           console.log(`Unexpected error: ${error.message}`);
       }
     }
-  } catch (error) {
-    console.error('Error initializing client:', error);
-  } finally {
-    // Step 8: Clean up resources
+
+    /**
+     * Error handling and retry demonstration
+     */
+    console.log('\n--- Error Handling and Retry Demonstration ---');
+    
+    // Standard error handling
+    try {
+      // Try to pay an invoice with a very large amount (will fail)
+      await client.payInvoice('lnbc100000000n1demo', 100000000);
+    } catch (error) {
+      if (error instanceof NIP47ClientError) {
+        console.log(`\nHandling error with enhanced error system:`);
+        console.log(`- Error code: ${error.code}`);
+        console.log(`- Error category: ${error.category}`);
+        console.log(`- Error message: ${error.message}`);
+        console.log(`- Recovery hint: ${error.recoveryHint || 'None provided'}`);
+        console.log(`- User-friendly message: ${error.getUserMessage()}`);
+        console.log(`- Is retriable: ${error.isRetriable()}`);
+      } else {
+        console.error(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    
+    // Retry demonstration
+    console.log('\nRetry mechanism demonstration:');
+    console.log('Attempting operation with automatic retry for transient errors...');
+    
+    try {
+      // This will occasionally fail with network errors (due to our simulation)
+      // but the retry mechanism should handle it
+      const paymentResult = await client.withRetry(
+        () => client.payInvoice('lnbc1000n1demo', 1000),
+        {
+          maxRetries: 5,
+          initialDelay: 500,
+          maxDelay: 5000,
+          factor: 1.5
+        }
+      );
+      
+      console.log('Payment succeeded after potential retries:', paymentResult);
+    } catch (error) {
+      if (error instanceof NIP47ClientError) {
+        console.log('All retry attempts failed:');
+        console.log(`Final error: ${error.getUserMessage()}`);
+      } else {
+        console.error(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    /**
+     * Cleanup
+     */
     console.log('\nCleaning up...');
     client.disconnect();
     service.disconnect();
     await relay.close();
     
     console.log('Demo completed successfully!');
+  } catch (error) {
+    console.error('Error initializing client:', error instanceof Error ? error.message : String(error));
   }
 }
 

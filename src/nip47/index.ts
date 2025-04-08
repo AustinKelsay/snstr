@@ -12,7 +12,9 @@ export * from './types';
 export { 
   NostrWalletConnectClient, 
   parseNWCURL, 
-  generateNWCURL 
+  generateNWCURL,
+  NIP47ClientError,
+  RetryOptions
 } from './client';
 
 // Export service implementation

@@ -11,7 +11,9 @@ import {
   NIP47NotificationType,
   NIP47Notification,
   WalletImplementation,
-  NIP47ErrorCode
+  NIP47ErrorCode,
+  ERROR_CATEGORIES,
+  ERROR_RECOVERY_HINTS
 } from './types';
 
 /**
@@ -450,15 +452,23 @@ export class NostrWalletService {
     senderPubkey: string, 
     errorCode: string, 
     errorMessage: string, 
-    requestId: string
+    requestId: string,
+    data?: any
   ): Promise<void> {
-    // Create error response
+    // Determine error category and recovery hint
+    const category = ERROR_CATEGORIES[errorCode];
+    const recoveryHint = ERROR_RECOVERY_HINTS[errorCode];
+    
+    // Create enhanced error response
     const response: NIP47Response = {
       result_type: 'error',
       result: null,
       error: {
         code: errorCode,
-        message: errorMessage
+        message: errorMessage,
+        category,
+        recoveryHint,
+        data
       }
     };
     

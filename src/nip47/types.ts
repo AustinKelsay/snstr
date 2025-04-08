@@ -30,8 +30,20 @@ export enum NIP47NotificationType {
   PAYMENT_SENT = 'payment_sent'
 }
 
+// NIP-47 error categories for better organization
+export enum NIP47ErrorCategory {
+  AUTHORIZATION = 'AUTHORIZATION',   // Permission/authentication errors
+  VALIDATION = 'VALIDATION',         // Input validation errors
+  RESOURCE = 'RESOURCE',             // Resource availability errors 
+  NETWORK = 'NETWORK',               // Network/communication errors
+  WALLET = 'WALLET',                 // Wallet-specific errors
+  TIMEOUT = 'TIMEOUT',               // Timeout-related errors
+  INTERNAL = 'INTERNAL'              // Internal/system errors
+}
+
 // NIP-47 error codes
 export enum NIP47ErrorCode {
+  // Standard NIP-47 error codes (from spec)
   UNAUTHORIZED = 'UNAUTHORIZED',
   INVALID_REQUEST = 'INVALID_REQUEST',
   INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
@@ -39,12 +51,90 @@ export enum NIP47ErrorCode {
   INVOICE_EXPIRED = 'INVOICE_EXPIRED',
   NOT_FOUND = 'NOT_FOUND',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
+  
+  // Request expiration (mentioned in spec)
   REQUEST_EXPIRED = 'REQUEST_EXPIRED',
   
   // Extended error codes (implementation-specific)
   TIMEOUT = 'TIMEOUT',
-  UNAUTHORIZED_CLIENT = 'UNAUTHORIZED_CLIENT'
+  CONNECTION_ERROR = 'CONNECTION_ERROR',
+  RELAY_ERROR = 'RELAY_ERROR',
+  PUBLISH_FAILED = 'PUBLISH_FAILED',
+  ENCRYPTION_ERROR = 'ENCRYPTION_ERROR',
+  DECRYPTION_ERROR = 'DECRYPTION_ERROR',
+  UNAUTHORIZED_CLIENT = 'UNAUTHORIZED_CLIENT',
+  
+  // More granular validation errors
+  INVALID_INVOICE_FORMAT = 'INVALID_INVOICE_FORMAT',
+  INVALID_AMOUNT = 'INVALID_AMOUNT',
+  INVALID_PARAMETER = 'INVALID_PARAMETER',
+  
+  // More granular payment errors
+  PAYMENT_ROUTE_NOT_FOUND = 'PAYMENT_ROUTE_NOT_FOUND',
+  PAYMENT_REJECTED = 'PAYMENT_REJECTED',
+  
+  // More granular wallet errors
+  WALLET_LOCKED = 'WALLET_LOCKED',
+  WALLET_UNAVAILABLE = 'WALLET_UNAVAILABLE'
 }
+
+// Error code to category mapping
+export const ERROR_CATEGORIES: Record<string, NIP47ErrorCategory> = {
+  [NIP47ErrorCode.UNAUTHORIZED]: NIP47ErrorCategory.AUTHORIZATION,
+  [NIP47ErrorCode.UNAUTHORIZED_CLIENT]: NIP47ErrorCategory.AUTHORIZATION,
+  
+  [NIP47ErrorCode.INVALID_REQUEST]: NIP47ErrorCategory.VALIDATION,
+  [NIP47ErrorCode.INVALID_INVOICE_FORMAT]: NIP47ErrorCategory.VALIDATION,
+  [NIP47ErrorCode.INVALID_AMOUNT]: NIP47ErrorCategory.VALIDATION,
+  [NIP47ErrorCode.INVALID_PARAMETER]: NIP47ErrorCategory.VALIDATION,
+  
+  [NIP47ErrorCode.INSUFFICIENT_BALANCE]: NIP47ErrorCategory.RESOURCE,
+  [NIP47ErrorCode.NOT_FOUND]: NIP47ErrorCategory.RESOURCE,
+  [NIP47ErrorCode.WALLET_UNAVAILABLE]: NIP47ErrorCategory.RESOURCE,
+  
+  [NIP47ErrorCode.PAYMENT_FAILED]: NIP47ErrorCategory.WALLET,
+  [NIP47ErrorCode.PAYMENT_ROUTE_NOT_FOUND]: NIP47ErrorCategory.WALLET,
+  [NIP47ErrorCode.PAYMENT_REJECTED]: NIP47ErrorCategory.WALLET,
+  [NIP47ErrorCode.INVOICE_EXPIRED]: NIP47ErrorCategory.WALLET,
+  [NIP47ErrorCode.WALLET_LOCKED]: NIP47ErrorCategory.WALLET,
+  
+  [NIP47ErrorCode.TIMEOUT]: NIP47ErrorCategory.TIMEOUT,
+  [NIP47ErrorCode.REQUEST_EXPIRED]: NIP47ErrorCategory.TIMEOUT,
+  
+  [NIP47ErrorCode.CONNECTION_ERROR]: NIP47ErrorCategory.NETWORK,
+  [NIP47ErrorCode.RELAY_ERROR]: NIP47ErrorCategory.NETWORK,
+  [NIP47ErrorCode.PUBLISH_FAILED]: NIP47ErrorCategory.NETWORK,
+  [NIP47ErrorCode.ENCRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
+  [NIP47ErrorCode.DECRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
+  
+  [NIP47ErrorCode.INTERNAL_ERROR]: NIP47ErrorCategory.INTERNAL
+};
+
+// Recovery hints for error codes
+export const ERROR_RECOVERY_HINTS: Record<string, string> = {
+  [NIP47ErrorCode.UNAUTHORIZED]: 'Check connection credentials and permissions',
+  [NIP47ErrorCode.UNAUTHORIZED_CLIENT]: 'This client is not authorized. Contact wallet administrator',
+  [NIP47ErrorCode.INVALID_REQUEST]: 'Check request parameters and try again',
+  [NIP47ErrorCode.INSUFFICIENT_BALANCE]: 'Add funds to your wallet and try again',
+  [NIP47ErrorCode.PAYMENT_FAILED]: 'Payment could not be processed. Try again later',
+  [NIP47ErrorCode.INVOICE_EXPIRED]: 'Request a new invoice and try again',
+  [NIP47ErrorCode.NOT_FOUND]: 'The requested resource was not found',
+  [NIP47ErrorCode.INTERNAL_ERROR]: 'An internal error occurred. Please report this issue',
+  [NIP47ErrorCode.REQUEST_EXPIRED]: 'Request timed out. Try again with a longer expiration time',
+  [NIP47ErrorCode.TIMEOUT]: 'Operation timed out. Check connection and try again',
+  [NIP47ErrorCode.CONNECTION_ERROR]: 'Could not connect to the relay. Check network and relay status',
+  [NIP47ErrorCode.RELAY_ERROR]: 'Error communicating with relay. Try a different relay',
+  [NIP47ErrorCode.PUBLISH_FAILED]: 'Failed to publish event to relay. Try again or use a different relay',
+  [NIP47ErrorCode.ENCRYPTION_ERROR]: 'Encryption error. Check encryption parameters',
+  [NIP47ErrorCode.DECRYPTION_ERROR]: 'Decryption error. Check if using correct keys',
+  [NIP47ErrorCode.INVALID_INVOICE_FORMAT]: 'Invoice format is invalid. Check the invoice',
+  [NIP47ErrorCode.INVALID_AMOUNT]: 'Amount is invalid. Must be a positive integer',
+  [NIP47ErrorCode.INVALID_PARAMETER]: 'One or more parameters are invalid',
+  [NIP47ErrorCode.PAYMENT_ROUTE_NOT_FOUND]: 'No route found to destination. Try a different recipient or amount',
+  [NIP47ErrorCode.PAYMENT_REJECTED]: 'Payment was rejected by recipient node',
+  [NIP47ErrorCode.WALLET_LOCKED]: 'Wallet is locked. Unlock wallet and try again',
+  [NIP47ErrorCode.WALLET_UNAVAILABLE]: 'Wallet is currently unavailable. Try again later'
+};
 
 // Transaction types
 export enum TransactionType {
@@ -76,10 +166,13 @@ export interface NIP47Request {
   params: Record<string, any>;
 }
 
-// NIP-47 error
+// NIP-47 error (extended with more fields)
 export interface NIP47Error {
   code: string;
   message: string;
+  category?: string;
+  recoveryHint?: string;
+  data?: any; // Additional data relevant to the error
 }
 
 // Base response interface

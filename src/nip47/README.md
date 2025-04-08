@@ -234,7 +234,65 @@ await service.sendNotification(
 
 ## Error Handling
 
-The implementation includes comprehensive error handling with standardized error codes. When an error occurs, a `NIP47ClientError` is thrown with a specific error code.
+The implementation includes comprehensive error handling with standardized error codes and enhanced error management features. When an error occurs, a `NIP47ClientError` is thrown with structured information:
+
+- **Error Code**: Specific code identifying the error type
+- **Error Category**: Broader classification for error grouping
+- **Recovery Hint**: Suggestion for how to resolve the error
+- **Additional Data**: Context-specific error details
+
+### Standard Error Codes
+
+These error codes are part of the core NIP-47 specification:
+
+- `UNAUTHORIZED`: The client is not authorized to perform the requested action
+- `INVALID_REQUEST`: The request was malformed or missing required parameters
+- `INSUFFICIENT_BALANCE`: Insufficient balance to complete the payment
+- `PAYMENT_FAILED`: The payment failed for some other reason
+- `INVOICE_EXPIRED`: The invoice has expired
+- `NOT_FOUND`: The requested resource was not found
+- `INTERNAL_ERROR`: An internal error occurred in the wallet service
+- `REQUEST_EXPIRED`: The request expired before it could be processed
+
+### Extended Error Codes
+
+This implementation provides additional error codes for more specific error handling:
+
+**Network-related errors:**
+- `TIMEOUT`: The request timed out waiting for a response
+- `CONNECTION_ERROR`: Failed to connect to relay
+- `RELAY_ERROR`: Error communicating with relay
+- `PUBLISH_FAILED`: Failed to publish event to relay
+- `ENCRYPTION_ERROR`: Error during encryption
+- `DECRYPTION_ERROR`: Error during decryption
+
+**Authorization errors:**
+- `UNAUTHORIZED_CLIENT`: The client's public key is not authorized
+
+**Validation errors:**
+- `INVALID_INVOICE_FORMAT`: The invoice format is invalid
+- `INVALID_AMOUNT`: The amount is invalid
+- `INVALID_PARAMETER`: One or more parameters are invalid
+
+**Payment errors:**
+- `PAYMENT_ROUTE_NOT_FOUND`: No route found for payment
+- `PAYMENT_REJECTED`: Payment was rejected
+
+**Wallet errors:**
+- `WALLET_LOCKED`: Wallet is locked
+- `WALLET_UNAVAILABLE`: Wallet is currently unavailable
+
+### Error Categories
+
+Errors are organized into the following categories for easier handling:
+
+- `AUTHORIZATION`: Permission/authentication errors
+- `VALIDATION`: Input validation errors
+- `RESOURCE`: Resource availability errors
+- `NETWORK`: Network/communication errors
+- `WALLET`: Wallet-specific errors
+- `TIMEOUT`: Timeout-related errors
+- `INTERNAL`: Internal/system errors
 
 ### Error Handling Example
 
@@ -242,20 +300,57 @@ The implementation includes comprehensive error handling with standardized error
 try {
   await client.payInvoice('lnbc...');
 } catch (error) {
-  switch (error.code) {
-    case 'INSUFFICIENT_BALANCE':
-      console.error('Not enough funds to complete the payment');
-      break;
-    case 'INVOICE_EXPIRED':
-      console.error('The invoice has expired');
-      break;
-    case 'REQUEST_EXPIRED':
-      console.error('The request expired before it was processed');
-      break;
-    default:
-      console.error(`Error: ${error.message} (${error.code})`);
+  if (error instanceof NIP47ClientError) {
+    // Use error category for general error handling
+    switch (error.category) {
+      case 'NETWORK':
+        console.error(`Network error occurred: ${error.getUserMessage()}`);
+        break;
+      case 'WALLET':
+        console.error(`Wallet error: ${error.getUserMessage()}`);
+        break;
+      default:
+        console.error(`Error: ${error.getUserMessage()}`);
+    }
+    
+    // Check for specific error codes when needed
+    if (error.code === NIP47ErrorCode.INSUFFICIENT_BALANCE) {
+      // Handle insufficient balance specifically
+    }
+    
+    // Check if the error is retriable
+    if (error.isRetriable()) {
+      console.log('This operation can be retried');
+    }
+  } else {
+    console.error(`Unexpected error: ${error.message}`);
   }
 }
+```
+
+### Automatic Retry
+
+The client includes a built-in retry mechanism for errors that are considered retriable (network errors, timeouts, temporarily unavailable services):
+
+```typescript
+// Use the withRetry method for any operation
+try {
+  const balance = await client.withRetry(() => client.getBalance());
+  console.log(`Balance: ${balance}`);
+} catch (error) {
+  // Will only be thrown after all retry attempts have been exhausted
+  console.error(`Error after retries: ${error.getUserMessage()}`);
+}
+
+// Or use convenience methods with built-in retry
+const balance = await client.getBalanceWithRetry({
+  retry: {
+    maxRetries: 5,      // Maximum number of retry attempts
+    initialDelay: 500,  // Initial delay in ms
+    maxDelay: 30000,    // Maximum delay in ms
+    factor: 2           // Exponential backoff factor
+  }
+});
 ```
 
 ## Security Considerations

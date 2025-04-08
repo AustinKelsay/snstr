@@ -27,7 +27,10 @@ import {
   LookupInvoiceResponse,
   ListTransactionsResponse,
   SignMessageResponse,
-  NIP47Error
+  NIP47Error,
+  ERROR_CATEGORIES,
+  ERROR_RECOVERY_HINTS,
+  NIP47ErrorCategory
 } from './types';
 
 /**
@@ -86,14 +89,98 @@ export function generateNWCURL(options: NIP47ConnectionOptions): string {
   return `nostr+walletconnect://${options.pubkey}?${params.toString()}`;
 }
 
+/**
+ * Retry configuration
+ */
+export interface RetryOptions {
+  maxRetries: number;
+  initialDelay: number; // in milliseconds
+  maxDelay: number;     // in milliseconds
+  factor: number;       // exponential backoff factor
+}
+
+/**
+ * Default retry options
+ */
+const DEFAULT_RETRY_OPTIONS: RetryOptions = {
+  maxRetries: 3,
+  initialDelay: 1000, // 1 second
+  maxDelay: 10000,    // 10 seconds
+  factor: 2           // Exponential backoff factor
+};
+
 // Custom error class for NIP-47 errors
 export class NIP47ClientError extends Error {
   code: string;
+  category: string;
+  recoveryHint?: string;
+  data?: any;
   
-  constructor(message: string, code: string) {
+  constructor(message: string, code: string, data?: any) {
     super(message);
     this.name = 'NIP47ClientError';
     this.code = code;
+    
+    // Determine error category
+    this.category = ERROR_CATEGORIES[code] || NIP47ErrorCategory.INTERNAL;
+    
+    // Add recovery hint if available
+    this.recoveryHint = ERROR_RECOVERY_HINTS[code];
+    
+    // Add additional error data if provided
+    this.data = data;
+  }
+
+  /**
+   * Creates an error instance from a NIP47Error response
+   */
+  static fromResponseError(error: NIP47Error): NIP47ClientError {
+    return new NIP47ClientError(
+      error.message || 'Unknown error',
+      error.code || NIP47ErrorCode.INTERNAL_ERROR,
+      error.data
+    );
+  }
+
+  /**
+   * Check if the error is a network-related error
+   */
+  isNetworkError(): boolean {
+    return this.category === NIP47ErrorCategory.NETWORK;
+  }
+
+  /**
+   * Check if the error is a timeout
+   */
+  isTimeoutError(): boolean {
+    return this.category === NIP47ErrorCategory.TIMEOUT;
+  }
+
+  /**
+   * Check if the error is authorization-related
+   */
+  isAuthorizationError(): boolean {
+    return this.category === NIP47ErrorCategory.AUTHORIZATION;
+  }
+
+  /**
+   * Check if retry is recommended for this error
+   */
+  isRetriable(): boolean {
+    return (
+      this.isNetworkError() || 
+      this.isTimeoutError() || 
+      this.code === NIP47ErrorCode.WALLET_UNAVAILABLE
+    );
+  }
+
+  /**
+   * Get user-friendly error message including recovery hint
+   */
+  getUserMessage(): string {
+    return this.recoveryHint 
+      ? `${this.message}. ${this.recoveryHint}`
+      : this.message;
   }
 }
 
@@ -448,10 +535,7 @@ export class NostrWalletConnectClient {
         
         // Check for errors in the response
         if (response.error) {
-          const error = new NIP47ClientError(
-            response.error.message || 'Unknown error',
-            response.error.code || 'UNKNOWN_ERROR'
-          );
+          const error = NIP47ClientError.fromResponseError(response.error);
           reject(error);
         } else {
           resolve(response);
@@ -465,7 +549,14 @@ export class NostrWalletConnectClient {
       await this.client.publishEvent(signedEvent);
     } catch (error: any) {
       this.pendingRequests.delete(eventId);
-      throw new NIP47ClientError(`Failed to publish request: ${error?.message || 'Unknown error'}`, 'PUBLISH_FAILED');
+      if (error instanceof NIP47ClientError) {
+        throw error;
+      }
+      throw new NIP47ClientError(
+        `Failed to publish request: ${error?.message || 'Unknown error'}`, 
+        NIP47ErrorCode.PUBLISH_FAILED,
+        { originalError: error }
+      );
     }
 
     // Wait for response
@@ -502,6 +593,71 @@ export class NostrWalletConnectClient {
       }
       throw new NIP47ClientError(`Error getting wallet info: ${error?.message || 'Unknown error'}`, 'GET_INFO_FAILED');
     }
+  }
+
+  /**
+   * Execute an operation with automatic retry for retriable errors
+   * @param operation Function to execute
+   * @param retryOptions Retry configuration
+   * @returns Result of the operation
+   */
+  public async withRetry<T>(
+    operation: () => Promise<T>, 
+    retryOptions: Partial<RetryOptions> = {}
+  ): Promise<T> {
+    const options: RetryOptions = {
+      ...DEFAULT_RETRY_OPTIONS,
+      ...retryOptions
+    };
+    
+    let lastError: NIP47ClientError | null = null;
+    let currentDelay = options.initialDelay;
+    
+    for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+      try {
+        // Wait before retrying (except on first attempt)
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, currentDelay));
+          // Increase delay for next retry (with exponential backoff)
+          currentDelay = Math.min(currentDelay * options.factor, options.maxDelay);
+        }
+        
+        return await operation();
+      } catch (error: any) {
+        // Only retry if it's a retriable error
+        if (error instanceof NIP47ClientError && error.isRetriable()) {
+          lastError = error;
+          // Continue to next iteration for retry
+        } else {
+          // Non-retriable error, rethrow immediately
+          throw error;
+        }
+      }
+    }
+    
+    // If we've exhausted all retries
+    if (lastError) {
+      throw lastError;
+    }
+    
+    // This should never happen, but TypeScript requires it
+    throw new NIP47ClientError(
+      'Retry operation failed for an unknown reason',
+      NIP47ErrorCode.INTERNAL_ERROR
+    );
+  }
+  
+  // Example use of retry with existing method
+  /**
+   * Get wallet balance with retry
+   */
+  public async getBalanceWithRetry(
+    options?: { expiration?: number, retry?: Partial<RetryOptions> }
+  ): Promise<number> {
+    return this.withRetry(
+      () => this.getBalance(options),
+      options?.retry
+    );
   }
 
   /**
