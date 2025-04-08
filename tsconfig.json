@@ -13,6 +13,6 @@
     "resolveJsonModule": true,
     "lib": ["es2020", "dom"]
   },
-  "include": ["src/**/*.ts", "index.ts"],
-  "exclude": ["node_modules", "dist", "dist-examples", "examples", "tests/**/*.test.ts", "coverage"]
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules", "dist", "coverage"]
 } 

@@ -213,7 +213,8 @@ export class NostrWalletService {
             event.pubkey,
             NIP47ErrorCode.REQUEST_EXPIRED,
             'Request has expired',
-            event.id
+            event.id,
+            'unknown' // Method unknown at this point, we haven't decrypted the request yet
           );
           return;
         }
@@ -227,7 +228,8 @@ export class NostrWalletService {
           event.pubkey,
           NIP47ErrorCode.UNAUTHORIZED_CLIENT,
           'Client not authorized to use this wallet service',
-          event.id
+          event.id,
+          'unknown' // Method unknown at this point, we haven't decrypted the request yet
         );
         return;
       }
@@ -303,18 +305,48 @@ export class NostrWalletService {
   }
   
   /**
+   * Create a properly formatted successful response according to NIP-47 spec
+   */
+  private createSuccessResponse(method: string, result: any): NIP47Response {
+    return {
+      result_type: method,
+      result,
+      error: null
+    };
+  }
+
+  /**
+   * Create a properly formatted error response according to NIP-47 spec
+   */
+  private createErrorResponse(method: string, errorCode: string, errorMessage: string, data?: any): NIP47Response {
+    // Determine error category and recovery hint
+    const category = ERROR_CATEGORIES[errorCode];
+    const recoveryHint = ERROR_RECOVERY_HINTS[errorCode];
+    
+    return {
+      result_type: method,
+      result: null,
+      error: {
+        code: errorCode,
+        message: errorMessage,
+        category,
+        recoveryHint,
+        data
+      }
+    };
+  }
+
+  /**
    * Handle a request and produce a response
    */
   private async handleRequest(request: NIP47Request): Promise<NIP47Response> {
     // Check if method is supported
     if (!this.supportedMethods.includes(request.method)) {
-      return {
-        result_type: request.method,
-        error: {
-          code: 'INVALID_REQUEST',
-          message: `Method ${request.method} not supported`
-        }
-      };
+      return this.createErrorResponse(
+        request.method,
+        'INVALID_REQUEST',
+        `Method ${request.method} not supported`
+      );
     }
     
     try {
@@ -373,27 +405,21 @@ export class NostrWalletService {
           break;
           
         default:
-          return {
-            result_type: request.method,
-            error: {
-              code: 'INVALID_REQUEST',
-              message: `Method ${request.method} not supported`
-            }
-          };
+          return this.createErrorResponse(
+            request.method,
+            'INVALID_REQUEST',
+            `Method ${request.method} not supported`
+          );
       }
       
-      return {
-        result_type: request.method,
-        result
-      };
+      return this.createSuccessResponse(request.method, result);
     } catch (error: any) {
-      return {
-        result_type: request.method,
-        error: {
-          code: error.code || 'INTERNAL_ERROR',
-          message: error.message || 'An error occurred processing the request'
-        }
-      };
+      return this.createErrorResponse(
+        request.method,
+        error.code || 'INTERNAL_ERROR',
+        error.message || 'An error occurred processing the request',
+        error.data
+      );
     }
   }
   
@@ -453,24 +479,11 @@ export class NostrWalletService {
     errorCode: string, 
     errorMessage: string, 
     requestId: string,
+    method: string = 'unknown',
     data?: any
   ): Promise<void> {
-    // Determine error category and recovery hint
-    const category = ERROR_CATEGORIES[errorCode];
-    const recoveryHint = ERROR_RECOVERY_HINTS[errorCode];
-    
-    // Create enhanced error response
-    const response: NIP47Response = {
-      result_type: 'error',
-      result: null,
-      error: {
-        code: errorCode,
-        message: errorMessage,
-        category,
-        recoveryHint,
-        data
-      }
-    };
+    // Create error response using the utility method
+    const response = this.createErrorResponse(method, errorCode, errorMessage, data);
     
     // Send response
     await this.sendResponse(senderPubkey, response, requestId);

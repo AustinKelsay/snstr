@@ -178,8 +178,8 @@ export interface NIP47Error {
 // Base response interface
 export interface NIP47Response {
   result_type: string;
-  result?: any;
-  error?: NIP47Error;
+  result: any | null;
+  error: NIP47Error | null; // Must be null for successful responses, not undefined
 }
 
 // Base notification interface
@@ -274,13 +274,13 @@ export interface GetInfoResponse extends NIP47Response {
     methods: string[];
     notifications?: string[];
   } | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 export interface GetBalanceResponse extends NIP47Response {
   result_type: NIP47Method.GET_BALANCE;
   result: number | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 export interface PayInvoiceResponse extends NIP47Response {
@@ -291,7 +291,7 @@ export interface PayInvoiceResponse extends NIP47Response {
     amount: number;
     fees_paid: number;
   } | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 export interface MakeInvoiceResponse extends NIP47Response {
@@ -303,13 +303,13 @@ export interface MakeInvoiceResponse extends NIP47Response {
     created_at: number;
     expires_at?: number;
   } | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 export interface LookupInvoiceResponse extends NIP47Response {
   result_type: NIP47Method.LOOKUP_INVOICE;
   result: NIP47Transaction | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 export interface ListTransactionsResponse extends NIP47Response {
@@ -317,7 +317,7 @@ export interface ListTransactionsResponse extends NIP47Response {
   result: {
     transactions: NIP47Transaction[];
   } | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 export interface SignMessageResponse extends NIP47Response {
@@ -326,7 +326,7 @@ export interface SignMessageResponse extends NIP47Response {
     message: string;
     signature: string;
   } | null;
-  error?: NIP47Error;
+  error: NIP47Error | null;
 }
 
 // Notification interfaces

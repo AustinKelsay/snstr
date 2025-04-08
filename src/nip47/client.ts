@@ -373,6 +373,78 @@ export class NostrWalletConnectClient {
   }
 
   /**
+   * Validate that a response follows the NIP-47 specification structure
+   */
+  private validateResponse(response: any): NIP47Response {
+    // First check if response is an object
+    if (!response || typeof response !== 'object') {
+      throw new NIP47ClientError(
+        'Invalid response: not an object', 
+        NIP47ErrorCode.INVALID_REQUEST
+      );
+    }
+    
+    // Check if result_type exists and is a string
+    if (!response.result_type || typeof response.result_type !== 'string') {
+      throw new NIP47ClientError(
+        'Invalid response: missing or invalid result_type', 
+        NIP47ErrorCode.INVALID_REQUEST
+      );
+    }
+    
+    // Check that error field exists (can be null)
+    if (!('error' in response)) {
+      throw new NIP47ClientError(
+        'Invalid response: missing error field', 
+        NIP47ErrorCode.INVALID_REQUEST
+      );
+    }
+    
+    // If error is not null, validate its structure
+    if (response.error !== null) {
+      if (typeof response.error !== 'object') {
+        throw new NIP47ClientError(
+          'Invalid response: error field must be an object or null', 
+          NIP47ErrorCode.INVALID_REQUEST
+        );
+      }
+      
+      // Check error has code and message
+      if (!response.error.code || typeof response.error.code !== 'string') {
+        throw new NIP47ClientError(
+          'Invalid response: error must have a code field', 
+          NIP47ErrorCode.INVALID_REQUEST
+        );
+      }
+      
+      if (!response.error.message || typeof response.error.message !== 'string') {
+        throw new NIP47ClientError(
+          'Invalid response: error must have a message field', 
+          NIP47ErrorCode.INVALID_REQUEST
+        );
+      }
+      
+      // When there's an error, result should be null
+      if (response.result !== null) {
+        throw new NIP47ClientError(
+          'Invalid response: when error is present, result must be null', 
+          NIP47ErrorCode.INVALID_REQUEST
+        );
+      }
+    }
+    
+    // If no error, result should be defined and not null
+    if (response.error === null && (response.result === null || response.result === undefined)) {
+      throw new NIP47ClientError(
+        'Invalid response: when error is null, result must be defined and not null', 
+        NIP47ErrorCode.INVALID_REQUEST
+      );
+    }
+    
+    return response as NIP47Response;
+  }
+
+  /**
    * Handle response events
    */
   private handleResponse(event: NostrEvent): void {
@@ -389,8 +461,23 @@ export class NostrWalletConnectClient {
       console.log(`Decrypted response: ${decrypted.substring(0, 100)}...`);
 
       // Parse the content
-      const response = JSON.parse(decrypted) as NIP47Response;
-      console.log(`Parsed response of type: ${response.result_type}`);
+      let response: any;
+      try {
+        response = JSON.parse(decrypted);
+      } catch (error) {
+        console.error('Error parsing response JSON:', error);
+        return;
+      }
+      
+      // Validate the response according to NIP-47 specification
+      try {
+        response = this.validateResponse(response);
+      } catch (error) {
+        console.error('Invalid response format:', error);
+        return;
+      }
+      
+      console.log(`Validated response of type: ${response.result_type}`);
 
       // Find the e-tag which references the request event ID
       const eTags = event.tags.filter(tag => tag[0] === 'e');

@@ -209,7 +209,7 @@ async function main() {
   console.log('Starting Nostr Wallet Connect (NIP-47) demo...');
   
   // Step 1: Start an ephemeral relay for the demo
-  const relay = new NostrRelay(3000);
+  const relay = new NostrRelay(3333);
   await relay.start();
   console.log(`Started ephemeral relay at ${relay.url}`);
   

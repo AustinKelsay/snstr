@@ -357,4 +357,76 @@ describe('NIP-47: Nostr Wallet Connect', () => {
       }
     });
   });
+  
+  describe('Response Validation', () => {
+    it('should validate response structure according to NIP-47 specification', async () => {
+      // Access the private validateResponse method for testing
+      // @ts-ignore - accessing private method for testing
+      const validateResponse = client['validateResponse'].bind(client);
+      
+      // Valid successful response
+      expect(() => validateResponse({
+        result_type: 'get_balance',
+        result: { balance: 1000 },
+        error: null
+      })).not.toThrow();
+      
+      // Valid error response
+      expect(() => validateResponse({
+        result_type: 'pay_invoice',
+        result: null,
+        error: {
+          code: 'INSUFFICIENT_BALANCE',
+          message: 'Not enough funds'
+        }
+      })).not.toThrow();
+      
+      // Invalid: missing result_type
+      expect(() => validateResponse({
+        result: { balance: 1000 },
+        error: null
+      })).toThrow();
+      
+      // Invalid: missing error field
+      expect(() => validateResponse({
+        result_type: 'get_balance',
+        result: { balance: 1000 }
+      })).toThrow();
+      
+      // Invalid: error present but result not null
+      expect(() => validateResponse({
+        result_type: 'pay_invoice',
+        result: { preimage: '123' },
+        error: {
+          code: 'INSUFFICIENT_BALANCE',
+          message: 'Not enough funds'
+        }
+      })).toThrow();
+      
+      // Invalid: no error but result is null
+      expect(() => validateResponse({
+        result_type: 'get_info',
+        result: null,
+        error: null
+      })).toThrow();
+      
+      // Invalid: error without required code
+      expect(() => validateResponse({
+        result_type: 'get_balance',
+        result: null,
+        error: {
+          message: 'Something went wrong'
+        }
+      })).toThrow();
+      
+      // Invalid: error without required message
+      expect(() => validateResponse({
+        result_type: 'get_balance',
+        result: null,
+        error: {
+          code: 'INTERNAL_ERROR'
+        }
+      })).toThrow();
+    });
+  });
 }); 

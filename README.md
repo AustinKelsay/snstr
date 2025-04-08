@@ -22,6 +22,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
   - [NIP-07: Browser Extensions](#nip-07-browser-extensions)
   - [NIP-46: Remote Signing Protocol](#nip-46-remote-signing-protocol)
   - [NIP-57: Lightning Zaps](#nip-57-lightning-zaps)
+  - [NIP-47: Nostr Wallet Connect](#nip-47-nostr-wallet-connect)
 - [Basic Usage](#basic-usage)
 - [Using the Ephemeral Relay](#using-the-ephemeral-relay)
 - [Direct Messaging Example](#direct-messaging-example)
@@ -33,6 +34,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - [Development](#development)
 - [Encryption Support](#encryption-support)
 - [Remote Signing with NIP-46](#remote-signing-with-nip-46)
+- [Nostr Wallet Connect with NIP-47](#nip-47-nostr-wallet-connect)
 - [Examples](#examples)
 
 ## Features
@@ -52,6 +54,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - NIP-44: Versioned Encryption
 - NIP-46: Remote Signing Protocol (Nostr Connect)
 - NIP-57: Lightning Zaps
+- NIP-47: Nostr Wallet Connect
 
 ## Supported NIPs
 
@@ -64,6 +67,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - NIP-07: Browser extension integration for key management and signing
 - NIP-46: Remote signing (bunker) support for secure key management
 - NIP-57: Lightning Zaps protocol for integrating Bitcoin payments via the Lightning Network
+- NIP-47: Nostr Wallet Connect for secure wallet communication
 
 ## Installation
 
@@ -244,6 +248,15 @@ import {
   ZapValidationResult,
   ZapStats,
   LnurlPayResponse
+} from 'snstr';
+```
+
+### NIP-47: Nostr Wallet Connect
+
+```typescript
+import { 
+  NostrWalletConnectClient, 
+  NostrWalletService 
 } from 'snstr';
 ```
 
@@ -769,6 +782,127 @@ main().catch(console.error);
 - **Statistics**: Calculate detailed zap statistics (totals, averages, etc.)
 - **Anonymous Zaps**: Support for sending zaps anonymously
 - **Client API**: High-level API for common zap operations
+
+## Nostr Wallet Connect with NIP-47
+
+SNSTR includes a complete implementation of [NIP-47](https://github.com/nostr-protocol/nips/blob/master/47.md), which enables applications to connect securely to Lightning wallets over Nostr.
+
+### Key Features
+
+- **Secure Wallet Communication**: Communicate with Lightning wallets over encrypted Nostr events
+- **Full Method Support**: Includes all standard methods: get_info, get_balance, make_invoice, pay_invoice, etc.
+- **Request Expiration**: Built-in handling of request expiration for enhanced security
+- **Robust Error Handling**: Comprehensive error codes and descriptive messages
+- **Notification System**: Support for payment and other wallet notifications
+- **Extensible Architecture**: Easily extend with custom wallet implementations
+
+### Basic Example
+
+```typescript
+import { 
+  NostrWalletConnectClient, 
+  NostrWalletService 
+} from 'snstr';
+
+async function main() {
+  // Create a wallet service (typically on the wallet side)
+  const walletService = new NostrWalletService({
+    relayUrls: ['wss://relay.example.com'],
+    privateKey: 'wallet_service_private_key'
+  });
+  await walletService.initialize();
+  
+  // Generate connection URL to share with client
+  const nwcUrl = walletService.generateNWCURL();
+  console.log(`Share this URL with the client: ${nwcUrl}`);
+  
+  // On the client side, connect to the wallet
+  const client = new NostrWalletConnectClient();
+  await client.connect(nwcUrl);
+  
+  // Get wallet information
+  const info = await client.getInfo();
+  console.log('Wallet info:', info);
+  
+  // Check balance
+  const balance = await client.getBalance();
+  console.log(`Balance: ${balance} sats`);
+  
+  // Create an invoice
+  const invoice = await client.makeInvoice({
+    amount: 5000,
+    description: 'Coffee'
+  });
+  console.log(`Invoice: ${invoice.bolt11}`);
+  
+  // Pay an invoice
+  const paymentResult = await client.payInvoice({
+    invoice: 'lnbc...'
+  });
+  console.log(`Payment success! Preimage: ${paymentResult.preimage}`);
+}
+
+main().catch(console.error);
+```
+
+### Client Setup with Error Handling
+
+```typescript
+import { NostrWalletConnectClient, NIP47ErrorCode } from 'snstr';
+
+async function main() {
+  const client = new NostrWalletConnectClient();
+  
+  try {
+    // Connect to wallet using NWC URL
+    await client.connect('nostr+walletconnect://...');
+    
+    // Get balance with error handling
+    try {
+      const balance = await client.getBalance();
+      console.log(`Balance: ${balance} sats`);
+    } catch (error) {
+      if (error.code === NIP47ErrorCode.UNAUTHORIZED) {
+        console.error('Not authorized to access balance');
+      } else {
+        console.error('Error getting balance:', error.message);
+      }
+    }
+    
+    // Make payment with error handling
+    try {
+      const result = await client.payInvoice({
+        invoice: 'lnbc...'
+      });
+      console.log('Payment successful!');
+    } catch (error) {
+      if (error.code === NIP47ErrorCode.INSUFFICIENT_BALANCE) {
+        console.error('Not enough funds to make payment');
+      } else if (error.code === NIP47ErrorCode.INVOICE_ALREADY_PAID) {
+        console.log('Invoice was already paid');
+      } else {
+        console.error('Payment failed:', error.message);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to connect to wallet:', error);
+  }
+}
+
+main();
+```
+
+Run the examples with:
+
+```bash
+# Basic NIP-47 example
+npm run example:nip47
+
+# With verbose logging
+npm run example:nip47:verbose
+```
+
+For more examples, see the [examples/nip47](examples/nip47) directory.
 
 ## Using Public Relays vs Ephemeral Relay
 

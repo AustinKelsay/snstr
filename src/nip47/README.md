@@ -359,3 +359,13 @@ const balance = await client.getBalanceWithRetry({
 - All communication between client and service is E2E encrypted using NIP-04
 - The user's identity key is not used, avoiding linking payment activity to the user's identity
 - Request expiration helps prevent replay attacks by limiting the time window in which a request is valid 
+
+## NIP-47 Compliance Statement
+
+This implementation **fully supports** all features defined in the official [NIP-47 specification](https://github.com/nostr-protocol/nips/blob/master/47.md). In addition, it provides several extensions and enhancements that are not part of the standard specification.
+
+- **Core Specification Features**: All event kinds, standard methods, notification types, error codes, and message formats defined in NIP-47 are implemented according to the specification.
+- **Response Structure Validation**: Strict validation enforces adherence to the NIP-47 message format specification, ensuring proper `result_type`, `error`, and `result` fields in all responses.
+- **Extension Features**: Several additional methods, error codes, and features (clearly marked below) have been added to enhance functionality while maintaining backward compatibility.
+
+When developing with this library, be aware of which features are part of the standard specification and which are extensions to ensure interoperability with other NIP-47 implementations. 
