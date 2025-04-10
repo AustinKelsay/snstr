@@ -35,6 +35,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - [Encryption Support](#encryption-support)
 - [Remote Signing with NIP-46](#remote-signing-with-nip-46)
 - [Nostr Wallet Connect with NIP-47](#nip-47-nostr-wallet-connect)
+- [Code Standardization](#code-standardization)
 - [Examples](#examples)
 
 ## Features
@@ -1182,6 +1183,18 @@ async function main() {
 
 main().catch(console.error);
 ```
+
+## Code Standardization
+
+To maintain consistency across the codebase, SNSTR follows standardized patterns for implementation, tests, and examples.
+
+### Standardization Guides
+
+- [NIP Implementation Standardization](src/NIP_STANDARDIZATION.md) - Guidelines for consistent NIP implementations in source code
+- [Test Standardization](tests/TEST_STANDARDIZATION.md) - Standards for writing and organizing tests
+- [Example Standardization](examples/EXAMPLE_STANDARDIZATION.md) - Best practices for creating consistent, well-documented examples
+
+These guides ensure that all code follows similar patterns, making it easier for contributors to understand and extend the library.
 
 ## Examples
 
