@@ -23,9 +23,22 @@ npm run example:dm:public      # Direct message using public relays
 # NIP-specific examples
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
-npm run example:nip19          # NIP-19 (bech32-encoded entities)
 npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20)
 ```
+
+## NIP-19 Examples
+
+For NIP-19 (Bech32-encoded entities), we have several examples demonstrating different aspects:
+
+```bash
+npm run example:nip19          # Main NIP-19 example with all features
+npm run example:nip19:verbose  # Verbose logging for main example
+npm run example:nip19:bech32   # Basic Bech32 entities (npub, nsec, note)
+npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
+npm run example:nip19:validation # Validation and error handling
+```
+
+See the [NIP-19 README](./nip19/README.md) for more details on the Bech32 encoding examples.
 
 ## NIP-46 Examples
 
@@ -49,8 +62,11 @@ See the [NIP-46 README](./nip46/README.md) for more details on the remote signin
 - `nip04/` - NIP-04 (Encrypted Direct Messages) examples
 - `nip05/` - NIP-05 (DNS Identifier Verification) examples 
 - `nip07/` - NIP-07 (Web Browser Extension) examples
+- `nip19/` - NIP-19 (Bech32-encoded entities) examples
 - `nip44/` - NIP-44 (Encrypted Direct Messages with ChaCha20) examples
 - `nip46/` - NIP-46 (Nostr Connect/Remote Signing) examples
+- `nip47/` - NIP-47 (Nostr Wallet Connect) examples
+- `nip57/` - NIP-57 (Lightning Zaps) examples
 - `javascript/` - JavaScript examples for non-TypeScript environments
 
 ## Building Examples

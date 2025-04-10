@@ -27,8 +27,8 @@ async function main() {
   console.log('NIP-57 Lightning Zaps Example');
   console.log('-----------------------------\n');
 
-  // Set up an ephemeral relay for testing
-  const relay = new NostrRelay(3000);
+  // Start an ephemeral relay for testing and demonstration
+  const relay = new NostrRelay(3333, 60); // Change port to 3333
   await relay.start();
   console.log(`🔌 Ephemeral relay started at ${relay.url}\n`);
 
