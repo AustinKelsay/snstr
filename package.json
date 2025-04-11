@@ -34,15 +34,11 @@
     "test:nip57": "jest tests/nip57",
 
     "// Test Groups": "-------------- Test Groups --------------",
-    "tests:all": "npm test",
-    "tests:nip04": "npm run test:nip04",
-    "tests:nip05": "npm run test:nip05", 
-    "tests:nip07": "npm run test:nip07",
-    "tests:nip19": "npm run test:nip19",
-    "tests:nip44": "npm run test:nip44",
-    "tests:nip46": "npm run test:nip46",
-    "tests:nip47": "npm run test:nip47",
-    "tests:nip57": "npm run test:nip57",
+    "test:all": "npm test",
+    "test:core": "jest tests/event.test.ts tests/nostr.test.ts tests/relay.test.ts",
+    "test:crypto": "jest tests/crypto.test.ts tests/nip04/encryption.test.ts tests/nip44",
+    "test:identity": "jest tests/nip05.test.ts tests/nip07.test.ts tests/nip19",
+    "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57",
      
     "// Basic Examples": "-------------- Basic Examples --------------",
     "example": "ts-node examples/basic-usage.ts",
@@ -86,15 +82,12 @@
     "example:nip57:validation": "ts-node examples/nip57/invoice-validation-example.ts",
     
     "// Example Groups": "-------------- Example Groups --------------",
-    "examples": "npm run example",
-    "examples:nip04": "npm run example:nip04",
-    "examples:nip05": "npm run example:nip05",
-    "examples:nip07": "npm run example:nip07 && npm run example:nip07:dm",
-    "examples:nip19": "npm run example:nip19 && npm run example:nip19:bech32 && npm run example:nip19:tlv && npm run example:nip19:validation && npm run example:nip19:demo",
-    "examples:nip44": "npm run example:nip44 && npm run example:nip44:test-vector && npm run example:nip44:standalone",
-    "examples:nip46": "npm run example:nip46 && npm run example:nip46:minimal && npm run example:nip46:basic",
-    "examples:nip47": "npm run example:nip47 && npm run example:nip47:client-service && npm run example:nip47:error-handling && npm run example:nip47:expiration",
-    "examples:nip57": "npm run example:nip57 && npm run example:nip57:client && npm run example:nip57:lnurl && npm run example:nip57:validation"
+    "example:all": "npm run example",
+    "example:basic": "npm run example && npm run example:crypto && npm run example:dm",
+    "example:messaging": "npm run example:dm && npm run example:nip04 && npm run example:nip44",
+    "example:identity": "npm run example:nip05 && npm run example:nip07 && npm run example:nip19:demo",
+    "example:payments": "npm run example:nip47 && npm run example:nip57",
+    "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling"
   },
   "keywords": [
     "nostr",

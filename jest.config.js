@@ -6,12 +6,12 @@ module.exports = {
   moduleFileExtensions: ['ts', 'js'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: 'tsconfig.json'
+      tsconfig: 'tests/tsconfig.json'
     }]
   },
   globals: {
     'ts-jest': {
-      tsconfig: 'tsconfig.json'
+      tsconfig: 'tests/tsconfig.json'
     }
   },
   setupFilesAfterEnv: ['./jest.setup.js'],

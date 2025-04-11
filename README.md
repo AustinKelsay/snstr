@@ -967,25 +967,23 @@ The project includes a comprehensive test suite that uses the ephemeral relay fo
 Run all tests:
 
 ```bash
-npm test
+npm run test:all
+```
+
+Run tests by category:
+
+```bash
+npm run test:core     # Core functionality tests (event, nostr, relay)
+npm run test:crypto   # Encryption and crypto tests (NIP-04, NIP-44)
+npm run test:identity # Identity-related tests (NIP-05, NIP-07, NIP-19)
+npm run test:protocols # Protocol implementation tests (NIP-46, NIP-47, NIP-57)
+npm run test:integration # Integration tests
 ```
 
 Run a specific test file:
 
 ```bash
 npm test -- tests/crypto.test.ts
-```
-
-Run just the NIP-44 tests:
-
-```bash
-npm test -- tests/nip44
-```
-
-Run just the NIP-57 tests:
-
-```bash
-npm test -- tests/nip57
 ```
 
 ### Test Coverage
@@ -1012,36 +1010,30 @@ npm run build
 ### Running examples
 
 ```bash
-# Basic example (default ephemeral relay)
-npm run example
+# Example groups by functionality
+npm run example:all      # Run the basic usage example
+npm run example:basic    # Run core examples (basic, crypto, direct messages)
+npm run example:messaging # Run messaging examples (dm, nip04, nip44)
+npm run example:identity # Run identity examples (nip05, nip07, nip19)
+npm run example:payments # Run payment examples (nip47, nip57)
+npm run example:advanced # Run advanced protocol examples (nip46, error handling)
 
-# Direct messaging example (default ephemeral relay)
-npm run example:dm
+# Individual examples
+npm run example          # Basic example (default ephemeral relay)
+npm run example:dm       # Direct messaging example
+npm run example:crypto   # Cryptography demo
 
-# Cryptography demo
-npm run example:crypto
+# NIP-specific examples
+npm run example:nip04    # Encrypted direct messages (NIP-04)
+npm run example:nip05    # DNS identifiers (NIP-05)
+npm run example:nip19    # bech32-encoded entities (NIP-19)
+npm run example:nip44    # Versioned encryption (NIP-44)
+npm run example:nip46    # Remote signing protocol (NIP-46)
+npm run example:nip57    # Lightning Zaps (NIP-57)
 
-# NIP-44 encryption demo (runs examples/nip44/nip44-demo.ts)
-npm run example:nip44
-
-# NIP-57 zaps examples
-npm run example:nip57           # Basic zaps example
-npm run example:nip57:client    # ZapClient with signet Lightning address
-npm run example:nip57:validation # Invoice validation example
-npm run example:nip57:lnurl     # LNURL server simulation
-
-# Examples with ephemeral relay and verbose logging
-npm run example:ephemeral
-npm run example:ephemeral:dm
-
-# Examples with public relays (Primal.net and Nostr.band)
-npm run example:public
-npm run example:public:dm
-
-# Test encryption/decryption
-npm run test:encryption   # Run NIP-04 tests
-npm run test:nip44        # Run NIP-44 tests
-npm run test:nip57        # Run NIP-57 tests
+# Examples with logging options
+npm run example:verbose  # With verbose logging
+npm run example:debug    # With debug logging
 ```
 
 ## Encryption Support
