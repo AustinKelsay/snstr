@@ -132,4 +132,60 @@ describe('Relay', () => {
       relay.disconnect();
     });
   });
+
+  describe('Tag Filtering', () => {
+    test('should match events according to NIP-01 tag filtering rules', async () => {
+      const relay = new Relay(ephemeralRelay.url);
+      await relay.connect();
+      
+      // Create events with different tag combinations
+      const event1 = {
+        id: 'test-event-id-1',
+        pubkey: 'test-pubkey',
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [['e', 'id1'], ['p', 'pubkey1']],
+        content: 'Event with e:id1',
+        sig: 'test-signature'
+      };
+      
+      const event2 = {
+        id: 'test-event-id-2',
+        pubkey: 'test-pubkey',
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [['e', 'id2'], ['p', 'pubkey1']],
+        content: 'Event with e:id2',
+        sig: 'test-signature'
+      };
+      
+      // Publish events to the relay
+      await relay.publish(event1);
+      await relay.publish(event2);
+      
+      // This subscription should receive BOTH events according to NIP-01,
+      // because '#e' filter should match events with EITHER 'id1' OR 'id2'
+      const receivedEvents: NostrEvent[] = [];
+      
+      // Create subscription with filter for both e tags
+      const subId = relay.subscribe(
+        [{ kinds: [1], '#e': ['id1', 'id2'] }],
+        (event) => {
+          receivedEvents.push(event);
+        },
+        () => {
+          // Test the results after EOSE is received
+          // With the current implementation, we may not receive all events
+          // that match according to NIP-01 spec
+          
+          // According to NIP-01, we should have received both events
+          expect(receivedEvents.length).toBe(2);
+          
+          // Clean up
+          relay.unsubscribe(subId);
+          relay.disconnect();
+        }
+      );
+    });
+  });
 }); 

@@ -342,7 +342,7 @@ class ClientSession {
                 .flat();
               
               // If there's a #p filter, make sure the event matches it
-              if (pFilters.length > 0 && !pFilters.some(p => pTags.includes(p))) {
+              if (pFilters.length > 0 && !pTags.some(tag => pFilters.includes(tag))) {
                 continue;
               }
               
@@ -507,18 +507,39 @@ function match_tags(
   filters: string[][],
   tags: string[][]
 ): boolean {
+  // For each filter, we need to find at least one match in event tags
   for (const [key, ...terms] of filters) {
+    let filterMatched = false;
+    
+    // Skip empty filter terms
+    if (terms.length === 0) {
+      filterMatched = true;
+      continue;
+    }
+    
+    // For each tag that matches the filter key
     for (const [tag, ...params] of tags) {
-      if (tag === key) {
-        for (const term of terms) {
-          if (!params.includes(term)) {
-            return false
-          }
+      if (tag !== key) continue;
+      
+      // For each term in the filter
+      for (const term of terms) {
+        // If any term matches any parameter, this filter condition is satisfied
+        if (params.includes(term)) {
+          filterMatched = true;
+          break;
         }
       }
+      
+      // If we found a match for this filter, we can stop checking tags
+      if (filterMatched) break;
     }
+    
+    // If no match was found for this filter condition, event doesn't match
+    if (!filterMatched) return false;
   }
-  return true
+  
+  // All filter conditions were satisfied
+  return true;
 }
 
 function verify_event(event: SignedEvent) {
