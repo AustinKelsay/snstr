@@ -173,6 +173,20 @@ export class Relay {
         this.triggerEvent(RelayEvent.Notice, this.url, notice);
         break;
       }
+      case 'OK': {
+        const [eventId, success, message] = rest;
+        if (debug) console.log(`Relay(${this.url}): OK message for event ${eventId}: ${success ? 'success' : 'failed'}, ${message}`);
+        this.triggerEvent(RelayEvent.OK, eventId, success, message);
+        break;
+      }
+      case 'CLOSED': {
+        const [subscriptionId, message] = rest;
+        if (debug) console.log(`Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`);
+        this.triggerEvent(RelayEvent.Closed, subscriptionId, message);
+        // Remove the subscription from our map since the relay closed it
+        this.subscriptions.delete(subscriptionId);
+        break;
+      }
       default:
         if (debug) console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
         break;
@@ -182,7 +196,24 @@ export class Relay {
   private triggerEvent(event: RelayEvent, ...args: any[]): void {
     const handler = this.eventHandlers[event];
     if (handler) {
-      handler(this.url, ...args);
+      switch (event) {
+        case RelayEvent.Connect:
+        case RelayEvent.Disconnect:
+          (handler as (relay: string) => void)(this.url);
+          break;
+        case RelayEvent.Error:
+          (handler as (relay: string, error: any) => void)(this.url, args[0]);
+          break;
+        case RelayEvent.Notice:
+          (handler as (relay: string, notice: string) => void)(this.url, args[0]);
+          break;
+        case RelayEvent.OK:
+          (handler as (eventId: string, success: boolean, message: string) => void)(args[0], args[1], args[2]);
+          break;
+        case RelayEvent.Closed:
+          (handler as (subscriptionId: string, message: string) => void)(args[0], args[1]);
+          break;
+      }
     }
   }
 } 

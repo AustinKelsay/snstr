@@ -45,6 +45,24 @@ async function main() {
       console.error(`Error from relay ${relayUrl}:`, error);
     });
     
+    client.on(RelayEvent.Notice, (relayUrl, notice) => {
+      console.log(`Notice from relay ${relayUrl}: ${notice}`);
+    });
+    
+    // New handler for OK messages from relays
+    client.on(RelayEvent.OK, (eventId, success, message) => {
+      if (success) {
+        console.log(`Event ${eventId.slice(0, 8)}... was accepted by relay${message ? ': ' + message : ''}`);
+      } else {
+        console.warn(`Event ${eventId.slice(0, 8)}... was rejected by relay: ${message}`);
+      }
+    });
+    
+    // New handler for CLOSED messages from relays
+    client.on(RelayEvent.Closed, (subscriptionId, message) => {
+      console.log(`Subscription ${subscriptionId} was closed by relay: ${message}`);
+    });
+    
     // Subscribe to events
     console.log('Subscribing to events...');
     const filters: Filter[] = [

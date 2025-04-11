@@ -188,4 +188,78 @@ describe('Relay', () => {
       );
     });
   });
+
+  describe('Message Handling', () => {
+    test('should handle OK messages correctly', () => {
+      const relay = new Relay(ephemeralRelay.url);
+      
+      // Setup a mock to track OK message handling
+      let okMessageReceived = false;
+      let okEventId = '';
+      let okSuccess = false;
+      let okMessage = '';
+      
+      // Mock the event handler to capture OK messages
+      relay.on(RelayEvent.OK, (eventId: string, success: boolean, message: string) => {
+        okMessageReceived = true;
+        okEventId = eventId;
+        okSuccess = success;
+        okMessage = message;
+      });
+      
+      // Manually trigger the OK message handling
+      // This is a direct test of the internal handleMessage method
+      const testEventId = 'test-event-id-ok-message';
+      const testSuccess = true;
+      const testMessage = 'Event was stored';
+      
+      // Access the private handleMessage method using type assertion
+      (relay as any).handleMessage(['OK', testEventId, testSuccess, testMessage]);
+      
+      // Verify the handler was called with the right parameters
+      expect(okMessageReceived).toBe(true);
+      expect(okEventId).toBe(testEventId);
+      expect(okSuccess).toBe(testSuccess);
+      expect(okMessage).toBe(testMessage);
+    });
+    
+    test('should handle CLOSED messages correctly', () => {
+      const relay = new Relay(ephemeralRelay.url);
+      
+      // Setup a mock to track CLOSED message handling
+      let closedMessageReceived = false;
+      let closedSubId = '';
+      let closedMessage = '';
+      
+      // Mock the event handler to capture CLOSED messages
+      relay.on(RelayEvent.Closed, (subscriptionId: string, message: string) => {
+        closedMessageReceived = true;
+        closedSubId = subscriptionId;
+        closedMessage = message;
+      });
+      
+      // Create a subscription so we can verify it gets removed
+      const subId = 'test-subscription-id';
+      (relay as any).subscriptions.set(subId, {
+        id: subId,
+        filters: [{ kinds: [1] }],
+        onEvent: () => {}
+      });
+      
+      // Verify the subscription exists before
+      expect((relay as any).subscriptions.has(subId)).toBe(true);
+      
+      // Manually trigger the CLOSED message handling
+      const testMessage = 'Subscription closed due to inactivity';
+      (relay as any).handleMessage(['CLOSED', subId, testMessage]);
+      
+      // Verify the handler was called with the right parameters
+      expect(closedMessageReceived).toBe(true);
+      expect(closedSubId).toBe(subId);
+      expect(closedMessage).toBe(testMessage);
+      
+      // Verify the subscription was removed
+      expect((relay as any).subscriptions.has(subId)).toBe(false);
+    });
+  });
 }); 

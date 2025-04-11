@@ -50,8 +50,15 @@ export enum RelayEvent {
   Disconnect = 'disconnect',
   Error = 'error',
   Notice = 'notice',
+  OK = 'ok',
+  Closed = 'closed',
 }
 
 export type RelayEventHandler = {
-  [key in RelayEvent]?: (relay: string, ...args: any[]) => void;
+  [RelayEvent.Connect]?: (relay: string) => void;
+  [RelayEvent.Disconnect]?: (relay: string) => void;
+  [RelayEvent.Error]?: (relay: string, error: any) => void;
+  [RelayEvent.Notice]?: (relay: string, notice: string) => void;
+  [RelayEvent.OK]?: (eventId: string, success: boolean, message: string) => void;
+  [RelayEvent.Closed]?: (subscriptionId: string, message: string) => void;
 }; 
