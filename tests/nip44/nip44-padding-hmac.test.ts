@@ -9,7 +9,8 @@ import {
   hmacWithAAD,
   encrypt,
   decrypt,
-  decodePayload
+  decodePayload,
+  constantTimeEqual
 } from '../../src/nip44';
 
 // Load official test vectors
@@ -133,5 +134,52 @@ describe('NIP-44 Comprehensive Test Vector Compatibility', () => {
     
     console.log(`Successfully decrypted ${successCount} out of ${encryptDecryptVectors.length} official test vectors`);
     expect(successCount).toBeGreaterThan(0);
+  });
+});
+
+describe('Constant-Time Comparison', () => {
+  test('should return 1 for identical arrays', () => {
+    const a = new Uint8Array([1, 2, 3, 4, 5]);
+    const b = new Uint8Array([1, 2, 3, 4, 5]);
+    expect(constantTimeEqual(a, b)).toBe(1);
+  });
+
+  test('should return 0 for arrays with different lengths', () => {
+    const a = new Uint8Array([1, 2, 3, 4, 5]);
+    const b = new Uint8Array([1, 2, 3, 4]);
+    expect(constantTimeEqual(a, b)).toBe(0);
+  });
+
+  test('should return 0 for arrays with same length but different content', () => {
+    const a = new Uint8Array([1, 2, 3, 4, 5]);
+    const b = new Uint8Array([1, 2, 3, 4, 6]);
+    expect(constantTimeEqual(a, b)).toBe(0);
+  });
+
+  test('should handle empty arrays', () => {
+    const a = new Uint8Array([]);
+    const b = new Uint8Array([]);
+    expect(constantTimeEqual(a, b)).toBe(1);
+  });
+
+  test('should handle large arrays', () => {
+    const a = new Uint8Array(1000).fill(42);
+    const b = new Uint8Array(1000).fill(42);
+    expect(constantTimeEqual(a, b)).toBe(1);
+    
+    // Change just one byte in the middle
+    b[500] = 43;
+    expect(constantTimeEqual(a, b)).toBe(0);
+  });
+
+  test('should handle MAC-sized arrays (32 bytes)', () => {
+    // Generate two 32-byte arrays that are identical
+    const a = hexToBytes('000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f');
+    const b = hexToBytes('000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f');
+    expect(constantTimeEqual(a, b)).toBe(1);
+    
+    // Change just one byte
+    b[31] = 0x20;
+    expect(constantTimeEqual(a, b)).toBe(0);
   });
 });

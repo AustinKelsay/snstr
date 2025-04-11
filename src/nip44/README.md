@@ -79,6 +79,16 @@ Generates a random 32-byte nonce for NIP-44 encryption.
 
 - Returns: 32-byte Uint8Array
 
+### `constantTimeEqual(a, b)`
+
+Performs constant-time comparison of two byte arrays to prevent timing attacks.
+
+- `a` - First byte array (Uint8Array)
+- `b` - Second byte array (Uint8Array)
+- Returns: 1 if arrays are equal, 0 if they differ or have different lengths
+
+This function is used internally to validate MACs securely, but is also exposed for use in other security-critical comparisons. Using constant-time comparison is important when comparing sensitive values like MACs, signatures, or hashes to prevent timing side-channel attacks.
+
 ## Differences from NIP-04
 
 1. **Cipher algorithm**: NIP-44 uses ChaCha20 + HMAC-SHA256 instead of AES-CBC

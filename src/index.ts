@@ -27,7 +27,8 @@ export {
   encrypt as encryptNIP44, 
   decrypt as decryptNIP44, 
   generateNonce as generateNIP44Nonce,
-  getSharedSecret as getNIP44SharedSecret
+  getSharedSecret as getNIP44SharedSecret,
+  constantTimeEqual as constantTimeEqual
 } from './nip44'; 
 
 // Export NIP-19 utilities

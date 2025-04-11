@@ -3,7 +3,12 @@ import {
   encryptNIP44,
   decryptNIP44,
   getNIP44SharedSecret,
+  generateNIP44Nonce as generateNonce
 } from '../../src';
+
+import {
+  constantTimeEqual
+} from '../../src/nip44';
 
 async function main() {
   console.log('🔒 NIP-44 Encryption Demo');
@@ -163,6 +168,40 @@ async function main() {
   console.log('4. NIP-44 uses HKDF for key derivation');
   console.log('5. NIP-44 uses padding to help conceal message length');
   console.log('6. NIP-44 payload is versioned, allowing future encryption improvements');
+  
+  // Demonstrate secure constant-time comparison
+  demonstrateConstantTimeComparison();
+}
+
+// Demonstrate secure constant-time comparison
+function demonstrateConstantTimeComparison() {
+  console.log('\n=== Demonstrating Constant-Time Comparison ===');
+  console.log('This is an important security feature for comparing MACs and other cryptographic values');
+  
+  // Generate some test data
+  console.log('\nGenerating test data...');
+  const nonce1 = generateNonce();
+  const nonce2 = generateNonce();
+  const nonce3 = new Uint8Array(nonce1); // Create a copy of nonce1
+  
+  // Perform comparisons
+  console.log('\nComparing nonce values using constant-time equality check:');
+  
+  const result1 = constantTimeEqual(nonce1, nonce2);
+  console.log(`Comparison of two different nonces: ${result1 === 1 ? 'EQUAL' : 'NOT EQUAL'}`);
+  
+  const result2 = constantTimeEqual(nonce1, nonce3);
+  console.log(`Comparison of identical nonces: ${result2 === 1 ? 'EQUAL' : 'NOT EQUAL'}`);
+  
+  // Explain why this is important
+  console.log('\nWhy this matters:');
+  console.log('- Regular equality checks (a === b) can have variable timing based on where differences occur');
+  console.log('- This timing variation can be measured by attackers to gradually determine secret values');
+  console.log('- Constant-time equality ensures the comparison always takes the same amount of time');
+  console.log('- This prevents timing side-channel attacks when verifying MACs, signatures, or other secrets');
+  
+  console.log('\nIn the NIP-44 implementation, this is used to securely validate the HMAC');
+  console.log('without leaking information about whether partial matches occurred.');
 }
 
 main().catch(console.error); 

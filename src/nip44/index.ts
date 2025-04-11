@@ -298,6 +298,43 @@ export function hmacWithAAD(key: Uint8Array, message: Uint8Array, aad: Uint8Arra
 }
 
 /**
+ * Performs a constant-time comparison of two Uint8Arrays
+ * 
+ * This implementation takes several precautions against timing attacks:
+ * 1. Always processes all bytes regardless of matches/mismatches
+ * 2. Returns a constant (1 or 0) to avoid boolean conversion optimizations
+ * 3. Uses bitwise operations which are less susceptible to timing variations
+ * 4. Prevents length-based timing attacks with separate length check
+ * 
+ * @param a - First byte array
+ * @param b - Second byte array
+ * @returns 1 if arrays are equal, 0 if they're different or have different length
+ */
+export function constantTimeEqual(a: Uint8Array, b: Uint8Array): number {
+  // First check: different lengths mean different content
+  // We do this check separately to avoid potential length-based timing attacks
+  if (a.length !== b.length) {
+    return 0;
+  }
+  
+  // XOR each byte and OR the results together
+  // If any byte is different, the result will be non-zero
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a[i] ^ b[i];
+  }
+  
+  // Convert to a binary 0 or 1 result (0 = equal, 1 = different)
+  // Using this additional step to avoid potential JavaScript VM optimizations
+  // around boolean conversions
+  result = (result | (result >>> 1) | (result >>> 2) | (result >>> 3) | 
+           (result >>> 4) | (result >>> 5) | (result >>> 6) | (result >>> 7)) & 1;
+  
+  // Invert the result: 1 means equal, 0 means different
+  return 1 - result;
+}
+
+/**
  * Encrypt a message using NIP-44 v2 (ChaCha20 + HMAC-SHA256)
  * 
  * @param plaintext - The message to encrypt
@@ -440,18 +477,8 @@ export function decrypt(
     // Verify HMAC
     const calculated_mac = hmacWithAAD(hmac_key, encryptedData, nonce);
     
-    // Check if MACs match using constant-time comparison to prevent timing attacks
-    let mac_valid = true;
-    if (calculated_mac.length !== mac.length) {
-      mac_valid = false;
-    } else {
-      // Constant-time comparison - always check all bytes regardless of mismatches
-      let result = 0;
-      for (let i = 0; i < mac.length; i++) {
-        result |= calculated_mac[i] ^ mac[i]; // XOR will be 0 only if bytes are identical
-      }
-      mac_valid = result === 0;
-    }
+    // Use our constant-time comparison function
+    const mac_valid = constantTimeEqual(calculated_mac, mac) === 1;
     
     if (!mac_valid) {
       throw new Error('NIP-44: Authentication failed. Message may be tampered with or keys are incorrect.');
