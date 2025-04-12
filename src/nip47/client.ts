@@ -821,29 +821,66 @@ export class NostrWalletConnectClient {
   }
 
   /**
-   * Look up an invoice or payment
+   * Look up invoice information by payment hash or invoice string
+   * 
+   * @param params - Object containing either payment_hash, invoice, or both
+   * @param params.payment_hash - The payment hash to look up
+   * @param params.invoice - The invoice to look up
+   * @param options - Optional request parameters
+   * @param options.expiration - Request expiration time in seconds
+   * @returns The invoice information
+   * 
+   * @throws {NIP47ClientError} with code INVALID_REQUEST if neither payment_hash nor invoice is provided
+   * @throws {NIP47ClientError} with code NOT_FOUND if the invoice or payment hash is not found
+   * @throws {NIP47ClientError} with code LOOKUP_INVOICE_FAILED for other errors
    */
-  public async lookupInvoice(paymentHash?: string, invoice?: string, options?: { expiration?: number }): Promise<LookupInvoiceResponse['result']> {
-    if (!paymentHash && !invoice) {
+  public async lookupInvoice(
+    params: { payment_hash?: string; invoice?: string },
+    options?: { expiration?: number }
+  ): Promise<LookupInvoiceResponse['result']> {
+    // Check that at least one required parameter is provided
+    if (!params.payment_hash && !params.invoice) {
       throw new NIP47ClientError('Payment hash or invoice is required', NIP47ErrorCode.INVALID_REQUEST);
     }
+    
+    // @throws {NIP47ClientError} with code NOT_FOUND if the invoice or payment hash is not found
     
     try {
       const request: LookupInvoiceRequest = {
         method: NIP47Method.LOOKUP_INVOICE,
         params: {
-          payment_hash: paymentHash,
-          invoice
+          payment_hash: params.payment_hash,
+          invoice: params.invoice
         }
       };
       
       const response = await this.sendRequest(request, options?.expiration);
+      
+      // If we get here, the request was successful
       return response.result as LookupInvoiceResponse['result'];
     } catch (error: any) {
       if (error instanceof NIP47ClientError) {
+        // Check specifically for NOT_FOUND errors
+        if (error.code === NIP47ErrorCode.NOT_FOUND) {
+          // Properly propagate NOT_FOUND errors with a clear message
+          const lookupType = params.payment_hash ? 'payment_hash' : 'invoice';
+          const lookupValue = params.payment_hash || params.invoice;
+          
+          throw new NIP47ClientError(
+            `Invoice not found: if the invoice or payment hash is not found. Could not find ${lookupType}: ${lookupValue}`,
+            NIP47ErrorCode.NOT_FOUND
+          );
+        }
+        
+        // Pass through other existing NIP47ClientError instances
         throw error;
       }
-      throw new NIP47ClientError(`Error looking up invoice: ${error?.message || 'Unknown error'}`, 'LOOKUP_INVOICE_FAILED');
+      
+      // For other errors, we wrap with a generic LOOKUP_INVOICE_FAILED error
+      throw new NIP47ClientError(
+        `Error looking up invoice: ${error?.message || 'Unknown error'}`, 
+        NIP47ErrorCode.LOOKUP_INVOICE_FAILED
+      );
     }
   }
 

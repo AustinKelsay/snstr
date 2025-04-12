@@ -101,5 +101,7 @@ This implementation includes several extensions beyond the basic NIP-47 spec:
 
 - Additional methods like `pay_keysend`, `multi_pay_invoice`, etc.
 - Enhanced error handling with categories and recovery hints
+- Improved parameter validation and specific error handling for standard methods like `lookupInvoice`
+- Explicit handling of NIP-47 standard error codes such as `NOT_FOUND` for invoice lookups
 - Automatic retry mechanism for transient errors
 - Periodic INFO event republishing for better service discovery 

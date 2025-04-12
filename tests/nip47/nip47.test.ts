@@ -226,7 +226,9 @@ describe('NIP-47: Nostr Wallet Connect', () => {
     
     it('should look up an invoice', async () => {
       jest.setTimeout(10000);
-      const invoice = await client.lookupInvoice('abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789');
+      const invoice = await client.lookupInvoice({ 
+        payment_hash: 'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' 
+      });
       expect(invoice).toBeDefined();
       if (invoice) {
         expect(invoice.payment_hash).toBeDefined();
@@ -346,7 +348,7 @@ describe('NIP-47: Nostr Wallet Connect', () => {
       };
       
       try {
-        await client.lookupInvoice('nonexistent');
+        await client.lookupInvoice({ payment_hash: 'nonexistent' });
         fail('Should have thrown a NOT_FOUND error');
       } catch (error) {
         expect(error).toBeDefined();

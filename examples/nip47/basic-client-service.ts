@@ -114,21 +114,32 @@ class SimpleWallet implements WalletImplementation {
     };
   }
   
-  async lookupInvoice(paymentHash?: string, invoice?: string): Promise<NIP47Transaction> {
-    if (paymentHash && this.invoices.has(paymentHash)) {
-      return this.invoices.get(paymentHash)!;
+  async lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction> {
+    // Check that at least one required parameter is provided
+    if (!params.payment_hash && !params.invoice) {
+      const error: any = new Error('Payment hash or invoice is required');
+      error.code = 'INVALID_REQUEST';
+      throw error;
     }
     
-    if (invoice) {
-      // Find by invoice
-      for (const txn of this.invoices.values()) {
-        if (txn.invoice === invoice) {
-          return txn;
-        }
+    // First try to find by payment_hash if provided
+    if (params.payment_hash && this.invoices.has(params.payment_hash)) {
+      return this.invoices.get(params.payment_hash)!;
+    }
+    
+    // Then try to find by invoice if provided
+    if (params.invoice) {
+      const invoiceList = Array.from(this.invoices.values());
+      const found = invoiceList.find(inv => inv.invoice === params.invoice);
+      if (found) {
+        return found;
       }
     }
     
-    throw { code: 'NOT_FOUND', message: 'Invoice not found' };
+    // If we get here, no invoice was found
+    const error: any = new Error('Invoice not found');
+    error.code = 'NOT_FOUND';
+    throw error;
   }
   
   async listTransactions(from?: number, until?: number, limit?: number, offset?: number, unpaid?: boolean, type?: string): Promise<NIP47Transaction[]> {
@@ -238,8 +249,28 @@ async function main() {
     
     console.log('\n4. Looking up invoice by payment hash...');
     if (invoice && invoice.payment_hash) {
-      const lookedUpInvoice = await client.lookupInvoice(invoice.payment_hash);
-      console.log('Found invoice:', lookedUpInvoice);
+      try {
+        const lookedUpInvoice = await client.lookupInvoice({ payment_hash: invoice.payment_hash });
+        console.log('Found invoice:', lookedUpInvoice);
+        
+        // Now try to look up a non-existent invoice
+        console.log('\n4b. Looking up a non-existent invoice...');
+        try {
+          await client.lookupInvoice({ payment_hash: 'non_existent_hash' });
+        } catch (error: any) {
+          if (error.code === 'NOT_FOUND') {
+            console.log('As expected, invoice was not found. Error:', error.message);
+            console.log('Recovery hint:', error.recoveryHint);
+          } else {
+            console.error('Unexpected error:', error);
+          }
+        }
+      } catch (error: any) {
+        console.error('Error looking up invoice:', error.message);
+        if (error.recoveryHint) {
+          console.log('Recovery hint:', error.recoveryHint);
+        }
+      }
     }
     
     console.log('\n5. Paying an invoice...');

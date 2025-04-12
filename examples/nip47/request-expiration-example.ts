@@ -74,8 +74,18 @@ class ExpirationDemoWallet implements WalletImplementation {
   }
   
   // Implement other required methods
-  async lookupInvoice(): Promise<NIP47Transaction> {
-    throw { code: NIP47ErrorCode.NOT_FOUND, message: 'Invoice not found' };
+  async lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction> {
+    // Simulate a slow response to test request expiration
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    return {
+      type: TransactionType.INCOMING,
+      payment_hash: params.payment_hash || 'default_hash',
+      amount: 1000,
+      fees_paid: 0,
+      created_at: Math.floor(Date.now() / 1000) - 3600,
+      description: 'Test invoice'
+    };
   }
   
   async listTransactions(): Promise<NIP47Transaction[]> {

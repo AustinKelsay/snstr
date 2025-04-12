@@ -140,21 +140,45 @@ class DemoWallet implements WalletImplementation {
     };
   }
   
-  async lookupInvoice(paymentHash?: string, invoice?: string): Promise<NIP47Transaction> {
-    if (paymentHash && this.invoices.has(paymentHash)) {
-      return this.invoices.get(paymentHash)!;
+  async lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction> {
+    if (!params.payment_hash && !params.invoice) {
+      throw { code: 'INVALID_REQUEST', message: 'Payment hash or invoice is required' };
     }
     
-    if (invoice) {
-      // In a real implementation, you would look up by invoice
-      for (const txn of this.invoices.values()) {
-        if (txn.invoice === invoice) {
-          return txn;
-        }
+    // Find by payment hash
+    if (params.payment_hash) {
+      // Simulate 20% chance of not finding it
+      if (Math.random() < 0.2) {
+        throw { code: 'NOT_FOUND', message: 'Invoice not found' };
       }
+      
+      return {
+        type: TransactionType.INCOMING,
+        payment_hash: params.payment_hash,
+        amount: 1000,
+        fees_paid: 0,
+        created_at: Math.floor(Date.now() / 1000) - 3600,
+        settled_at: Math.floor(Date.now() / 1000) - 3000,
+        description: 'Test invoice'
+      };
     }
     
-    throw { code: 'NOT_FOUND', message: 'Invoice not found' };
+    // Find by invoice
+    if (params.invoice) {
+      return {
+        type: TransactionType.INCOMING,
+        invoice: params.invoice,
+        payment_hash: randomHex(32),
+        amount: 1000,
+        fees_paid: 0,
+        created_at: Math.floor(Date.now() / 1000) - 3600,
+        settled_at: Math.floor(Date.now() / 1000) - 3000,
+        description: 'Test invoice'
+      };
+    }
+    
+    // This should never happen due to the validation at the beginning
+    throw { code: 'INTERNAL_ERROR', message: 'Logic error' };
   }
   
   async listTransactions(from?: number, until?: number, limit?: number, offset?: number, unpaid?: boolean, type?: string): Promise<NIP47Transaction[]> {
@@ -327,12 +351,10 @@ async function main() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       // Lookup the invoice
-      console.log('\n[5] Looking up invoice by payment hash...');
+      console.log('\n4. Looking up invoice by payment hash...');
       if (invoice && invoice.payment_hash) {
-        const lookedUpInvoice = await client.lookupInvoice(invoice.payment_hash);
+        const lookedUpInvoice = await client.lookupInvoice({ payment_hash: invoice.payment_hash });
         console.log('Found invoice:', lookedUpInvoice);
-      } else {
-        console.log('No invoice created or invoice missing payment hash');
       }
       
       // Wait a moment between requests
@@ -389,7 +411,7 @@ async function main() {
     try {
       console.log('Attempting to look up non-existent invoice...');
       const randomHash = randomHex(32);
-      await client.lookupInvoice(randomHash);
+      await client.lookupInvoice({ payment_hash: randomHash });
       console.log('This should not be reached');
     } catch (error: any) {
       console.log(`Caught error as expected: ${error.message} (Code: ${error.code})`);

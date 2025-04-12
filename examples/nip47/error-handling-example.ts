@@ -142,19 +142,25 @@ class ErrorDemoWallet implements WalletImplementation {
     };
   }
   
-  async lookupInvoice(): Promise<NIP47Transaction> {
+  async lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction> {
     if (this.errorMode === 'not_found') {
-      throw { code: NIP47ErrorCode.NOT_FOUND, message: 'Invoice not found' };
+      const error: any = new Error('Invoice not found');
+      error.code = 'NOT_FOUND';
+      throw error;
+    }
+    
+    if (this.errorMode === 'internal_error') {
+      throw new Error('Internal server error');
     }
     
     return {
       type: TransactionType.INCOMING,
-      invoice: 'lnbc1000n1demo',
-      payment_hash: randomHex(32),
+      payment_hash: params.payment_hash || 'sample_hash',
       amount: 1000,
       fees_paid: 0,
-      created_at: Math.floor(Date.now() / 1000) - 3600,
-      settled_at: Math.floor(Date.now() / 1000) - 3000
+      created_at: Date.now() / 1000,
+      description: 'Sample invoice',
+      settled_at: Date.now() / 1000
     };
   }
   
@@ -261,7 +267,7 @@ async function main() {
     console.log('Demonstrating not found error:');
     errorWallet.setErrorMode('not_found');
     try {
-      await client.lookupInvoice('nonexistent_hash');
+      await client.lookupInvoice({ payment_hash: 'nonexistent_hash' });
     } catch (error) {
       console.log(formatError(error));
     }
@@ -344,6 +350,54 @@ async function main() {
       console.log('Result:', result);
     } catch (error) {
       console.log('Even retry mechanism failed:', formatError(error));
+    }
+    
+    // Add a specific section to demonstrate NOT_FOUND error for lookupInvoice
+    console.log('\n\n=== 5. Handling NOT_FOUND Error for lookupInvoice ===');
+    console.log('Demonstrating proper handling of NOT_FOUND error:');
+    
+    // First reset the error mode
+    errorWallet.setErrorMode('none');
+    
+    // Create an invoice first so we have a valid payment hash
+    const invoice = await client.makeInvoice(1000, 'Test invoice');
+    console.log(`Created invoice with payment hash: ${invoice?.payment_hash || 'unknown'}`);
+    
+    // Look up the valid invoice
+    console.log('\nLooking up valid invoice:');
+    try {
+      if (invoice && invoice.payment_hash) {
+        const lookedUpInvoice = await client.lookupInvoice({ 
+          payment_hash: invoice.payment_hash 
+        });
+        console.log('Successfully found invoice:', lookedUpInvoice);
+      } else {
+        console.log('Could not create valid invoice for testing');
+      }
+    } catch (error) {
+      console.log('Error looking up valid invoice:', formatError(error));
+    }
+    
+    // Now set error mode to simulate NOT_FOUND
+    errorWallet.setErrorMode('not_found');
+    
+    // Try to look up a non-existent invoice
+    console.log('\nLooking up non-existent invoice:');
+    try {
+      await client.lookupInvoice({ 
+        payment_hash: 'non_existent_payment_hash' 
+      });
+    } catch (error) {
+      console.log('Received expected NOT_FOUND error:');
+      console.log(formatError(error));
+      
+      // Demonstrate the specific handling for NOT_FOUND
+      if (error instanceof NIP47ClientError && error.code === NIP47ErrorCode.NOT_FOUND) {
+        console.log('\nRecommended UI handling for NOT_FOUND:');
+        console.log('- Show user-friendly message:', error.getUserMessage());
+        console.log('- Offer to create a new invoice instead');
+        console.log('- Provide link to transaction history to look for other invoices');
+      }
     }
     
     // Cleanup

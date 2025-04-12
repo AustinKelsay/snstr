@@ -75,7 +75,10 @@ export enum NIP47ErrorCode {
   
   // More granular wallet errors
   WALLET_LOCKED = 'WALLET_LOCKED',
-  WALLET_UNAVAILABLE = 'WALLET_UNAVAILABLE'
+  WALLET_UNAVAILABLE = 'WALLET_UNAVAILABLE',
+  
+  // Method-specific error codes
+  LOOKUP_INVOICE_FAILED = 'LOOKUP_INVOICE_FAILED'
 }
 
 // Error code to category mapping
@@ -97,6 +100,7 @@ export const ERROR_CATEGORIES: Record<string, NIP47ErrorCategory> = {
   [NIP47ErrorCode.PAYMENT_REJECTED]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.INVOICE_EXPIRED]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.WALLET_LOCKED]: NIP47ErrorCategory.WALLET,
+  [NIP47ErrorCode.LOOKUP_INVOICE_FAILED]: NIP47ErrorCategory.WALLET,
   
   [NIP47ErrorCode.TIMEOUT]: NIP47ErrorCategory.TIMEOUT,
   [NIP47ErrorCode.REQUEST_EXPIRED]: NIP47ErrorCategory.TIMEOUT,
@@ -133,7 +137,8 @@ export const ERROR_RECOVERY_HINTS: Record<string, string> = {
   [NIP47ErrorCode.PAYMENT_ROUTE_NOT_FOUND]: 'No route found to destination. Try a different recipient or amount',
   [NIP47ErrorCode.PAYMENT_REJECTED]: 'Payment was rejected by recipient node',
   [NIP47ErrorCode.WALLET_LOCKED]: 'Wallet is locked. Unlock wallet and try again',
-  [NIP47ErrorCode.WALLET_UNAVAILABLE]: 'Wallet is currently unavailable. Try again later'
+  [NIP47ErrorCode.WALLET_UNAVAILABLE]: 'Wallet is currently unavailable. Try again later',
+  [NIP47ErrorCode.LOOKUP_INVOICE_FAILED]: 'Failed to lookup invoice. Check payment hash or invoice and try again'
 };
 
 // Transaction types
@@ -346,7 +351,7 @@ export interface WalletImplementation {
   getBalance(): Promise<number>;
   payInvoice(invoice: string, amount?: number, maxfee?: number): Promise<any>;
   makeInvoice(amount: number, description: string, description_hash?: string, expiry?: number): Promise<any>;
-  lookupInvoice(paymentHash?: string, invoice?: string): Promise<NIP47Transaction>;
+  lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction>;
   listTransactions(from?: number, until?: number, limit?: number, offset?: number, unpaid?: boolean, type?: string): Promise<NIP47Transaction[]>;
   signMessage?(message: string): Promise<{signature: string, message: string}>;
 } 

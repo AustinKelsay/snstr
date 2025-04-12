@@ -380,10 +380,10 @@ export class NostrWalletService {
           break;
           
         case NIP47Method.LOOKUP_INVOICE:
-          result = await this.walletImpl.lookupInvoice(
-            request.params.payment_hash,
-            request.params.invoice
-          );
+          result = await this.walletImpl.lookupInvoice({
+            payment_hash: request.params.payment_hash,
+            invoice: request.params.invoice
+          });
           break;
           
         case NIP47Method.LIST_TRANSACTIONS:
