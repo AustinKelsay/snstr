@@ -56,18 +56,66 @@ export class Nostr {
     return this.publicKey;
   }
 
-  public async publishEvent(event: NostrEvent): Promise<NostrEvent | null> {
+  public async publishEvent(event: NostrEvent, options?: { timeout?: number }): Promise<{
+    success: boolean;
+    event: NostrEvent | null;
+    relayResults: Map<string, { success: boolean; reason?: string }>;
+  }> {
+    if (!this.relays.size) {
+      console.warn('No relays configured for publishing');
+      return {
+        success: false,
+        event: null,
+        relayResults: new Map()
+      };
+    }
+
     try {
-      const publishPromises = Array.from(this.relays.values()).map((relay) => relay.publish(event));
-      await Promise.all(publishPromises);
-      return event;
+      const relayResults = new Map<string, { success: boolean; reason?: string }>();
+      const publishPromises = Array.from(this.relays.entries()).map(async ([url, relay]) => {
+        const result = await relay.publish(event, options);
+        relayResults.set(url, result);
+        return result;
+      });
+      
+      const results = await Promise.all(publishPromises);
+      
+      // Check if at least one relay accepted the event
+      const atLeastOneSuccess = results.some(result => result.success);
+      
+      if (atLeastOneSuccess) {
+        return {
+          success: true,
+          event,
+          relayResults
+        };
+      } else {
+        // Get reasons for failures
+        const failureReasons = Array.from(relayResults.entries())
+          .filter(([_, result]) => !result.success)
+          .map(([url, result]) => `${url}: ${result.reason || 'unknown'}`);
+        
+        console.warn('Failed to publish event to any relay:', failureReasons.join(', '));
+        
+        return {
+          success: false,
+          event: null,
+          relayResults
+        };
+      }
     } catch (error) {
-      console.error('Failed to publish event:', error);
-      return null;
+      const errorMessage = error instanceof Error ? error.message : 'unknown error';
+      console.error('Failed to publish event:', errorMessage);
+      
+      return {
+        success: false,
+        event: null,
+        relayResults: new Map()
+      };
     }
   }
 
-  public async publishTextNote(content: string, tags: string[][] = []): Promise<NostrEvent | null> {
+  public async publishTextNote(content: string, tags: string[][] = [], options?: { timeout?: number }): Promise<NostrEvent | null> {
     if (!this.privateKey || !this.publicKey) {
       throw new Error('Private key is not set');
     }
@@ -76,14 +124,15 @@ export class Nostr {
     noteTemplate.pubkey = this.publicKey;
     const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
     
-    await this.publishEvent(signedEvent);
-    return signedEvent;
+    const publishResult = await this.publishEvent(signedEvent, options);
+    return publishResult.success ? publishResult.event : null;
   }
 
   public async publishDirectMessage(
     content: string,
     recipientPubkey: string,
-    tags: string[][] = []
+    tags: string[][] = [],
+    options?: { timeout?: number }
   ): Promise<NostrEvent | null> {
     if (!this.privateKey || !this.publicKey) {
       throw new Error('Private key is not set');
@@ -93,8 +142,8 @@ export class Nostr {
     dmTemplate.pubkey = this.publicKey;
     const signedEvent = await createSignedEvent(dmTemplate, this.privateKey);
     
-    await this.publishEvent(signedEvent);
-    return signedEvent;
+    const publishResult = await this.publishEvent(signedEvent, options);
+    return publishResult.success ? publishResult.event : null;
   }
 
   /**
@@ -140,7 +189,7 @@ export class Nostr {
     }
   }
 
-  public async publishMetadata(metadata: Record<string, any>): Promise<NostrEvent | null> {
+  public async publishMetadata(metadata: Record<string, any>, options?: { timeout?: number }): Promise<NostrEvent | null> {
     if (!this.privateKey || !this.publicKey) {
       throw new Error('Private key is not set');
     }
@@ -148,8 +197,8 @@ export class Nostr {
     const metadataTemplate = createMetadataEvent(metadata, this.privateKey);
     const signedEvent = await createSignedEvent(metadataTemplate, this.privateKey);
     
-    await this.publishEvent(signedEvent);
-    return signedEvent;
+    const publishResult = await this.publishEvent(signedEvent, options);
+    return publishResult.success ? publishResult.event : null;
   }
 
   public subscribe(
@@ -189,5 +238,41 @@ export class Nostr {
     this.relays.forEach((relay) => {
       relay.on(event, callback);
     });
+  }
+
+  /**
+   * Publish an event and get detailed results from all relays
+   * 
+   * @param event The NostrEvent to publish
+   * @param options Options including timeout
+   * @returns Detailed publish results including success status and relay-specific information
+   */
+  public async publishWithDetails(event: NostrEvent, options?: { timeout?: number }): Promise<{
+    success: boolean;
+    event: NostrEvent;
+    relayResults: Map<string, { success: boolean; reason?: string }>;
+    successCount: number;
+    failureCount: number;
+  }> {
+    const result = await this.publishEvent(event, options);
+    
+    // Count successes and failures
+    let successCount = 0;
+    let failureCount = 0;
+    
+    result.relayResults.forEach(relayResult => {
+      if (relayResult.success) {
+        successCount++;
+      } else {
+        failureCount++;
+      }
+    });
+    
+    return {
+      ...result,
+      event: result.event || event, // Always include the original event even if publishing failed
+      successCount,
+      failureCount
+    };
   }
 } 

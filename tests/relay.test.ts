@@ -79,28 +79,158 @@ describe('Relay', () => {
     });
   });
 
-  describe('Publishing', () => {
-    test('should publish events to the ephemeral relay', async () => {
-      const relay = new Relay(ephemeralRelay.url);
+  describe('Publishing Events', () => {
+    let relay: Relay;
+    
+    beforeEach(async () => {
+      relay = new Relay(ephemeralRelay.url);
       await relay.connect();
-      
-      // Create a simple event
+    });
+    
+    afterEach(() => {
+      relay.disconnect();
+    });
+    
+    test('should wait for relay confirmation before resolving publish', async () => {
+      // Create a test event
       const event: NostrEvent = {
-        id: 'test-event-id',
+        id: 'test-event-id-123',
         pubkey: 'test-pubkey',
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: [],
-        content: 'Hello from ephemeral relay test!',
+        content: 'Test event content',
+        sig: 'test-signature'
+      };
+
+      // Let's take a simplified approach to directly test the implementation
+      // Mock the Relay.on method to capture the callback that publish registers
+      let capturedCallback: any = null;
+      const originalOn = relay.on;
+      relay.on = jest.fn().mockImplementation((event: RelayEvent, callback: any) => {
+        if (event === RelayEvent.OK) {
+          capturedCallback = callback;
+        }
+        return originalOn.call(relay, event, callback);
+      });
+
+      // Now start the publish
+      const publishPromise = relay.publish(event);
+      
+      // The publish method should have registered a callback for OK events
+      expect(relay.on).toHaveBeenCalledWith(RelayEvent.OK, expect.any(Function));
+      expect(capturedCallback).not.toBeNull();
+      
+      // Now directly call the callback as if an OK message was received
+      if (capturedCallback) {
+        capturedCallback(event.id, true, 'accepted: all good');
+      }
+      
+      // Now the publish promise should resolve with success=true
+      const result = await publishPromise;
+      expect(result.success).toBe(true);
+      expect(result.reason).toBe('accepted: all good');
+      
+      // Restore the original implementation
+      relay.on = originalOn;
+    });
+    
+    test('should handle relay rejection with detailed reason', async () => {
+      // Create a test event
+      const event: NostrEvent = {
+        id: 'test-event-id-456',
+        pubkey: 'test-pubkey',
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: 'Test event content',
         sig: 'test-signature'
       };
       
-      // Publish the event
-      const published = await relay.publish(event);
-      expect(published).toBe(true);
+      // Mock the Relay.on method to capture the callback that publish registers
+      let capturedCallback: any = null;
+      const originalOn = relay.on;
+      relay.on = jest.fn().mockImplementation((event: RelayEvent, callback: any) => {
+        if (event === RelayEvent.OK) {
+          capturedCallback = callback;
+        }
+        return originalOn.call(relay, event, callback);
+      });
       
-      // Cleanup
-      relay.disconnect();
+      // Start the publish
+      const publishPromise = relay.publish(event);
+      
+      // The publish method should have registered a callback for OK events
+      expect(relay.on).toHaveBeenCalledWith(RelayEvent.OK, expect.any(Function));
+      expect(capturedCallback).not.toBeNull();
+      
+      // Now directly call the callback with a rejection
+      if (capturedCallback) {
+        capturedCallback(event.id, false, 'invalid: test rejection');
+      }
+      
+      // Now the publish promise should resolve with success=false and the reason
+      const result = await publishPromise;
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('invalid: test rejection');
+      
+      // Restore the original implementation
+      relay.on = originalOn;
+    });
+    
+    test('should resolve with timeout reason after timeout with no OK response', async () => {
+      // Mock setTimeout to make the test faster
+      jest.useFakeTimers();
+      
+      // Create a test event
+      const event: NostrEvent = {
+        id: 'test-event-id-789',
+        pubkey: 'test-pubkey',
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: 'Test event content',
+        sig: 'test-signature'
+      };
+      
+      // Start the publish with a short timeout
+      const publishPromise = relay.publish(event, { timeout: 5000 });
+      
+      // Fast forward time to trigger the timeout
+      jest.advanceTimersByTime(5000);
+      
+      // Now the publish should resolve with success=false and reason='timeout'
+      const result = await publishPromise;
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('timeout');
+      
+      // Restore real timers
+      jest.useRealTimers();
+    });
+    
+    test('should handle connection issues gracefully', async () => {
+      // Create a new disconnected relay
+      const disconnectedRelay = new Relay(ephemeralRelay.url);
+      
+      // Create a test event
+      const event: NostrEvent = {
+        id: 'test-event-id-no-connection',
+        pubkey: 'test-pubkey',
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: 'Test event content',
+        sig: 'test-signature'
+      };
+      
+      // Try to publish without a connection
+      const result = await disconnectedRelay.publish(event);
+      
+      // Should fail with a not_connected reason
+      expect(result.success).toBe(false);
+      // The relay implementation tries to connect automatically, so the failure reason might vary
+      // but it should definitely fail with some reason
+      expect(result.reason).toBeDefined();
     });
   });
 

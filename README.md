@@ -343,7 +343,7 @@ relay.disconnect(): void
 relay.on<T extends RelayEvent>(event: T, callback: RelayEventHandler[T]): void
 
 // Publishing
-relay.publish(event: NostrEvent): Promise<boolean>
+relay.publish(event: NostrEvent, options?: { timeout?: number }): Promise<{ success: boolean; reason?: string }>
 
 // Subscriptions
 relay.subscribe(

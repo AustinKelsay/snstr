@@ -61,4 +61,22 @@ export function parseMessage(data: string): NostrMessage | null {
 
 export function serializeMessage(message: NostrMessage): string {
   return JSON.stringify(message);
+}
+
+export enum RelayEvent {
+  Connect = 'connect',
+  Disconnect = 'disconnect',
+  Error = 'error',
+  Notice = 'notice',
+  OK = 'ok',
+  Closed = 'closed',
+}
+
+export interface RelayEventHandler {
+  [RelayEvent.Connect]?: (relay: string) => void;
+  [RelayEvent.Disconnect]?: (relay: string) => void;
+  [RelayEvent.Error]?: (relay: string, error: any) => void;
+  [RelayEvent.Notice]?: (relay: string, notice: string) => void;
+  [RelayEvent.OK]?: (eventId: string, success: boolean, message: string) => void;
+  [RelayEvent.Closed]?: (subscriptionId: string, message: string) => void;
 } 
