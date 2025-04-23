@@ -29,6 +29,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - [NIP-05 Identity Verification](#nip-05-identity-verification)
 - [Encryption with NIP-44](#encryption-with-nip-44)
 - [Browser Extensions (NIP-07)](#browser-extensions-nip-07)
+- [Relay Connection Management](#relay-connection-management)
 - [Using Public Relays vs Ephemeral Relay](#using-public-relays-vs-ephemeral-relay)
 - [Testing](#testing)
 - [Development](#development)
@@ -294,6 +295,16 @@ The main `Nostr` class provides the following methods:
 // Initialize client with relay URLs
 const client = new Nostr(['wss://relay.example.com']);
 
+// Initialize with relay options
+const client = new Nostr(
+  ['wss://relay.example.com', 'wss://relay.nostr.band'], 
+  {
+    relayOptions: {
+      connectionTimeout: 5000 // 5 second connection timeout for all relays
+    }
+  }
+);
+
 // Relay management
 client.addRelay(url: string): Relay
 client.removeRelay(url: string): void
@@ -335,9 +346,16 @@ The `Relay` class provides the following methods for working with individual Nos
 // Initialize a relay connection
 const relay = new Relay('wss://relay.example.com');
 
+// Initialize with connection timeout (recommended)
+const relay = new Relay('wss://relay.example.com', { 
+  connectionTimeout: 5000 // 5 seconds
+});
+
 // Connection management
 relay.connect(): Promise<boolean>
 relay.disconnect(): void
+relay.setConnectionTimeout(timeout: number): void
+relay.getConnectionTimeout(): number
 
 // Event handling
 relay.on<T extends RelayEvent>(event: T, callback: RelayEventHandler[T]): void
@@ -437,22 +455,41 @@ await relay.close();
 import { Nostr, RelayEvent } from 'snstr';
 
 async function main() {
-  // Initialize with relays
-  const client = new Nostr([
-    'wss://relay.primal.net',
-    'wss://relay.nostr.band'
-  ]);
+  // Initialize with relays and connection timeout
+  const client = new Nostr(
+    ['wss://relay.primal.net', 'wss://relay.nostr.band'],
+    { 
+      relayOptions: { 
+        connectionTimeout: 5000 // 5 second timeout
+      } 
+    }
+  );
 
   // Generate keypair
   const keys = await client.generateKeys();
   console.log('Public key:', keys.publicKey);
 
-  // Connect to relays
-  await client.connectToRelays();
+  // Connect to relays with error handling
+  try {
+    await client.connectToRelays();
+    console.log('Connected to relays');
+  } catch (error) {
+    console.error('Failed to connect to relays:', error);
+    // Handle connection failure
+    return;
+  }
   
   // Set up event handlers
   client.on(RelayEvent.Connect, (relay) => {
     console.log(`Connected to ${relay}`);
+  });
+  
+  client.on(RelayEvent.Disconnect, (relay) => {
+    console.log(`Disconnected from ${relay}`);
+  });
+  
+  client.on(RelayEvent.Error, (relay, error) => {
+    console.error(`Error from ${relay}:`, error);
   });
 
   // Publish a note
@@ -725,6 +762,58 @@ main().catch(console.error);
 - **Transparent API**: Same API as regular SNSTR client, but uses extension for cryptographic operations
 - **Fallbacks**: Gracefully falls back between encryption methods if needed
 - **Error Handling**: Clear error messages when extension functionality is unavailable
+
+## Relay Connection Management
+
+SNSTR provides robust relay connection management with features to handle timeouts, errors, and race conditions gracefully:
+
+```typescript
+import { Relay, RelayEvent } from 'snstr';
+
+// Create a relay with connection timeout
+const relay = new Relay('wss://relay.example.com', { 
+  connectionTimeout: 10000 // 10 second timeout
+});
+
+// Set up event handlers
+relay.on(RelayEvent.Connect, (url) => console.log(`Connected to ${url}`));
+relay.on(RelayEvent.Disconnect, (url) => console.log(`Disconnected from ${url}`));
+relay.on(RelayEvent.Error, (url, error) => console.error(`Error from ${url}:`, error));
+
+// Connect with proper error handling
+try {
+  const connected = await relay.connect();
+  if (connected) {
+    console.log('Successfully connected');
+  } else {
+    console.error('Failed to connect');
+    
+    // Adjust timeout and retry
+    relay.setConnectionTimeout(15000); // Increase timeout
+    const retryResult = await relay.connect();
+    // Handle retry result
+  }
+} catch (error) {
+  console.error('Connection error:', error);
+}
+
+// Disconnect when done
+relay.disconnect();
+```
+
+### Key Features of Connection Management
+
+- **Configurable Timeouts**: Set custom connection timeouts to avoid hanging connections
+- **Robust Error Handling**: Proper promise rejection with detailed error information
+- **Race Condition Prevention**: Carefully manages WebSocket lifecycle to prevent race conditions
+- **Retry Mechanism**: Easily retry connections with different parameters
+- **Client Integration**: Set connection options for all relays from the Nostr client
+
+Try the connection management example:
+
+```bash
+npm run example:relay
+```
 
 ## Lightning Zaps with NIP-57
 

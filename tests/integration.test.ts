@@ -1,5 +1,5 @@
 import { Nostr } from '../src/client/nostr';
-import { NostrEvent } from '../src/types/nostr';
+import { NostrEvent, RelayEvent } from '../src/types/nostr';
 import { generateKeypair } from '../src/utils/crypto';
 import { createTextNote } from '../src/utils/event';
 import { startEphemeralRelay, stopEphemeralRelay } from '../src/utils/test-helpers';
@@ -49,6 +49,34 @@ describe('Nostr Client Integration', () => {
     it('should connect and disconnect from relays', async () => {
       await nostr.connectToRelays();
       await nostr.disconnectFromRelays();
+    });
+
+    it('should handle connection timeouts gracefully', async () => {
+      // Create a new client with a non-routable address to force timeout
+      const timeoutClient = new Nostr(['ws://10.255.255.255:8080']);
+      timeoutClient.setPrivateKey(privateKey);
+      
+      // Set a very short timeout to make test fast
+      // Access the relay directly to set the timeout
+      const relays = (timeoutClient as any).relays;
+      for (const relay of relays.values()) {
+        relay.setConnectionTimeout(500);
+      }
+      
+      // Track connection errors
+      let errorCount = 0;
+      timeoutClient.on(RelayEvent.Error, () => {
+        errorCount++;
+      });
+      
+      // Connect should complete even with timeouts
+      await timeoutClient.connectToRelays();
+      
+      // Should have at least one error
+      expect(errorCount).toBeGreaterThan(0);
+      
+      // Clean up
+      timeoutClient.disconnectFromRelays();
     });
   });
 

@@ -8,8 +8,23 @@ export class Nostr {
   private relays: Map<string, Relay> = new Map();
   private privateKey?: string;
   private publicKey?: string;
+  private relayOptions?: { connectionTimeout?: number };
 
-  constructor(relayUrls: string[] = []) {
+  /**
+   * Create a new Nostr client
+   * @param relayUrls List of relay URLs to connect to
+   * @param options Client options
+   * @param options.relayOptions Options to pass to each Relay instance
+   */
+  constructor(
+    relayUrls: string[] = [], 
+    options?: { 
+      relayOptions?: { 
+        connectionTimeout?: number 
+      } 
+    }
+  ) {
+    this.relayOptions = options?.relayOptions;
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
@@ -18,7 +33,7 @@ export class Nostr {
       return this.relays.get(url)!;
     }
 
-    const relay = new Relay(url);
+    const relay = new Relay(url, this.relayOptions);
     this.relays.set(url, relay);
     return relay;
   }

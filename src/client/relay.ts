@@ -8,46 +8,115 @@ export class Relay {
   private subscriptions: Map<string, Subscription> = new Map();
   private eventHandlers: RelayEventHandler = {};
   private connectionPromise: Promise<boolean> | null = null;
+  private connectionTimeout = 10000; // Default timeout of 10 seconds
 
-  constructor(url: string) {
+  constructor(url: string, options: { connectionTimeout?: number } = {}) {
     this.url = url;
+    if (options.connectionTimeout !== undefined) {
+      this.connectionTimeout = options.connectionTimeout;
+    }
   }
 
   public async connect(): Promise<boolean> {
     if (this.connected) return true;
     if (this.connectionPromise) return this.connectionPromise;
 
-    this.connectionPromise = new Promise((resolve) => {
-      this.ws = new WebSocket(this.url);
+    // Reset WebSocket if it exists already
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch (e) {
+        // Ignore close errors, the socket might already be in a closing state
+      }
+      this.ws = null;
+    }
 
-      this.ws.onopen = () => {
-        this.connected = true;
-        this.connectionPromise = null;
-        this.triggerEvent(RelayEvent.Connect, this.url);
-        resolve(true);
-      };
+    // Create the connection promise
+    const connectionPromise = new Promise<boolean>((resolve, reject) => {
+      try {
+        this.ws = new WebSocket(this.url);
+        
+        // Set up connection timeout
+        const timeoutId = setTimeout(() => {
+          // Only run this if we haven't connected yet
+          if (this.ws && !this.connected) {
+            this.triggerEvent(RelayEvent.Error, this.url, new Error('connection timeout'));
+            try {
+              this.ws.close();
+            } catch (e) {
+              // Ignore errors during force close
+            }
+            this.ws = null;
+            this.connectionPromise = null;
+            reject(new Error('connection timeout'));
+          }
+        }, this.connectionTimeout);
 
-      this.ws.onclose = () => {
-        this.connected = false;
-        this.triggerEvent(RelayEvent.Disconnect, this.url);
-      };
+        this.ws.onopen = () => {
+          clearTimeout(timeoutId);
+          this.connected = true;
+          this.triggerEvent(RelayEvent.Connect, this.url);
+          resolve(true);
+        };
 
-      this.ws.onerror = (error) => {
-        this.triggerEvent(RelayEvent.Error, this.url, error);
-        if (!this.connected) {
-          this.connectionPromise = null;
-          resolve(false);
-        }
-      };
+        this.ws.onclose = () => {
+          clearTimeout(timeoutId);
+          const wasConnected = this.connected;
+          this.connected = false;
+          this.triggerEvent(RelayEvent.Disconnect, this.url);
+          
+          // Only reject the promise if we're still waiting to connect
+          if (!wasConnected && this.connectionPromise) {
+            this.connectionPromise = null;
+            reject(new Error('connection closed'));
+          }
+        };
 
-      this.ws.onmessage = (message) => {
-        try {
-          const data = JSON.parse(message.data);
-          this.handleMessage(data);
-        } catch (error) {
+        this.ws.onerror = (error) => {
+          clearTimeout(timeoutId);
           this.triggerEvent(RelayEvent.Error, this.url, error);
-        }
-      };
+          
+          // Only reject the promise if we haven't connected yet
+          if (!this.connected && this.connectionPromise) {
+            this.connectionPromise = null;
+            reject(error instanceof Error ? error : new Error('websocket error'));
+          }
+        };
+
+        this.ws.onmessage = (message) => {
+          try {
+            const data = JSON.parse(message.data);
+            this.handleMessage(data);
+          } catch (error) {
+            this.triggerEvent(RelayEvent.Error, this.url, error);
+          }
+        };
+      } catch (error) {
+        // Handle errors during WebSocket creation
+        this.connectionPromise = null;
+        reject(error);
+      }
+    }).catch(error => {
+      // Ensure we return false if connection fails but don't re-throw
+      console.error(`Connection to ${this.url} failed:`, error);
+      return false as boolean; // Explicit type assertion
+    });
+
+    // Store the promise for future connect() calls to return
+    this.connectionPromise = connectionPromise;
+
+    // Create a separate promise chain to handle cleanup
+    // This ensures the original promise is not modified
+    connectionPromise.then(() => {
+      // Only clean up if this is still the active connection promise
+      if (this.connectionPromise === connectionPromise) {
+        this.connectionPromise = null;
+      }
+    }, () => {
+      // Also clean up on rejection
+      if (this.connectionPromise === connectionPromise) {
+        this.connectionPromise = null;
+      }
     });
 
     return this.connectionPromise;
@@ -101,11 +170,12 @@ export class Relay {
           return { success: false, reason: 'connection_failed' };
         }
       } catch (error) {
-        return { success: false, reason: 'connection_error' };
+        const errorMsg = error instanceof Error ? error.message : 'unknown error';
+        return { success: false, reason: `connection_error: ${errorMsg}` };
       }
     }
 
-    if (!this.connected || !this.ws) {
+    if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return { success: false, reason: 'not_connected' };
     }
 
@@ -130,7 +200,8 @@ export class Relay {
         // Setup error handler in case of WebSocket errors during publishing
         const handleError = (_: string, error: any) => {
           cleanup();
-          resolve({ success: false, reason: `error: ${error?.message || 'unknown'}` });
+          const errorMsg = error instanceof Error ? error.message : 'unknown error';
+          resolve({ success: false, reason: `error: ${errorMsg}` });
         };
         
         // Setup disconnect handler in case connection drops during wait
@@ -277,5 +348,23 @@ export class Relay {
           break;
       }
     }
+  }
+
+  /**
+   * Set connection timeout in milliseconds
+   * @param timeout Timeout in milliseconds
+   */
+  public setConnectionTimeout(timeout: number): void {
+    if (timeout < 0) {
+      throw new Error('Connection timeout must be a positive number');
+    }
+    this.connectionTimeout = timeout;
+  }
+
+  /**
+   * Get the current connection timeout in milliseconds
+   */
+  public getConnectionTimeout(): number {
+    return this.connectionTimeout;
   }
 } 

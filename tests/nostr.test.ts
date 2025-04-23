@@ -263,10 +263,14 @@ describe('Nostr client', () => {
     public publishResults: { success: boolean; reason?: string }[] = [];
     public readonly url: string;
     public connected = true;
+    private connectionTimeout = 10000;
     
-    constructor(url: string, publishResults: { success: boolean; reason?: string }[] = []) {
+    constructor(url: string, publishResults: { success: boolean; reason?: string }[] = [], options: { connectionTimeout?: number } = {}) {
       this.url = url;
       this.publishResults = publishResults.length ? publishResults : [{ success: true }];
+      if (options.connectionTimeout !== undefined) {
+        this.connectionTimeout = options.connectionTimeout;
+      }
     }
 
     public async connect(): Promise<boolean> {
@@ -286,6 +290,17 @@ describe('Nostr client', () => {
     
     on() {}
     off() {}
+    
+    setConnectionTimeout(timeout: number): void {
+      if (timeout < 0) {
+        throw new Error('Connection timeout must be a positive number');
+      }
+      this.connectionTimeout = timeout;
+    }
+    
+    getConnectionTimeout(): number {
+      return this.connectionTimeout;
+    }
   }
 
   describe('publishEvent', () => {

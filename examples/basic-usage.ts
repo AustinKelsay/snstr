@@ -20,7 +20,12 @@ async function main() {
     } else {
       // Initialize Nostr client with public relays
       console.log('Using public relays: wss://relay.primal.net');
-      client = new Nostr(['wss://relay.primal.net']);
+      client = new Nostr(['wss://relay.primal.net'], {
+        relayOptions: {
+          connectionTimeout: 5000 // 5 second connection timeout
+        }
+      });
+      console.log('Connection timeout set to 5000ms');
     }
 
     // Generate or set keys

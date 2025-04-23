@@ -12,6 +12,9 @@ npm run example                # Basic usage with ephemeral relay
 npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
 
+# Connection management examples
+npm run example:relay          # Relay connection with timeout handling
+
 # Crypto examples
 npm run example:crypto         # Cryptography examples
 
@@ -57,6 +60,7 @@ See the [NIP-46 README](./nip46/README.md) for more details on the remote signin
 ## Directory Structure
 
 - `basic-usage.ts` - Core functionality demo
+- `relay-connection.ts` - Connection management with improved error handling
 - `crypto-demo.ts` - Cryptography examples
 - `direct-message.ts` - Direct messaging example
 - `nip04/` - NIP-04 (Encrypted Direct Messages) examples
