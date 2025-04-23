@@ -182,4 +182,86 @@ console.log(profileResult);
 - Always validate entities before acting on them
 - TLV values are size-constrained to prevent DoS attacks
 - Use the explicit decoder functions for type-safety rather than the generic decode function
-- Treat private keys (`nsec`) with appropriate security measures 
+- Treat private keys (`nsec`) with appropriate security measures
+
+# NIP-19 Implementation
+
+This directory contains the implementation of NIP-19, which defines encoding formats used to represent Nostr entities as strings. These entity encodings are known as Bech32 entities and are represented using Bech32 encoding.
+
+## Supported NIP-19 Entities
+
+The implementation supports the following NIP-19 entities:
+
+- `npub`: Public key
+- `nsec`: Private key
+- `note`: Note ID (event ID)
+- `nprofile`: Profile with pubkey and optional relays
+- `nevent`: Event with ID and optional relays, author, and kind
+- `naddr`: Address for a replaceable event with identifier (d tag), pubkey, kind, and optional relays
+
+## Security Features
+
+This implementation includes several important security measures:
+
+1. **Relay URL Validation**: All relay URLs are validated during encoding to ensure they use the correct websocket protocol (`ws://` or `wss://`) and have a valid URL format. This prevents injection attacks through malformed relay URLs.
+
+2. **Size Limits**: To prevent denial of service attacks, the implementation enforces reasonable size limits on various components:
+   - Maximum of 100 TLV entries
+   - Maximum relay URL length of 512 characters
+   - Maximum identifier length of 1024 characters  
+   - Default bech32 data limit of 5000 bytes
+
+3. **Error Handling**: Comprehensive error handling ensures that invalid inputs are rejected with clear error messages.
+
+## Decoding Behavior
+
+The implementation follows the Nostr specification by being somewhat permissive during decoding:
+
+- Invalid relay URLs are accepted during decoding but generate warnings
+- All required fields are strictly validated
+- Unknown TLV types are ignored, as specified by NIP-19
+
+## Usage Examples
+
+```typescript
+import { 
+  encodePublicKey, decodePublicKey,
+  encodeProfile, decodeProfile,
+  encodeEvent, decodeEvent,
+  encodeAddress, decodeAddress
+} from './index';
+
+// Basic npub encoding/decoding
+const pubkey = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
+const npub = encodePublicKey(pubkey);
+console.log(npub); // npub1xtscya34g58tk0z605fvr788k263gsu6cy9x0mhnm87echrgufzsevkk5s
+const decodedPubkey = decodePublicKey(npub);
+
+// Profile with relays
+const profile = {
+  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  relays: ['wss://relay.example.com', 'wss://another.relay.com']
+};
+const nprofile = encodeProfile(profile);
+const decodedProfile = decodeProfile(nprofile);
+
+// Event with relays and author
+const event = {
+  id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
+  relays: ['wss://relay.example.com'],
+  author: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  kind: 1
+};
+const nevent = encodeEvent(event);
+const decodedEvent = decodeEvent(nevent);
+
+// Address for a replaceable event
+const address = {
+  identifier: 'test',
+  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  kind: 1,
+  relays: ['wss://relay.example.com']
+};
+const naddr = encodeAddress(address);
+const decodedAddress = decodeAddress(naddr);
+``` 

@@ -2,7 +2,7 @@
  * NIP-19 Validation and Error Handling Examples
  * 
  * This file demonstrates validation and error handling for NIP-19 entities,
- * covering common issues developers might encounter.
+ * covering common issues developers might encounter and security protections implemented.
  */
 
 import {
@@ -12,7 +12,8 @@ import {
   encodeProfile,
   encodeEvent,
   encodeAddress,
-  decode
+  decode,
+  decodeEvent
 } from '../../src/nip19';
 
 /**
@@ -67,7 +68,10 @@ function demonstrateRelayValidation() {
     { name: 'Invalid protocol', relays: ['http://relay.nostr.info'] },
     { name: 'Missing protocol', relays: ['relay.nostr.info'] },
     { name: 'Invalid characters', relays: ['wss://relay.with spaces.com'] },
-    { name: 'Empty URL', relays: [''] }
+    { name: 'Empty URL', relays: [''] },
+    { name: 'XSS attempt', relays: ['wss://<script>alert(1)</script>.com'] },
+    { name: 'JavaScript protocol', relays: ['javascript:alert(1)'] },
+    { name: 'Protocol-relative URL', relays: ['//relay.example.com'] }
   ];
   
   // Valid case
@@ -90,12 +94,14 @@ function demonstrateRelayValidation() {
         pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
         relays: relays
       });
-      console.log(`❓ ${name}: Might have passed depending on implementation strictness`);
+      console.error(`❌ Should have failed but passed: ${name}`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.log(`✅ ${name}: ${errorMessage}`);
     }
   });
+  
+  console.log('\nImportant: Relay URL validation occurs only during encoding. During decoding, invalid relay URLs are accepted but generate warnings.');
 }
 
 /**
@@ -144,39 +150,93 @@ function demonstrateRequiredFields() {
 function demonstrateSizeLimits() {
   console.log('\n=== Size Limit Validation ===');
   
-  // Generate extremely long relay list
-  const tooManyRelays = Array(1000).fill('wss://relay.example.com');
+  // Generate many relays (exceeding MAX_TLV_ENTRIES limit of 100)
+  const tooManyRelays = Array(101).fill(0).map((_, i) => `wss://relay${i}.example.com`);
   
-  // Very long identifier
-  const veryLongIdentifier = 'a'.repeat(1000);
+  // Very long relay URL (exceeding MAX_RELAY_URL_LENGTH limit of 512)
+  const veryLongRelayUrl = 'wss://' + 'a'.repeat(510) + '.example.com';
+  
+  // Very long identifier (exceeding MAX_IDENTIFIER_LENGTH limit of 1024)
+  const veryLongIdentifier = 'a'.repeat(1100);
   
   const sizeLimitCases = [
-    { name: 'Too many relays', test: () => {
-      return encodeProfile({
-        pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-        relays: tooManyRelays
-      });
-    }},
-    { name: 'Very long identifier', test: () => {
-      return encodeAddress({
-        pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-        kind: 30023,
-        identifier: veryLongIdentifier
-      });
-    }}
+    { 
+      name: 'Too many relays (> 100)', 
+      test: () => {
+        return encodeProfile({
+          pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+          relays: tooManyRelays
+        });
+      }
+    },
+    { 
+      name: 'Very long relay URL (> 512 characters)', 
+      test: () => {
+        return encodeEvent({
+          id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
+          relays: [veryLongRelayUrl]
+        });
+      }
+    },
+    { 
+      name: 'Very long identifier (> 1024 characters)', 
+      test: () => {
+        return encodeAddress({
+          pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+          kind: 30023,
+          identifier: veryLongIdentifier
+        });
+      }
+    }
   ];
   
   // Test size limits
-  console.log('Size limit cases:');
+  console.log('Size limit cases (all should fail with appropriate errors):');
   sizeLimitCases.forEach(({ name, test }: { name: string, test: () => string }) => {
     try {
       const encoded = test();
-      console.log(`ℹ️ ${name}: Encoded successfully but resulted in a ${encoded.length} character string`);
+      console.error(`❌ Should have failed but passed: ${name}`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.log(`✅ ${name}: ${errorMessage}`);
     }
   });
+  
+  console.log('\nThe library enforces these limits for security:');
+  console.log('- Maximum of 100 TLV entries (prevent DoS)');
+  console.log('- Maximum relay URL length of 512 characters');
+  console.log('- Maximum identifier length of 1024 characters');
+  console.log('- Default bech32 data limit of 5000 bytes');
+}
+
+/**
+ * Demonstrates TLV entry limit during decoding
+ */
+function demonstrateTLVEntryLimits() {
+  console.log('\n=== TLV Entry Limits ===');
+  
+  // Valid number of relays (maximum 100)
+  const exactlyMaxRelays = Array(100).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+  
+  try {
+    const event = encodeEvent({
+      id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
+      relays: exactlyMaxRelays
+    });
+    console.log(`✅ Successfully encoded with exactly 100 relays (maximum allowed)`);
+    
+    // Now decode it
+    const decoded = decodeEvent(event);
+    console.log(`✅ Successfully decoded with ${decoded.relays?.length} relays`);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`❌ Unexpected error with maximum relays: ${errorMessage}`);
+  }
+  
+  console.log('\nThe TLV entry limit protects against denial of service attacks by:');
+  console.log('- Limiting the number of entries in the TLV data');
+  console.log('- Preventing resource exhaustion when processing large inputs');
+  console.log('- Enforcing reasonable size constraints for encoded entities');
 }
 
 /**
@@ -250,42 +310,56 @@ function demonstrateGracefulErrorHandling() {
   console.log(`Valid input: ${JSON.stringify(validResult)}`);
   
   // Invalid input
-  const invalidResult = safeEncode('not-hex', 'npub');
+  const invalidResult = safeEncode('not-a-hex-string', 'npub');
   console.log(`Invalid input: ${JSON.stringify(invalidResult)}`);
   
-  // Invalid type
-  const invalidTypeResult = safeEncode('3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d', 'invalid');
-  console.log(`Invalid type: ${JSON.stringify(invalidTypeResult)}`);
+  console.log('\nRecommended error handling approach:');
+  console.log('1. Always use try/catch when encoding/decoding NIP-19 entities');
+  console.log('2. Provide user-friendly error messages');
+  console.log('3. Return structured responses with success/error status');
+  console.log('4. Validate inputs before encoding');
+  console.log('5. Be permissive during decoding but validate before acting on decoded data');
 }
 
 /**
- * Main function that runs all demonstrations
+ * Demonstrates security best practices
+ */
+function demonstrateSecurityBestPractices() {
+  console.log('\n=== Security Best Practices ===');
+  
+  console.log('To ensure secure use of NIP-19 entities:');
+  console.log('1. Always validate relay URLs before encoding (especially when from user input)');
+  console.log('2. Respect size limits to prevent memory issues or DoS attacks');
+  console.log('3. Be aware that decoded entities might contain invalid relay URLs');
+  console.log('4. Add additional validation for decoded entities in security-sensitive contexts');
+  console.log('5. Use type-specific encode/decode functions when the entity type is known');
+  console.log('6. Treat private keys (nsec) with appropriate security precautions');
+  
+  console.log('\nLibrary security features:');
+  console.log('- Strict validation during encoding');
+  console.log('- Enforced size limits (relay URLs, identifiers, TLV entries)');
+  console.log('- Protection against malformed relay URLs and potential injection attacks');
+  console.log('- Clear error messages for debugging and troubleshooting');
+}
+
+/**
+ * Runs all validation examples
  */
 function runValidationExamples() {
-  console.log('=== NIP-19 Validation and Error Handling Examples ===\n');
+  console.log('NIP-19 VALIDATION AND ERROR HANDLING EXAMPLES\n');
+  console.log('This example demonstrates validation, security features, and error handling in the NIP-19 implementation.');
   
   demonstrateHexValidation();
   demonstrateRelayValidation();
   demonstrateRequiredFields();
   demonstrateSizeLimits();
+  demonstrateTLVEntryLimits();
   demonstrateIncorrectPrefix();
   demonstrateGracefulErrorHandling();
+  demonstrateSecurityBestPractices();
   
-  console.log('\nNIP-19 Validation Examples completed.\n');
+  console.log('\n=== End of Validation Examples ===');
 }
 
-// Run the examples if this file is executed directly
-if (require.main === module) {
-  runValidationExamples();
-}
-
-// Export functions for potential import in other examples
-export {
-  runValidationExamples,
-  demonstrateHexValidation,
-  demonstrateRelayValidation,
-  demonstrateRequiredFields,
-  demonstrateSizeLimits,
-  demonstrateIncorrectPrefix,
-  demonstrateGracefulErrorHandling
-}; 
+// Run the examples
+runValidationExamples(); 

@@ -60,6 +60,7 @@
     "example:nip19:bech32": "ts-node examples/nip19/bech32-example.ts",
     "example:nip19:tlv": "ts-node examples/nip19/tlv-example.ts",
     "example:nip19:validation": "ts-node examples/nip19/validation-example.ts",
+    "example:nip19:security": "ts-node examples/nip19/security-example.ts",
     "example:nip19:demo": "ts-node examples/nip19/nip19-demo.ts",
     "example:nip44": "ts-node examples/nip44/nip44-demo.ts",
     "example:nip44:test-vector": "ts-node examples/nip44/nip44-test-vector.ts", 

@@ -39,6 +39,8 @@ npm run example:nip19:verbose  # Verbose logging for main example
 npm run example:nip19:bech32   # Basic Bech32 entities (npub, nsec, note)
 npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
+npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
+npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
 ```
 
 See the [NIP-19 README](./nip19/README.md) for more details on the Bech32 encoding examples.
@@ -82,3 +84,28 @@ npm run build:examples
 ```
 
 This will compile all examples to the `dist-examples` directory. 
+
+## NIP-19: Bech32-Encoded Entities
+
+- [basic-demo.ts](nip19/basic-demo.ts) - Comprehensive overview of all NIP-19 functionality
+- [bech32-example.ts](nip19/bech32-example.ts) - Basic Bech32 encoding/decoding (npub, nsec, note)
+- [tlv-example.ts](nip19/tlv-example.ts) - TLV entity encoding/decoding (nprofile, nevent, naddr)
+- [validation-example.ts](nip19/validation-example.ts) - Validation and error handling for NIP-19 entities
+- [security-example.ts](nip19/security-example.ts) - Security features like relay URL validation and TLV entry limits
+- [nip19-demo.ts](nip19/nip19-demo.ts) - Interactive demo with various encoding/decoding operations
+
+Run these examples with:
+
+```bash
+# Basic NIP-19 demo
+npm run example:nip19
+
+# Specific examples
+npm run example:nip19:bech32
+npm run example:nip19:tlv
+npm run example:nip19:validation
+npm run example:nip19:security
+npm run example:nip19:demo
+```
+
+NIP-19 provides human-readable encoding for Nostr entities such as public keys, private keys, note IDs, profiles, events, and addresses. 

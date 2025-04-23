@@ -4,7 +4,7 @@ This directory contains examples for using NIP-19 (Bech32-Encoded Entities) func
 
 ## Overview
 
-NIP-19 defines how Nostr entities are encoded using the Bech32 format, making them human-readable and easier to share. These examples demonstrate how to encode and decode various Nostr entities.
+NIP-19 defines how Nostr entities are encoded using the Bech32 format, making them human-readable and easier to share. These examples demonstrate how to encode and decode various Nostr entities and highlight the security features implemented.
 
 ## Running Examples
 
@@ -18,6 +18,8 @@ npm run example:nip19:verbose
 # Specific examples
 npm run example:nip19:bech32     # Basic Bech32 entities
 npm run example:nip19:tlv        # TLV entities
+npm run example:nip19:validation # Security and validation features
+npm run example:nip19:security   # Security features and best practices
 ```
 
 ## Example Files
@@ -25,7 +27,8 @@ npm run example:nip19:tlv        # TLV entities
 - `basic-demo.ts` - Comprehensive demo of all NIP-19 functionality
 - `bech32-example.ts` - Examples focusing on basic Bech32 entities (npub, nsec, note)
 - `tlv-example.ts` - Examples focusing on TLV entities (nprofile, nevent, naddr)
-- `validation-example.ts` - Examples of validation and error handling
+- `validation-example.ts` - Examples of validation, security features, and error handling
+- `security-example.ts` - Focused examples on security features, DoS protection, and best practices
 
 ## Key Concepts
 
@@ -45,6 +48,65 @@ npm run example:nip19:tlv        # TLV entities
 
 The generic `decode()` function can handle any NIP-19 entity type and return the appropriate data.
 
+## Security Features
+
+The SNSTR implementation of NIP-19 includes several important security features:
+
+### 1. Relay URL Validation
+
+All relay URLs are validated during encoding to ensure they:
+- Use proper WebSocket protocols (`ws://` or `wss://`)
+- Have a valid URL format
+- Don't contain potentially malicious content (e.g., JavaScript injection, XSS attempts)
+- Cannot use dangerous protocols like `javascript:`, `data:`, or `file:`
+
+```typescript
+// Example of relay URL validation
+try {
+  encodeProfile({ 
+    pubkey: "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
+    relays: ["javascript:alert(1)"] // Will throw an error due to invalid protocol
+  });
+} catch (error) {
+  console.error(error.message); // "Invalid relay URL format: javascript:alert(1). Must start with wss:// or ws://"
+}
+```
+
+This protection is applied consistently across all encoding functions:
+- `encodeProfile()` - For nprofile entities
+- `encodeEvent()` - For nevent entities
+- `encodeAddress()` - For naddr entities
+
+### 2. TLV Entry Limits
+
+To prevent denial of service attacks, the implementation enforces strict TLV entry limits:
+- Maximum of 100 TLV entries (including relay URLs)
+- This limit is enforced during both encoding AND decoding operations
+- Prevents attackers from crafting malicious entries that could consume excessive resources
+
+### 3. Size Limits
+
+Additional size constraints protect against resource exhaustion:
+- Maximum relay URL length of 1024 characters
+- Maximum identifier length of 1024 characters
+- Default bech32 data limit of 5000 bytes
+
+### 4. Error Handling
+
+The implementation provides comprehensive error handling with clear, informative error messages:
+
+```typescript
+// Example of proper error handling
+try {
+  const encoded = encodeProfile({
+    pubkey: "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
+    relays: // 101 relays (exceeds maximum)
+  });
+} catch (error) {
+  console.error(error.message); // "Too many relay entries: 101 exceeds maximum of 100"
+}
+```
+
 ## Integration with Other NIPs
 
 NIP-19 entities can be used with:
@@ -56,7 +118,9 @@ NIP-19 entities can be used with:
 
 ## Best Practices
 
-- Always validate inputs before encoding
-- Handle decoding errors gracefully
-- Use the appropriate entity type for each use case
-- Prefer the generic `decode()` function when the entity type is unknown 
+- Always validate inputs before encoding, especially when accepting user input
+- Use try/catch blocks when working with NIP-19 functions to handle errors gracefully
+- Be aware that decoded entities are intentionally permissive (following the Nostr spec)
+- Add additional validation for decoded entities in security-sensitive contexts
+- Use type-specific encode/decode functions when the entity type is known
+- Treat private keys (nsec) with appropriate security measures 

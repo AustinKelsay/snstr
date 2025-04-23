@@ -1,6 +1,6 @@
 # NIP-19 Tests
 
-This directory contains tests for the NIP-19 (Bech32-Encoded Entities) implementation, which defines human-readable encodings for various Nostr entities.
+This directory contains tests for the Nostr NIP-19 implementation, which provides bech32-encoded entities for Nostr.
 
 ## Test Coverage
 
@@ -48,3 +48,62 @@ The tests verify that the implementation:
 - Provides helpful error messages for invalid inputs
 - Respects size limits to prevent DoS attacks
 - Follows the NIP-19 specification 
+
+## Security Features
+
+Our implementation includes security features to prevent potential attacks:
+
+1. **Relay URL Validation**: All relay URLs are validated to ensure they:
+   - Use proper WebSocket protocols (`ws://` or `wss://`)
+   - Have a valid URL format
+   - Don't contain potentially malicious content (e.g., JavaScript injection)
+
+2. **TLV Entry Limits**: We enforce limits on TLV entries to prevent DoS attacks:
+   - Maximum of 100 TLV entries per encoded entity
+   - Maximum relay URL length of 512 bytes
+   - Maximum identifier length of 1024 bytes
+
+3. **Error Handling**: Proper error handling for all encoding and decoding operations
+
+## Key Test Cases
+
+### Relay URL Validation
+
+Tests ensure all encoding functions (`encodeProfile`, `encodeEvent`, `encodeAddress`) properly validate relay URLs:
+
+```typescript
+// Valid relay URL
+const validProfile = {
+  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  relays: ['wss://relay.example.com']
+};
+
+// Invalid relay URL
+const invalidProfile = {
+  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  relays: ['not-a-valid-url']
+};
+
+// Valid URL should work, invalid should throw
+expect(() => encodeProfile(validProfile)).not.toThrow();
+expect(() => encodeProfile(invalidProfile)).toThrow(/Invalid relay URL/);
+```
+
+### TLV Entry Limits
+
+Tests verify enforcement of TLV entry limits to prevent DoS attacks:
+
+```typescript
+// Create many relays (exceeding MAX_TLV_ENTRIES)
+const manyRelays = Array(200).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+
+const profileWithManyRelays = {
+  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  relays: manyRelays
+};
+
+// Should throw due to too many relays
+expect(() => encodeProfile(profileWithManyRelays)).toThrow(/Too many relay entries/);
+```
+
+These tests ensure our implementation complies with the NIP-19 spec while also providing protection against common security vulnerabilities. 

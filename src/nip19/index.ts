@@ -279,39 +279,44 @@ export interface ProfileData {
  * Encodes profile data to an nprofile
  */
 export function encodeProfile(data: ProfileData): string {
-  const entries: TLV[] = [];
-
-  // Add pubkey as special entry (type 0)
-  entries.push({
-    type: TLVType.Special,
-    value: hexToBytes(data.pubkey),
-  });
-
-  // Add relays if provided
-  if (data.relays && data.relays.length > 0) {
-    if (data.relays.length > MAX_TLV_ENTRIES) {
-      throw new Error(`Too many relay entries: ${data.relays.length} exceeds maximum of ${MAX_TLV_ENTRIES}`);
+  try {
+    // Validate pubkey
+    if (!data.pubkey || data.pubkey.length !== 64) {
+      throw new Error('Invalid pubkey format. Expected 64-character hex string.');
     }
     
-    for (const relay of data.relays) {
-      if (!validateRelayUrl(relay)) {
-        throw new Error(`Invalid relay URL format: ${relay}. Must start with wss:// or ws://`);
+    // Create TLV entries
+    const entries: TLV[] = [
+      {
+        type: TLVType.Special,
+        value: hexToBytes(data.pubkey)
       }
-      
-      if (relay.length > MAX_RELAY_URL_LENGTH) {
-        throw new Error(`Relay URL too long: ${relay.length} bytes exceeds maximum of ${MAX_RELAY_URL_LENGTH}`);
+    ];
+    
+    // Add relay URLs if provided
+    if (data.relays && Array.isArray(data.relays)) {
+      for (const relay of data.relays) {
+        // Validate relay URL before adding to TLV entries
+        if (!validateRelayUrl(relay)) {
+          throw new Error(`Invalid relay URL format: ${relay}`);
+        }
+        
+        entries.push({
+          type: TLVType.Relay,
+          value: new TextEncoder().encode(relay)
+        });
       }
-      
-      entries.push({
-        type: TLVType.Relay,
-        value: new TextEncoder().encode(relay),
-      });
     }
+    
+    // Encode TLV data
+    const tlvData = encodeTLV(entries);
+    
+    // Convert to bech32 words and encode
+    const words = bech32.toWords(tlvData);
+    return encodeBech32WithLimit(Prefix.Profile, words);
+  } catch (error) {
+    handleDecodingError(error, 'nprofile');
   }
-
-  const tlvData = encodeTLV(entries);
-  // Use direct encode with higher limit to support longer TLV data
-  return encodeBech32WithLimit(Prefix.Profile, bech32.toWords(tlvData));
 }
 
 /**

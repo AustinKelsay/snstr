@@ -162,6 +162,15 @@ import {
 } from 'snstr';
 ```
 
+SNSTR's NIP-19 implementation includes robust security features:
+
+- **Strict Relay URL Validation**: Prevents XSS and injection attacks by validating all relay URLs during encoding
+- **TLV Entry Limits**: Enforces limits on the number of TLV entries (max 100) to prevent DoS attacks
+- **Size Constraints**: Enforces reasonable size limits for relay URLs and identifiers
+- **Robust Error Handling**: Provides clear error messages for debugging and security
+
+All entities are validated during encoding while maintaining the permissive decoding approach required by the NIP-19 specification.
+
 ### NIP-05: DNS Identifiers
 
 ```typescript
