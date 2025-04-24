@@ -48,8 +48,11 @@ The following error codes are part of the core NIP-47 specification:
 - `INSUFFICIENT_BALANCE`: Insufficient balance to complete the payment
 - `PAYMENT_FAILED`: The payment failed for some other reason
 - `INVOICE_EXPIRED`: The invoice has expired
-- `NOT_FOUND`: The requested resource was not found
+- `NOT_FOUND`: The requested resource was not found in the wallet's database
+  - Used by `lookupInvoice` when an invoice or payment hash cannot be found
+  - The error message will indicate which specific parameter (payment_hash or invoice) was not found
 - `INTERNAL_ERROR`: An internal error occurred in the wallet service
+- `REQUEST_EXPIRED`: The request expired before it could be processed
 
 ### Standard Request Expiration
 
@@ -241,19 +244,6 @@ The implementation includes comprehensive error handling with standardized error
 - **Recovery Hint**: Suggestion for how to resolve the error
 - **Additional Data**: Context-specific error details
 
-### Standard Error Codes
-
-These error codes are part of the core NIP-47 specification:
-
-- `UNAUTHORIZED`: The client is not authorized to perform the requested action
-- `INVALID_REQUEST`: The request was malformed or missing required parameters
-- `INSUFFICIENT_BALANCE`: Insufficient balance to complete the payment
-- `PAYMENT_FAILED`: The payment failed for some other reason
-- `INVOICE_EXPIRED`: The invoice has expired
-- `NOT_FOUND`: The requested resource was not found
-- `INTERNAL_ERROR`: An internal error occurred in the wallet service
-- `REQUEST_EXPIRED`: The request expired before it could be processed
-
 ### Extended Error Codes
 
 This implementation provides additional error codes for more specific error handling:
@@ -321,6 +311,37 @@ try {
     // Check if the error is retriable
     if (error.isRetriable()) {
       console.log('This operation can be retried');
+    }
+  } else {
+    console.error(`Unexpected error: ${error.message}`);
+  }
+}
+```
+
+### NOT_FOUND Error Example
+
+Here's an example of handling the `NOT_FOUND` error code specifically for the `lookupInvoice` method:
+
+```typescript
+try {
+  // Try to look up an invoice by payment hash
+  const invoiceInfo = await client.lookupInvoice({
+    payment_hash: 'ab123...'
+  });
+  console.log('Found invoice:', invoiceInfo);
+} catch (error) {
+  if (error instanceof NIP47ClientError) {
+    if (error.code === NIP47ErrorCode.NOT_FOUND) {
+      console.error('Invoice lookup failed: The specified payment hash was not found in the wallet database');
+      // Handle the case of a missing invoice appropriately
+      // For example, you might want to:
+      // 1. Create a new invoice
+      // 2. Show a user-friendly message
+      // 3. Check if a different payment hash would work
+    } else if (error.code === NIP47ErrorCode.INVALID_REQUEST) {
+      console.error('Invalid request parameters');
+    } else {
+      console.error(`Lookup failed: ${error.getUserMessage()}`);
     }
   } else {
     console.error(`Unexpected error: ${error.message}`);

@@ -149,7 +149,14 @@ class DemoWallet implements WalletImplementation {
     if (params.payment_hash) {
       // Simulate 20% chance of not finding it
       if (Math.random() < 0.2) {
-        throw { code: 'NOT_FOUND', message: 'Invoice not found' };
+        throw { 
+          code: NIP47ErrorCode.NOT_FOUND, 
+          message: 'Invoice not found',
+          context: { 
+            payment_hash: params.payment_hash,
+            method: 'lookupInvoice'
+          }
+        };
       }
       
       return {
@@ -418,8 +425,16 @@ async function main() {
       
       // Show proper error handling
       switch (error.code) {
-        case 'NOT_FOUND':
+        case NIP47ErrorCode.NOT_FOUND:
           console.log('Invoice not found, showing appropriate UI message');
+          console.log('Error category:', error.category);
+          console.log('Error context:', JSON.stringify(error.context || {}));
+          console.log('Recovery hint:', error.recoveryHint || 'None provided');
+          console.log('User-friendly message:', error.getUserMessage ? error.getUserMessage() : error.message);
+          console.log('Suggested actions:');
+          console.log('- Create a new invoice or check payment hash');
+          console.log('- Show transaction history to verify if invoice exists');
+          console.log('- Offer to rescan the lightning node');
           break;
         case 'TIMEOUT':
           console.log('Request timed out, suggesting to try again');

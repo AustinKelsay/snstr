@@ -23,6 +23,7 @@ npm run example:nip47:basic
 The [error-handling-example.ts](./error-handling-example.ts) demonstrates:
 - Different error types and categories
 - Handling specific errors (unauthorized, insufficient balance, etc.)
+- Enhanced NOT_FOUND error handling for lookupInvoice
 - Using the retry mechanism for transient errors
 - Error recovery suggestions
 
@@ -101,7 +102,8 @@ This implementation includes several extensions beyond the basic NIP-47 spec:
 
 - Additional methods like `pay_keysend`, `multi_pay_invoice`, etc.
 - Enhanced error handling with categories and recovery hints
-- Improved parameter validation and specific error handling for standard methods like `lookupInvoice`
-- Explicit handling of NIP-47 standard error codes such as `NOT_FOUND` for invoice lookups
+- Improved parameter validation and specific error handling for standard methods
+- Dedicated NOT_FOUND error handling for lookupInvoice with context and recovery hints
 - Automatic retry mechanism for transient errors
-- Periodic INFO event republishing for better service discovery 
+- Periodic INFO event republishing for better service discovery
+- Clear categorization of errors into RESOURCE, VALIDATION, AUTHORIZATION, etc. types 

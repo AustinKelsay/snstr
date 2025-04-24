@@ -343,16 +343,68 @@ describe('NIP-47: Nostr Wallet Connect', () => {
       
       // Mock the wallet implementation to throw a NOT_FOUND error
       const originalLookup = (service as any).walletImpl.lookupInvoice;
-      (service as any).walletImpl.lookupInvoice = () => {
-        throw { code: 'NOT_FOUND', message: 'Invoice not found' };
+      
+      // Create a more specific mocking that replicates a real NOT_FOUND error
+      const testPaymentHash = 'nonexistent_hash_123';
+      (service as any).walletImpl.lookupInvoice = (params: { payment_hash?: string; invoice?: string }) => {
+        throw { 
+          code: 'NOT_FOUND', 
+          message: `Invoice not found: Could not find ${params.payment_hash ? 'payment_hash' : 'invoice'}: ${params.payment_hash || params.invoice} in the wallet's database` 
+        };
       };
       
       try {
-        await client.lookupInvoice({ payment_hash: 'nonexistent' });
+        await client.lookupInvoice({ payment_hash: testPaymentHash });
         fail('Should have thrown a NOT_FOUND error');
-      } catch (error) {
+      } catch (error: any) {
         expect(error).toBeDefined();
-        expect((error as { code: string }).code).toBe(NIP47ErrorCode.NOT_FOUND);
+        expect(error.code).toBe(NIP47ErrorCode.NOT_FOUND);
+        
+        // Verify the error message contains the specific information about what wasn't found
+        expect(error.message).toContain('Could not find payment_hash');
+        expect(error.message).toContain(testPaymentHash);
+        expect(error.message).toContain('in the wallet\'s database');
+        
+        // Verify error has proper categorization
+        expect(error.category).toBe('RESOURCE');
+        
+        // Verify the error has a recovery hint
+        expect(error.recoveryHint).toBeDefined();
+        expect(error.recoveryHint).toContain('For lookupInvoice');
+      } finally {
+        // Restore original implementation
+        (service as any).walletImpl.lookupInvoice = originalLookup;
+      }
+    });
+    
+    it('should handle not found errors with invoice parameter', async () => {
+      jest.setTimeout(10000);
+      
+      // Mock the wallet implementation to throw a NOT_FOUND error
+      const originalLookup = (service as any).walletImpl.lookupInvoice;
+      
+      // Create a test with invoice parameter instead of payment_hash
+      const testInvoice = 'lnbc10n1pdummy';
+      (service as any).walletImpl.lookupInvoice = (params: { payment_hash?: string; invoice?: string }) => {
+        throw { 
+          code: 'NOT_FOUND', 
+          message: `Invoice not found: Could not find ${params.payment_hash ? 'payment_hash' : 'invoice'}: ${params.payment_hash || params.invoice} in the wallet's database` 
+        };
+      };
+      
+      try {
+        await client.lookupInvoice({ invoice: testInvoice });
+        fail('Should have thrown a NOT_FOUND error');
+      } catch (error: any) {
+        expect(error).toBeDefined();
+        expect(error.code).toBe(NIP47ErrorCode.NOT_FOUND);
+        
+        // Verify the error message contains the specific information about what wasn't found
+        expect(error.message).toContain('Could not find invoice');
+        expect(error.message).toContain(testInvoice);
+        
+        // Verify the client correctly formats the error message with the appropriate context
+        expect(error.message).toMatch(/Invoice not found: Could not find invoice: .+ in the wallet's database/);
       } finally {
         // Restore original implementation
         (service as any).walletImpl.lookupInvoice = originalLookup;

@@ -831,7 +831,7 @@ export class NostrWalletConnectClient {
    * @returns The invoice information
    * 
    * @throws {NIP47ClientError} with code INVALID_REQUEST if neither payment_hash nor invoice is provided
-   * @throws {NIP47ClientError} with code NOT_FOUND if the invoice or payment hash is not found
+   * @throws {NIP47ClientError} with code NOT_FOUND if the invoice or payment hash is not found in the wallet's database
    * @throws {NIP47ClientError} with code LOOKUP_INVOICE_FAILED for other errors
    */
   public async lookupInvoice(
@@ -842,8 +842,6 @@ export class NostrWalletConnectClient {
     if (!params.payment_hash && !params.invoice) {
       throw new NIP47ClientError('Payment hash or invoice is required', NIP47ErrorCode.INVALID_REQUEST);
     }
-    
-    // @throws {NIP47ClientError} with code NOT_FOUND if the invoice or payment hash is not found
     
     try {
       const request: LookupInvoiceRequest = {
@@ -867,7 +865,7 @@ export class NostrWalletConnectClient {
           const lookupValue = params.payment_hash || params.invoice;
           
           throw new NIP47ClientError(
-            `Invoice not found: if the invoice or payment hash is not found. Could not find ${lookupType}: ${lookupValue}`,
+            `Invoice not found: Could not find ${lookupType}: ${lookupValue} in the wallet's database`,
             NIP47ErrorCode.NOT_FOUND
           );
         }

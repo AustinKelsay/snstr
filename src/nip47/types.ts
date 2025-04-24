@@ -122,7 +122,7 @@ export const ERROR_RECOVERY_HINTS: Record<string, string> = {
   [NIP47ErrorCode.INSUFFICIENT_BALANCE]: 'Add funds to your wallet and try again',
   [NIP47ErrorCode.PAYMENT_FAILED]: 'Payment could not be processed. Try again later',
   [NIP47ErrorCode.INVOICE_EXPIRED]: 'Request a new invoice and try again',
-  [NIP47ErrorCode.NOT_FOUND]: 'The requested resource was not found',
+  [NIP47ErrorCode.NOT_FOUND]: 'The requested resource was not found. For lookupInvoice, check that the payment_hash or invoice exists in the wallet database',
   [NIP47ErrorCode.INTERNAL_ERROR]: 'An internal error occurred. Please report this issue',
   [NIP47ErrorCode.REQUEST_EXPIRED]: 'Request timed out. Try again with a longer expiration time',
   [NIP47ErrorCode.TIMEOUT]: 'Operation timed out. Check connection and try again',

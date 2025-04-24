@@ -8,7 +8,8 @@ import {
   generateKeypair,
   generateNWCURL,
   NIP47ConnectionOptions,
-  NIP47NotificationType
+  NIP47NotificationType,
+  NIP47ErrorCode
 } from '../../src';
 import { NostrRelay } from '../../src/utils/ephemeral-relay';
 
@@ -138,7 +139,11 @@ class SimpleWallet implements WalletImplementation {
     
     // If we get here, no invoice was found
     const error: any = new Error('Invoice not found');
-    error.code = 'NOT_FOUND';
+    error.code = NIP47ErrorCode.NOT_FOUND;
+    error.context = {
+      payment_hash: params.payment_hash,
+      invoice: params.invoice
+    };
     throw error;
   }
   
@@ -258,9 +263,16 @@ async function main() {
         try {
           await client.lookupInvoice({ payment_hash: 'non_existent_hash' });
         } catch (error: any) {
-          if (error.code === 'NOT_FOUND') {
+          if (error.code === NIP47ErrorCode.NOT_FOUND) {
             console.log('As expected, invoice was not found. Error:', error.message);
             console.log('Recovery hint:', error.recoveryHint);
+            console.log('Error category:', error.category);
+            console.log('Error context:', JSON.stringify(error.context || {}));
+            console.log('User-friendly message:', error.getUserMessage ? error.getUserMessage() : error.message);
+            console.log('Recommended UI handling:');
+            console.log('- Display a message that the invoice was not found');
+            console.log('- Offer to create a new invoice or search with different criteria');
+            console.log('- Provide a way to view recent transactions');
           } else {
             console.error('Unexpected error:', error);
           }

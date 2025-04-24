@@ -380,10 +380,25 @@ export class NostrWalletService {
           break;
           
         case NIP47Method.LOOKUP_INVOICE:
-          result = await this.walletImpl.lookupInvoice({
-            payment_hash: request.params.payment_hash,
-            invoice: request.params.invoice
-          });
+          try {
+            result = await this.walletImpl.lookupInvoice({
+              payment_hash: request.params.payment_hash,
+              invoice: request.params.invoice
+            });
+          } catch (error: any) {
+            // Enhance NOT_FOUND errors with more context for lookupInvoice
+            if (error.code === NIP47ErrorCode.NOT_FOUND) {
+              const lookupType = request.params.payment_hash ? 'payment_hash' : 'invoice';
+              const lookupValue = request.params.payment_hash || request.params.invoice;
+              
+              return this.createErrorResponse(
+                request.method,
+                NIP47ErrorCode.NOT_FOUND,
+                `Invoice not found: Could not find ${lookupType}: ${lookupValue} in the wallet's database`
+              );
+            }
+            throw error;
+          }
           break;
           
         case NIP47Method.LIST_TRANSACTIONS:

@@ -142,10 +142,18 @@ class ErrorDemoWallet implements WalletImplementation {
     };
   }
   
-  async lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction> {
-    if (this.errorMode === 'not_found') {
+  async lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction> {    
+    console.log(`Wallet: Looking up invoice with payment hash: ${params.payment_hash || 'none'} or invoice: ${params.invoice || 'none'}`);
+    
+    // Simulate an invoice not found error when in NOT_FOUND mode
+    if (this.errorMode === 'not_found' || this.errorMode === 'NOT_FOUND') {
+      // For our improved NOT_FOUND error handling, we throw a structured error object
       const error: any = new Error('Invoice not found');
-      error.code = 'NOT_FOUND';
+      error.code = NIP47ErrorCode.NOT_FOUND;
+      error.context = {
+        payment_hash: params.payment_hash,
+        invoice: params.invoice
+      };
       throw error;
     }
     
@@ -153,6 +161,8 @@ class ErrorDemoWallet implements WalletImplementation {
       throw new Error('Internal server error');
     }
     
+    // In normal operation, we'd look up the invoice in our database
+    // For the demo, we'll just return a fake response
     return {
       type: TransactionType.INCOMING,
       payment_hash: params.payment_hash || 'sample_hash',
@@ -195,6 +205,35 @@ function formatError(error: any): string {
     `;
   } else {
     return `Unexpected error type: ${error.message || error}`;
+  }
+}
+
+/**
+ * Example of handling the NOT_FOUND error when looking up an invoice
+ */
+async function lookupInvoiceExample(client: NostrWalletConnectClient) {
+  try {
+    // Use randomHex to create a random payment hash (that won't exist)
+    const randomPaymentHash = randomHex(32);
+    
+    console.log(`Looking up non-existent invoice with payment hash: ${randomPaymentHash}`);
+    const result = await client.lookupInvoice({ payment_hash: randomPaymentHash });
+    
+    console.log('Lookup result:', result);
+    return result;
+  } catch (error) {
+    if (error instanceof NIP47ClientError && error.code === NIP47ErrorCode.NOT_FOUND) {
+      console.log('✅ Correctly received NOT_FOUND error:');
+      console.log(`Error message: ${error.message}`);
+      console.log(`Error code: ${error.code}`);
+      
+      // You would handle this appropriately in your application
+      // For example, showing a "Invoice not found" message to the user
+      return null;
+    }
+    
+    console.error('Unexpected error during lookupInvoice:', error);
+    throw error;
   }
 }
 
@@ -399,6 +438,9 @@ async function main() {
         console.log('- Provide link to transaction history to look for other invoices');
       }
     }
+    
+    // Add the new lookupInvoiceExample
+    await lookupInvoiceExample(client);
     
     // Cleanup
     client.disconnect();
