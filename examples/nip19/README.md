@@ -80,14 +80,14 @@ This protection is applied consistently across all encoding functions:
 ### 2. TLV Entry Limits
 
 To prevent denial of service attacks, the implementation enforces strict TLV entry limits:
-- Maximum of 100 TLV entries (including relay URLs)
+- Maximum of 20 TLV entries (including relay URLs)
 - This limit is enforced during both encoding AND decoding operations
 - Prevents attackers from crafting malicious entries that could consume excessive resources
 
 ### 3. Size Limits
 
 Additional size constraints protect against resource exhaustion:
-- Maximum relay URL length of 1024 characters
+- Maximum relay URL length of 512 characters
 - Maximum identifier length of 1024 characters
 - Default bech32 data limit of 5000 bytes
 
@@ -100,11 +100,48 @@ The implementation provides comprehensive error handling with clear, informative
 try {
   const encoded = encodeProfile({
     pubkey: "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
-    relays: // 101 relays (exceeds maximum)
+    relays: // 21 relays (exceeds maximum)
   });
 } catch (error) {
-  console.error(error.message); // "Too many relay entries: 101 exceeds maximum of 100"
+  console.error(error.message); // "Too many relay entries: 21 exceeds maximum of 20"
 }
+```
+
+### 5. Decoding Security Concerns
+
+There is an important security concern to be aware of regarding decoding operations:
+
+⚠️ **SECURITY CONCERN**: `decodeProfile()` only warns about invalid URLs but still includes them in the decoded result. This is intentionally permissive to follow the Nostr specification, but can lead to security issues if not handled properly.
+
+You should always filter invalid relay URLs after decoding:
+
+```typescript
+// Example of filtering invalid URLs after decoding
+function filterInvalidRelays(profile) {
+  if (!profile.relays || profile.relays.length === 0) return profile;
+  
+  // Define a function to validate URLs
+  function isValidRelayUrl(url) {
+    try {
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+      const parsedUrl = new URL(url);
+      if (parsedUrl.username || parsedUrl.password) return false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  // Create a safe copy with only valid relay URLs
+  return {
+    ...profile,
+    relays: profile.relays.filter(url => isValidRelayUrl(url))
+  };
+}
+
+// Usage:
+const decodedProfile = decodeProfile(nprofileString);
+const safeProfile = filterInvalidRelays(decodedProfile);
 ```
 
 ## Integration with Other NIPs
@@ -121,6 +158,7 @@ NIP-19 entities can be used with:
 - Always validate inputs before encoding, especially when accepting user input
 - Use try/catch blocks when working with NIP-19 functions to handle errors gracefully
 - Be aware that decoded entities are intentionally permissive (following the Nostr spec)
+- Always filter out invalid relay URLs from decoded entities before using them
 - Add additional validation for decoded entities in security-sensitive contexts
 - Use type-specific encode/decode functions when the entity type is known
 - Treat private keys (nsec) with appropriate security measures 

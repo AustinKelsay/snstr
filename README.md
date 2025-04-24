@@ -165,11 +165,81 @@ import {
 SNSTR's NIP-19 implementation includes robust security features:
 
 - **Strict Relay URL Validation**: Prevents XSS and injection attacks by validating all relay URLs during encoding
-- **TLV Entry Limits**: Enforces limits on the number of TLV entries (max 100) to prevent DoS attacks
-- **Size Constraints**: Enforces reasonable size limits for relay URLs and identifiers
+- **TLV Entry Limits**: Enforces limits on the number of TLV entries (max 20) to prevent DoS attacks
+- **Size Constraints**: Enforces reasonable size limits for relay URLs (512 chars) and identifiers (1024 chars)
 - **Robust Error Handling**: Provides clear error messages for debugging and security
 
+⚠️ **Security Note**: When decoding profiles, be aware that `decodeProfile()` only warns about invalid URLs but still includes them in the decoded result. Always filter invalid relay URLs after decoding:
+
+```typescript
+// Example of filtering invalid URLs after decoding
+function filterInvalidRelays(profile) {
+  if (!profile.relays || profile.relays.length === 0) return profile;
+  
+  function isValidRelayUrl(url) {
+    try {
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+      const parsedUrl = new URL(url);
+      if (parsedUrl.username || parsedUrl.password) return false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  return {
+    ...profile,
+    relays: profile.relays.filter(url => isValidRelayUrl(url))
+  };
+}
+
+// Usage
+const decodedProfile = decodeProfile(nprofileString);
+const safeProfile = filterInvalidRelays(decodedProfile);
+```
+
 All entities are validated during encoding while maintaining the permissive decoding approach required by the NIP-19 specification.
+
+## NIP-19 Security
+
+Recent security improvements to the NIP-19 implementation include:
+
+- **Reduced MAX_TLV_ENTRIES**: Limited to 20 entries (down from 100) to prevent denial of service attacks
+- **Relay URL validation**: Strict validation of relay URLs during encoding to prevent XSS and other injection attacks
+- **Size limits enforcement**: Maximum relay URL length (512 chars) and identifier length (1024 chars)
+
+⚠️ **Important Security Note**: When decoding profiles, events, or addresses, you MUST filter invalid relay URLs after decoding to prevent security issues. The decoder follows the NIP-19 specification by accepting invalid URLs while warning about them.
+
+```typescript
+// Example safe usage pattern for decoding NIP-19 entities with relays
+import { decodeProfile } from 'snstr';
+
+// Decode the nprofile
+const profile = decodeProfile(nprofileString);
+
+// Filter invalid relay URLs before using
+function filterInvalidRelays(data) {
+  if (!data.relays || data.relays.length === 0) return data;
+  
+  function isValidRelayUrl(url) {
+    try {
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+      const parsedUrl = new URL(url);
+      if (parsedUrl.username || parsedUrl.password) return false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  return { ...data, relays: data.relays.filter(isValidRelayUrl) };
+}
+
+// Apply the filtering to get a safe profile
+const safeProfile = filterInvalidRelays(profile);
+```
+
+See the [NIP-19 README](src/nip19/README.md) for detailed information and more examples of secure usage.
 
 ### NIP-05: DNS Identifiers
 

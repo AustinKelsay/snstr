@@ -13,7 +13,8 @@ import {
   encodeEvent,
   encodeAddress,
   decode,
-  decodeEvent
+  decodeEvent,
+  decodeProfile
 } from '../../src/nip19';
 
 /**
@@ -102,6 +103,39 @@ function demonstrateRelayValidation() {
   });
   
   console.log('\nImportant: Relay URL validation occurs only during encoding. During decoding, invalid relay URLs are accepted but generate warnings.');
+  console.log('⚠️ SECURITY CONCERN: decodeProfile only warns about invalid URLs but still includes them');
+  console.log('⚠️ Recommendation: You should filter out invalid relay URLs after decoding');
+  
+  // Demonstrate how to filter invalid URLs after decoding
+  console.log('\nExample of how to filter invalid URLs after decoding:');
+  console.log(`
+  // Filter invalid URLs from decoded profile
+  function filterInvalidRelays(profile) {
+    if (!profile.relays || profile.relays.length === 0) return profile;
+    
+    // Define a function to validate URLs (same as used in the library)
+    function isValidRelayUrl(url) {
+      try {
+        if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+        const parsedUrl = new URL(url);
+        if (parsedUrl.username || parsedUrl.password) return false;
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
+    
+    // Create a safe copy with only valid relay URLs
+    return {
+      ...profile,
+      relays: profile.relays.filter(url => isValidRelayUrl(url))
+    };
+  }
+  
+  // Usage:
+  const decodedProfile = decodeProfile(nprofileString);
+  const safeProfile = filterInvalidRelays(decodedProfile);
+  `);
 }
 
 /**
@@ -150,8 +184,8 @@ function demonstrateRequiredFields() {
 function demonstrateSizeLimits() {
   console.log('\n=== Size Limit Validation ===');
   
-  // Generate many relays (exceeding MAX_TLV_ENTRIES limit of 100)
-  const tooManyRelays = Array(101).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+  // Generate many relays (exceeding MAX_TLV_ENTRIES limit of 20)
+  const tooManyRelays = Array(21).fill(0).map((_, i) => `wss://relay${i}.example.com`);
   
   // Very long relay URL (exceeding MAX_RELAY_URL_LENGTH limit of 512)
   const veryLongRelayUrl = 'wss://' + 'a'.repeat(510) + '.example.com';
@@ -161,7 +195,7 @@ function demonstrateSizeLimits() {
   
   const sizeLimitCases = [
     { 
-      name: 'Too many relays (> 100)', 
+      name: 'Too many relays (> 20)', 
       test: () => {
         return encodeProfile({
           pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
@@ -203,7 +237,7 @@ function demonstrateSizeLimits() {
   });
   
   console.log('\nThe library enforces these limits for security:');
-  console.log('- Maximum of 100 TLV entries (prevent DoS)');
+  console.log('- Maximum of 20 TLV entries (prevent DoS)');
   console.log('- Maximum relay URL length of 512 characters');
   console.log('- Maximum identifier length of 1024 characters');
   console.log('- Default bech32 data limit of 5000 bytes');
@@ -215,15 +249,15 @@ function demonstrateSizeLimits() {
 function demonstrateTLVEntryLimits() {
   console.log('\n=== TLV Entry Limits ===');
   
-  // Valid number of relays (maximum 100)
-  const exactlyMaxRelays = Array(100).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+  // Valid number of relays (maximum 20)
+  const exactlyMaxRelays = Array(20).fill(0).map((_, i) => `wss://relay${i}.example.com`);
   
   try {
     const event = encodeEvent({
       id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
       relays: exactlyMaxRelays
     });
-    console.log(`✅ Successfully encoded with exactly 100 relays (maximum allowed)`);
+    console.log(`✅ Successfully encoded with exactly 20 relays (maximum allowed)`);
     
     // Now decode it
     const decoded = decodeEvent(event);
@@ -237,6 +271,7 @@ function demonstrateTLVEntryLimits() {
   console.log('- Limiting the number of entries in the TLV data');
   console.log('- Preventing resource exhaustion when processing large inputs');
   console.log('- Enforcing reasonable size constraints for encoded entities');
+  console.log('- MAX_TLV_ENTRIES has been reduced from 100 to 20 for better security');
 }
 
 /**
@@ -313,12 +348,59 @@ function demonstrateGracefulErrorHandling() {
   const invalidResult = safeEncode('not-a-hex-string', 'npub');
   console.log(`Invalid input: ${JSON.stringify(invalidResult)}`);
   
+  console.log('\nExample of safely handling decoded profiles with potentially invalid URLs:');
+  
+  function safeDecodeProfile(nprofile: string) {
+    try {
+      // Step 1: Decode the profile
+      const decodedProfile = decodeProfile(nprofile);
+      
+      // Step 2: Filter out invalid relay URLs
+      const validateRelayUrl = (url: string): boolean => {
+        try {
+          if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+          const parsedUrl = new URL(url);
+          if (parsedUrl.username || parsedUrl.password) return false;
+          return true;
+        } catch (error) {
+          return false;
+        }
+      };
+      
+      const safeProfile = {
+        ...decodedProfile,
+        relays: decodedProfile.relays ? decodedProfile.relays.filter(validateRelayUrl) : []
+      };
+      
+      // Step 3: Return safe result
+      return { success: true, result: safeProfile, error: null };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, result: null, error: errorMessage };
+    }
+  }
+  
+  console.log(`
+  // Example usage of safeDecodeProfile:
+  const decodedProfile = safeDecodeProfile(nprofileString);
+  
+  if (decodedProfile.success) {
+    // Safe to use, all relays are valid
+    const profile = decodedProfile.result;
+    // Use profile...
+  } else {
+    // Handle error
+    console.error(decodedProfile.error);
+  }
+  `);
+  
   console.log('\nRecommended error handling approach:');
   console.log('1. Always use try/catch when encoding/decoding NIP-19 entities');
   console.log('2. Provide user-friendly error messages');
   console.log('3. Return structured responses with success/error status');
   console.log('4. Validate inputs before encoding');
   console.log('5. Be permissive during decoding but validate before acting on decoded data');
+  console.log('6. Always filter out invalid relay URLs after decoding');
 }
 
 /**
@@ -334,12 +416,14 @@ function demonstrateSecurityBestPractices() {
   console.log('4. Add additional validation for decoded entities in security-sensitive contexts');
   console.log('5. Use type-specific encode/decode functions when the entity type is known');
   console.log('6. Treat private keys (nsec) with appropriate security precautions');
+  console.log('7. Always filter invalid relay URLs from decoded entities before using them');
   
   console.log('\nLibrary security features:');
   console.log('- Strict validation during encoding');
   console.log('- Enforced size limits (relay URLs, identifiers, TLV entries)');
   console.log('- Protection against malformed relay URLs and potential injection attacks');
   console.log('- Clear error messages for debugging and troubleshooting');
+  console.log('- MAX_TLV_ENTRIES reduced from 100 to 20 for better security');
 }
 
 /**

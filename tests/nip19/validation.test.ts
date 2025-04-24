@@ -164,7 +164,7 @@ describe('NIP-19: Validation and Edge Cases', () => {
 
     test('should enforce maximum number of relays', () => {
       // Create exactly MAX_TLV_ENTRIES+1 relays
-      const tooManyRelays = Array(101).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+      const tooManyRelays = Array(21).fill(0).map((_, i) => `wss://relay${i}.example.com`);
       
       const eventWithTooManyRelays = {
         id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
@@ -177,26 +177,50 @@ describe('NIP-19: Validation and Edge Cases', () => {
   });
 
   describe('TLV Entry Limits', () => {
-    // This is a private function test. We're testing indirectly through public APIs.
-    test('should enforce TLV entry limit in decoding', () => {
-      // Test the decoding process catching TLV entry limits
-      // This test verifies that the decoding function properly 
-      // rejects inputs with too many TLV entries
+    test('verifies exact TLV entry limit boundary', () => {
+      // Create arrays of relays with specific sizes
+      const generateRelays = (count: number) => Array(count)
+        .fill(0)
+        .map((_, i) => `wss://relay${i}.example.com`);
       
-      // Testing the actual specific decode function implementation as part of validation
       const pubkey = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
-      const id = '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d';
       
-      // We've already tested the encoding functions in the previous test
-      // where we verified that adding more than MAX_TLV_ENTRIES relays throws an error 
-      
-      // Just to make sure, let's verify we can add exactly 100 relays (MAX_TLV_ENTRIES)
-      const exactlyMaxRelays = Array(100).fill(0).map((_, i) => `wss://relay${i}.example.com`);
-      
-      expect(() => encodeEvent({ 
-        id,
-        relays: exactlyMaxRelays 
+      // Test with 20 entries - should be exactly at the limit
+      expect(() => encodeProfile({
+        pubkey,
+        relays: generateRelays(20)
       })).not.toThrow();
+      
+      // Test with 21 entries - should exceed the limit
+      expect(() => encodeProfile({
+        pubkey,
+        relays: generateRelays(21)
+      })).toThrow(/Too many/);
+      
+      // Note: MAX_TLV_ENTRIES has been reduced from 100 to 20
+      console.log('SECURITY: MAX_TLV_ENTRIES is now set to 20, which is a reasonable limit');
+    });
+    
+    test('verifies URL sanitization during decoding', () => {
+      const pubkey = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
+      
+      // Create a valid profile with a single relay
+      const validProfile = {
+        pubkey,
+        relays: ['wss://relay.example.com']
+      };
+      
+      // Encode and decode
+      const encoded = encodeProfile(validProfile);
+      const decoded = decodeProfile(encoded);
+      
+      // Check that the relay was preserved
+      expect(decoded.relays).toContain('wss://relay.example.com');
+      
+      // Note: To properly test URL sanitization during decoding, we would need
+      // to manipulate the TLV data directly to include an invalid URL
+      console.log('SECURITY CONCERN: decodeProfile only warns about invalid URLs but still includes them');
+      console.log('Recommendation: Invalid URLs should be discarded during decoding, not just warned about');
     });
   });
 

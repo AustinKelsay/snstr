@@ -85,6 +85,30 @@ console.log(decodedProfile);
 //   pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
 //   relays: ['wss://relay.example.com', 'wss://relay2.example.com']
 // }
+
+// ⚠️ Security Note: Filter out invalid relay URLs after decoding
+function filterInvalidRelays(profile) {
+  if (!profile.relays || profile.relays.length === 0) return profile;
+  
+  function isValidRelayUrl(url) {
+    try {
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+      const parsedUrl = new URL(url);
+      if (parsedUrl.username || parsedUrl.password) return false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  return {
+    ...profile,
+    relays: profile.relays.filter(url => isValidRelayUrl(url))
+  };
+}
+
+// Safe usage with filtering
+const safeProfile = filterInvalidRelays(decodedProfile);
 ```
 
 ### Working with Events
@@ -113,6 +137,9 @@ console.log(decodedEvent);
 //   author: 'pubkey_here',
 //   kind: 1
 // }
+
+// Don't forget to filter relays here too!
+const safeEvent = filterInvalidRelays(decodedEvent);
 ```
 
 ### Working with Addresses
@@ -141,6 +168,9 @@ console.log(decodedAddress);
 //   kind: 30023,
 //   relays: ['wss://relay.example.com']
 // }
+
+// Apply the same relay filtering here
+const safeAddress = filterInvalidRelays(decodedAddress);
 ```
 
 ### Universal Decoder
@@ -167,6 +197,12 @@ console.log(profileResult);
 //     relays: [...]
 //   }
 // }
+
+// Remember to filter invalid relay URLs when dealing with complex types
+if (profileResult.type === 'nprofile') {
+  const safeProfileData = filterInvalidRelays(profileResult.data);
+  // Use safeProfileData...
+}
 ```
 
 ## Implementation Details
@@ -179,10 +215,66 @@ console.log(profileResult);
 
 ## Security Considerations
 
-- Always validate entities before acting on them
-- TLV values are size-constrained to prevent DoS attacks
-- Use the explicit decoder functions for type-safety rather than the generic decode function
-- Treat private keys (`nsec`) with appropriate security measures
+- **🧪 Input Validation**: Always validate entities before encoding them to ensure they meet the NIP-19 specifications.
+- **🛡️ Relay URL Filtering**: When decoding `nprofile`, `nevent`, or `naddr` entities, be aware that the decoder will include all relay URLs even if they're invalid. You MUST implement filtering after decoding.
+
+### Recent Security Improvements
+
+The SNSTR implementation of NIP-19 has been hardened with several security enhancements:
+
+1. **Reduced TLV Entry Limits**: The maximum number of TLV entries (e.g., relay URLs in a profile) has been reduced from 100 to 20 to prevent potential denial of service attacks.
+
+2. **Strict URL Validation During Encoding**: 
+   - Enforces `wss://` or `ws://` protocol
+   - Rejects URLs with credentials (username/password)
+   - Validates URL structure
+   - Maximum URL length of 512 characters
+
+3. **Size Constraints**:
+   - Maximum identifier length: 1024 characters
+   - Maximum relay URL length: 512 characters
+   - Maximum TLV entries: 20
+
+### Best Practices for Secure Usage
+
+**⚠️ Important**: The NIP-19 specification requires decoders to be permissive. This means our decoder will include invalid URLs in the output, which creates a security risk if not handled properly.
+
+Always filter relay URLs after decoding using code similar to this:
+
+```typescript
+function filterValidRelays(data) {
+  if (!data.relays || !Array.isArray(data.relays)) return data;
+  
+  return {
+    ...data,
+    relays: data.relays.filter(url => {
+      try {
+        // Check protocol
+        if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+          return false;
+        }
+        
+        // Check URL validity
+        const parsedUrl = new URL(url);
+        
+        // Check for credentials (potential security risk)
+        if (parsedUrl.username || parsedUrl.password) {
+          return false;
+        }
+        
+        return true;
+      } catch (error) {
+        // Invalid URL format
+        return false;
+      }
+    })
+  };
+}
+
+// Usage
+const decodedProfile = decodeProfile(nprofileString);
+const safeProfile = filterValidRelays(decodedProfile);
+```
 
 # NIP-19 Implementation
 
@@ -206,7 +298,7 @@ This implementation includes several important security measures:
 1. **Relay URL Validation**: All relay URLs are validated during encoding to ensure they use the correct websocket protocol (`ws://` or `wss://`) and have a valid URL format. This prevents injection attacks through malformed relay URLs.
 
 2. **Size Limits**: To prevent denial of service attacks, the implementation enforces reasonable size limits on various components:
-   - Maximum of 100 TLV entries
+   - Maximum of 20 TLV entries (reduced from 100 for better security)
    - Maximum relay URL length of 512 characters
    - Maximum identifier length of 1024 characters  
    - Default bech32 data limit of 5000 bytes
@@ -217,7 +309,8 @@ This implementation includes several important security measures:
 
 The implementation follows the Nostr specification by being somewhat permissive during decoding:
 
-- Invalid relay URLs are accepted during decoding but generate warnings
+- Invalid relay URLs are accepted during decoding but generate warnings in the console
+- ⚠️ **Security Note**: You should always filter out invalid relay URLs after decoding
 - All required fields are strictly validated
 - Unknown TLV types are ignored, as specified by NIP-19
 
@@ -245,6 +338,27 @@ const profile = {
 const nprofile = encodeProfile(profile);
 const decodedProfile = decodeProfile(nprofile);
 
+// Filter invalid relay URLs after decoding to ensure security
+function filterInvalidRelays(data) {
+  if (!data.relays || data.relays.length === 0) return data;
+  
+  const isValidRelayUrl = (url) => {
+    try {
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
+      const parsedUrl = new URL(url);
+      if (parsedUrl.username || parsedUrl.password) return false;
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+  
+  return { ...data, relays: data.relays.filter(isValidRelayUrl) };
+}
+
+// Apply the filtering to get a safe profile
+const safeProfile = filterInvalidRelays(decodedProfile);
+
 // Event with relays and author
 const event = {
   id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
@@ -254,6 +368,7 @@ const event = {
 };
 const nevent = encodeEvent(event);
 const decodedEvent = decodeEvent(nevent);
+const safeEvent = filterInvalidRelays(decodedEvent);
 
 // Address for a replaceable event
 const address = {
@@ -264,4 +379,5 @@ const address = {
 };
 const naddr = encodeAddress(address);
 const decodedAddress = decodeAddress(naddr);
+const safeAddress = filterInvalidRelays(decodedAddress);
 ``` 

@@ -27,9 +27,9 @@ const chalk = require('chalk');
  */
 
 // Constants defined locally (values based on codebase implementation)
-const MAX_RELAYS = 100; // Max number of relays allowed
-const MAX_TLV_ENTRIES = 100; // Max number of TLV entries
-const MAX_RELAY_URL_LENGTH = 1024; // Max length for relay URLs
+const MAX_RELAYS = 20; // Max number of relays allowed
+const MAX_TLV_ENTRIES = 20; // Max number of TLV entries
+const MAX_RELAY_URL_LENGTH = 512; // Max length for relay URLs
 const MAX_IDENTIFIER_LENGTH = 1024; // Max length for identifiers
 
 // Helper function to run and log a function with a try/catch
@@ -100,8 +100,8 @@ function demonstrateDoSProtection() {
     { 
       name: 'Too many TLV entries (relays)', 
       test: () => {
-        // Create 101 relays (exceeding MAX_TLV_ENTRIES limit of 100)
-        const manyRelays = Array(101).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+        // Create 21 relays (exceeding MAX_TLV_ENTRIES limit of 20)
+        const manyRelays = Array(21).fill(0).map((_, i) => `wss://relay${i}.example.com`);
         encodeProfile({ pubkey, relays: manyRelays });
       }
     },
@@ -157,6 +157,8 @@ function demonstratePermissiveDecoding() {
   console.log('- Invalid relay URLs are accepted during decoding but generate warnings');
   console.log('- Applications should perform additional validation on decoded data');
   console.log('- This permissive behavior ensures compatibility with other implementations');
+  console.log('\n⚠️ SECURITY CONCERN: decodeProfile only warns about invalid URLs but still includes them');
+  console.log('⚠️ Recommendation: Invalid URLs should be discarded during decoding, not just warned about');
   
   // Create a valid profile to demonstrate proper decoding
   try {
@@ -193,10 +195,11 @@ function demonstrateSecurityBestPractices() {
   console.log('\n2. Add extra validation for decoded data');
   console.log('   - The library is intentionally permissive during decoding');
   console.log('   - Add application-specific validation for security-sensitive contexts');
+  console.log('   - Filter out invalid relay URLs from decoded entities before using them');
   console.log('   - Be especially careful with relay URLs from decoded entities');
   
   console.log('\n3. Respect the library\'s size limits');
-  console.log('   - Don\'t try to bypass MAX_TLV_ENTRIES (100 entries)');
+  console.log('   - Don\'t try to bypass MAX_TLV_ENTRIES (20 entries)');
   console.log('   - Keep relay URLs under MAX_RELAY_URL_LENGTH (512 characters)');
   console.log('   - Keep identifiers under MAX_IDENTIFIER_LENGTH (1024 characters)');
   

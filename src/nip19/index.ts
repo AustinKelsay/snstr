@@ -26,11 +26,12 @@ const DEFAULT_LIMIT = 5000;
 // TLV size limits - these are reasonable limits to prevent abuse
 const MAX_RELAY_URL_LENGTH = 512; // Max length for a relay URL
 const MAX_IDENTIFIER_LENGTH = 1024; // Max length for an identifier (d tag)
-const MAX_TLV_ENTRIES = 100; // Max number of TLV entries to prevent DoS
+const MAX_TLV_ENTRIES = 20; // Max number of TLV entries to prevent DoS (reduced from 100)
 
 /**
  * Validates a relay URL format
  * Relay URLs must start with wss:// or ws:// and contain a valid hostname
+ * No credentials are allowed in URLs
  */
 function validateRelayUrl(url: string): boolean {
   try {
@@ -39,7 +40,13 @@ function validateRelayUrl(url: string): boolean {
     }
     
     // Use URL constructor to validate the URL format
-    new URL(url);
+    const parsedUrl = new URL(url);
+    
+    // Check for credentials in the URL (username or password)
+    if (parsedUrl.username || parsedUrl.password) {
+      return false;
+    }
+    
     return true;
   } catch (error) {
     return false;
@@ -295,6 +302,10 @@ export function encodeProfile(data: ProfileData): string {
     
     // Add relay URLs if provided
     if (data.relays && Array.isArray(data.relays)) {
+      if (data.relays.length > MAX_TLV_ENTRIES) {
+        throw new Error(`Too many relay entries: ${data.relays.length} exceeds maximum of ${MAX_TLV_ENTRIES}`);
+      }
+      
       for (const relay of data.relays) {
         // Validate relay URL before adding to TLV entries
         if (!validateRelayUrl(relay)) {
