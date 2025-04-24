@@ -364,4 +364,149 @@ logExample('Error Handling and Decoding', () => {
 console.log(chalk.bold('\nSecurity Example Complete'));
 
 // Run the examples
-runSecurityExamples(); 
+runSecurityExamples();
+
+/**
+ * NIP-19 Security Example
+ * 
+ * This example demonstrates how to securely decode and filter NIP-19 entities
+ * to prevent security issues like XSS attacks through malicious relay URLs.
+ */
+
+import {
+  // Core decoding functions
+  decodeProfile,
+  decodeEvent,
+  decodeAddress,
+  
+  // Security utilities
+  filterProfile,
+  filterEvent,
+  filterAddress,
+  filterEntity,
+  isValidRelayUrl
+} from '../../src/nip19';
+
+// Example function to demonstrate the security issue and fix
+async function main() {
+  console.log('NIP-19 Security Example\n');
+  
+  // ---------- Safe handling of nprofile entities ----------
+  console.log('EXAMPLE 1: Handling nprofile entities safely');
+  
+  // This is a valid nprofile with one valid relay and one malicious relay
+  // The malicious relay contains a javascript: URL that could execute code
+  const maliciousNprofile = 'nprofile1qqsrhuxx8l9ex335q7he0f09aej04zpazpl0ne2cgukyawd24mayt8gpp4mhxue69uhhytnc9e3k7mgpz4mhxue69uhkg6nzv9ejuumpv34kytnrdakxjacar9putjd73qxzmdnxues2vp5x7un8qynwaehxw309ahx7uewd3hxtnrdakj7qg6zfn4qa3lpsq43a75';
+  
+  try {
+    // Step 1: Decode the profile (this follows NIP-19 spec and includes ALL relays)
+    const profile = decodeProfile(maliciousNprofile);
+    console.log('Decoded profile:');
+    console.log(profile);
+    
+    // Notice that the profile may contain malicious relay URLs!
+    console.log('\nChecking relay URLs:');
+    if (profile.relays && profile.relays.length > 0) {
+      profile.relays.forEach((url, i) => {
+        const isValid = isValidRelayUrl(url);
+        console.log(`Relay ${i + 1}: ${url}`);
+        console.log(`  Valid: ${isValid ? 'Yes ✅' : 'No ❌'}`);
+      });
+    } else {
+      console.log('No relay URLs found in the profile');
+    }
+    
+    // Step 2: Apply security filtering to remove invalid/malicious relay URLs
+    const safeProfile = filterProfile(profile);
+    console.log('\nFiltered profile (safe to use):');
+    console.log(safeProfile);
+    
+    // Or do it in one step with filterEntity
+    const safeProfileAlt = filterEntity(profile);
+    console.log('\nFiltered with generic filterEntity:');
+    console.log(safeProfileAlt);
+  } catch (error) {
+    console.error('Error handling nprofile:', error);
+  }
+  
+  // ---------- Safe handling of nevent entities ----------
+  console.log('\n\nEXAMPLE 2: Handling nevent entities safely');
+  
+  // This is a valid nevent with malicious relay URL
+  const maliciousNevent = 'nevent1qqs2hvwmnxvurswdkx0xkdpv4j3p09sn3wtt8xrqccyxj6c7t9ftu57nwdaehgu3wvfskueqdfhxummjdajhytnrdaexgupsdpmhxue6xz09as728nqnjytzy9uq24uzmpy9gm7tlxgq3q2ygsemnwvaz7tmwdaehgu3wvcqgfnm99k6kpwdhhg3tcpt0vvdffv0xq77hllud9x';
+  
+  try {
+    // Step 1: Decode the event
+    const event = decodeEvent(maliciousNevent);
+    console.log('Decoded event:');
+    console.log(event);
+    
+    // Step 2: Apply security filtering
+    const safeEvent = filterEvent(event);
+    console.log('\nFiltered event (safe to use):');
+    console.log(safeEvent);
+  } catch (error) {
+    console.error('Error handling nevent:', error);
+  }
+  
+  // ---------- Safe handling of naddr entities ----------
+  console.log('\n\nEXAMPLE 3: Handling naddr entities safely');
+  
+  // This is a valid naddr with malicious relay URL
+  const maliciousNaddr = 'naddr1qqrxyctwv9hxzqfvxpjmkgrnvd3jx7uqv8nmjfeh9qmf884kucc8xus8q6tj2d3jwky29ycnzv34x2unwv4ez6un9d3shjtnyv9khjmrfde5kueqdfhxumdcv4jjqcmgdfkxucty28ajvskt9ws4sn92e3hqy2hwumn8ghj7mn0wvuqmr0dsxwrgd7y';
+  
+  try {
+    // Step 1: Decode the address
+    const address = decodeAddress(maliciousNaddr);
+    console.log('Decoded address:');
+    console.log(address);
+    
+    // Step 2: Apply security filtering
+    const safeAddress = filterAddress(address);
+    console.log('\nFiltered address (safe to use):');
+    console.log(safeAddress);
+  } catch (error) {
+    console.error('Error handling naddr:', error);
+  }
+  
+  // ---------- Integrated solution ----------
+  console.log('\n\nEXAMPLE 4: Integrated solution for all entity types');
+  
+  // Function that safely handles any NIP-19 entity type
+  function safelyDecodeAndUse(bech32Str: string) {
+    try {
+      if (bech32Str.startsWith('nprofile1')) {
+        const profile = decodeProfile(bech32Str);
+        return filterProfile(profile);
+      } else if (bech32Str.startsWith('nevent1')) {
+        const event = decodeEvent(bech32Str);
+        return filterEvent(event);
+      } else if (bech32Str.startsWith('naddr1')) {
+        const address = decodeAddress(bech32Str);
+        return filterAddress(address);
+      } else {
+        // Handle other types or throw error
+        throw new Error('Unsupported NIP-19 entity type');
+      }
+    } catch (error) {
+      console.error('Error decoding entity:', error);
+      return null;
+    }
+  }
+  
+  // Test it with our examples
+  console.log('Safely decode and use nprofile:');
+  const safeResult1 = safelyDecodeAndUse(maliciousNprofile);
+  console.log(safeResult1);
+  
+  console.log('\nSafely decode and use nevent:');
+  const safeResult2 = safelyDecodeAndUse(maliciousNevent);
+  console.log(safeResult2);
+  
+  console.log('\nSafely decode and use naddr:');
+  const safeResult3 = safelyDecodeAndUse(maliciousNaddr);
+  console.log(safeResult3);
+}
+
+// Run the example
+main().catch(console.error); 

@@ -741,4 +741,7 @@ export function decode(bech32Str: string): {
   } catch (error) {
     handleDecodingError(error, 'bech32 string');
   }
-} 
+}
+
+// Export security utilities
+export * from './secure'; 

@@ -1376,3 +1376,41 @@ npm run example:nip57   # Lightning Zaps (NIP-57)
 ```
 
 See the [examples README](./examples/README.md) for the full list of available examples and more details on how to run them.
+
+## Security Considerations
+
+### NIP-19 Security Enhancements
+
+The SNSTR library implements enhanced security measures for NIP-19 encoded identifiers:
+
+1. **Strict Relay URL Validation**: All relay URLs are validated to ensure they:
+   - Use only websocket protocols (`wss://` or `ws://`)
+   - Contain no credentials (username/password)
+   - Are properly formatted URLs
+
+2. **Filtering Functions**:
+   - `filterProfile()`: Removes invalid relay URLs from decoded profiles
+   - `filterEvent()`: Removes invalid relay URLs from decoded events
+   - `filterAddress()`: Removes invalid relay URLs from decoded addresses
+   - `filterEntity()`: Automatically detects entity type and filters appropriately
+
+3. **Denial of Service Protection**:
+   - Maximum length limits for relay URLs (512 bytes)
+   - Maximum number of TLV entries (20)
+   - Maximum length for identifiers (1024 bytes)
+
+Example of secure usage:
+```typescript
+import { decodeProfile, filterProfile } from 'snstr';
+
+// First decode the nprofile
+const profile = decodeProfile(nprofileString);
+
+// Then filter it to remove any malicious relay URLs
+const safeProfile = filterProfile(profile);
+
+// Now it's safe to use
+console.log(safeProfile.relays); // Only contains valid relay URLs
+```
+
+IMPORTANT: Always filter entities after decoding to prevent XSS and other injection attacks.

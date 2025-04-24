@@ -239,42 +239,115 @@ The SNSTR implementation of NIP-19 has been hardened with several security enhan
 
 **⚠️ Important**: The NIP-19 specification requires decoders to be permissive. This means our decoder will include invalid URLs in the output, which creates a security risk if not handled properly.
 
-Always filter relay URLs after decoding using code similar to this:
+#### New Secure Filtering Utilities
+
+SNSTR now includes built-in utility functions to make filtering invalid relay URLs easier and safer:
 
 ```typescript
-function filterValidRelays(data) {
-  if (!data.relays || !Array.isArray(data.relays)) return data;
-  
-  return {
-    ...data,
-    relays: data.relays.filter(url => {
-      try {
-        // Check protocol
-        if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
-          return false;
-        }
-        
-        // Check URL validity
-        const parsedUrl = new URL(url);
-        
-        // Check for credentials (potential security risk)
-        if (parsedUrl.username || parsedUrl.password) {
-          return false;
-        }
-        
-        return true;
-      } catch (error) {
-        // Invalid URL format
-        return false;
-      }
-    })
-  };
+import { 
+  decodeProfile, 
+  decodeEvent,
+  decodeAddress,
+  // Import the new secure filtering utilities
+  filterProfile,
+  filterEvent,
+  filterAddress,
+  filterEntity,
+  isValidRelayUrl
+} from 'snstr';
+
+// INSECURE: Decoding without filtering
+const profile = decodeProfile(nprofileString);
+// profile.relays might contain malicious URLs!
+
+// SECURE: Filtering after decoding
+const safeProfile = filterProfile(profile);
+// safeProfile.relays contains only valid wss:// or ws:// URLs
+
+// Generic filtering for any entity type
+const safeEntity = filterEntity(profile);
+// Works with profile, event, or address entities
+
+// Check individual URLs
+const url = 'wss://relay.example.com';
+if (isValidRelayUrl(url)) {
+  // URL is safe to use
+}
+```
+
+These utilities provide:
+
+1. **Strict URL Validation**:
+   - Only allow `wss://` or `ws://` protocols
+   - Reject URLs with credentials (username/password)
+   - Validate URL structure
+   
+2. **Type-specific Filters**:
+   - `filterProfile`: For nprofile entities
+   - `filterEvent`: For nevent entities
+   - `filterAddress`: For naddr entities
+   
+3. **Universal Filter**:
+   - `filterEntity`: Detects the entity type and applies the appropriate filter
+
+4. **URL Validator**:
+   - `isValidRelayUrl`: Check if a single URL is valid
+
+#### Simplified Safe Decoding Pattern
+
+```typescript
+import { decodeProfile, filterProfile } from 'snstr';
+
+// Step 1: Decode the entity (this follows NIP-19 spec - includes ALL relays)
+const profile = decodeProfile(nprofileString);
+
+// Step 2: Filter invalid/malicious relay URLs
+const safeProfile = filterProfile(profile);
+
+// Now use safeProfile in your application
+```
+
+#### Example: Integrated Secure Decoder
+
+You can create a helper function that combines decoding and filtering:
+
+```typescript
+import { 
+  decodeProfile, 
+  decodeEvent, 
+  decodeAddress,
+  filterProfile,
+  filterEvent,
+  filterAddress
+} from 'snstr';
+
+function safelyDecodeEntity(bech32Str: string) {
+  try {
+    if (bech32Str.startsWith('nprofile1')) {
+      const profile = decodeProfile(bech32Str);
+      return filterProfile(profile);
+    } else if (bech32Str.startsWith('nevent1')) {
+      const event = decodeEvent(bech32Str);
+      return filterEvent(event);
+    } else if (bech32Str.startsWith('naddr1')) {
+      const address = decodeAddress(bech32Str);
+      return filterAddress(address);
+    } else {
+      // Handle other types...
+      throw new Error('Unsupported NIP-19 entity type');
+    }
+  } catch (error) {
+    console.error('Error decoding entity:', error);
+    return null;
+  }
 }
 
 // Usage
-const decodedProfile = decodeProfile(nprofileString);
-const safeProfile = filterValidRelays(decodedProfile);
+const safeEntity = safelyDecodeEntity(bech32String);
+// safeEntity is now filtered and safe to use
 ```
+
+For a complete example, see [security-example.ts](../../examples/nip19/security-example.ts).
 
 # NIP-19 Implementation
 

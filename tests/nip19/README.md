@@ -26,6 +26,7 @@ npx jest tests/nip19/bech32.test.ts
 - `bech32.test.ts`: Tests for basic Bech32 encoding/decoding
 - `tlv.test.ts`: Tests for TLV-based entities (nprofile, nevent, naddr)
 - `validation.test.ts`: Tests for validation, error handling, and edge cases
+- `security.test.ts`: Comprehensive security tests for URL validation, TLV limits, and more
 
 ## Test Structure
 
@@ -37,6 +38,7 @@ The tests are organized by entity type and functionality:
 4. **Validation**: Tests for validation logic
 5. **Error Handling**: Tests for proper error handling with invalid inputs
 6. **Edge Cases**: Tests for handling unusual inputs and boundary conditions
+7. **Security**: Tests for security features and protections against attacks
 
 ## Implementation Details
 
@@ -59,7 +61,7 @@ Our implementation includes security features to prevent potential attacks:
    - Don't contain potentially malicious content (e.g., JavaScript injection)
 
 2. **TLV Entry Limits**: We enforce limits on TLV entries to prevent DoS attacks:
-   - Maximum of 100 TLV entries per encoded entity
+   - Maximum of 20 TLV entries per encoded entity
    - Maximum relay URL length of 512 bytes
    - Maximum identifier length of 1024 bytes
 
@@ -95,7 +97,7 @@ Tests verify enforcement of TLV entry limits to prevent DoS attacks:
 
 ```typescript
 // Create many relays (exceeding MAX_TLV_ENTRIES)
-const manyRelays = Array(200).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+const manyRelays = Array(21).fill(0).map((_, i) => `wss://relay${i}.example.com`);
 
 const profileWithManyRelays = {
   pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
