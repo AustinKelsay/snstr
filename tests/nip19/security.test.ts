@@ -1,5 +1,5 @@
 /**
- * Security tests for NIP-19 implementation
+ * Security tests for NIP-19 implementation (Comprehensive)
  * 
  * These tests specifically target potential security issues:
  * 1. URL validation/sanitization in relay URLs
@@ -7,6 +7,9 @@
  * 3. Malformed TLV entries detection
  * 4. Edge cases in relay URL handling
  * 5. Integration with decoders
+ * 6. URL search params validation
+ * 7. Host validation including IDN (International Domain Names)
+ * 8. Unusual URL formats and port numbers
  */
 
 import {
@@ -17,13 +20,12 @@ import {
   encodeAddress,
   decodeAddress,
   decode,
-  filterProfile,
-  isValidRelayUrl,
   ProfileData
-} from '../../src/nip19';
+} from '../../src/nip19/index';
+import { isValidRelayUrl, filterProfile } from '../../src/nip19/secure';
 import { bech32 } from '@scure/base';
 
-describe('NIP-19: Security Tests', () => {
+describe('NIP-19: Comprehensive Security Tests', () => {
   // Test data
   const validPubkey = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
   const validEventId = '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d';
@@ -66,8 +68,15 @@ describe('NIP-19: Security Tests', () => {
         'ws://user@relay.example.com'
       ];
 
-      // The current implementation might not reject URLs with credentials
-      // Let's verify if it does or doesn't
+      // Verify credentials are rejected
+      urlsWithCredentials.forEach(url => {
+        expect(() => encodeProfile({
+          pubkey: validPubkey,
+          relays: [url]
+        })).toThrow(/Invalid relay URL/);
+      });
+
+      // The original test also had a check for security issues
       try {
         encodeProfile({
           pubkey: validPubkey,
@@ -75,9 +84,125 @@ describe('NIP-19: Security Tests', () => {
         });
         console.warn('SECURITY ISSUE: URLs with credentials are accepted in relay URLs');
       } catch (error) {
-        // If it throws, check if it's because of the credentials or for another reason
+        // If it throws, check if it's because of the credentials
         expect((error as Error).message).toContain('Invalid relay URL');
       }
+    });
+
+    test('handles URLs with URLSearchParams correctly', () => {
+      // Valid URLs with search parameters
+      const validUrlsWithParams = [
+        'wss://relay.example.com?key=value',
+        'wss://relay.example.com?key=value&key2=value2',
+        'ws://localhost:8080?debug=true',
+        'wss://relay.example.com/path?key=value#fragment'
+      ];
+
+      validUrlsWithParams.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+        
+        // Should not throw when encoding
+        expect(() => encodeProfile({
+          pubkey: validPubkey,
+          relays: [url]
+        })).not.toThrow();
+      });
+
+      // Potentially dangerous search params
+      const dangerousUrlParams = [
+        'wss://relay.example.com?script=<script>alert(1)</script>',
+        'wss://relay.example.com?callback=javascript:alert(1)',
+        'wss://relay.example.com?data=" onmouseover="alert(1)"'
+      ];
+
+      // These should still be valid because URL encoding will escape the dangerous characters
+      // The security concern is more about how these are used after decoding
+      dangerousUrlParams.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+    });
+
+    test('validates URLs with fragments', () => {
+      // Valid URLs with fragments
+      const validUrlsWithFragments = [
+        'wss://relay.example.com#section1',
+        'wss://relay.example.com/path#section1',
+        'ws://localhost:8080#debug'
+      ];
+
+      validUrlsWithFragments.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+
+      // Potentially dangerous fragments
+      const dangerousUrlFragments = [
+        'wss://relay.example.com#<script>alert(1)</script>',
+        'wss://relay.example.com#javascript:alert(1)'
+      ];
+
+      // These should still be valid because URL encoding will escape the dangerous characters
+      dangerousUrlFragments.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+    });
+  });
+
+  describe('Host Validation', () => {
+    test('validates hosts correctly', () => {
+      // Valid hosts
+      const validHosts = [
+        'wss://relay.example.com',
+        'wss://localhost',
+        'wss://127.0.0.1',
+        'wss://[::1]', // IPv6
+        'wss://example-relay.com',
+        'wss://relay.example.co.uk'
+      ];
+
+      validHosts.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+
+      // Invalid or suspicious hosts
+      const invalidHosts = [
+        'wss://relay.example.com@evil.com', // URL confusion
+        'wss://relay.example.com\\@evil.com', // Attempted URL confusion
+        'wss://relay.example.com%252F@evil.com', // Double-encoded confusion
+        'wss://\u0000evil.com', // Null byte injection
+        'wss://relay.example.com\u0000.evil.com' // Null byte in middle
+      ];
+
+      invalidHosts.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(false);
+      });
+    });
+
+    test('handles international domain names (IDN)', () => {
+      // Valid international domain names
+      const validIDNs = [
+        'wss://例子.测试', // Chinese
+        'wss://пример.испытание', // Russian
+        'wss://مثال.اختبار', // Arabic
+        'wss://xn--fsqu00a.xn--0zwm56d' // Punycode
+      ];
+
+      validIDNs.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+
+      // Homograph attack examples (visually similar characters)
+      const homographAttacks = [
+        'wss://аpple.com', // Cyrillic 'а' instead of Latin 'a'
+        'wss://googIe.com', // Capital 'I' instead of lowercase 'l'
+        'wss://mirсrоsоft.com' // Multiple Cyrillic characters
+      ];
+
+      // Note: These will actually validate as proper URLs
+      // Real protection against homograph attacks requires additional checks
+      homographAttacks.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+        console.warn(`Warning: Homograph URL ${url} validates as correct`);
+      });
     });
   });
 
@@ -88,22 +213,32 @@ describe('NIP-19: Security Tests', () => {
         .fill(0)
         .map((_, i) => `wss://relay${i}.example.com`);
 
-      // Try with 50 relays - less than the 100 limit but more than reasonable
+      // Try with a reasonable number of relays (5)
+      expect(() => encodeProfile({
+        pubkey: validPubkey,
+        relays: generateRelays(5)
+      })).not.toThrow();
+
+      // Check if accepting a high but legal number
       try {
         encodeProfile({
           pubkey: validPubkey,
-          relays: generateRelays(50)
+          relays: generateRelays(19) // Just under the limit
         });
-        console.warn('SECURITY ISSUE: Accepts 50 relay entries, which is high for normal usage');
       } catch (error) {
-        // If it throws, check that it's because of the relay count
-        expect((error as Error).message).toContain('Too many relay entries');
+        console.warn('SECURITY NOTE: Limit for relays is less than 19, which is unexpected');
       }
 
-      // Try with 21 relays - should definitely throw if limit is 20
+      // Try with 21 relays - should throw if limit is 20
       expect(() => encodeProfile({
         pubkey: validPubkey,
         relays: generateRelays(21)
+      })).toThrow(/Too many relay entries/);
+
+      // Try with 50 relays - should definitely throw due to the limit
+      expect(() => encodeProfile({
+        pubkey: validPubkey,
+        relays: generateRelays(50)
       })).toThrow(/Too many relay entries/);
     });
 
@@ -124,7 +259,7 @@ describe('NIP-19: Security Tests', () => {
   });
 
   describe('Decode Security Tests', () => {
-    test('validator accepts malicious URLs but warns during decoding', () => {
+    test('validator handles malicious URLs', () => {
       // This test manually constructs an invalid TLV to bypass encoding validation
       
       // Helper function to create a profile with manual TLV entries
@@ -184,21 +319,7 @@ describe('NIP-19: Security Tests', () => {
       }
     });
 
-    test('SECURITY BUG: encodeProfile does not check relay count', () => {
-      /**
-       * SECURITY ISSUE: Unlike encodeEvent and encodeAddress, the encodeProfile 
-       * function doesn't validate the number of relay entries before processing them.
-       * This could lead to:
-       * 1. DoS vulnerabilities from processing too many entries
-       * 2. Inconsistent behavior compared to other encoding functions
-       * 3. Bypassing the MAX_TLV_ENTRIES limit that's supposed to be enforced
-       * 
-       * Fix: Add the same check that exists in encodeEvent and encodeAddress:
-       * if (data.relays && data.relays.length > MAX_TLV_ENTRIES) {
-       *   throw new Error(`Too many relay entries: ${data.relays.length} exceeds maximum of ${MAX_TLV_ENTRIES}`);
-       * }
-       */
-      
+    test('encodeProfile checks relay count', () => {
       // Create an array of more than MAX_TLV_ENTRIES (20) valid relay URLs
       const tooManyRelays = Array(30)
         .fill(0)
@@ -218,20 +339,11 @@ describe('NIP-19: Security Tests', () => {
         relays: tooManyRelays
       })).toThrow(/Too many relay entries/);
       
-      // encodeProfile should also throw but doesn't - this is the bug
-      // This will catch the bug when it's fixed (test will start passing)
-      try {
-        encodeProfile({
-          pubkey: validPubkey,
-          relays: tooManyRelays
-        });
-        
-        // If we reach here, no exception was thrown - this is the bug
-        console.error('SECURITY BUG: encodeProfile accepted too many relays without validation');
-      } catch (error) {
-        // If an error is thrown, validate it's the expected one
-        expect((error as Error).message).toContain('Too many relay entries');
-      }
+      // encodeProfile should also throw
+      expect(() => encodeProfile({
+        pubkey: validPubkey,
+        relays: tooManyRelays
+      })).toThrow(/Too many relay entries/);
     });
     
     test('rejects invalid relay URLs during encoding', () => {
@@ -292,7 +404,7 @@ describe('NIP-19: Security Tests', () => {
   });
 
   describe('isValidRelayUrl', () => {
-    it('should validate relay URLs correctly', () => {
+    test('should validate relay URLs correctly', () => {
       // Valid relay URLs
       expect(isValidRelayUrl('wss://relay.example.com')).toBe(true);
       expect(isValidRelayUrl('ws://localhost:8080')).toBe(true);
@@ -306,6 +418,75 @@ describe('NIP-19: Security Tests', () => {
       expect(isValidRelayUrl('wss://user:password@relay.example.com')).toBe(false);
       expect(isValidRelayUrl('javascript:alert(1)')).toBe(false);
       expect(isValidRelayUrl('data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==')).toBe(false);
+    });
+
+    test('should handle extreme URL edge cases', () => {
+      // Edge cases that should be rejected
+      const invalidEdgeCases: string[] = [
+        '', // Empty string
+        'wss:', // Protocol only
+        'wss://', // Protocol with empty host
+        'wss:///', // Protocol with empty host and path
+        'wss://\x00example.com', // Null byte in hostname
+        'ws:// example.com', // Space in URL
+        'wss://////example.com', // Multiple slashes
+        'wss://example.com\\', // Backslash in URL
+        'wss:\\/\\/example.com', // Attempted escaping
+        'wss://example!.com', // Invalid character in hostname
+        'wss://relay.example.com?test=%00' // Null byte in query param
+      ];
+
+      invalidEdgeCases.forEach(url => {
+        const result = isValidRelayUrl(url);
+        if (result === true) {
+          console.error(`URL expected to be invalid but was valid: "${url}"`);
+        }
+        expect(isValidRelayUrl(url)).toBe(false);
+      });
+
+      // Edge cases that should be accepted
+      const validEdgeCases: string[] = [
+        'wss://a.b', // Minimal TLD
+        'ws://[::1]:8080', // IPv6 with port
+        'wss://relay.example.com:65535', // Maximum port number
+        'wss://relay.example.com/', // Trailing slash
+        'wss://xn--bcher-kva.example', // Punycode
+        'wss://relay.example.com:80/path/to/resource.json?a=1&b=2#section' // Complex URL with all parts
+      ];
+
+      validEdgeCases.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+    });
+  });
+
+  describe('Unusual port numbers', () => {
+    test('handles various port numbers correctly', () => {
+      // Valid port numbers
+      const validPorts = [
+        'wss://relay.example.com:80',
+        'wss://relay.example.com:443',
+        'wss://relay.example.com:8080',
+        'wss://relay.example.com:1',
+        'wss://relay.example.com:65535' // Maximum valid port
+      ];
+
+      validPorts.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(true);
+      });
+
+      // Invalid port numbers
+      const invalidPorts = [
+        'wss://relay.example.com:0', // Port 0 is reserved
+        'wss://relay.example.com:65536', // Exceeds maximum valid port
+        'wss://relay.example.com:-1', // Negative port
+        'wss://relay.example.com:port', // Non-numeric port
+        'wss://relay.example.com:8080a' // Port with trailing character
+      ];
+
+      invalidPorts.forEach(url => {
+        expect(isValidRelayUrl(url)).toBe(false);
+      });
     });
   });
 });

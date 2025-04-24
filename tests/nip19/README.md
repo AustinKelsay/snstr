@@ -10,6 +10,7 @@ This directory contains tests for the Nostr NIP-19 implementation, which provide
 - ✅ Error handling for invalid inputs
 - ✅ Edge cases with unusual inputs
 - ✅ Entity validation
+- ✅ Comprehensive security testing
 
 ## Running the Tests
 
@@ -19,6 +20,9 @@ npm run test:nip19
 
 # Run a specific test file
 npx jest tests/nip19/bech32.test.ts
+
+# Run security tests specifically
+npx jest tests/nip19/security.test.ts
 ```
 
 ## Test Files
@@ -59,6 +63,9 @@ Our implementation includes security features to prevent potential attacks:
    - Use proper WebSocket protocols (`ws://` or `wss://`)
    - Have a valid URL format
    - Don't contain potentially malicious content (e.g., JavaScript injection)
+   - Don't include credentials, null bytes, or other dangerous characters
+   - Use valid port numbers (1-65535)
+   - Handle international domain names properly
 
 2. **TLV Entry Limits**: We enforce limits on TLV entries to prevent DoS attacks:
    - Maximum of 20 TLV entries per encoded entity
@@ -67,45 +74,55 @@ Our implementation includes security features to prevent potential attacks:
 
 3. **Error Handling**: Proper error handling for all encoding and decoding operations
 
-## Key Test Cases
+4. **Input Filtering**: Security-focused functions to filter untrusted inputs:
+   - `filterProfile`: Remove invalid relay URLs from profiles
+   - `filterEvent`: Remove invalid relay URLs from events
+   - `filterAddress`: Remove invalid relay URLs from addresses
+   - `isValidRelayUrl`: Validate relay URLs before using them
 
-### Relay URL Validation
+## Comprehensive Security Tests
 
-Tests ensure all encoding functions (`encodeProfile`, `encodeEvent`, `encodeAddress`) properly validate relay URLs:
+The `security.test.ts` file includes tests for:
 
-```typescript
-// Valid relay URL
-const validProfile = {
-  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-  relays: ['wss://relay.example.com']
-};
+1. **URL Validation and Sanitization**
+   - Protocol validation
+   - Malicious URL detection
+   - Credentials handling
+   - URLSearchParams validation
+   - Fragment validation
 
-// Invalid relay URL
-const invalidProfile = {
-  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-  relays: ['not-a-valid-url']
-};
+2. **Host Validation**
+   - Domain validation
+   - International domain name handling
+   - Homograph attack detection awareness
 
-// Valid URL should work, invalid should throw
-expect(() => encodeProfile(validProfile)).not.toThrow();
-expect(() => encodeProfile(invalidProfile)).toThrow(/Invalid relay URL/);
-```
+3. **TLV Entry Limits**
+   - Preventing DoS via excessive entries
 
-### TLV Entry Limits
+4. **Decode Security**
+   - Handling of manually crafted TLV entries
+   - Relay count validation
 
-Tests verify enforcement of TLV entry limits to prevent DoS attacks:
+5. **Integration with Decoders**
+   - Safe decoding of potentially malicious profiles
 
-```typescript
-// Create many relays (exceeding MAX_TLV_ENTRIES)
-const manyRelays = Array(21).fill(0).map((_, i) => `wss://relay${i}.example.com`);
+6. **Edge Cases**
+   - Port number validation
+   - URL special characters
+   - Various extreme URL formats
 
-const profileWithManyRelays = {
-  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-  relays: manyRelays
-};
+## Security Best Practices
 
-// Should throw due to too many relays
-expect(() => encodeProfile(profileWithManyRelays)).toThrow(/Too many relay entries/);
-```
+When working with NIP-19 and relay URLs:
 
-These tests ensure our implementation complies with the NIP-19 spec while also providing protection against common security vulnerabilities. 
+1. Always validate any relay URL before processing or connecting
+2. Use the `filterProfile`, `filterEvent`, and `filterAddress` functions when receiving untrusted inputs
+3. Be cautious with URL parameters and fragments which may contain malicious content
+4. Consider homograph attacks when displaying internationalized domain names
+5. Apply URL length limits to prevent DoS attacks
+6. Use the `isValidRelayUrl` function to validate any relay URL
+
+## References
+
+- [NIP-19 Specification](https://github.com/nostr-protocol/nips/blob/master/19.md)
+- [OWASP URL Validation Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html) 

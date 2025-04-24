@@ -12,10 +12,48 @@ import type { ProfileData, EventData, AddressData } from './index';
  * - Must start with wss:// or ws:// 
  * - Must be a valid URL
  * - No credentials (username/password) in URL
+ * - No URL confusion or redirection tricks
+ * - Valid port numbers (1-65535, not 0)
+ * - No null bytes or dangerous characters in hostname
+ * - No null bytes in query parameters
  */
 export function isValidRelayUrl(url: string): boolean {
   try {
+    // Basic protocol check
     if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+      return false;
+    }
+    
+    // Check for null bytes and other control characters in the entire URL
+    if (/[\u0000-\u001F\u007F-\u009F]/.test(url)) {
+      return false;
+    }
+    
+    // Check for encoded null bytes in the URL
+    if (url.includes('%00') || url.toLowerCase().includes('%0a') || url.toLowerCase().includes('%0d')) {
+      return false;
+    }
+    
+    // Check for URL confusion attacks (@ symbol in host part)
+    if (url.includes('@')) {
+      return false;
+    }
+    
+    // Check for backslashes that might be used for escaping
+    if (url.includes('\\')) {
+      return false;
+    }
+    
+    // Check for multiple slashes (protocol:///)
+    if (/^ws+:\/\/\//.test(url)) {
+      return false;
+    }
+    
+    // Normalize the URL to catch sneaky tricks
+    const normalized = url.toLowerCase();
+    
+    // Check for exactly the right protocol pattern
+    if (!normalized.match(/^wss:\/\/[^\/]|^ws:\/\/[^\/]/)) {
       return false;
     }
     
@@ -23,6 +61,31 @@ export function isValidRelayUrl(url: string): boolean {
     
     // Check for credentials in the URL (username or password)
     if (parsedUrl.username || parsedUrl.password) {
+      return false;
+    }
+    
+    // Validate port number if specified
+    if (parsedUrl.port) {
+      const portNum = parseInt(parsedUrl.port, 10);
+      // Port must be between 1 and 65535
+      if (isNaN(portNum) || portNum <= 0 || portNum > 65535) {
+        return false;
+      }
+    }
+    
+    // Ensure the host doesn't contain any suspicious characters
+    // Only allow: alphanumeric, dots, hyphens, and brackets (for IPv6)
+    const hostnameWithoutIPv6 = parsedUrl.hostname.replace(/^\[.*\]$/, ''); // Remove IPv6 brackets for checking
+    if (!/^[a-zA-Z0-9.-]*$/.test(hostnameWithoutIPv6) && !parsedUrl.hostname.startsWith('[')) {
+      return false;
+    }
+    
+    // Check search params for encoded null bytes and other dangerous characters
+    if (parsedUrl.search && (
+        parsedUrl.search.includes('%00') || 
+        parsedUrl.search.toLowerCase().includes('%0a') || 
+        parsedUrl.search.toLowerCase().includes('%0d')
+      )) {
       return false;
     }
     
