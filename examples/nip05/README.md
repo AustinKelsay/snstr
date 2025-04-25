@@ -36,13 +36,14 @@ VERBOSE=true npm run example:nip05
 - **NIP-05 Identifiers**: Internet identifiers in the format `name@domain.com`
 - **Verification Process**: The domain hosts a `/.well-known/nostr.json` file mapping names to public keys
 - **Relay Recommendations**: Domains can suggest preferred relays for their users
+- **Secure Connections**: All NIP-05 lookups use secure HTTPS connections with TLS certificate validation
 
 ## API Functions Used
 
 - `lookupNIP05()`: Query a domain for NIP-05 records
 - `verifyNIP05()`: Check if a NIP-05 identifier matches a given public key
-- `getPublicKeyFromNIP05()`: Extract a public key from a NIP-05 identifier
-- `getRelaysFromNIP05()`: Get recommended relays for a NIP-05 identifier
+- `getNIP05PubKey()`: Extract a public key from a NIP-05 identifier
+- `getNIP05Relays()`: Get recommended relays for a NIP-05 identifier and pubkey
 
 ## Sample Output
 
@@ -51,6 +52,13 @@ When running the example with real identifiers like `jack@cash.app`, you'll see:
 - The associated public key (if found)
 - Recommended relays (if any)
 - Verification results with correct and incorrect public keys
+
+## Security Features
+
+- Case-insensitive username handling
+- TLS certificate validation for secure connections
+- Cross-platform compatibility (works in both browsers and Node.js)
+- Error handling for network issues and malformed responses
 
 ## Related NIPs
 

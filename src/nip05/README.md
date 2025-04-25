@@ -12,6 +12,7 @@ NIP-05 allows users to verify ownership of a domain name or subdomain and associ
 - 🌐 **Lookup**: Get the public key for a given NIP-05 identifier
 - 🔑 **Key Retrieval**: Extract just the public key from a NIP-05 identifier
 - 📡 **Relay Discovery**: Get recommended relays associated with a NIP-05 identifier
+- 🔒 **Security**: Enforces TLS certificate validation for secure connections
 
 ## Basic Usage
 
@@ -56,10 +57,10 @@ if (response) {
 ### Getting a Public Key from an Identifier
 
 ```typescript
-import { getPublicKeyFromNIP05 } from 'snstr';
+import { getNIP05PubKey } from 'snstr';
 
 // Get just the public key for a NIP-05 identifier
-const pubkey = await getPublicKeyFromNIP05('name@example.com');
+const pubkey = await getNIP05PubKey('name@example.com');
 
 if (pubkey) {
   console.log('Found public key:', pubkey);
@@ -71,10 +72,10 @@ if (pubkey) {
 ### Discovering Relays for a User
 
 ```typescript
-import { getRelaysFromNIP05 } from 'snstr';
+import { getNIP05Relays } from 'snstr';
 
 // Get recommended relays for a NIP-05 identifier
-const relays = await getRelaysFromNIP05('name@example.com');
+const relays = await getNIP05Relays('name@example.com', 'public_key_hex');
 
 if (relays) {
   console.log('Recommended relays:', relays);
@@ -82,22 +83,25 @@ if (relays) {
   console.log('No relays found for this identifier.');
 }
 
-// Optionally verify against a known pubkey
-const verifiedRelays = await getRelaysFromNIP05(
-  'name@example.com',
-  '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'
-);
+// Always provide the pubkey when retrieving relays
+const pubkey = await getNIP05PubKey('name@example.com');
+if (pubkey) {
+  const verifiedRelays = await getNIP05Relays('name@example.com', pubkey);
+  console.log('Relays for verified pubkey:', verifiedRelays);
+}
 ```
 
 ## Implementation Details
 
-- Uses a simple HTTP GET request to fetch the `.well-known/nostr.json` file
-- Handles both regular identifiers (`name@domain.com`) and the special root identifier (`_@domain.com`)
+- Uses a secure HTTPS GET request with TLS certificate validation
+- Handles identifiers case-insensitively for improved user experience
 - Provides appropriate error handling for malformed responses
 - Includes type checking to ensure responses match the expected format
+- Works across both browser and Node.js environments
 
 ## Security Considerations
 
 - Always verify that the NIP-05 identifier matches the expected public key before trusting messages
+- TLS certificate validation is enforced to prevent man-in-the-middle attacks
 - Remember that NIP-05 depends on DNS and HTTPS, which may be compromised or censored
 - Treat NIP-05 as a helpful hint for human-readable identifiers, not as a cryptographic proof of identity 

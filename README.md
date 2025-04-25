@@ -247,8 +247,8 @@ See the [NIP-19 README](src/nip19/README.md) for detailed information and more e
 import {
   verifyNIP05,
   lookupNIP05,
-  getPublicKeyFromNIP05,
-  getRelaysFromNIP05
+  getNIP05PubKey,
+  getNIP05Relays
 } from 'snstr';
 ```
 
@@ -703,8 +703,8 @@ SNSTR includes a complete implementation of [NIP-05](https://github.com/nostr-pr
 ```typescript
 import { 
   verifyNIP05, 
-  getPublicKeyFromNIP05,
-  getRelaysFromNIP05 
+  getNIP05PubKey,
+  getNIP05Relays
 } from 'snstr';
 
 async function main() {
@@ -717,12 +717,12 @@ async function main() {
   console.log(`Verification result: ${isValid ? 'Valid ✅' : 'Invalid ❌'}`);
   
   // Find a public key from a NIP-05 identifier
-  const pubkey = await getPublicKeyFromNIP05('username@example.com');
+  const pubkey = await getNIP05PubKey('username@example.com');
   if (pubkey) {
     console.log(`Found public key: ${pubkey}`);
     
     // Get recommended relays for this identifier
-    const relays = await getRelaysFromNIP05('username@example.com');
+    const relays = await getNIP05Relays('username@example.com', pubkey);
     if (relays && relays.length > 0) {
       console.log('Recommended relays:');
       relays.forEach(relay => console.log(`  - ${relay}`));

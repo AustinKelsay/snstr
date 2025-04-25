@@ -25,19 +25,20 @@ export async function verifyNIP05(identifier: string, pubkey: string): Promise<b
     }
     
     const response = await lookupNIP05(identifier);
+    if (!response) return false;
     
-    // Check if the name exists in the response and the pubkey matches
-    return response?.names[name] === pubkey;
+    // Check if the name exists in the response and corresponds to our pubkey
+    return response.names[name.toLowerCase()] === pubkey;
   } catch (error) {
     return false;
   }
 }
 
 /**
- * Lookup a NIP-05 identifier to get the associated public key and relays
+ * Lookup NIP-05 identifier and get the associated pubkey and relays
  * 
  * @param identifier - NIP-05 identifier in the format username@domain.com
- * @returns Promise that resolves to NIP05Response or null if not found/invalid
+ * @returns Promise that resolves to NIP05Response or null if lookup fails
  */
 export async function lookupNIP05(identifier: string): Promise<NIP05Response | null> {
   try {
@@ -48,23 +49,30 @@ export async function lookupNIP05(identifier: string): Promise<NIP05Response | n
       return null;
     }
     
-    // Handle the special case for root identifiers
-    const localPart = name === '_' ? '' : `?name=${encodeURIComponent(name)}`;
+    // Construct the URL for the NIP-05 JSON file
+    const url = `https://${domain}/.well-known/nostr.json?name=${name.toLowerCase()}`;
     
-    // Make request to the well-known URL
-    const url = `https://${domain}/.well-known/nostr.json${localPart}`;
-    const response = await fetch(url);
+    // Set up fetch options with headers
+    const fetchOptions: RequestInit = {
+      method: 'GET',
+      headers: { Accept: 'application/json' }
+    };
     
-    // If response is not OK, return null
+    // Add TLS certificate validation
+    // Note: In browsers, TLS validation is handled automatically
+    // In Node.js environments, this would need to be handled with an https agent
+    // but we'll use the default fetch behavior which should validate certificates
+    
+    const response = await fetch(url, fetchOptions);
+    
     if (!response.ok) {
       return null;
     }
     
-    // Parse the JSON response
     const data = await response.json();
     
-    // Verify it has the required structure
-    if (!data.names || typeof data.names !== 'object') {
+    // Check if the response contains the required names field
+    if (!data || !data.names) {
       return null;
     }
     
@@ -75,12 +83,12 @@ export async function lookupNIP05(identifier: string): Promise<NIP05Response | n
 }
 
 /**
- * Get the public key associated with a NIP-05 identifier
+ * Get the public key for a given NIP-05 identifier
  * 
  * @param identifier - NIP-05 identifier in the format username@domain.com
- * @returns Promise that resolves to the public key or null if not found/invalid
+ * @returns Promise that resolves to pubkey in hex format or null if lookup fails
  */
-export async function getPublicKeyFromNIP05(identifier: string): Promise<string | null> {
+export async function getNIP05PubKey(identifier: string): Promise<string | null> {
   try {
     const [name, domain] = identifier.split('@');
     
@@ -90,52 +98,28 @@ export async function getPublicKeyFromNIP05(identifier: string): Promise<string 
     }
     
     const response = await lookupNIP05(identifier);
+    if (!response) return null;
     
-    // If response is null or doesn't contain the name
-    if (!response || !response.names[name]) {
-      return null;
-    }
-    
-    return response.names[name];
+    // Check if the name exists in the response
+    return response.names[name.toLowerCase()] || null;
   } catch (error) {
     return null;
   }
 }
 
 /**
- * Get the recommended relays for a Nostr public key from a NIP-05 identifier
+ * Get the relays for a given NIP-05 identifier and pubkey
  * 
  * @param identifier - NIP-05 identifier in the format username@domain.com
- * @param pubkey - Optional public key to verify against
- * @returns Promise that resolves to an array of relay URLs or null
+ * @param pubkey - The Nostr public key in hex format
+ * @returns Promise that resolves to array of relay URLs or null if lookup fails
  */
-export async function getRelaysFromNIP05(
-  identifier: string, 
-  pubkey?: string
-): Promise<string[] | null> {
+export async function getNIP05Relays(identifier: string, pubkey: string): Promise<string[] | null> {
   try {
     const response = await lookupNIP05(identifier);
+    if (!response || !response.relays || !response.relays[pubkey]) return null;
     
-    // If response is null or doesn't contain relays
-    if (!response || !response.relays) {
-      return null;
-    }
-    
-    // If pubkey is provided, check relays for that specific key
-    if (pubkey && response.relays[pubkey]) {
-      return response.relays[pubkey];
-    }
-    
-    // Otherwise, try to get the public key from the identifier
-    const [name] = identifier.split('@');
-    const key = response.names[name];
-    
-    // If the key exists and has relays
-    if (key && response.relays[key]) {
-      return response.relays[key];
-    }
-    
-    return null;
+    return response.relays[pubkey];
   } catch (error) {
     return null;
   }

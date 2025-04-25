@@ -7,7 +7,7 @@
  * 3. Get recommended relays for a user
  */
 
-import { verifyNIP05, lookupNIP05, getPublicKeyFromNIP05, getRelaysFromNIP05 } from '../../src/nip05';
+import { verifyNIP05, lookupNIP05, getNIP05PubKey, getNIP05Relays } from '../../src/nip05';
 
 // Enable verbose logging if environment variable is set
 const verbose = process.env.VERBOSE === 'true';
@@ -45,11 +45,12 @@ async function main() {
         const [name] = identifier.split('@');
         console.log(`Found NIP-05 record for ${identifier}`);
         
-        if (result.names && result.names[name]) {
-          console.log(`Public key: ${result.names[name]}`);
+        if (result.names && result.names[name.toLowerCase()]) {
+          console.log(`Public key: ${result.names[name.toLowerCase()]}`);
           
           // 2. Get recommended relays
-          const relays = await getRelaysFromNIP05(identifier);
+          const pubkey = result.names[name.toLowerCase()];
+          const relays = await getNIP05Relays(identifier, pubkey);
           if (relays && relays.length > 0) {
             console.log('Recommended relays:');
             relays.forEach(relay => console.log(`  - ${relay}`));
@@ -58,7 +59,6 @@ async function main() {
           }
           
           // 3. Verify a pubkey (using the one we just found)
-          const pubkey = result.names[name];
           const isValid = await verifyNIP05(identifier, pubkey);
           console.log(`Verification with correct pubkey: ${isValid ? 'VALID ✅' : 'INVALID ❌'}`);
           

@@ -8,7 +8,7 @@
  * properly since they query real .well-known/nostr.json files.
  */
 
-import { verifyNIP05, lookupNIP05, getPublicKeyFromNIP05, getRelaysFromNIP05 } from '../src/nip05';
+import { verifyNIP05, lookupNIP05, getNIP05PubKey, getNIP05Relays } from '../src/nip05';
 
 // Mock implementations for testing without network
 global.fetch = jest.fn();
@@ -37,7 +37,13 @@ describe('NIP-05', () => {
       const result = await lookupNIP05('user@example.com');
       
       expect(result).toBeNull();
-      expect(global.fetch).toHaveBeenCalledWith('https://example.com/.well-known/nostr.json?name=user');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.com/.well-known/nostr.json?name=user',
+        expect.objectContaining({
+          method: 'GET',
+          headers: { Accept: 'application/json' }
+        })
+      );
     });
     
     it('should handle non-200 responses gracefully', async () => {
@@ -96,24 +102,32 @@ describe('NIP-05', () => {
       const result = await lookupNIP05('user@example.com');
       
       expect(result).toEqual(mockResponse);
-      expect(global.fetch).toHaveBeenCalledWith('https://example.com/.well-known/nostr.json?name=user');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.com/.well-known/nostr.json?name=user',
+        expect.any(Object)
+      );
     });
     
-    it('should handle root identifiers (_@domain) correctly', async () => {
+    it('should handle usernames case-insensitively', async () => {
+      const mockResponse = {
+        names: {
+          user: 'pubkey123'
+        }
+      };
+      
       // Mock a successful response
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: jest.fn().mockResolvedValueOnce({
-          names: {
-            _: 'rootpubkey1234',
-          }
-        })
+        json: jest.fn().mockResolvedValueOnce(mockResponse)
       });
       
-      const result = await lookupNIP05('_@example.com');
+      const result = await lookupNIP05('USER@example.com');
       
       expect(result).not.toBeNull();
-      expect(global.fetch).toHaveBeenCalledWith('https://example.com/.well-known/nostr.json');
+      expect(global.fetch).toHaveBeenCalledWith(
+        'https://example.com/.well-known/nostr.json?name=user',
+        expect.any(Object)
+      );
     });
   });
   
@@ -174,13 +188,32 @@ describe('NIP-05', () => {
       
       expect(result).toBe(false);
     });
+    
+    it('should handle case-insensitive usernames', async () => {
+      const pubkey = 'matching_pubkey_123';
+      const mockResponse = {
+        names: {
+          user: pubkey
+        }
+      };
+      
+      // Mock a successful response with matching pubkey
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse)
+      });
+      
+      const result = await verifyNIP05('USER@example.com', pubkey);
+      
+      expect(result).toBe(true);
+    });
   });
   
-  describe('getPublicKeyFromNIP05', () => {
+  describe('getNIP05PubKey', () => {
     it('should return null for invalid identifiers', async () => {
-      const result1 = await getPublicKeyFromNIP05('invalid-format');
-      const result2 = await getPublicKeyFromNIP05('missingdomain@');
-      const result3 = await getPublicKeyFromNIP05('@missingname');
+      const result1 = await getNIP05PubKey('invalid-format');
+      const result2 = await getNIP05PubKey('missingdomain@');
+      const result3 = await getNIP05PubKey('@missingname');
       
       expect(result1).toBeNull();
       expect(result2).toBeNull();
@@ -191,7 +224,7 @@ describe('NIP-05', () => {
       // Mock a failed lookup
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
       
-      const result = await getPublicKeyFromNIP05('user@example.com');
+      const result = await getNIP05PubKey('user@example.com');
       
       expect(result).toBeNull();
     });
@@ -210,7 +243,7 @@ describe('NIP-05', () => {
         json: jest.fn().mockResolvedValueOnce(mockResponse)
       });
       
-      const result = await getPublicKeyFromNIP05('user@example.com');
+      const result = await getNIP05PubKey('user@example.com');
       
       expect(result).toBe(pubkey);
     });
@@ -228,18 +261,37 @@ describe('NIP-05', () => {
         json: jest.fn().mockResolvedValueOnce(mockResponse)
       });
       
-      const result = await getPublicKeyFromNIP05('user@example.com');
+      const result = await getNIP05PubKey('user@example.com');
       
       expect(result).toBeNull();
     });
+    
+    it('should handle case-insensitive usernames', async () => {
+      const pubkey = 'valid_pubkey_123';
+      const mockResponse = {
+        names: {
+          user: pubkey
+        }
+      };
+      
+      // Mock a successful response
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse)
+      });
+      
+      const result = await getNIP05PubKey('USER@example.com');
+      
+      expect(result).toBe(pubkey);
+    });
   });
   
-  describe('getRelaysFromNIP05', () => {
+  describe('getNIP05Relays', () => {
     it('should return null when lookup fails', async () => {
       // Mock a failed lookup
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
       
-      const result = await getRelaysFromNIP05('user@example.com');
+      const result = await getNIP05Relays('user@example.com', 'pubkey');
       
       expect(result).toBeNull();
     });
@@ -258,12 +310,12 @@ describe('NIP-05', () => {
         json: jest.fn().mockResolvedValueOnce(mockResponse)
       });
       
-      const result = await getRelaysFromNIP05('user@example.com');
+      const result = await getNIP05Relays('user@example.com', 'pubkey');
       
       expect(result).toBeNull();
     });
     
-    it('should return relays for the matching pubkey', async () => {
+    it('should return relays for the specified pubkey', async () => {
       const pubkey = 'matching_pubkey';
       const relays = ['wss://relay1.com', 'wss://relay2.com'];
       
@@ -282,21 +334,22 @@ describe('NIP-05', () => {
         json: jest.fn().mockResolvedValueOnce(mockResponse)
       });
       
-      const result = await getRelaysFromNIP05('user@example.com');
+      const result = await getNIP05Relays('user@example.com', pubkey);
       
       expect(result).toEqual(relays);
     });
     
-    it('should allow specifying a pubkey directly', async () => {
+    it('should return null if no relays for specified pubkey', async () => {
       const pubkey = 'specified_pubkey';
+      const differentPubkey = 'different_pubkey';
       const relays = ['wss://relay1.com', 'wss://relay2.com'];
       
       const mockResponse = {
         names: {
-          user: 'different_pubkey'
+          user: differentPubkey
         },
         relays: {
-          [pubkey]: relays
+          [differentPubkey]: relays
         }
       };
       
@@ -306,9 +359,9 @@ describe('NIP-05', () => {
         json: jest.fn().mockResolvedValueOnce(mockResponse)
       });
       
-      const result = await getRelaysFromNIP05('user@example.com', pubkey);
+      const result = await getNIP05Relays('user@example.com', pubkey);
       
-      expect(result).toEqual(relays);
+      expect(result).toBeNull();
     });
   });
 }); 
