@@ -74,8 +74,8 @@ export {
 export {
   verifyNIP05,
   lookupNIP05,
-  getPublicKeyFromNIP05,
-  getRelaysFromNIP05
+  getNIP05PubKey,
+  getNIP05Relays
 } from './nip05'; 
 
 // Export NIP-07 utilities
