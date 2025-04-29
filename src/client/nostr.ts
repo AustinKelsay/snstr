@@ -135,8 +135,7 @@ export class Nostr {
       throw new Error('Private key is not set');
     }
 
-    const noteTemplate = createTextNote(content, tags);
-    noteTemplate.pubkey = this.publicKey;
+    const noteTemplate = createTextNote(content, this.privateKey, tags);
     const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
     
     const publishResult = await this.publishEvent(signedEvent, options);
@@ -154,7 +153,6 @@ export class Nostr {
     }
 
     const dmTemplate = createDirectMessage(content, recipientPubkey, this.privateKey, tags);
-    dmTemplate.pubkey = this.publicKey;
     const signedEvent = await createSignedEvent(dmTemplate, this.privateKey);
     
     const publishResult = await this.publishEvent(signedEvent, options);
@@ -250,8 +248,10 @@ export class Nostr {
   }
 
   public on(event: RelayEvent, callback: (relay: string, ...args: any[]) => void): void {
-    this.relays.forEach((relay) => {
-      relay.on(event, callback);
+    this.relays.forEach((relay, url) => {
+      relay.on(event, (...args: any[]) => {
+        callback(url, ...args);
+      });
     });
   }
 
@@ -271,7 +271,7 @@ export class Nostr {
   }> {
     const result = await this.publishEvent(event, options);
     
-    // Count successes and failures
+    // Count successful and failed relays
     let successCount = 0;
     let failureCount = 0;
     
@@ -285,7 +285,7 @@ export class Nostr {
     
     return {
       ...result,
-      event: result.event || event, // Always include the original event even if publishing failed
+      event: result.event || event,
       successCount,
       failureCount
     };

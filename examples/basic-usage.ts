@@ -1,5 +1,6 @@
 import { Nostr, NostrEvent, Filter, RelayEvent } from '../src';
 import { NostrRelay } from '../src/utils/ephemeral-relay';
+import { createEvent, createSignedEvent, getEventHash, createTextNote, createDirectMessage } from '../src/utils/event';
 
 // Set this to false to use external relays instead of ephemeral relay
 const USE_EPHEMERAL = process.env.USE_EPHEMERAL !== 'false';
@@ -106,9 +107,125 @@ async function main() {
     console.log('Publishing a second note...');
     const note2 = await client.publishTextNote('This is a second test note!');
     console.log(`Published second note with ID: ${note2?.id}`);
+
+    // ---- Demonstrate the improved event serialization ----
+    console.log('\n--- Demonstrating Secure Event Serialization ---');
+    
+    // Demo 1: Create events with special characters
+    try {
+      console.log('Creating event with special characters...');
+      const specialContent = 'Special chars: "quotes", \\backslashes\\, \nnewlines and emoji 🔥';
+      const specialEvent = createEvent(
+        { kind: 1, content: specialContent, tags: [['t', 'test']] },
+        keys.publicKey
+      );
+      
+      const hash = await getEventHash(specialEvent);
+      console.log(`Event hash: ${hash}`);
+      
+      const signedEvent = await createSignedEvent(specialEvent, keys.privateKey);
+      console.log('Event successfully created and signed with special characters');
+      
+      // Publish the event with special characters
+      console.log('Publishing event with special characters...');
+      const publishResult = await client.publishEvent(signedEvent);
+      console.log(`Published special character event: ${publishResult.success ? 'Success' : 'Failed'}`);
+    } catch (error) {
+      console.error('Error handling special characters:', error);
+    }
+    
+    // Demo 2: Demonstrate deterministic hashing regardless of property order
+    try {
+      console.log('\nDemonstrating deterministic hashing...');
+      
+      // Create two events with the same data but different property ordering
+      const timestamp = Math.floor(Date.now() / 1000);
+      
+      // Event 1: Standard property order
+      const event1 = {
+        pubkey: keys.publicKey,
+        created_at: timestamp,
+        kind: 1,
+        tags: [['t', 'deterministic']],
+        content: 'Testing deterministic serialization'
+      };
+      
+      // Event 2: Different property order
+      const event2 = {
+        content: 'Testing deterministic serialization',
+        kind: 1,
+        pubkey: keys.publicKey,
+        tags: [['t', 'deterministic']],
+        created_at: timestamp
+      };
+      
+      // Hash both events
+      const hash1 = await getEventHash(event1);
+      const hash2 = await getEventHash(event2);
+      
+      console.log(`Hash 1: ${hash1}`);
+      console.log(`Hash 2: ${hash2}`);
+      console.log(`Hashes match: ${hash1 === hash2 ? 'Yes ✅' : 'No ❌'}`);
+      
+      if (hash1 === hash2) {
+        console.log('Event serialization is deterministic regardless of property order');
+      }
+    } catch (error) {
+      console.error('Error in deterministic hashing demo:', error);
+    }
+    
+    // Demo 3: Demonstrate validation with intentionally malformed events
+    console.log('\nDemonstrating event validation...');
+    
+    try {
+      // Attempt to create an event with missing pubkey
+      const invalidEvent = {
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: 'This event is missing a pubkey'
+      };
+      
+      // This should throw an error
+      await getEventHash(invalidEvent as any);
+      console.log('❌ Validation failed - should have rejected missing pubkey');
+    } catch (error) {
+      // This is expected
+      console.log(`✅ Correctly rejected invalid event: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+    
+    try {
+      // Attempt to create an event with invalid tags
+      const invalidTagsEvent = {
+        pubkey: keys.publicKey,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: 'not-an-array',
+        content: 'This event has invalid tags'
+      };
+      
+      // This should throw an error
+      await getEventHash(invalidTagsEvent as any);
+      console.log('❌ Validation failed - should have rejected invalid tags');
+    } catch (error) {
+      // This is expected
+      console.log(`✅ Correctly rejected invalid tags: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+    
+    // Demo 4: Demonstrate the improved helper functions
+    console.log('\nDemonstrating improved helper functions:');
+    
+    // Create a text note with automatic pubkey derivation
+    const directTextNote = createTextNote('This text note has pubkey automatically set', keys.privateKey);
+    console.log(`Text note pubkey: ${directTextNote.pubkey.slice(0, 8)}...`);
+    
+    // Create a direct message with automatic pubkey derivation
+    const recipient = keys.publicKey; // Just using the same key for demo
+    const directMessage = createDirectMessage('This is an encrypted message', recipient, keys.privateKey);
+    console.log(`Direct message pubkey: ${directMessage.pubkey.slice(0, 8)}...`);
     
     // Wait a bit then clean up
-    console.log('Waiting for 10 seconds...');
+    console.log('\nWaiting for 10 seconds...');
     await new Promise(resolve => setTimeout(resolve, 10000));
     
     // Unsubscribe and disconnect

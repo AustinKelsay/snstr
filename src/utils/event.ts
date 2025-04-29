@@ -13,16 +13,53 @@ async function sha256Hash(data: string): Promise<string> {
 
 export type UnsignedEvent = Omit<NostrEvent, 'id' | 'sig'>;
 
+/**
+ * Calculate the event hash following NIP-01 specification exactly
+ * for deterministic serialization across different implementations
+ */
 export async function getEventHash(event: UnsignedEvent | NostrEvent): Promise<string> {
-  const serialized = JSON.stringify([
+  // Validate event structure first - these fields are required by the Nostr protocol
+  if (!event.pubkey) throw new Error('Invalid event: missing pubkey');
+  if (!event.created_at) throw new Error('Invalid event: missing created_at');
+  if (event.kind === undefined) throw new Error('Invalid event: missing kind');
+  if (!Array.isArray(event.tags)) throw new Error('Invalid event: tags must be an array');
+  
+  // Ensure the tags are valid arrays of strings
+  for (const tag of event.tags) {
+    if (!Array.isArray(tag)) throw new Error('Invalid event: each tag must be an array');
+    for (const item of tag) {
+      if (typeof item !== 'string') throw new Error('Invalid event: tag items must be strings');
+    }
+  }
+  
+  // Check that content is a string
+  if (typeof event.content !== 'string') throw new Error('Invalid event: content must be a string');
+
+  // NIP-01 specifies the serialization format as:
+  // [0, pubkey, created_at, kind, tags, content]
+  // We need to ensure deterministic serialization
+  
+  // Create the array to be serialized
+  const eventData = [
     0,
     event.pubkey,
     event.created_at,
     event.kind,
     event.tags,
     event.content
-  ]);
-
+  ];
+  
+  // Per NIP-01: whitespace, line breaks or other unnecessary formatting 
+  // should not be included in the output JSON
+  // JavaScript's JSON.stringify doesn't add whitespace by default
+  // so we don't need to pass additional options
+  
+  // Serialize to JSON without pretty formatting
+  // JSON.stringify on arrays is deterministic in all JS engines
+  // because array order is preserved
+  const serialized = JSON.stringify(eventData);
+  
+  // Hash the serialized data
   return sha256Hex(serialized);
 }
 
@@ -77,10 +114,21 @@ export async function createSignedEvent(
 
 /**
  * Create a text note event (kind 1)
+ * 
+ * @param content The content of the text note
+ * @param privateKey The private key to derive the pubkey from
+ * @param tags Optional tags for the event
+ * @returns An unsigned event with pubkey automatically set
  */
-export function createTextNote(content: string, tags: string[][] = []): UnsignedEvent {
+export function createTextNote(
+  content: string, 
+  privateKey: string,
+  tags: string[][] = []
+): UnsignedEvent {
+  const pubkey = getPublicKey(privateKey);
+  
   return {
-    pubkey: '',
+    pubkey,
     created_at: Math.floor(Date.now() / 1000),
     kind: 1,
     tags,
@@ -91,6 +139,12 @@ export function createTextNote(content: string, tags: string[][] = []): Unsigned
 /**
  * Create a direct message event (kind 4)
  * Encrypts the content using NIP-04 specification
+ * 
+ * @param content The plaintext content to encrypt
+ * @param recipientPubkey The public key of the recipient
+ * @param privateKey The private key of the sender
+ * @param tags Optional additional tags
+ * @returns An unsigned event with pubkey automatically set and content encrypted
  */
 export function createDirectMessage(
   content: string,
@@ -98,11 +152,13 @@ export function createDirectMessage(
   privateKey: string,
   tags: string[][] = []
 ): UnsignedEvent {
+  const pubkey = getPublicKey(privateKey);
+  
   // Encrypt the content using NIP-04
   const encryptedContent = encryptNIP04(content, privateKey, recipientPubkey);
 
   return {
-    pubkey: '',
+    pubkey,
     created_at: Math.floor(Date.now() / 1000),
     kind: 4,
     tags: [['p', recipientPubkey], ...tags],
@@ -117,8 +173,11 @@ export function createMetadataEvent(
   metadata: Record<string, any>,
   privateKey: string
 ): UnsignedEvent {
+  // Get the public key from the private key to ensure the pubkey is non-empty
+  const pubkey = getPublicKey(privateKey);
+  
   return {
-    pubkey: '',
+    pubkey,
     created_at: Math.floor(Date.now() / 1000),
     kind: 0,
     tags: [],
