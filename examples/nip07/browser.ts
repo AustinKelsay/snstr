@@ -1,9 +1,9 @@
-import { 
-  Nip07Nostr, 
-  hasNip07Support, 
+import {
+  Nip07Nostr,
+  hasNip07Support,
   getNip07PublicKey,
-  RelayEvent
-} from '../../src';
+  RelayEvent,
+} from "../../src";
 
 /**
  * Example showing how to use the SNSTR library with NIP-07 browser extensions
@@ -11,10 +11,16 @@ import {
 async function nip07Example() {
   // First check if there's a NIP-07 browser extension available
   if (!hasNip07Support()) {
-    console.error('No NIP-07 compatible extension detected. Please install one of:');
-    console.error('- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp');
-    console.error('- Alby (Chrome/Firefox): https://getalby.com/');
-    console.error('- noStrudel (Firefox): https://addons.mozilla.org/en-US/firefox/addon/nostrudel/');
+    console.error(
+      "No NIP-07 compatible extension detected. Please install one of:",
+    );
+    console.error(
+      "- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp",
+    );
+    console.error("- Alby (Chrome/Firefox): https://getalby.com/");
+    console.error(
+      "- noStrudel (Firefox): https://addons.mozilla.org/en-US/firefox/addon/nostrudel/",
+    );
     return;
   }
 
@@ -25,18 +31,18 @@ async function nip07Example() {
 
     // Initialize client with some relays
     const client = new Nip07Nostr([
-      'wss://relay.damus.io', 
-      'wss://relay.nostr.band',
-      'wss://nos.lol'
+      "wss://relay.damus.io",
+      "wss://relay.nostr.band",
+      "wss://nos.lol",
     ]);
 
     // Connect to the relays
     await client.connectToRelays();
-    console.log('Connected to relays');
+    console.log("Connected to relays");
 
     // Initialize with the NIP-07 extension's public key
     await client.initializeWithNip07();
-    
+
     // Set up event handlers for relay events
     client.on(RelayEvent.Connect, (relay) => {
       console.log(`Connected to ${relay}`);
@@ -47,26 +53,30 @@ async function nip07Example() {
     });
 
     // UI Elements - in a real application, these would be part of your UI framework
-    const noteInput = document.getElementById('note-input') as HTMLTextAreaElement;
-    const publishButton = document.getElementById('publish-button') as HTMLButtonElement;
-    const statusDiv = document.getElementById('status') as HTMLDivElement;
+    const noteInput = document.getElementById(
+      "note-input",
+    ) as HTMLTextAreaElement;
+    const publishButton = document.getElementById(
+      "publish-button",
+    ) as HTMLButtonElement;
+    const statusDiv = document.getElementById("status") as HTMLDivElement;
 
     if (publishButton) {
-      publishButton.addEventListener('click', async () => {
+      publishButton.addEventListener("click", async () => {
         if (!noteInput?.value) {
-          statusDiv.textContent = 'Please enter a note';
+          statusDiv.textContent = "Please enter a note";
           return;
         }
 
         try {
-          statusDiv.textContent = 'Publishing note...';
+          statusDiv.textContent = "Publishing note...";
           const note = await client.publishTextNote(noteInput.value);
-          
+
           if (note) {
             statusDiv.textContent = `Note published! ID: ${note.id}`;
-            noteInput.value = '';
+            noteInput.value = "";
           } else {
-            statusDiv.textContent = 'Failed to publish note';
+            statusDiv.textContent = "Failed to publish note";
           }
         } catch (error) {
           statusDiv.textContent = `Error: ${error}`;
@@ -81,10 +91,10 @@ async function nip07Example() {
       (event, relay) => {
         console.log(`Received note from ${relay}:`, event);
         // In a real app, you would update the UI with the notes
-        const notesContainer = document.getElementById('notes');
+        const notesContainer = document.getElementById("notes");
         if (notesContainer) {
-          const noteElement = document.createElement('div');
-          noteElement.className = 'note';
+          const noteElement = document.createElement("div");
+          noteElement.className = "note";
           noteElement.innerHTML = `
             <p><strong>From:</strong> ${event.pubkey}</p>
             <p><strong>Content:</strong> ${event.content}</p>
@@ -93,20 +103,20 @@ async function nip07Example() {
           `;
           notesContainer.prepend(noteElement);
         }
-      }
+      },
     );
 
     // In a real app, you might want to clean up when the component unmounts
     // client.unsubscribe(subscriptionIds);
     // client.disconnectFromRelays();
   } catch (error) {
-    console.error('Error in NIP-07 example:', error);
+    console.error("Error in NIP-07 example:", error);
   }
 }
 
 // Call the example function when the page loads
-if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', nip07Example);
+if (typeof window !== "undefined") {
+  window.addEventListener("DOMContentLoaded", nip07Example);
 }
 
 // Example HTML structure:
@@ -165,4 +175,4 @@ if (typeof window !== 'undefined') {
   <script src="browser.js"></script>
 </body>
 </html>
-*/ 
+*/

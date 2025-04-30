@@ -1,6 +1,6 @@
 /**
  * NIP-46 Request and Response Utilities
- * 
+ *
  * This module contains types and helper functions for NIP-46 request/response handling.
  */
 
@@ -33,14 +33,17 @@ export function createRequest(method: string, params: string[]): NIP46Request {
   return {
     id: generateRequestId(),
     method,
-    params
+    params,
   };
 }
 
 /**
  * Create a success response
  */
-export function createSuccessResponse(id: string, result: string): NIP46Response {
+export function createSuccessResponse(
+  id: string,
+  result: string,
+): NIP46Response {
   return { id, result };
 }
 
@@ -49,4 +52,4 @@ export function createSuccessResponse(id: string, result: string): NIP46Response
  */
 export function createErrorResponse(id: string, error: string): NIP46Response {
   return { id, error };
-} 
+}

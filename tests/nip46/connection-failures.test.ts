@@ -1,12 +1,12 @@
-import { 
-  SimpleNIP46Client, 
+import {
+  SimpleNIP46Client,
   SimpleNIP46Bunker,
-  generateKeypair
-} from '../../src';
-import { LogLevel } from '../../src/nip46';
-import { NostrRelay } from '../../src/utils/ephemeral-relay';
+  generateKeypair,
+} from "../../src";
+import { LogLevel } from "../../src/nip46";
+import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
-describe('NIP-46 Connection Failures', () => {
+describe("NIP-46 Connection Failures", () => {
   let relay: NostrRelay;
   let relayUrl: string;
   let userKeypair: { publicKey: string; privateKey: string };
@@ -19,13 +19,13 @@ describe('NIP-46 Connection Failures', () => {
     relay = new NostrRelay(3790);
     await relay.start();
     relayUrl = relay.url;
-    
+
     // Generate keypairs
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
-    
+
     // Give the relay time to start properly
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }, 10000);
 
   afterAll(async () => {
@@ -49,17 +49,17 @@ describe('NIP-46 Connection Failures', () => {
     if (relay) {
       relay.close();
     }
-    
+
     // Allow time for cleanup
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
   }, 10000);
 
   beforeEach(() => {
     // Create client for testing with shorter timeout for tests
-    client = new SimpleNIP46Client([relayUrl], { 
+    client = new SimpleNIP46Client([relayUrl], {
       timeout: 1000,
       debug: true,
-      logLevel: LogLevel.DEBUG
+      logLevel: LogLevel.DEBUG,
     });
   });
 
@@ -81,109 +81,114 @@ describe('NIP-46 Connection Failures', () => {
     }
 
     // Allow time for cleanup
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 300));
   }, 5000);
 
-  test('Connect fails with invalid connection string', async () => {
-    await expect(client.connect('invalid://string')).rejects.toThrow();
+  test("Connect fails with invalid connection string", async () => {
+    await expect(client.connect("invalid://string")).rejects.toThrow();
   }, 5000);
-  
-  test('Connect fails with invalid pubkey', async () => {
-    const invalidConnectionString = 'bunker://invalidpubkey?relay=' + encodeURIComponent(relayUrl);
+
+  test("Connect fails with invalid pubkey", async () => {
+    const invalidConnectionString =
+      "bunker://invalidpubkey?relay=" + encodeURIComponent(relayUrl);
     await expect(client.connect(invalidConnectionString)).rejects.toThrow();
   }, 5000);
 
-  test('Connect fails with non-existent relay', async () => {
+  test("Connect fails with non-existent relay", async () => {
     // Create a client with a non-existent relay - use a very short timeout
-    const nonExistentClient = new SimpleNIP46Client(['ws://localhost:9999'], { 
+    const nonExistentClient = new SimpleNIP46Client(["ws://localhost:9999"], {
       timeout: 1000,
       debug: true,
-      logLevel: LogLevel.DEBUG
+      logLevel: LogLevel.DEBUG,
     });
-    
+
     // Generate a valid connection string but with a relay that doesn't exist
     const connectionString = `bunker://${signerKeypair.publicKey}?relay=ws://localhost:9999`;
-    
+
     await expect(nonExistentClient.connect(connectionString)).rejects.toThrow();
-    
+
     // Clean up
     await nonExistentClient.disconnect().catch(() => {});
   }, 5000);
 
-  test('Connect fails when bunker is not running', async () => {
+  test("Connect fails when bunker is not running", async () => {
     // Create a valid connection string with a correct relay but no bunker running
     const connectionString = `bunker://${signerKeypair.publicKey}?relay=${relayUrl}`;
-    
-    await expect(client.connect(connectionString)).rejects.toThrow(/timeout|timed out/i);
+
+    await expect(client.connect(connectionString)).rejects.toThrow(
+      /timeout|timed out/i,
+    );
   }, 10000);
 
-  test('Connect times out when bunker is unreachable', async () => {
+  test("Connect times out when bunker is unreachable", async () => {
     // Start bunker
     bunker = new SimpleNIP46Bunker(
-      [relayUrl], 
-      userKeypair.publicKey, 
+      [relayUrl],
+      userKeypair.publicKey,
       signerKeypair.publicKey,
-      { 
+      {
         debug: true,
-        logLevel: LogLevel.DEBUG
-      }
+        logLevel: LogLevel.DEBUG,
+      },
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
     await bunker.start();
-    
+
     // Shutdown bunker right after starting
     await bunker.stop();
-    
+
     // The connection string is valid but the bunker is no longer listening
     const connectionString = bunker.getConnectionString();
-    
-    await expect(client.connect(connectionString)).rejects.toThrow(/timeout|timed out/i);
+
+    await expect(client.connect(connectionString)).rejects.toThrow(
+      /timeout|timed out/i,
+    );
   }, 10000);
 
-  test('Ping fails when bunker is stopped', async () => {
+  test("Ping fails when bunker is stopped", async () => {
     // Start bunker
     bunker = new SimpleNIP46Bunker(
-      [relayUrl], 
-      userKeypair.publicKey, 
+      [relayUrl],
+      userKeypair.publicKey,
       signerKeypair.publicKey,
-      { 
+      {
         debug: true,
-        logLevel: LogLevel.DEBUG
-      }
+        logLevel: LogLevel.DEBUG,
+      },
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
     await bunker.start();
-    
+
     // Connect client
     const connectionString = bunker.getConnectionString();
     await client.connect(connectionString);
-    
+
     // Verify ping works
     expect(await client.ping()).toBe(true);
-    
+
     // Stop bunker
     await bunker.stop();
-    
+
     // Ping should now fail
     expect(await client.ping()).toBe(false);
   }, 15000);
-  
-  test('Ping returns false when client is not connected', async () => {
+
+  test("Ping returns false when client is not connected", async () => {
     // Client is not connected, ping should return false
     expect(await client.ping()).toBe(false);
   }, 5000);
-   
-  test('Client disconnects properly', async () => {
+
+  test("Client disconnects properly", async () => {
     // Set up a spy on the disconnect method
-    const disconnectSpy = jest.spyOn(client, 'disconnect');
-    
+    const disconnectSpy = jest.spyOn(client, "disconnect");
+
     // Disconnect
     await client.disconnect();
-    
+
     // Check if disconnect was called
     expect(disconnectSpy).toHaveBeenCalled();
     disconnectSpy.mockRestore();
   }, 5000);
-}); 
+});

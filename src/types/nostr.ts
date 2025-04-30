@@ -12,8 +12,8 @@ export type NostrFilter = {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
-  '#e'?: string[];
-  '#p'?: string[];
+  "#e"?: string[];
+  "#p"?: string[];
   since?: number;
   until?: number;
   limit?: number;
@@ -30,8 +30,8 @@ export type Filter = {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
-  '#e'?: string[];
-  '#p'?: string[];
+  "#e"?: string[];
+  "#p"?: string[];
   since?: number;
   until?: number;
   limit?: number;
@@ -46,12 +46,12 @@ export type Subscription = {
 };
 
 export enum RelayEvent {
-  Connect = 'connect',
-  Disconnect = 'disconnect',
-  Error = 'error',
-  Notice = 'notice',
-  OK = 'ok',
-  Closed = 'closed',
+  Connect = "connect",
+  Disconnect = "disconnect",
+  Error = "error",
+  Notice = "notice",
+  OK = "ok",
+  Closed = "closed",
 }
 
 export type RelayEventHandler = {
@@ -59,6 +59,10 @@ export type RelayEventHandler = {
   [RelayEvent.Disconnect]?: (relay: string) => void;
   [RelayEvent.Error]?: (relay: string, error: any) => void;
   [RelayEvent.Notice]?: (relay: string, notice: string) => void;
-  [RelayEvent.OK]?: (eventId: string, success: boolean, message: string) => void;
+  [RelayEvent.OK]?: (
+    eventId: string,
+    success: boolean,
+    message: string,
+  ) => void;
   [RelayEvent.Closed]?: (subscriptionId: string, message: string) => void;
-}; 
+};

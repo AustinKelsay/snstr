@@ -1,9 +1,9 @@
-import { 
-  Nip07Nostr, 
-  hasNip07Support, 
+import {
+  Nip07Nostr,
+  hasNip07Support,
   getNip07PublicKey,
-  RelayEvent
-} from '../../src';
+  RelayEvent,
+} from "../../src";
 
 /**
  * Example showing how to send and receive direct messages using NIP-07
@@ -11,10 +11,16 @@ import {
 async function directMessageExample() {
   // First check if there's a NIP-07 browser extension available
   if (!hasNip07Support()) {
-    console.error('No NIP-07 compatible extension detected. Please install one of:');
-    console.error('- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp');
-    console.error('- Alby (Chrome/Firefox): https://getalby.com/');
-    console.error('- noStrudel (Firefox): https://addons.mozilla.org/en-US/firefox/addon/nostrudel/');
+    console.error(
+      "No NIP-07 compatible extension detected. Please install one of:",
+    );
+    console.error(
+      "- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp",
+    );
+    console.error("- Alby (Chrome/Firefox): https://getalby.com/");
+    console.error(
+      "- noStrudel (Firefox): https://addons.mozilla.org/en-US/firefox/addon/nostrudel/",
+    );
     return;
   }
 
@@ -25,56 +31,64 @@ async function directMessageExample() {
 
     // Initialize client with some relays
     const client = new Nip07Nostr([
-      'wss://relay.damus.io', 
-      'wss://relay.nostr.band',
-      'wss://nos.lol'
+      "wss://relay.damus.io",
+      "wss://relay.nostr.band",
+      "wss://nos.lol",
     ]);
 
     // Connect to the relays
     await client.connectToRelays();
-    console.log('Connected to relays');
+    console.log("Connected to relays");
 
     // Initialize with the NIP-07 extension's public key
     await client.initializeWithNip07();
-    
+
     // Set up event handlers for relay events
     client.on(RelayEvent.Connect, (relay) => {
       console.log(`Connected to ${relay}`);
     });
 
     // UI Elements - in a real application, these would be part of your UI framework
-    const recipientInput = document.getElementById('recipient-input') as HTMLInputElement;
-    const messageInput = document.getElementById('message-input') as HTMLTextAreaElement;
-    const sendButton = document.getElementById('send-button') as HTMLButtonElement;
-    const statusDiv = document.getElementById('status') as HTMLDivElement;
-    const messagesContainer = document.getElementById('messages') as HTMLDivElement;
+    const recipientInput = document.getElementById(
+      "recipient-input",
+    ) as HTMLInputElement;
+    const messageInput = document.getElementById(
+      "message-input",
+    ) as HTMLTextAreaElement;
+    const sendButton = document.getElementById(
+      "send-button",
+    ) as HTMLButtonElement;
+    const statusDiv = document.getElementById("status") as HTMLDivElement;
+    const messagesContainer = document.getElementById(
+      "messages",
+    ) as HTMLDivElement;
 
     if (sendButton) {
-      sendButton.addEventListener('click', async () => {
+      sendButton.addEventListener("click", async () => {
         if (!recipientInput?.value) {
-          statusDiv.textContent = 'Please enter a recipient public key';
+          statusDiv.textContent = "Please enter a recipient public key";
           return;
         }
 
         if (!messageInput?.value) {
-          statusDiv.textContent = 'Please enter a message';
+          statusDiv.textContent = "Please enter a message";
           return;
         }
 
         try {
-          statusDiv.textContent = 'Sending message...';
+          statusDiv.textContent = "Sending message...";
           const dmEvent = await client.publishDirectMessage(
             messageInput.value,
-            recipientInput.value
+            recipientInput.value,
           );
-          
+
           if (dmEvent) {
             statusDiv.textContent = `Message sent! ID: ${dmEvent.id}`;
-            messageInput.value = '';
-            
+            messageInput.value = "";
+
             // Add sent message to the UI
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message sent';
+            const messageElement = document.createElement("div");
+            messageElement.className = "message sent";
             messageElement.innerHTML = `
               <p><strong>To:</strong> ${recipientInput.value.substring(0, 10)}...${recipientInput.value.substring(recipientInput.value.length - 5)}</p>
               <p><strong>Message:</strong> ${messageInput.value}</p>
@@ -82,7 +96,7 @@ async function directMessageExample() {
             `;
             messagesContainer?.appendChild(messageElement);
           } else {
-            statusDiv.textContent = 'Failed to send message';
+            statusDiv.textContent = "Failed to send message";
           }
         } catch (error) {
           statusDiv.textContent = `Error: ${error}`;
@@ -91,46 +105,43 @@ async function directMessageExample() {
     }
 
     // Subscribe to direct messages received by our public key
-    client.subscribe(
-      [{ kinds: [4], '#p': [pubkey] }],
-      async (event, relay) => {
-        console.log(`Received DM from ${relay}:`, event);
-        
-        try {
-          // Decrypt the message using the async API
-          const decryptedContent = await client.decryptDirectMessageAsync(event);
-          
-          // Add received message to the UI
-          const messageElement = document.createElement('div');
-          messageElement.className = 'message received';
-          messageElement.innerHTML = `
+    client.subscribe([{ kinds: [4], "#p": [pubkey] }], async (event, relay) => {
+      console.log(`Received DM from ${relay}:`, event);
+
+      try {
+        // Decrypt the message using the async API
+        const decryptedContent = await client.decryptDirectMessageAsync(event);
+
+        // Add received message to the UI
+        const messageElement = document.createElement("div");
+        messageElement.className = "message received";
+        messageElement.innerHTML = `
             <p><strong>From:</strong> ${event.pubkey.substring(0, 10)}...${event.pubkey.substring(event.pubkey.length - 5)}</p>
             <p><strong>Message:</strong> ${decryptedContent}</p>
             <p><small>Received at ${new Date().toLocaleTimeString()} from ${relay}</small></p>
           `;
-          messagesContainer?.appendChild(messageElement);
-        } catch (error) {
-          console.error('Failed to decrypt message:', error);
-          
-          // Add error message to the UI
-          const messageElement = document.createElement('div');
-          messageElement.className = 'message error';
-          messageElement.innerHTML = `
+        messagesContainer?.appendChild(messageElement);
+      } catch (error) {
+        console.error("Failed to decrypt message:", error);
+
+        // Add error message to the UI
+        const messageElement = document.createElement("div");
+        messageElement.className = "message error";
+        messageElement.innerHTML = `
             <p><strong>Error decrypting message from:</strong> ${event.pubkey.substring(0, 10)}...${event.pubkey.substring(event.pubkey.length - 5)}</p>
             <p><strong>Error:</strong> ${error}</p>
           `;
-          messagesContainer?.appendChild(messageElement);
-        }
+        messagesContainer?.appendChild(messageElement);
       }
-    );
+    });
   } catch (error) {
-    console.error('Error in Direct Message example:', error);
+    console.error("Error in Direct Message example:", error);
   }
 }
 
 // Call the example function when the page loads
-if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', directMessageExample);
+if (typeof window !== "undefined") {
+  window.addEventListener("DOMContentLoaded", directMessageExample);
 }
 
 // Example HTML structure:
@@ -205,4 +216,4 @@ if (typeof window !== 'undefined') {
   <script src="direct-message.js"></script>
 </body>
 </html>
-*/ 
+*/

@@ -1,18 +1,20 @@
-import { NostrEvent } from '../types/nostr';
+import { NostrEvent } from "../types/nostr";
 
 /**
  * Interface for the window.nostr extension API as defined in NIP-07
  */
 export interface NostrWindow {
   getPublicKey(): Promise<string>;
-  signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent>;
-  
+  signEvent(
+    event: Omit<NostrEvent, "id" | "pubkey" | "sig">,
+  ): Promise<NostrEvent>;
+
   // Optional encryption methods
   nip04?: {
     encrypt(pubkey: string, plaintext: string): Promise<string>;
     decrypt(pubkey: string, ciphertext: string): Promise<string>;
   };
-  
+
   // Optional NIP-44 encryption methods
   nip44?: {
     encrypt(pubkey: string, plaintext: string): Promise<string>;
@@ -24,7 +26,7 @@ export interface NostrWindow {
  * Safe access to the browser's nostr object
  */
 function getNostr(): NostrWindow | undefined {
-  if (typeof window === 'undefined') return undefined;
+  if (typeof window === "undefined") return undefined;
   return (window as any).nostr as NostrWindow | undefined;
 }
 
@@ -32,7 +34,7 @@ function getNostr(): NostrWindow | undefined {
  * Checks if the browser has the NIP-07 extension available
  */
 export const hasNip07Support = (): boolean => {
-  return typeof window !== 'undefined' && !!getNostr();
+  return typeof window !== "undefined" && !!getNostr();
 };
 
 /**
@@ -42,14 +44,14 @@ export const hasNip07Support = (): boolean => {
  */
 export const getPublicKey = async (): Promise<string> => {
   if (!hasNip07Support()) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   const nostr = getNostr();
   if (!nostr) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   try {
     return await nostr.getPublicKey();
   } catch (error) {
@@ -64,17 +66,17 @@ export const getPublicKey = async (): Promise<string> => {
  * @throws Error if NIP-07 is not supported or fails
  */
 export const signEvent = async (
-  event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>
+  event: Omit<NostrEvent, "id" | "pubkey" | "sig">,
 ): Promise<NostrEvent> => {
   if (!hasNip07Support()) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   const nostr = getNostr();
   if (!nostr) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   try {
     return await nostr.signEvent(event);
   } catch (error) {
@@ -91,17 +93,17 @@ export const signEvent = async (
  */
 export const encryptNip04 = async (
   pubkey: string,
-  plaintext: string
+  plaintext: string,
 ): Promise<string> => {
   if (!hasNip07Support()) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   const nostr = getNostr();
   if (!nostr?.nip04?.encrypt) {
-    throw new Error('NIP-04 encryption not supported by the extension');
+    throw new Error("NIP-04 encryption not supported by the extension");
   }
-  
+
   try {
     return await nostr.nip04.encrypt(pubkey, plaintext);
   } catch (error) {
@@ -118,17 +120,17 @@ export const encryptNip04 = async (
  */
 export const decryptNip04 = async (
   pubkey: string,
-  ciphertext: string
+  ciphertext: string,
 ): Promise<string> => {
   if (!hasNip07Support()) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   const nostr = getNostr();
   if (!nostr?.nip04?.decrypt) {
-    throw new Error('NIP-04 decryption not supported by the extension');
+    throw new Error("NIP-04 decryption not supported by the extension");
   }
-  
+
   try {
     return await nostr.nip04.decrypt(pubkey, ciphertext);
   } catch (error) {
@@ -145,17 +147,17 @@ export const decryptNip04 = async (
  */
 export const encryptNip44 = async (
   pubkey: string,
-  plaintext: string
+  plaintext: string,
 ): Promise<string> => {
   if (!hasNip07Support()) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   const nostr = getNostr();
   if (!nostr?.nip44?.encrypt) {
-    throw new Error('NIP-44 encryption not supported by the extension');
+    throw new Error("NIP-44 encryption not supported by the extension");
   }
-  
+
   try {
     return await nostr.nip44.encrypt(pubkey, plaintext);
   } catch (error) {
@@ -172,20 +174,20 @@ export const encryptNip44 = async (
  */
 export const decryptNip44 = async (
   pubkey: string,
-  ciphertext: string
+  ciphertext: string,
 ): Promise<string> => {
   if (!hasNip07Support()) {
-    throw new Error('NIP-07 extension not available');
+    throw new Error("NIP-07 extension not available");
   }
-  
+
   const nostr = getNostr();
   if (!nostr?.nip44?.decrypt) {
-    throw new Error('NIP-44 decryption not supported by the extension');
+    throw new Error("NIP-44 decryption not supported by the extension");
   }
-  
+
   try {
     return await nostr.nip44.decrypt(pubkey, ciphertext);
   } catch (error) {
     throw new Error(`Failed to decrypt message with NIP-44: ${error}`);
   }
-}; 
+};

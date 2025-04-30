@@ -1,150 +1,168 @@
-import { NostrEvent } from '../types/nostr';
+import { NostrEvent } from "../types/nostr";
 
 // Event kinds defined in NIP-47
 export enum NIP47EventKind {
   INFO = 13194,
   REQUEST = 23194,
   RESPONSE = 23195,
-  NOTIFICATION = 23196
+  NOTIFICATION = 23196,
 }
 
 // Methods defined in NIP-47
 export enum NIP47Method {
-  GET_INFO = 'get_info',
-  GET_BALANCE = 'get_balance',
-  PAY_INVOICE = 'pay_invoice',
-  MAKE_INVOICE = 'make_invoice',
-  LOOKUP_INVOICE = 'lookup_invoice',
-  LIST_TRANSACTIONS = 'list_transactions',
-  SIGN_MESSAGE = 'sign_message',
-  
+  GET_INFO = "get_info",
+  GET_BALANCE = "get_balance",
+  PAY_INVOICE = "pay_invoice",
+  MAKE_INVOICE = "make_invoice",
+  LOOKUP_INVOICE = "lookup_invoice",
+  LIST_TRANSACTIONS = "list_transactions",
+  SIGN_MESSAGE = "sign_message",
+
   // Extended methods (not in the NIP-47 standard)
-  PAY_KEYSEND = 'pay_keysend',
-  MULTI_PAY_INVOICE = 'multi_pay_invoice',
-  MULTI_PAY_KEYSEND = 'multi_pay_keysend'
+  PAY_KEYSEND = "pay_keysend",
+  MULTI_PAY_INVOICE = "multi_pay_invoice",
+  MULTI_PAY_KEYSEND = "multi_pay_keysend",
 }
 
 // NIP-47 notification types
 export enum NIP47NotificationType {
-  PAYMENT_RECEIVED = 'payment_received',
-  PAYMENT_SENT = 'payment_sent'
+  PAYMENT_RECEIVED = "payment_received",
+  PAYMENT_SENT = "payment_sent",
 }
 
 // NIP-47 error categories for better organization
 export enum NIP47ErrorCategory {
-  AUTHORIZATION = 'AUTHORIZATION',   // Permission/authentication errors
-  VALIDATION = 'VALIDATION',         // Input validation errors
-  RESOURCE = 'RESOURCE',             // Resource availability errors 
-  NETWORK = 'NETWORK',               // Network/communication errors
-  WALLET = 'WALLET',                 // Wallet-specific errors
-  TIMEOUT = 'TIMEOUT',               // Timeout-related errors
-  INTERNAL = 'INTERNAL'              // Internal/system errors
+  AUTHORIZATION = "AUTHORIZATION", // Permission/authentication errors
+  VALIDATION = "VALIDATION", // Input validation errors
+  RESOURCE = "RESOURCE", // Resource availability errors
+  NETWORK = "NETWORK", // Network/communication errors
+  WALLET = "WALLET", // Wallet-specific errors
+  TIMEOUT = "TIMEOUT", // Timeout-related errors
+  INTERNAL = "INTERNAL", // Internal/system errors
 }
 
 // NIP-47 error codes
 export enum NIP47ErrorCode {
   // Standard NIP-47 error codes (from spec)
-  UNAUTHORIZED = 'UNAUTHORIZED',
-  INVALID_REQUEST = 'INVALID_REQUEST',
-  INSUFFICIENT_BALANCE = 'INSUFFICIENT_BALANCE',
-  PAYMENT_FAILED = 'PAYMENT_FAILED',
-  INVOICE_EXPIRED = 'INVOICE_EXPIRED',
-  NOT_FOUND = 'NOT_FOUND',
-  INTERNAL_ERROR = 'INTERNAL_ERROR',
-  
+  UNAUTHORIZED = "UNAUTHORIZED",
+  INVALID_REQUEST = "INVALID_REQUEST",
+  INSUFFICIENT_BALANCE = "INSUFFICIENT_BALANCE",
+  PAYMENT_FAILED = "PAYMENT_FAILED",
+  INVOICE_EXPIRED = "INVOICE_EXPIRED",
+  NOT_FOUND = "NOT_FOUND",
+  INTERNAL_ERROR = "INTERNAL_ERROR",
+
   // Request expiration (mentioned in spec)
-  REQUEST_EXPIRED = 'REQUEST_EXPIRED',
-  
+  REQUEST_EXPIRED = "REQUEST_EXPIRED",
+
   // Extended error codes (implementation-specific)
-  TIMEOUT = 'TIMEOUT',
-  CONNECTION_ERROR = 'CONNECTION_ERROR',
-  RELAY_ERROR = 'RELAY_ERROR',
-  PUBLISH_FAILED = 'PUBLISH_FAILED',
-  ENCRYPTION_ERROR = 'ENCRYPTION_ERROR',
-  DECRYPTION_ERROR = 'DECRYPTION_ERROR',
-  UNAUTHORIZED_CLIENT = 'UNAUTHORIZED_CLIENT',
-  
+  TIMEOUT = "TIMEOUT",
+  CONNECTION_ERROR = "CONNECTION_ERROR",
+  RELAY_ERROR = "RELAY_ERROR",
+  PUBLISH_FAILED = "PUBLISH_FAILED",
+  ENCRYPTION_ERROR = "ENCRYPTION_ERROR",
+  DECRYPTION_ERROR = "DECRYPTION_ERROR",
+  UNAUTHORIZED_CLIENT = "UNAUTHORIZED_CLIENT",
+
   // More granular validation errors
-  INVALID_INVOICE_FORMAT = 'INVALID_INVOICE_FORMAT',
-  INVALID_AMOUNT = 'INVALID_AMOUNT',
-  INVALID_PARAMETER = 'INVALID_PARAMETER',
-  
+  INVALID_INVOICE_FORMAT = "INVALID_INVOICE_FORMAT",
+  INVALID_AMOUNT = "INVALID_AMOUNT",
+  INVALID_PARAMETER = "INVALID_PARAMETER",
+
   // More granular payment errors
-  PAYMENT_ROUTE_NOT_FOUND = 'PAYMENT_ROUTE_NOT_FOUND',
-  PAYMENT_REJECTED = 'PAYMENT_REJECTED',
-  
+  PAYMENT_ROUTE_NOT_FOUND = "PAYMENT_ROUTE_NOT_FOUND",
+  PAYMENT_REJECTED = "PAYMENT_REJECTED",
+
   // More granular wallet errors
-  WALLET_LOCKED = 'WALLET_LOCKED',
-  WALLET_UNAVAILABLE = 'WALLET_UNAVAILABLE',
-  
+  WALLET_LOCKED = "WALLET_LOCKED",
+  WALLET_UNAVAILABLE = "WALLET_UNAVAILABLE",
+
   // Method-specific error codes
-  LOOKUP_INVOICE_FAILED = 'LOOKUP_INVOICE_FAILED'
+  LOOKUP_INVOICE_FAILED = "LOOKUP_INVOICE_FAILED",
 }
 
 // Error code to category mapping
 export const ERROR_CATEGORIES: Record<string, NIP47ErrorCategory> = {
   [NIP47ErrorCode.UNAUTHORIZED]: NIP47ErrorCategory.AUTHORIZATION,
   [NIP47ErrorCode.UNAUTHORIZED_CLIENT]: NIP47ErrorCategory.AUTHORIZATION,
-  
+
   [NIP47ErrorCode.INVALID_REQUEST]: NIP47ErrorCategory.VALIDATION,
   [NIP47ErrorCode.INVALID_INVOICE_FORMAT]: NIP47ErrorCategory.VALIDATION,
   [NIP47ErrorCode.INVALID_AMOUNT]: NIP47ErrorCategory.VALIDATION,
   [NIP47ErrorCode.INVALID_PARAMETER]: NIP47ErrorCategory.VALIDATION,
-  
+
   [NIP47ErrorCode.INSUFFICIENT_BALANCE]: NIP47ErrorCategory.RESOURCE,
   [NIP47ErrorCode.NOT_FOUND]: NIP47ErrorCategory.RESOURCE,
   [NIP47ErrorCode.WALLET_UNAVAILABLE]: NIP47ErrorCategory.RESOURCE,
-  
+
   [NIP47ErrorCode.PAYMENT_FAILED]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.PAYMENT_ROUTE_NOT_FOUND]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.PAYMENT_REJECTED]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.INVOICE_EXPIRED]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.WALLET_LOCKED]: NIP47ErrorCategory.WALLET,
   [NIP47ErrorCode.LOOKUP_INVOICE_FAILED]: NIP47ErrorCategory.WALLET,
-  
+
   [NIP47ErrorCode.TIMEOUT]: NIP47ErrorCategory.TIMEOUT,
   [NIP47ErrorCode.REQUEST_EXPIRED]: NIP47ErrorCategory.TIMEOUT,
-  
+
   [NIP47ErrorCode.CONNECTION_ERROR]: NIP47ErrorCategory.NETWORK,
   [NIP47ErrorCode.RELAY_ERROR]: NIP47ErrorCategory.NETWORK,
   [NIP47ErrorCode.PUBLISH_FAILED]: NIP47ErrorCategory.NETWORK,
   [NIP47ErrorCode.ENCRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
   [NIP47ErrorCode.DECRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
-  
-  [NIP47ErrorCode.INTERNAL_ERROR]: NIP47ErrorCategory.INTERNAL
+
+  [NIP47ErrorCode.INTERNAL_ERROR]: NIP47ErrorCategory.INTERNAL,
 };
 
 // Recovery hints for error codes
 export const ERROR_RECOVERY_HINTS: Record<string, string> = {
-  [NIP47ErrorCode.UNAUTHORIZED]: 'Check connection credentials and permissions',
-  [NIP47ErrorCode.UNAUTHORIZED_CLIENT]: 'This client is not authorized. Contact wallet administrator',
-  [NIP47ErrorCode.INVALID_REQUEST]: 'Check request parameters and try again',
-  [NIP47ErrorCode.INSUFFICIENT_BALANCE]: 'Add funds to your wallet and try again',
-  [NIP47ErrorCode.PAYMENT_FAILED]: 'Payment could not be processed. Try again later',
-  [NIP47ErrorCode.INVOICE_EXPIRED]: 'Request a new invoice and try again',
-  [NIP47ErrorCode.NOT_FOUND]: 'The requested resource was not found. For lookupInvoice, check that the payment_hash or invoice exists in the wallet database',
-  [NIP47ErrorCode.INTERNAL_ERROR]: 'An internal error occurred. Please report this issue',
-  [NIP47ErrorCode.REQUEST_EXPIRED]: 'Request timed out. Try again with a longer expiration time',
-  [NIP47ErrorCode.TIMEOUT]: 'Operation timed out. Check connection and try again',
-  [NIP47ErrorCode.CONNECTION_ERROR]: 'Could not connect to the relay. Check network and relay status',
-  [NIP47ErrorCode.RELAY_ERROR]: 'Error communicating with relay. Try a different relay',
-  [NIP47ErrorCode.PUBLISH_FAILED]: 'Failed to publish event to relay. Try again or use a different relay',
-  [NIP47ErrorCode.ENCRYPTION_ERROR]: 'Encryption error. Check encryption parameters',
-  [NIP47ErrorCode.DECRYPTION_ERROR]: 'Decryption error. Check if using correct keys',
-  [NIP47ErrorCode.INVALID_INVOICE_FORMAT]: 'Invoice format is invalid. Check the invoice',
-  [NIP47ErrorCode.INVALID_AMOUNT]: 'Amount is invalid. Must be a positive integer',
-  [NIP47ErrorCode.INVALID_PARAMETER]: 'One or more parameters are invalid',
-  [NIP47ErrorCode.PAYMENT_ROUTE_NOT_FOUND]: 'No route found to destination. Try a different recipient or amount',
-  [NIP47ErrorCode.PAYMENT_REJECTED]: 'Payment was rejected by recipient node',
-  [NIP47ErrorCode.WALLET_LOCKED]: 'Wallet is locked. Unlock wallet and try again',
-  [NIP47ErrorCode.WALLET_UNAVAILABLE]: 'Wallet is currently unavailable. Try again later',
-  [NIP47ErrorCode.LOOKUP_INVOICE_FAILED]: 'Failed to lookup invoice. Check payment hash or invoice and try again'
+  [NIP47ErrorCode.UNAUTHORIZED]: "Check connection credentials and permissions",
+  [NIP47ErrorCode.UNAUTHORIZED_CLIENT]:
+    "This client is not authorized. Contact wallet administrator",
+  [NIP47ErrorCode.INVALID_REQUEST]: "Check request parameters and try again",
+  [NIP47ErrorCode.INSUFFICIENT_BALANCE]:
+    "Add funds to your wallet and try again",
+  [NIP47ErrorCode.PAYMENT_FAILED]:
+    "Payment could not be processed. Try again later",
+  [NIP47ErrorCode.INVOICE_EXPIRED]: "Request a new invoice and try again",
+  [NIP47ErrorCode.NOT_FOUND]:
+    "The requested resource was not found. For lookupInvoice, check that the payment_hash or invoice exists in the wallet database",
+  [NIP47ErrorCode.INTERNAL_ERROR]:
+    "An internal error occurred. Please report this issue",
+  [NIP47ErrorCode.REQUEST_EXPIRED]:
+    "Request timed out. Try again with a longer expiration time",
+  [NIP47ErrorCode.TIMEOUT]:
+    "Operation timed out. Check connection and try again",
+  [NIP47ErrorCode.CONNECTION_ERROR]:
+    "Could not connect to the relay. Check network and relay status",
+  [NIP47ErrorCode.RELAY_ERROR]:
+    "Error communicating with relay. Try a different relay",
+  [NIP47ErrorCode.PUBLISH_FAILED]:
+    "Failed to publish event to relay. Try again or use a different relay",
+  [NIP47ErrorCode.ENCRYPTION_ERROR]:
+    "Encryption error. Check encryption parameters",
+  [NIP47ErrorCode.DECRYPTION_ERROR]:
+    "Decryption error. Check if using correct keys",
+  [NIP47ErrorCode.INVALID_INVOICE_FORMAT]:
+    "Invoice format is invalid. Check the invoice",
+  [NIP47ErrorCode.INVALID_AMOUNT]:
+    "Amount is invalid. Must be a positive integer",
+  [NIP47ErrorCode.INVALID_PARAMETER]: "One or more parameters are invalid",
+  [NIP47ErrorCode.PAYMENT_ROUTE_NOT_FOUND]:
+    "No route found to destination. Try a different recipient or amount",
+  [NIP47ErrorCode.PAYMENT_REJECTED]: "Payment was rejected by recipient node",
+  [NIP47ErrorCode.WALLET_LOCKED]:
+    "Wallet is locked. Unlock wallet and try again",
+  [NIP47ErrorCode.WALLET_UNAVAILABLE]:
+    "Wallet is currently unavailable. Try again later",
+  [NIP47ErrorCode.LOOKUP_INVOICE_FAILED]:
+    "Failed to lookup invoice. Check payment hash or invoice and try again",
 };
 
 // Transaction types
 export enum TransactionType {
-  INCOMING = 'incoming',
-  OUTGOING = 'outgoing'
+  INCOMING = "incoming",
+  OUTGOING = "outgoing",
 }
 
 // Connection options for NIP-47
@@ -153,12 +171,12 @@ export interface NIP47ConnectionOptions {
    * Public key of the wallet service
    */
   pubkey: string;
-  
+
   /**
    * Secret value for authentication (typically a private key)
    */
   secret: string;
-  
+
   /**
    * List of relay URLs
    */
@@ -350,8 +368,25 @@ export interface WalletImplementation {
   getInfo(): Promise<any>;
   getBalance(): Promise<number>;
   payInvoice(invoice: string, amount?: number, maxfee?: number): Promise<any>;
-  makeInvoice(amount: number, description: string, description_hash?: string, expiry?: number): Promise<any>;
-  lookupInvoice(params: { payment_hash?: string; invoice?: string }): Promise<NIP47Transaction>;
-  listTransactions(from?: number, until?: number, limit?: number, offset?: number, unpaid?: boolean, type?: string): Promise<NIP47Transaction[]>;
-  signMessage?(message: string): Promise<{signature: string, message: string}>;
-} 
+  makeInvoice(
+    amount: number,
+    description: string,
+    description_hash?: string,
+    expiry?: number,
+  ): Promise<any>;
+  lookupInvoice(params: {
+    payment_hash?: string;
+    invoice?: string;
+  }): Promise<NIP47Transaction>;
+  listTransactions(
+    from?: number,
+    until?: number,
+    limit?: number,
+    offset?: number,
+    unpaid?: boolean,
+    type?: string,
+  ): Promise<NIP47Transaction[]>;
+  signMessage?(
+    message: string,
+  ): Promise<{ signature: string; message: string }>;
+}

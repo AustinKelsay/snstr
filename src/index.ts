@@ -1,35 +1,35 @@
 // Export client classes
-export { Nostr } from './client/nostr';
-export { Relay } from './client/relay';
+export { Nostr } from "./client/nostr";
+export { Relay } from "./client/relay";
 
 // Export types
-export * from './types/nostr';
+export * from "./types/nostr";
 
 // Export utilities
-export { 
-  generateKeypair, 
-  getPublicKey, 
-  signEvent, 
-  verifySignature
-} from './utils/crypto';
+export {
+  generateKeypair,
+  getPublicKey,
+  signEvent,
+  verifySignature,
+} from "./utils/crypto";
 
-export { createEvent } from './utils/event';
+export { createEvent } from "./utils/event";
 
 // Export NIP-04 utilities
 export {
   encrypt as encryptNIP04,
   decrypt as decryptNIP04,
-  getSharedSecret as getNIP04SharedSecret
-} from './nip04';
+  getSharedSecret as getNIP04SharedSecret,
+} from "./nip04";
 
 // Export NIP-44 utilities
-export { 
-  encrypt as encryptNIP44, 
-  decrypt as decryptNIP44, 
+export {
+  encrypt as encryptNIP44,
+  decrypt as decryptNIP44,
   generateNonce as generateNIP44Nonce,
   getSharedSecret as getNIP44SharedSecret,
-  constantTimeEqual as constantTimeEqual
-} from './nip44'; 
+  constantTimeEqual as constantTimeEqual,
+} from "./nip44";
 
 // Export NIP-19 utilities
 export {
@@ -37,46 +37,46 @@ export {
   encodeBech32,
   decodeBech32,
   decode,
-  
+
   // Public key (npub)
   encodePublicKey,
   decodePublicKey,
-  
+
   // Private key (nsec)
   encodePrivateKey,
   decodePrivateKey,
-  
+
   // Note ID (note)
   encodeNoteId,
   decodeNoteId,
-  
+
   // Profile (nprofile)
   encodeProfile,
   decodeProfile,
   ProfileData,
-  
+
   // Event (nevent)
   encodeEvent,
   decodeEvent,
   EventData,
-  
+
   // Address (naddr)
   encodeAddress,
   decodeAddress,
   AddressData,
-  
+
   // Enums
   Prefix,
-  TLVType
-} from './nip19'; 
+  TLVType,
+} from "./nip19";
 
 // Export NIP-05 utilities
 export {
   verifyNIP05,
   lookupNIP05,
   getNIP05PubKey,
-  getNIP05Relays
-} from './nip05'; 
+  getNIP05Relays,
+} from "./nip05";
 
 // Export NIP-07 utilities
 export {
@@ -86,25 +86,25 @@ export {
   encryptNip04 as encryptNip04WithExtension,
   decryptNip04 as decryptNip04WithExtension,
   encryptNip44 as encryptNip44WithExtension,
-  decryptNip44 as decryptNip44WithExtension
-} from './nip07';
+  decryptNip44 as decryptNip44WithExtension,
+} from "./nip07";
 
 // Export NIP-07 adapter
-export { Nip07Nostr } from './nip07/adapter';
+export { Nip07Nostr } from "./nip07/adapter";
 
 // Export NIP-46 utilities
-export { 
+export {
   SimpleNIP46Client,
   SimpleNIP46Bunker,
   NostrRemoteSignerClient,
-  NostrRemoteSignerBunker, 
+  NostrRemoteSignerBunker,
   NIP46Method,
-  NIP46Request, 
-  NIP46Response, 
+  NIP46Request,
+  NIP46Response,
   NIP46ClientOptions,
   NIP46BunkerOptions,
-  NIP46Metadata
-} from './nip46/index'; 
+  NIP46Metadata,
+} from "./nip46/index";
 
 // NIP-57: Lightning Zaps
 export {
@@ -119,24 +119,24 @@ export {
   ZapReceiptOptions,
   ZapValidationResult,
   LnurlPayResponse,
-  ZapStats
-} from './nip57';
+  ZapStats,
+} from "./nip57";
 
 export {
   NostrZapClient,
   ZapClient,
   ZapClientOptions,
   ZapInvoiceResult,
-  ZapFilterOptions
-} from './nip57/client';
+  ZapFilterOptions,
+} from "./nip57/client";
 
 export {
   fetchLnurlPayMetadata,
   supportsNostrZaps,
   decodeLnurl,
   buildZapCallbackUrl,
-  extractLnurlMetadata
-} from './nip57/utils';
+  extractLnurlMetadata,
+} from "./nip57/utils";
 
 // NIP-47: Nostr Wallet Connect
 export {
@@ -144,12 +144,12 @@ export {
   NostrWalletConnectClient,
   parseNWCURL,
   generateNWCURL,
-  
+
   // Service implementation
   NostrWalletService,
   NostrWalletServiceOptions,
   WalletImplementation,
-  
+
   // Types
   NIP47Method,
   NIP47EventKind,
@@ -161,5 +161,5 @@ export {
   NIP47NotificationType,
   NIP47Transaction,
   NIP47ConnectionOptions,
-  TransactionType
-} from './nip47'; 
+  TransactionType,
+} from "./nip47";

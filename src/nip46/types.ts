@@ -22,14 +22,14 @@ export interface NIP46Response {
  * Supported NIP-46 methods
  */
 export enum NIP46Method {
-  CONNECT = 'connect',
-  GET_PUBLIC_KEY = 'get_public_key',
-  SIGN_EVENT = 'sign_event',
-  PING = 'ping',
-  NIP04_ENCRYPT = 'nip04_encrypt',
-  NIP04_DECRYPT = 'nip04_decrypt',
-  NIP44_ENCRYPT = 'nip44_encrypt',
-  NIP44_DECRYPT = 'nip44_decrypt'
+  CONNECT = "connect",
+  GET_PUBLIC_KEY = "get_public_key",
+  SIGN_EVENT = "sign_event",
+  PING = "ping",
+  NIP04_ENCRYPT = "nip04_encrypt",
+  NIP04_DECRYPT = "nip04_decrypt",
+  NIP44_ENCRYPT = "nip44_encrypt",
+  NIP44_DECRYPT = "nip44_decrypt",
 }
 
 /**
@@ -49,7 +49,7 @@ export interface NIP46ClientOptions extends NIP46ConnectionOptions {
   url?: string;
   image?: string;
   timeout?: number; // Request timeout in milliseconds
-  preferredEncryption?: 'nip04' | 'nip44';
+  preferredEncryption?: "nip04" | "nip44";
   debug?: boolean;
 }
 
@@ -66,7 +66,7 @@ export interface NIP46BunkerOptions {
   authUrl?: string;
   authTimeout?: number;
   metadata?: NIP46Metadata;
-  preferredEncryption?: 'nip04' | 'nip44';
+  preferredEncryption?: "nip04" | "nip44";
   debug?: boolean;
 }
 
@@ -95,7 +95,7 @@ export interface NIP46AuthChallenge {
  * Connection information for bunker or nostrconnect
  */
 export interface NIP46ConnectionInfo {
-  type: 'bunker' | 'nostrconnect';
+  type: "bunker" | "nostrconnect";
   pubkey: string;
   relays: string[];
   secret?: string;
@@ -108,16 +108,19 @@ export interface NIP46ConnectionInfo {
  */
 export type NIP46EncryptionResult = {
   success: boolean;
-  method: 'nip04' | 'nip44';
-} & ({
-  success: true;
-  data: string;
-  error?: never;
-} | {
-  success: false;
-  data?: never;
-  error: string;
-});
+  method: "nip04" | "nip44";
+} & (
+  | {
+      success: true;
+      data: string;
+      error?: never;
+    }
+  | {
+      success: false;
+      data?: never;
+      error: string;
+    }
+);
 
 /**
  * Client session data
@@ -125,5 +128,5 @@ export type NIP46EncryptionResult = {
 export interface NIP46ClientSession {
   permissions: Set<string>;
   lastSeen: number;
-  preferredEncryption?: 'nip04' | 'nip44';
-} 
+  preferredEncryption?: "nip04" | "nip44";
+}

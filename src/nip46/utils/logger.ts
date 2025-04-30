@@ -8,7 +8,7 @@ export enum LogLevel {
   WARN = 2,
   INFO = 3,
   DEBUG = 4,
-  TRACE = 5
+  TRACE = 5,
 }
 
 export interface LoggerOptions {
@@ -24,21 +24,21 @@ export class Logger {
 
   constructor(options: LoggerOptions = {}) {
     this.level = options.level ?? LogLevel.INFO;
-    this.prefix = options.prefix ?? '';
+    this.prefix = options.prefix ?? "";
     this.includeTimestamp = options.includeTimestamp ?? false;
   }
 
   private formatMessage(message: string): string {
-    let formattedMessage = '';
-    
+    let formattedMessage = "";
+
     if (this.includeTimestamp) {
       formattedMessage += `[${new Date().toISOString()}] `;
     }
-    
+
     if (this.prefix) {
       formattedMessage += `[${this.prefix}] `;
     }
-    
+
     return formattedMessage + message;
   }
 
@@ -75,4 +75,4 @@ export class Logger {
   setLevel(level: LogLevel): void {
     this.level = level;
   }
-} 
+}

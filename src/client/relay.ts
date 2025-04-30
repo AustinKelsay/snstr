@@ -1,5 +1,11 @@
-import 'websocket-polyfill';
-import { NostrEvent, Filter, Subscription, RelayEvent, RelayEventHandler } from '../types/nostr';
+import "websocket-polyfill";
+import {
+  NostrEvent,
+  Filter,
+  Subscription,
+  RelayEvent,
+  RelayEventHandler,
+} from "../types/nostr";
 
 export class Relay {
   private url: string;
@@ -9,11 +15,21 @@ export class Relay {
   private eventHandlers: RelayEventHandler = {};
   private connectionPromise: Promise<boolean> | null = null;
   private connectionTimeout = 10000; // Default timeout of 10 seconds
+  // Event buffer for implementing proper event ordering
+  private eventBuffers: Map<string, NostrEvent[]> = new Map();
+  private bufferFlushInterval: NodeJS.Timeout | null = null;
+  private bufferFlushDelay = 50; // ms to wait before flushing event buffer
 
-  constructor(url: string, options: { connectionTimeout?: number } = {}) {
+  constructor(
+    url: string,
+    options: { connectionTimeout?: number; bufferFlushDelay?: number } = {},
+  ) {
     this.url = url;
     if (options.connectionTimeout !== undefined) {
       this.connectionTimeout = options.connectionTimeout;
+    }
+    if (options.bufferFlushDelay !== undefined) {
+      this.bufferFlushDelay = options.bufferFlushDelay;
     }
   }
 
@@ -35,12 +51,16 @@ export class Relay {
     const connectionPromise = new Promise<boolean>((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.url);
-        
+
         // Set up connection timeout
         const timeoutId = setTimeout(() => {
           // Only run this if we haven't connected yet
           if (this.ws && !this.connected) {
-            this.triggerEvent(RelayEvent.Error, this.url, new Error('connection timeout'));
+            this.triggerEvent(
+              RelayEvent.Error,
+              this.url,
+              new Error("connection timeout"),
+            );
             try {
               this.ws.close();
             } catch (e) {
@@ -48,13 +68,14 @@ export class Relay {
             }
             this.ws = null;
             this.connectionPromise = null;
-            reject(new Error('connection timeout'));
+            reject(new Error("connection timeout"));
           }
         }, this.connectionTimeout);
 
         this.ws.onopen = () => {
           clearTimeout(timeoutId);
           this.connected = true;
+          this.setupBufferFlush(); // Set up the event buffer flush interval
           this.triggerEvent(RelayEvent.Connect, this.url);
           resolve(true);
         };
@@ -63,23 +84,26 @@ export class Relay {
           clearTimeout(timeoutId);
           const wasConnected = this.connected;
           this.connected = false;
+          this.clearBufferFlush(); // Clear the event buffer flush interval
           this.triggerEvent(RelayEvent.Disconnect, this.url);
-          
+
           // Only reject the promise if we're still waiting to connect
           if (!wasConnected && this.connectionPromise) {
             this.connectionPromise = null;
-            reject(new Error('connection closed'));
+            reject(new Error("connection closed"));
           }
         };
 
         this.ws.onerror = (error) => {
           clearTimeout(timeoutId);
           this.triggerEvent(RelayEvent.Error, this.url, error);
-          
+
           // Only reject the promise if we haven't connected yet
           if (!this.connected && this.connectionPromise) {
             this.connectionPromise = null;
-            reject(error instanceof Error ? error : new Error('websocket error'));
+            reject(
+              error instanceof Error ? error : new Error("websocket error"),
+            );
           }
         };
 
@@ -96,7 +120,7 @@ export class Relay {
         this.connectionPromise = null;
         reject(error);
       }
-    }).catch(error => {
+    }).catch((error) => {
       // Ensure we return false if connection fails but don't re-throw
       console.error(`Connection to ${this.url} failed:`, error);
       return false as boolean; // Explicit type assertion
@@ -107,37 +131,46 @@ export class Relay {
 
     // Create a separate promise chain to handle cleanup
     // This ensures the original promise is not modified
-    connectionPromise.then(() => {
-      // Only clean up if this is still the active connection promise
-      if (this.connectionPromise === connectionPromise) {
-        this.connectionPromise = null;
-      }
-    }, () => {
-      // Also clean up on rejection
-      if (this.connectionPromise === connectionPromise) {
-        this.connectionPromise = null;
-      }
-    });
+    connectionPromise.then(
+      () => {
+        // Only clean up if this is still the active connection promise
+        if (this.connectionPromise === connectionPromise) {
+          this.connectionPromise = null;
+        }
+      },
+      () => {
+        // Also clean up on rejection
+        if (this.connectionPromise === connectionPromise) {
+          this.connectionPromise = null;
+        }
+      },
+    );
 
     return this.connectionPromise;
   }
 
   public disconnect(): void {
     if (!this.ws) return;
-    
+
     try {
       // Clear all subscriptions to prevent further processing
       this.subscriptions.clear();
-      
+      this.eventBuffers.clear(); // Clear any buffered events
+      this.clearBufferFlush(); // Clear the buffer flush interval
+
       // Close the WebSocket if it's open or connecting
-      if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+      if (
+        this.ws &&
+        (this.ws.readyState === WebSocket.OPEN ||
+          this.ws.readyState === WebSocket.CONNECTING)
+      ) {
         // First try to send CLOSE messages for any active subscriptions
         try {
           this.ws.close();
         } catch (e) {
           // Ignore close errors, the connection might already be closed or invalid
         }
-        
+
         // Reset the connection promise if it exists
         this.connectionPromise = null;
       }
@@ -162,54 +195,63 @@ export class Relay {
     }
   }
 
-  public async publish(event: NostrEvent, options: { timeout?: number } = {}): Promise<{ success: boolean; reason?: string }> {
+  public async publish(
+    event: NostrEvent,
+    options: { timeout?: number } = {},
+  ): Promise<{ success: boolean; reason?: string }> {
     if (!this.connected) {
       try {
         const connected = await this.connect();
         if (!connected) {
-          return { success: false, reason: 'connection_failed' };
+          return { success: false, reason: "connection_failed" };
         }
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : 'unknown error';
+        const errorMsg =
+          error instanceof Error ? error.message : "unknown error";
         return { success: false, reason: `connection_error: ${errorMsg}` };
       }
     }
 
     if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return { success: false, reason: 'not_connected' };
+      return { success: false, reason: "not_connected" };
     }
 
     try {
       // First send the event
-      const message = JSON.stringify(['EVENT', event]);
+      const message = JSON.stringify(["EVENT", event]);
       this.ws.send(message);
-      
+
       // Return a Promise that will resolve when we get the OK response for this event
       return new Promise<{ success: boolean; reason?: string }>((resolve) => {
         const timeout = options.timeout ?? 10000;
         let timeoutId: NodeJS.Timeout;
-        
+
         // Create unique handler function for this specific publish operation
-        const handleOk = (eventId: string, success: boolean, message: string) => {
+        const handleOk = (
+          eventId: string,
+          success: boolean,
+          message: string,
+        ) => {
           if (eventId === event.id) {
             cleanup();
             resolve({ success, reason: message || undefined });
           }
         };
-        
+
         // Setup error handler in case of WebSocket errors during publishing
         const handleError = (_: string, error: any) => {
           cleanup();
-          const errorMsg = error instanceof Error ? error.message : 'unknown error';
+          const errorMsg =
+            error instanceof Error ? error.message : "unknown error";
           resolve({ success: false, reason: `error: ${errorMsg}` });
         };
-        
+
         // Setup disconnect handler in case connection drops during wait
         const handleDisconnect = () => {
           cleanup();
-          resolve({ success: false, reason: 'disconnected' });
+          resolve({ success: false, reason: "disconnected" });
         };
-        
+
         // Helper to clean up all handlers and timeout
         const cleanup = () => {
           this.off(RelayEvent.OK, handleOk);
@@ -217,26 +259,31 @@ export class Relay {
           this.off(RelayEvent.Disconnect, handleDisconnect);
           clearTimeout(timeoutId);
         };
-        
+
         // Register the event handlers
         this.on(RelayEvent.OK, handleOk);
         this.on(RelayEvent.Error, handleError);
         this.on(RelayEvent.Disconnect, handleDisconnect);
-        
+
         // Set timeout to avoid hanging indefinitely
         timeoutId = setTimeout(() => {
           cleanup();
-          resolve({ success: false, reason: 'timeout' });
+          resolve({ success: false, reason: "timeout" });
         }, timeout);
       });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : "unknown error";
       console.error(`Error publishing event to ${this.url}:`, errorMessage);
       return { success: false, reason: `error: ${errorMessage}` };
     }
   }
 
-  public subscribe(filters: Filter[], onEvent: (event: NostrEvent) => void, onEOSE?: () => void): string {
+  public subscribe(
+    filters: Filter[],
+    onEvent: (event: NostrEvent) => void,
+    onEOSE?: () => void,
+  ): string {
     const id = Math.random().toString(36).substring(2, 15);
     const subscription: Subscription = {
       id,
@@ -246,9 +293,10 @@ export class Relay {
     };
 
     this.subscriptions.set(id, subscription);
+    this.eventBuffers.set(id, []); // Initialize an empty event buffer for this subscription
 
     if (this.connected && this.ws) {
-      const message = JSON.stringify(['REQ', id, ...filters]);
+      const message = JSON.stringify(["REQ", id, ...filters]);
       this.ws.send(message);
     }
 
@@ -258,9 +306,10 @@ export class Relay {
   public unsubscribe(id: string): void {
     if (!this.subscriptions.has(id)) return;
     this.subscriptions.delete(id);
+    this.eventBuffers.delete(id); // Clean up the event buffer for this subscription
 
     if (this.connected && this.ws) {
-      const message = JSON.stringify(['CLOSE', id]);
+      const message = JSON.stringify(["CLOSE", id]);
       this.ws.send(message);
     }
   }
@@ -269,59 +318,89 @@ export class Relay {
     if (!Array.isArray(data)) return;
 
     const [type, ...rest] = data;
-    const debug = process.env.DEBUG?.includes('nostr:*') || false;
+    const debug = process.env.DEBUG?.includes("nostr:*") || false;
 
     if (debug) {
       console.log(`Relay(${this.url}): Received message type: ${type}`);
-      console.log(`Relay(${this.url}): Message data:`, JSON.stringify(rest).substring(0, 200));
+      console.log(
+        `Relay(${this.url}): Message data:`,
+        JSON.stringify(rest).substring(0, 200),
+      );
     }
 
     switch (type) {
-      case 'EVENT': {
+      case "EVENT": {
         const [subscriptionId, event] = rest;
         if (debug) {
-          console.log(`Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event?.kind}, id: ${event?.id?.slice(0, 8)}...`);
+          console.log(
+            `Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event?.kind}, id: ${event?.id?.slice(0, 8)}...`,
+          );
         }
+
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription) {
-          if (debug) console.log(`Relay(${this.url}): Found subscription, calling onEvent handler`);
-          subscription.onEvent(event);
+          if (debug)
+            console.log(
+              `Relay(${this.url}): Found subscription, buffering event for processing`,
+            );
+
+          // Buffer the event instead of immediately calling the handler
+          const buffer = this.eventBuffers.get(subscriptionId) || [];
+          buffer.push(event);
+          this.eventBuffers.set(subscriptionId, buffer);
         } else {
-          if (debug) console.log(`Relay(${this.url}): No subscription found for id: ${subscriptionId}`);
+          if (debug)
+            console.log(
+              `Relay(${this.url}): No subscription found for id: ${subscriptionId}`,
+            );
         }
         break;
       }
-      case 'EOSE': {
+      case "EOSE": {
         const [subscriptionId] = rest;
-        if (debug) console.log(`Relay(${this.url}): End of stored events for subscription ${subscriptionId}`);
+        if (debug)
+          console.log(
+            `Relay(${this.url}): End of stored events for subscription ${subscriptionId}`,
+          );
+
+        // Flush the buffer for this subscription immediately on EOSE
+        this.flushSubscriptionBuffer(subscriptionId);
+
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription && subscription.onEOSE) {
           subscription.onEOSE();
         }
         break;
       }
-      case 'NOTICE': {
+      case "NOTICE": {
         const [notice] = rest;
         if (debug) console.log(`Relay(${this.url}): Notice: ${notice}`);
         this.triggerEvent(RelayEvent.Notice, this.url, notice);
         break;
       }
-      case 'OK': {
+      case "OK": {
         const [eventId, success, message] = rest;
-        if (debug) console.log(`Relay(${this.url}): OK message for event ${eventId}: ${success ? 'success' : 'failed'}, ${message}`);
+        if (debug)
+          console.log(
+            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${message}`,
+          );
         this.triggerEvent(RelayEvent.OK, eventId, success, message);
         break;
       }
-      case 'CLOSED': {
+      case "CLOSED": {
         const [subscriptionId, message] = rest;
-        if (debug) console.log(`Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`);
+        if (debug)
+          console.log(
+            `Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`,
+          );
         this.triggerEvent(RelayEvent.Closed, subscriptionId, message);
         // Remove the subscription from our map since the relay closed it
         this.subscriptions.delete(subscriptionId);
         break;
       }
       default:
-        if (debug) console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
+        if (debug)
+          console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
         break;
     }
   }
@@ -338,13 +417,25 @@ export class Relay {
           (handler as (relay: string, error: any) => void)(this.url, args[0]);
           break;
         case RelayEvent.Notice:
-          (handler as (relay: string, notice: string) => void)(this.url, args[0]);
+          (handler as (relay: string, notice: string) => void)(
+            this.url,
+            args[0],
+          );
           break;
         case RelayEvent.OK:
-          (handler as (eventId: string, success: boolean, message: string) => void)(args[0], args[1], args[2]);
+          (
+            handler as (
+              eventId: string,
+              success: boolean,
+              message: string,
+            ) => void
+          )(args[0], args[1], args[2]);
           break;
         case RelayEvent.Closed:
-          (handler as (subscriptionId: string, message: string) => void)(args[0], args[1]);
+          (handler as (subscriptionId: string, message: string) => void)(
+            args[0],
+            args[1],
+          );
           break;
       }
     }
@@ -356,7 +447,7 @@ export class Relay {
    */
   public setConnectionTimeout(timeout: number): void {
     if (timeout < 0) {
-      throw new Error('Connection timeout must be a positive number');
+      throw new Error("Connection timeout must be a positive number");
     }
     this.connectionTimeout = timeout;
   }
@@ -367,4 +458,92 @@ export class Relay {
   public getConnectionTimeout(): number {
     return this.connectionTimeout;
   }
-} 
+
+  /**
+   * Get the current buffer flush delay in milliseconds
+   */
+  public getBufferFlushDelay(): number {
+    return this.bufferFlushDelay;
+  }
+
+  /**
+   * Set up the interval to flush event buffers
+   */
+  private setupBufferFlush(): void {
+    // Clear any existing interval just in case
+    this.clearBufferFlush();
+
+    // Set up a new interval to flush event buffers periodically
+    this.bufferFlushInterval = setInterval(() => {
+      this.flushAllBuffers();
+    }, this.bufferFlushDelay);
+  }
+
+  /**
+   * Clear the buffer flush interval
+   */
+  private clearBufferFlush(): void {
+    if (this.bufferFlushInterval) {
+      clearInterval(this.bufferFlushInterval);
+      this.bufferFlushInterval = null;
+    }
+  }
+
+  /**
+   * Flush all event buffers for all subscriptions
+   */
+  private flushAllBuffers(): void {
+    for (const subscriptionId of this.eventBuffers.keys()) {
+      this.flushSubscriptionBuffer(subscriptionId);
+    }
+  }
+
+  /**
+   * Flush the event buffer for a specific subscription
+   */
+  private flushSubscriptionBuffer(subscriptionId: string): void {
+    const buffer = this.eventBuffers.get(subscriptionId);
+    if (!buffer || buffer.length === 0) return;
+
+    const subscription = this.subscriptions.get(subscriptionId);
+    if (!subscription) {
+      // If the subscription has been removed, clear the buffer
+      this.eventBuffers.delete(subscriptionId);
+      return;
+    }
+
+    // Sort the events according to NIP-01: newest first, then by lexical order of ID if same timestamp
+    const sortedEvents = this.sortEvents(buffer);
+
+    // Reset the buffer to empty
+    this.eventBuffers.set(subscriptionId, []);
+
+    // Process all events
+    for (const event of sortedEvents) {
+      try {
+        subscription.onEvent(event);
+      } catch (error) {
+        console.error(
+          `Error in subscription handler for ${subscriptionId}:`,
+          error,
+        );
+      }
+    }
+  }
+
+  /**
+   * Sort events according to NIP-01 specification:
+   * 1. created_at timestamp (descending - newer events first)
+   * 2. event id (lexical ascending) if timestamps are the same
+   */
+  private sortEvents(events: NostrEvent[]): NostrEvent[] {
+    return [...events].sort((a, b) => {
+      // Sort by created_at (descending - newer events first)
+      if (a.created_at !== b.created_at) {
+        return b.created_at - a.created_at;
+      }
+      // If created_at is the same, sort by id (ascending lexical order)
+      return a.id.localeCompare(b.id);
+    });
+  }
+}

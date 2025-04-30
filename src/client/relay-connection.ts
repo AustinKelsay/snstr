@@ -1,6 +1,6 @@
-import WebSocket from 'ws';
-import { NostrMessage } from '../types/protocol';
-import EventEmitter from 'events';
+import WebSocket from "ws";
+import { NostrMessage } from "../types/protocol";
+import EventEmitter from "events";
 
 export class RelayConnection extends EventEmitter {
   private ws: WebSocket;
@@ -12,21 +12,21 @@ export class RelayConnection extends EventEmitter {
     this.url = url;
     this.ws = new WebSocket(url);
 
-    this.ws.on('open', () => {
-      this.emit('open');
+    this.ws.on("open", () => {
+      this.emit("open");
     });
 
-    this.ws.on('error', (error) => {
-      this.emit('error', error);
+    this.ws.on("error", (error) => {
+      this.emit("error", error);
     });
 
-    this.ws.on('close', () => {
-      this.emit('close');
+    this.ws.on("close", () => {
+      this.emit("close");
     });
 
-    this.ws.on('message', (data: WebSocket.Data) => {
+    this.ws.on("message", (data: WebSocket.Data) => {
       const message = data.toString();
-      this.messageHandlers.forEach(handler => handler(message));
+      this.messageHandlers.forEach((handler) => handler(message));
     });
   }
 
@@ -61,15 +61,21 @@ export class RelayConnection extends EventEmitter {
     this.ws.close();
   }
 
-  public on(event: 'open' | 'error' | 'close', listener: (...args: any[]) => void): this {
+  public on(
+    event: "open" | "error" | "close",
+    listener: (...args: any[]) => void,
+  ): this {
     return super.on(event, listener);
   }
 
-  public removeListener(event: 'open' | 'error' | 'close', listener: (...args: any[]) => void): this {
+  public removeListener(
+    event: "open" | "error" | "close",
+    listener: (...args: any[]) => void,
+  ): this {
     return super.removeListener(event, listener);
   }
 
   public getUrl(): string {
     return this.url;
   }
-} 
+}
