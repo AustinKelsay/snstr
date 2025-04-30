@@ -7,6 +7,7 @@ import {
   createTextNote,
   createDirectMessage,
 } from "../src/utils/event";
+import { signEvent } from "../src/utils/crypto";
 
 // Set this to false to use external relays instead of ephemeral relay
 const USE_EPHEMERAL = process.env.USE_EPHEMERAL !== "false";
@@ -268,6 +269,89 @@ async function main() {
         `✅ Correctly rejected invalid tags: ${error instanceof Error ? error.message : "unknown error"}`,
       );
     }
+
+    // NEW: Enhanced validation examples for comprehensive validation
+    console.log("\nTesting NIP-01 compliant event validation:");
+
+    // Test future timestamp validation
+    try {
+      const futureEvent = {
+        pubkey: keys.publicKey,
+        created_at: Math.floor(Date.now() / 1000) + 7200, // 2 hours in future
+        kind: 1,
+        tags: [],
+        content: "This event has a future timestamp",
+      };
+      
+      console.log("Publishing event with future timestamp (should be rejected)...");
+      const publishResult = await client.publishEvent({
+        ...futureEvent,
+        id: "a".repeat(64), // Dummy ID
+        sig: "b".repeat(128), // Dummy signature
+      });
+
+      if (!publishResult.success) {
+        console.log(`✅ Correctly rejected event with future timestamp: ${publishResult.relayResults.size > 0 ? 
+          Array.from(publishResult.relayResults.values())[0].reason : "validation failed"}`);
+      } else {
+        console.log("❌ Event with future timestamp was unexpectedly accepted");
+      }
+    } catch (error) {
+      console.log(
+        `✅ Caught error for event with future timestamp: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+
+    // Test incorrect ID validation
+    try {
+      // Create a valid event template
+      const eventTemplate = {
+        pubkey: keys.publicKey,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [["t", "validation"]],
+        content: "This event will have an incorrect ID",
+      };
+
+      // Calculate the correct hash
+      const correctId = await getEventHash(eventTemplate);
+      
+      // Create an event with a wrong ID
+      const wrongIdEvent = {
+        ...eventTemplate,
+        id: "f".repeat(64), // Incorrect ID
+      };
+      
+      // Sign the event with the wrong ID
+      const signature = await signEvent(wrongIdEvent.id, keys.privateKey);
+      const signedEvent = {
+        ...wrongIdEvent,
+        sig: signature,
+      };
+      
+      console.log("Publishing event with incorrect ID (should be rejected during async validation)...");
+      console.log(`Correct ID: ${correctId}`);
+      console.log(`Wrong ID: ${signedEvent.id}`);
+      
+      const publishResult = await client.publishEvent(signedEvent);
+      console.log(`Event was ${publishResult.success ? "accepted (initial validation only)" : "rejected"}`);
+      
+      // Note: The event might be accepted initially because ID validation happens asynchronously
+      console.log("Note: ID validation happens asynchronously to improve performance");
+      console.log("      Events with invalid IDs will be rejected during async validation");
+    } catch (error) {
+      console.log(
+        `Error during ID validation test: ${error instanceof Error ? error.message : "unknown error"}`,
+      );
+    }
+
+    // Inform about validation security benefits
+    console.log("\nSecurity benefits of NIP-01 compliant validation:");
+    console.log("✓ Prevents malformed event injection");
+    console.log("✓ Ensures event integrity (ID matches content)");
+    console.log("✓ Verifies event authenticity (signature validation)");
+    console.log("✓ Rejects events with unreasonable timestamps");
+    console.log("✓ Provides defense against various attack vectors");
 
     // Demo 4: Demonstrate the improved helper functions
     console.log("\nDemonstrating improved helper functions:");

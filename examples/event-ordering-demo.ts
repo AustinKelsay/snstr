@@ -56,6 +56,11 @@ async function main() {
         console.log(`  ID: ${event.id.slice(0, 8)}...`);
         console.log(`  Timestamp: ${event.created_at}`);
         console.log(`  Content: ${event.content}`);
+        // Each event received has passed validation according to NIP-01:
+        // - All required fields verified (id, pubkey, created_at, kind, tags, content, sig)
+        // - Proper field types and lengths checked
+        // - Reasonable timestamp verified (not far in the future)
+        // - ID and signature verification occurs asynchronously
       },
       () => {
         console.log("End of stored events (EOSE)");

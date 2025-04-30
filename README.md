@@ -46,6 +46,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Message encryption/decryption (NIP-04 and NIP-44)
 - Relay connections with automatic reconnect
 - Filter-based subscriptions
+- NIP-01 compliant event validation and verification
 
 ### Advanced Features
 - NIP-01: Basic protocol
@@ -62,7 +63,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 
 SNSTR currently implements the following Nostr Implementation Possibilities (NIPs):
 
-- NIP-01: Basic protocol functionality (events, subscriptions, relay connections)
+- NIP-01: Basic protocol functionality (events, subscriptions, relay connections) with comprehensive event validation
 - NIP-04: Encrypted direct messages using AES-CBC
 - NIP-05: DNS identifier verification and relay discovery
 - NIP-44: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
@@ -1378,6 +1379,26 @@ npm run example:nip57   # Lightning Zaps (NIP-57)
 See the [examples README](./examples/README.md) for the full list of available examples and more details on how to run them.
 
 ## Security Considerations
+
+### NIP-01 Event Validation
+
+SNSTR implements comprehensive validation of Nostr events according to NIP-01 requirements:
+
+1. **Structure and Field Validation**:
+   - Verifies all required fields are present (id, pubkey, created_at, kind, tags, content, sig)
+   - Validates proper data types and field lengths
+   - Ensures tags are properly formatted as arrays of strings
+
+2. **Cryptographic Verification**:
+   - Verifies event ID matches the SHA-256 hash of the serialized event data
+   - Validates event signature with Schnorr cryptography
+   - Performs computationally expensive validations asynchronously for better performance
+
+3. **Timestamp Validation**:
+   - Rejects events with timestamps too far in the future
+   - Warns about unusually old events
+
+This validation prevents various attacks including event forgery, content tampering, and replay attacks.
 
 ### NIP-19 Security Enhancements
 

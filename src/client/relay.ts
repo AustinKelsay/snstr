@@ -337,6 +337,15 @@ export class Relay {
           );
         }
 
+        // Validate the event before processing
+        if (!this.validateEvent(event)) {
+          if (debug) {
+            console.log(`Relay(${this.url}): Rejected invalid event: ${event?.id}`);
+          }
+          this.triggerEvent(RelayEvent.Error, this.url, new Error(`Invalid event: ${event?.id}`));
+          break;
+        }
+
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription) {
           if (debug)
@@ -545,5 +554,150 @@ export class Relay {
       // If created_at is the same, sort by id (ascending lexical order)
       return a.id.localeCompare(b.id);
     });
+  }
+
+  /**
+   * Validate an incoming event according to NIP-01 requirements
+   * 
+   * Checks:
+   * 1. Event has all required fields
+   * 2. Event timestamp is reasonable
+   * 3. Schedules async validation for ID and signature verification
+   */
+  private validateEvent(event: any): boolean {
+    // Skip validation if event is not an object or is null
+    if (!event || typeof event !== 'object') {
+      return false;
+    }
+
+    try {
+      // Check that all required fields are present and have the correct types
+      if (!event.id || typeof event.id !== 'string' || event.id.length !== 64) {
+        return false;
+      }
+      
+      if (!event.pubkey || typeof event.pubkey !== 'string' || event.pubkey.length !== 64) {
+        return false;
+      }
+      
+      if (!event.created_at || typeof event.created_at !== 'number') {
+        return false;
+      }
+      
+      if (event.kind === undefined || typeof event.kind !== 'number' || 
+          event.kind < 0 || event.kind > 65535) {
+        return false;
+      }
+      
+      if (!Array.isArray(event.tags)) {
+        return false;
+      }
+      
+      // Validate tag structure
+      for (const tag of event.tags) {
+        if (!Array.isArray(tag)) {
+          return false;
+        }
+        
+        // All tag items must be strings according to NIP-01
+        for (const item of tag) {
+          if (typeof item !== 'string') {
+            return false;
+          }
+        }
+      }
+      
+      if (typeof event.content !== 'string') {
+        return false;
+      }
+      
+      if (!event.sig || typeof event.sig !== 'string' || event.sig.length !== 128) {
+        return false;
+      }
+
+      // Check reasonable timestamp (not more than 1 hour in the future and not too far in the past)
+      const now = Math.floor(Date.now() / 1000);
+      if (event.created_at > now + 3600) {
+        return false; // Reject events with future timestamps
+      }
+      
+      // Optionally reject very old events (e.g., older than a year)
+      // This is a client policy decision
+      if (event.created_at < now - 31536000) {
+        // Return true but log a warning if debug is enabled
+        const debug = process.env.DEBUG?.includes("nostr:*") || false;
+        if (debug) {
+          console.warn(`Relay(${this.url}): Event ${event.id} is very old (${now - event.created_at} seconds)`);
+        }
+      }
+
+      // Schedule async validation but proceed with accepting the event
+      // This balances security with performance
+      this.validateEventAsync(event)
+        .then(isValid => {
+          if (!isValid) {
+            // If the event fails async validation, log the error
+            const debug = process.env.DEBUG?.includes("nostr:*") || false;
+            if (debug) {
+              console.error(`Relay(${this.url}): Event ${event.id} failed async validation`);
+            }
+            this.triggerEvent(RelayEvent.Error, this.url, new Error(`Invalid event signature: ${event.id}`));
+          }
+        })
+        .catch(error => {
+          const debug = process.env.DEBUG?.includes("nostr:*") || false;
+          if (debug) {
+            console.error(`Relay(${this.url}): Async validation error for event ${event.id}:`, error);
+          }
+        });
+
+      return true;
+    } catch (error) {
+      // If any validation throws an exception, reject the event
+      return false;
+    }
+  }
+
+  /**
+   * Perform async validations on an event
+   * 
+   * This includes:
+   * 1. Verifying the event ID matches the hash of serialized data
+   * 2. Verifying the signature is valid
+   * 
+   * These operations are computationally expensive, so they're performed
+   * asynchronously to avoid blocking the main thread.
+   */
+  private async validateEventAsync(event: NostrEvent): Promise<boolean> {
+    try {
+      // Extract the data needed for ID verification (excluding id and sig)
+      const eventData = {
+        pubkey: event.pubkey,
+        created_at: event.created_at,
+        kind: event.kind,
+        tags: event.tags,
+        content: event.content
+      };
+      
+      // Import the verification functions dynamically to avoid circular dependencies
+      const { getEventHash } = await import('../utils/event');
+      const { verifySignature } = await import('../utils/crypto');
+      
+      // Step 1: Validate event ID by comparing with calculated hash
+      const calculatedId = await getEventHash(eventData);
+      if (calculatedId !== event.id) {
+        return false;
+      }
+      
+      // Step 2: Validate signature
+      return await verifySignature(event.id, event.sig, event.pubkey);
+    } catch (error) {
+      // Log error details if in debug mode
+      const debug = process.env.DEBUG?.includes("nostr:*") || false;
+      if (debug) {
+        console.error(`Relay(${this.url}): Event validation error:`, error);
+      }
+      return false;
+    }
   }
 }

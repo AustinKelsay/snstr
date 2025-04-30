@@ -1,9 +1,9 @@
-import { Relay, RelayEvent } from "../src";
+import { Relay, RelayEvent, NostrEvent } from "../src";
 
 /**
  * This example demonstrates the improved connection handling in SNSTR
  * Including timeout handling, error management, race condition fixes,
- * and the new event ordering system.
+ * the event ordering system, and the enhanced event validation.
  */
 async function main() {
   // Create a relay with a specific connection timeout (5 seconds) and buffer flush delay
@@ -64,6 +64,107 @@ async function main() {
       // Unsubscribe
       console.log("\nUnsubscribing...");
       relay.unsubscribe(subscription);
+      
+      // ---------- NEW: Demonstrate event validation ----------
+      console.log("\n--- Demonstrating NIP-01 Event Validation ---");
+      
+      // Create a validation test subscription
+      console.log("Setting up subscription for validation testing...");
+      const validationSubscription = relay.subscribe(
+        [{ kinds: [1], limit: 2 }],
+        (event) => {
+          console.log(`✅ Valid event received: ${event.id.slice(0, 8)}...`);
+        },
+        () => {
+          console.log("EOSE received for validation subscription");
+        }
+      );
+      
+      // Test the relay's validation by attempting to process invalid events
+      console.log("\nTesting event validation with various invalid events...");
+      
+      // Direct access to handleMessage for testing purposes
+      const testValidation = (event: any, description: string) => {
+        // Get access to private validateEvent method for demonstration purposes
+        const validationResult = (relay as any).validateEvent(event);
+        console.log(`${validationResult ? '✅' : '❌'} ${description}: ${validationResult ? 'ACCEPTED' : 'REJECTED'}`);
+        return validationResult;
+      };
+      
+      // Test 1: Valid event (should pass basic validation)
+      const validEvent: NostrEvent = {
+        id: "a".repeat(64),
+        pubkey: "b".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [["t", "test"]],
+        content: "This is a valid event",
+        sig: "c".repeat(128)
+      };
+      testValidation(validEvent, "Well-formed event");
+      
+      // Test 2: Event with future timestamp (should fail)
+      const futureEvent = {
+        ...validEvent,
+        created_at: Math.floor(Date.now() / 1000) + 7200 // 2 hours in the future
+      };
+      testValidation(futureEvent, "Event with future timestamp");
+      
+      // Test 3: Event with missing field
+      const missingFieldEvent = {
+        id: "a".repeat(64),
+        pubkey: "b".repeat(64),
+        // missing created_at
+        kind: 1,
+        tags: [],
+        content: "Missing created_at",
+        sig: "c".repeat(128)
+      };
+      testValidation(missingFieldEvent, "Event missing required field");
+      
+      // Test 4: Event with invalid field type
+      const invalidFieldTypeEvent = {
+        id: "a".repeat(64),
+        pubkey: "b".repeat(64),
+        created_at: "not a number", // wrong type
+        kind: 1,
+        tags: [],
+        content: "Invalid created_at type",
+        sig: "c".repeat(128)
+      };
+      testValidation(invalidFieldTypeEvent, "Event with invalid field type");
+      
+      // Test 5: Event with invalid tag structure
+      const invalidTagsEvent = {
+        id: "a".repeat(64),
+        pubkey: "b".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: ["not an array of arrays"], // invalid tag structure
+        content: "Invalid tags",
+        sig: "c".repeat(128)
+      };
+      testValidation(invalidTagsEvent, "Event with invalid tag structure");
+      
+      // Test 6: Event with too short ID
+      const invalidIdEvent = {
+        id: "a".repeat(60), // too short
+        pubkey: "b".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: "ID too short",
+        sig: "c".repeat(128)
+      };
+      testValidation(invalidIdEvent, "Event with invalid ID length");
+      
+      console.log("\nNote: In addition to these basic validations, the system also performs:");
+      console.log("- Asynchronous verification of event ID hash against event content");
+      console.log("- Asynchronous verification of event signature validity");
+      console.log("These checks happen in the background for performance reasons.\n");
+      
+      // Unsubscribe from validation test
+      relay.unsubscribe(validationSubscription);
     } else {
       console.error("Failed to connect to relay");
       // Demonstrate changing timeout and retrying

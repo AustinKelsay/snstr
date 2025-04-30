@@ -48,6 +48,9 @@
     "example:dm": "ts-node examples/direct-message.ts",
     "example:dm:verbose": "VERBOSE=true ts-node examples/direct-message.ts",
     "example:dm:public": "VERBOSE=true USE_EPHEMERAL=false ts-node examples/direct-message.ts",
+    "example:relay-connection": "ts-node examples/relay-connection.ts",
+    "example:event-ordering": "ts-node examples/event-ordering-demo.ts",
+    "example:validation": "npm run example:relay-connection && npm run example && npm run example:dm && npm run example:event-ordering",
      
     "// NIP Examples": "-------------- NIP Examples --------------",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
