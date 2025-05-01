@@ -22,6 +22,19 @@ export {
   getSharedSecret as getNIP04SharedSecret,
 } from "./nip04";
 
+// Export NIP-11 utilities
+export {
+  fetchRelayInformation,
+  supportsNIP11,
+  relaySupportsNIPs,
+  getRelayPaymentInfo,
+  relayRequiresPayment,
+  RelayInfo,
+  RelayLimitation,
+  RelayFees,
+  FeeSchedule,
+} from "./nip11";
+
 // Export NIP-44 utilities
 export {
   encrypt as encryptNIP44,

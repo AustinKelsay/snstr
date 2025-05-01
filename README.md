@@ -20,6 +20,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
   - [NIP-19: Bech32-Encoded Entities](#nip-19-bech32-encoded-entities)
   - [NIP-05: DNS Identifiers](#nip-05-dns-identifiers)
   - [NIP-07: Browser Extensions](#nip-07-browser-extensions)
+  - [NIP-11: Relay Information Document](#nip-11-relay-information-document)
   - [NIP-46: Remote Signing Protocol](#nip-46-remote-signing-protocol)
   - [NIP-57: Lightning Zaps](#nip-57-lightning-zaps)
   - [NIP-47: Nostr Wallet Connect](#nip-47-nostr-wallet-connect)
@@ -29,6 +30,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - [NIP-05 Identity Verification](#nip-05-identity-verification)
 - [Encryption with NIP-44](#encryption-with-nip-44)
 - [Browser Extensions (NIP-07)](#browser-extensions-nip-07)
+- [Relay Information with NIP-11](#relay-information-with-nip-11)
 - [Relay Connection Management](#relay-connection-management)
 - [Using Public Relays vs Ephemeral Relay](#using-public-relays-vs-ephemeral-relay)
 - [Testing](#testing)
@@ -53,6 +55,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - NIP-04: Encrypted Direct Messages
 - NIP-05: Mapping Nostr keys to DNS-based internet identifiers
 - NIP-07: Web browser extension
+- NIP-11: Relay Information Document
 - NIP-19: bech32-encoded entities
 - NIP-44: Versioned Encryption
 - NIP-46: Remote Signing Protocol (Nostr Connect)
@@ -66,6 +69,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - NIP-01: Basic protocol functionality (events, subscriptions, relay connections) with comprehensive event validation
 - NIP-04: Encrypted direct messages using AES-CBC
 - NIP-05: DNS identifier verification and relay discovery
+- NIP-11: Relay Information Document for discovering relay metadata and capabilities
 - NIP-44: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
 - NIP-07: Browser extension integration for key management and signing
 - NIP-46: Remote signing (bunker) support for secure key management
@@ -268,6 +272,27 @@ import {
   decryptNip04WithExtension,
   encryptNip44WithExtension,
   decryptNip44WithExtension
+} from 'snstr';
+```
+
+### NIP-11: Relay Information Document
+
+```typescript
+import {
+  // Relay information fetching
+  fetchRelayInformation,
+  
+  // Helper functions
+  supportsNIP11,
+  relaySupportsNIPs,
+  getRelayPaymentInfo,
+  relayRequiresPayment,
+  
+  // Types
+  RelayInfo,
+  RelayLimitation,
+  RelayFees,
+  FeeSchedule
 } from 'snstr';
 ```
 
@@ -842,6 +867,66 @@ main().catch(console.error);
 - **Transparent API**: Same API as regular SNSTR client, but uses extension for cryptographic operations
 - **Fallbacks**: Gracefully falls back between encryption methods if needed
 - **Error Handling**: Clear error messages when extension functionality is unavailable
+
+## Relay Information with NIP-11
+
+SNSTR includes a complete implementation of [NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md), which allows clients to fetch metadata about relays such as supported NIPs, limitations, and payment requirements.
+
+```typescript
+import { 
+  fetchRelayInformation, 
+  supportsNIP11, 
+  relaySupportsNIPs 
+} from 'snstr';
+
+async function main() {
+  // Check if a relay supports NIP-11
+  const hasNIP11 = await supportsNIP11('wss://relay.example.com');
+  
+  if (hasNIP11) {
+    // Fetch detailed relay information
+    const info = await fetchRelayInformation('wss://relay.example.com');
+    
+    console.log(`Relay name: ${info.name}`);
+    console.log(`Operator pubkey: ${info.pubkey}`);
+    console.log(`Contact: ${info.contact}`);
+    
+    // Check for supported NIPs
+    if (info.supported_nips) {
+      console.log(`Supported NIPs: ${info.supported_nips.join(', ')}`);
+    }
+    
+    // Check for relay limitations
+    if (info.limitation) {
+      console.log(`Max message length: ${info.limitation.max_message_length} bytes`);
+      console.log(`Max subscriptions: ${info.limitation.max_subscriptions}`);
+      console.log(`Requires payment: ${info.limitation.payments_required ? 'Yes' : 'No'}`);
+    }
+    
+    // Check if the relay supports specific NIPs
+    const supportsZaps = await relaySupportsNIPs('wss://relay.example.com', [57]);
+    console.log(`Supports Zaps: ${supportsZaps ? 'Yes' : 'No'}`);
+  }
+}
+
+main().catch(console.error);
+```
+
+### Key Features of NIP-11 Implementation
+
+- **Metadata Discovery**: Learn about relay capabilities, limitations, and contact information
+- **Connection Options**: Discover maximum subscriptions, message sizes, and other limitations
+- **NIP Support Detection**: Check if relays support specific protocol features
+- **Payment Information**: Determine if a relay requires payment and get payment details
+- **Efficient Caching**: Automatically caches relay information to reduce network requests
+- **Timeout Handling**: Configurable timeouts to prevent hanging on slow relays
+- **Robust Error Handling**: Gracefully handles connection issues and invalid responses
+
+Try the NIP-11 example:
+
+```bash
+npm run example:nip11
+```
 
 ## Relay Connection Management
 
