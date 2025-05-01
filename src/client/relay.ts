@@ -19,10 +19,22 @@ export class Relay {
   private eventBuffers: Map<string, NostrEvent[]> = new Map();
   private bufferFlushInterval: NodeJS.Timeout | null = null;
   private bufferFlushDelay = 50; // ms to wait before flushing event buffer
+  // Reconnection parameters
+  private reconnectAttempts = 0;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private autoReconnect = true; // Whether to automatically reconnect
+  private maxReconnectAttempts = 10; // Maximum number of reconnection attempts
+  private maxReconnectDelay = 30000; // Maximum delay between reconnect attempts (ms)
 
   constructor(
     url: string,
-    options: { connectionTimeout?: number; bufferFlushDelay?: number } = {},
+    options: { 
+      connectionTimeout?: number; 
+      bufferFlushDelay?: number;
+      autoReconnect?: boolean;
+      maxReconnectAttempts?: number;
+      maxReconnectDelay?: number;
+    } = {},
   ) {
     this.url = url;
     if (options.connectionTimeout !== undefined) {
@@ -30,6 +42,15 @@ export class Relay {
     }
     if (options.bufferFlushDelay !== undefined) {
       this.bufferFlushDelay = options.bufferFlushDelay;
+    }
+    if (options.autoReconnect !== undefined) {
+      this.autoReconnect = options.autoReconnect;
+    }
+    if (options.maxReconnectAttempts !== undefined) {
+      this.maxReconnectAttempts = options.maxReconnectAttempts;
+    }
+    if (options.maxReconnectDelay !== undefined) {
+      this.maxReconnectDelay = options.maxReconnectDelay;
     }
   }
 
@@ -75,6 +96,7 @@ export class Relay {
         this.ws.onopen = () => {
           clearTimeout(timeoutId);
           this.connected = true;
+          this.resetReconnectAttempts(); // Reset reconnect counter on successful connection
           this.setupBufferFlush(); // Set up the event buffer flush interval
           this.triggerEvent(RelayEvent.Connect, this.url);
           resolve(true);
@@ -91,6 +113,11 @@ export class Relay {
           if (!wasConnected && this.connectionPromise) {
             this.connectionPromise = null;
             reject(new Error("connection closed"));
+          }
+
+          // Schedule reconnection if auto-reconnect is enabled
+          if (this.autoReconnect && wasConnected) {
+            this.scheduleReconnect();
           }
         };
 
@@ -123,6 +150,12 @@ export class Relay {
     }).catch((error) => {
       // Ensure we return false if connection fails but don't re-throw
       console.error(`Connection to ${this.url} failed:`, error);
+      
+      // Schedule reconnection if auto-reconnect is enabled
+      if (this.autoReconnect) {
+        this.scheduleReconnect();
+      }
+      
       return false as boolean; // Explicit type assertion
     });
 
@@ -150,6 +183,9 @@ export class Relay {
   }
 
   public disconnect(): void {
+    // Cancel any scheduled reconnection
+    this.cancelReconnect();
+    
     if (!this.ws) return;
 
     try {
@@ -182,6 +218,87 @@ export class Relay {
       this.connected = false;
       this.triggerEvent(RelayEvent.Disconnect, this.url);
     }
+  }
+
+  /**
+   * Schedule a reconnection attempt with exponential backoff
+   */
+  private scheduleReconnect(): void {
+    // Cancel any existing reconnect timer
+    this.cancelReconnect();
+    
+    // Check if we've reached the maximum number of reconnect attempts
+    if (this.maxReconnectAttempts > 0 && this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn(`Maximum reconnection attempts (${this.maxReconnectAttempts}) reached for ${this.url}`);
+      return;
+    }
+    
+    // Calculate delay with exponential backoff and jitter
+    const baseDelay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
+    const jitter = Math.random() * 0.3 * baseDelay; // Add 0-30% jitter
+    const reconnectDelay = baseDelay + jitter;
+    
+    console.log(`Scheduling reconnection to ${this.url} in ${Math.round(reconnectDelay)}ms (attempt ${this.reconnectAttempts + 1})`);
+    
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectAttempts++;
+      this.connect().catch(error => {
+        console.error(`Reconnection attempt ${this.reconnectAttempts} failed for ${this.url}:`, error);
+        // The next reconnection will be scheduled in the connect() method's catch handler
+      });
+    }, reconnectDelay);
+  }
+  
+  /**
+   * Cancel any scheduled reconnection attempt
+   */
+  private cancelReconnect(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+  
+  /**
+   * Reset the reconnection attempt counter
+   */
+  private resetReconnectAttempts(): void {
+    this.reconnectAttempts = 0;
+    this.cancelReconnect();
+  }
+  
+  /**
+   * Enable or disable automatic reconnection
+   */
+  public setAutoReconnect(enable: boolean): void {
+    this.autoReconnect = enable;
+    
+    // If disabling, cancel any pending reconnect
+    if (!enable) {
+      this.cancelReconnect();
+    }
+  }
+  
+  /**
+   * Set the maximum number of reconnection attempts
+   * @param max Maximum number of attempts (0 for unlimited)
+   */
+  public setMaxReconnectAttempts(max: number): void {
+    if (max < 0) {
+      throw new Error("Maximum reconnect attempts must be a non-negative number");
+    }
+    this.maxReconnectAttempts = max;
+  }
+  
+  /**
+   * Set the maximum delay between reconnection attempts
+   * @param maxDelayMs Maximum delay in milliseconds
+   */
+  public setMaxReconnectDelay(maxDelayMs: number): void {
+    if (maxDelayMs < 1000) {
+      throw new Error("Maximum reconnect delay must be at least 1000ms");
+    }
+    this.maxReconnectDelay = maxDelayMs;
   }
 
   public on(event: RelayEvent, callback: (...args: any[]) => void): void {

@@ -24,6 +24,7 @@
     "test:event:ordering:integration": "jest tests/event/event-ordering-integration.test.ts",
     "test:nostr": "jest tests/nostr.test.ts",
     "test:relay": "jest tests/relay.test.ts",
+    "test:relay:reconnect": "jest tests/client/relay-reconnect.test.ts",
     
     "// NIP Tests": "-------------- NIP Test Commands --------------",
     "test:nip04": "jest tests/nip04/encryption.test.ts",
@@ -97,7 +98,8 @@
     "example:messaging": "npm run example:dm && npm run example:nip04 && npm run example:nip44",
     "example:identity": "npm run example:nip05 && npm run example:nip07 && npm run example:nip19",
     "example:payments": "npm run example:nip47 && npm run example:nip57",
-    "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling"
+    "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling",
+    "example:relay-reconnect": "ts-node examples/client/relay-reconnect.ts"
   },
   "keywords": [
     "nostr",

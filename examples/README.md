@@ -108,4 +108,9 @@ npm run example:nip19:security
 npm run example:nip19:demo
 ```
 
-NIP-19 provides human-readable encoding for Nostr entities such as public keys, private keys, note IDs, profiles, events, and addresses. 
+NIP-19 provides human-readable encoding for Nostr entities such as public keys, private keys, note IDs, profiles, events, and addresses.
+
+## Client Examples
+
+### Relay Management
+- **[Relay Reconnection](./client/relay-reconnect.ts)**: Demonstrates how to configure and use automatic reconnection with exponential backoff when connections to relays are interrupted. 
