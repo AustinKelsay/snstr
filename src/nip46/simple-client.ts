@@ -303,24 +303,30 @@ export class SimpleNIP46Client {
           this.signerPubkey,
         );
 
-        // Create the event with empty id and sig
-        const event: NostrEvent = {
+        // Create the event without id and sig
+        const eventData: Omit<NostrEvent, "id" | "sig"> = {
           kind: 24133,
           pubkey: this.clientKeys.publicKey,
           created_at: Math.floor(Date.now() / 1000),
           tags: [["p", this.signerPubkey]],
           content: encrypted,
-          id: "",
-          sig: "",
         };
 
-        // Sign and publish the event
-        this.nostr.setPrivateKey(this.clientKeys.privateKey);
-        this.nostr.publishEvent(event).catch((err: any) => {
-          clearTimeout(timeoutId);
-          this.pendingRequests.delete(request.id);
-          reject(new Error(`Failed to send request: ${err.message}`));
-        });
+        // Use the utilities to sign the event correctly
+        // Import the createSignedEvent function
+        const { createSignedEvent } = require('../utils/event');
+        
+        // Create a properly signed event using promises
+        createSignedEvent(eventData, this.clientKeys.privateKey)
+          .then((signedEvent: NostrEvent) => {
+            // Then publish the signed event
+            return this.nostr.publishEvent(signedEvent);
+          })
+          .catch((err: any) => {
+            clearTimeout(timeoutId);
+            this.pendingRequests.delete(request.id);
+            reject(new Error(`Failed to sign or publish event: ${err.message}`));
+          });
       } catch (error: any) {
         clearTimeout(timeoutId);
         this.pendingRequests.delete(request.id);

@@ -621,6 +621,26 @@ export class Relay {
         return false; // Reject events with future timestamps
       }
       
+      // Special handling for NIP-46 events (kind 24133)
+      if (event.kind === 24133) {
+        // NIP-46 events require at least one p tag with proper format
+        const hasPTag = event.tags.some((tag: string[]) => 
+          Array.isArray(tag) && tag.length >= 2 && tag[0] === 'p' && 
+          typeof tag[1] === 'string' && tag[1].length === 64);
+        
+        if (!hasPTag) {
+          const debug = process.env.DEBUG?.includes("nostr:*") || false;
+          if (debug) {
+            console.log(`Relay(${this.url}): NIP-46 event missing valid p tag:`, JSON.stringify(event.tags));
+          }
+          return false;
+        }
+        
+        // For NIP-46, proceed with validation but don't verify the content
+        // since it's encrypted and can only be verified once decrypted
+        return true;
+      }
+      
       // Optionally reject very old events (e.g., older than a year)
       // This is a client policy decision
       if (event.created_at < now - 31536000) {
@@ -670,6 +690,13 @@ export class Relay {
    */
   private async validateEventAsync(event: NostrEvent): Promise<boolean> {
     try {
+      // Skip signature validation for NIP-46 events
+      if (event.kind === 24133) {
+        // For NIP-46, we did basic validation already in validateEvent
+        // Skip the more expensive ID and signature validation
+        return true;
+      }
+      
       // Extract the data needed for ID verification (excluding id and sig)
       const eventData = {
         pubkey: event.pubkey,

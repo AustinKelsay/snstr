@@ -1,14 +1,36 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../client/nostr";
-import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
+import { encrypt, decrypt } from "../nip04";
 import {
+  NIP46Method,
   NIP46Request,
   NIP46Response,
-  createSuccessResponse,
-  createErrorResponse,
-} from "./utils/request-response";
+  NIP46ClientSession
+} from "./types";
 import { Logger, LogLevel } from "./utils/logger";
-import { createSignedEvent } from "../utils/event";
+import { createSignedEvent, UnsignedEvent } from "../utils/event";
+import { generateKeypair } from "../utils/crypto";
+
+// Additional constants for NIP-46
+export const NIP46_METHODS = {
+  CONNECT: "connect",
+  GET_PUBLIC_KEY: "get_public_key",
+  SIGN_EVENT: "sign_event",
+  PING: "ping",
+  NIP04_ENCRYPT: "nip04_encrypt",
+  NIP04_DECRYPT: "nip04_decrypt",
+  NIP44_ENCRYPT: "nip44_encrypt",
+  NIP44_DECRYPT: "nip44_decrypt",
+};
+
+// Helper functions for response creation
+export function createSuccessResponse(id: string, result: string): NIP46Response {
+  return { id, result };
+}
+
+export function createErrorResponse(id: string, error: string): NIP46Response {
+  return { id, error };
+}
 
 // Session data for connected clients
 interface ClientSession {
@@ -213,7 +235,7 @@ export class SimpleNIP46Bunker {
 
       // Decrypt with the signer's private key and client's public key
       try {
-        const decrypted = decryptNIP04(
+        const decrypted = decrypt(
           event.content,
           this.signerKeys.privateKey,
           event.pubkey,
@@ -294,40 +316,57 @@ export class SimpleNIP46Bunker {
     request: NIP46Request,
     clientPubkey: string,
   ): Promise<NIP46Response> {
-    // Extract parameters
-    const [signerPubkey, secret, permissionsParam] = request.params;
-
-    // Verify the client is connecting to the correct signer
-    if (signerPubkey !== this.signerKeys.publicKey) {
-      return createErrorResponse(request.id, "Invalid signer pubkey");
+    // Check if we have parameters
+    if (!request.params || request.params.length < 1) {
+      return createErrorResponse(
+        request.id,
+        "Missing parameters for connect request",
+      );
     }
 
-    // Check secret if required
-    if (this.secret && (!secret || this.secret !== secret)) {
+    // Extract parameters
+    const [requestedSignerPubkey, requestedSecret, permissionsParam] = request.params;
+
+    // Validate signer pubkey
+    if (requestedSignerPubkey !== this.signerKeys.publicKey) {
+      this.logger.warn(
+        `Client requested connection to ${requestedSignerPubkey} but this bunker serves ${this.signerKeys.publicKey}`,
+      );
+      return createErrorResponse(
+        request.id,
+        "Requested signer pubkey does not match this bunker",
+      );
+    }
+
+    // Validate secret if set
+    if (this.secret && requestedSecret !== this.secret) {
+      this.logger.warn(`Client provided invalid secret`);
       return createErrorResponse(request.id, "Invalid secret");
     }
 
-    // Create a new session for this client
+    // Create client session with default permissions
     const session: ClientSession = {
-      permissions: new Set<string>(),
+      permissions: new Set(this.defaultPermissions),
       lastSeen: Date.now(),
     };
 
-    // Add default permissions
-    this.defaultPermissions.forEach((p) => session.permissions.add(p));
-
-    // Add client-requested permissions (optional)
-    if (permissionsParam) {
-      permissionsParam.split(",").forEach((p) => {
-        if (p.trim()) session.permissions.add(p.trim());
+    // Add requested permissions if provided
+    if (permissionsParam && typeof permissionsParam === 'string') {
+      permissionsParam.split(",").forEach((permission: string) => {
+        session.permissions.add(permission.trim());
       });
     }
 
     // Store client session
     this.clients.set(clientPubkey, session);
-    this.logger.info(`Client connected: ${clientPubkey}`);
 
-    return createSuccessResponse(request.id, "ack");
+    this.logger.info(`Client ${clientPubkey.slice(0, 8)}... connected`);
+    this.logger.debug(
+      `Client permissions: ${Array.from(session.permissions).join(", ")}`,
+    );
+
+    // Respond with "ack" or the secret if provided
+    return createSuccessResponse(request.id, requestedSecret || "ack");
   }
 
   /**
@@ -438,7 +477,7 @@ export class SimpleNIP46Bunker {
 
     try {
       // Encrypt the message
-      const encrypted = encryptNIP04(
+      const encrypted = encrypt(
         plaintext,
         this.userKeys.privateKey,
         recipient,
@@ -485,7 +524,7 @@ export class SimpleNIP46Bunker {
 
     try {
       // Decrypt the message
-      const decrypted = decryptNIP04(
+      const decrypted = decrypt(
         ciphertext,
         this.userKeys.privateKey,
         sender,
@@ -510,40 +549,39 @@ export class SimpleNIP46Bunker {
     clientPubkey: string,
   ): Promise<void> {
     try {
-      this.logger.debug(`Sending response: ${response.id} to ${clientPubkey}`);
-      this.logger.trace(`Response JSON: ${JSON.stringify(response)}`);
-
-      // Check if we have the signer private key
-      if (!this.signerKeys.privateKey) {
-        this.logger.error(`Signer private key not set`);
-        return;
-      }
+      this.logger.debug(
+        `Sending response for request ${response.id}:`,
+        JSON.stringify(response),
+      );
 
       // Encrypt the response with the signer's private key and client's public key
-      const encrypted = encryptNIP04(
+      const encrypted = encrypt(
         JSON.stringify(response),
         this.signerKeys.privateKey,
         clientPubkey,
       );
 
-      // Create and send the response event
-      const event = {
+      // Create the unsigned event
+      const eventData: UnsignedEvent = {
         kind: 24133,
         pubkey: this.signerKeys.publicKey,
         created_at: Math.floor(Date.now() / 1000),
         tags: [["p", clientPubkey]],
         content: encrypted,
-        id: "",
-        sig: "",
       };
 
-      // Use the Nostr class to sign and publish the event
-      this.nostr.setPrivateKey(this.signerKeys.privateKey);
-      await this.nostr.publishEvent(event);
+      // Create a properly signed event
+      const signedEvent = await createSignedEvent(
+        eventData, 
+        this.signerKeys.privateKey
+      );
+
+      // Use the Nostr class to publish the event
+      await this.nostr.publishEvent(signedEvent);
 
       this.logger.debug(`Response sent for request: ${response.id}`);
     } catch (error: any) {
-      this.logger.error(`Failed to send response:`, error.message);
+      this.logger.error(`Failed to send response: ${error.message}`);
     }
   }
 
