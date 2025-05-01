@@ -19,7 +19,9 @@
     "test:coverage": "jest --coverage",
     "test:integration": "jest tests/integration.test.ts",
     "test:encryption": "jest tests/crypto.test.ts -t 'NIP-04'",
-    "test:event": "jest tests/event.test.ts",
+    "test:event": "jest tests/event/event.test.ts",
+    "test:event:ordering": "jest tests/event/event-ordering.test.ts",
+    "test:event:ordering:integration": "jest tests/event/event-ordering-integration.test.ts",
     "test:nostr": "jest tests/nostr.test.ts",
     "test:relay": "jest tests/relay.test.ts",
     
@@ -35,7 +37,8 @@
 
     "// Test Groups": "-------------- Test Groups --------------",
     "test:all": "npm test",
-    "test:core": "jest tests/event.test.ts tests/nostr.test.ts tests/relay.test.ts",
+    "test:core": "jest tests/event/event.test.ts tests/nostr.test.ts tests/relay.test.ts tests/event/event-ordering.test.ts",
+    "test:event:all": "jest tests/event",
     "test:crypto": "jest tests/crypto.test.ts tests/nip04/encryption.test.ts tests/nip44",
     "test:identity": "jest tests/nip05.test.ts tests/nip07.test.ts tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57",
