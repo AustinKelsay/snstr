@@ -760,4 +760,192 @@ describe("Relay", () => {
       expect(invalidResult).toBe(false);
     });
   });
+
+  describe('Addressable events (kinds 30000-39999)', () => {
+    let relay: Relay;
+    let testEvent: NostrEvent;
+    
+    beforeEach(async () => {
+      relay = new Relay(ephemeralRelay.url);
+      await relay.connect();
+      
+      // Create a valid addressable event
+      testEvent = {
+        id: "b0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3cd",
+        pubkey: "884704d5780d85163c138d2695ca263eb7552b0f2c5ebaf86c8d9c4e62a337e3",
+        created_at: 1671312795,
+        kind: 30001,
+        tags: [
+          ["d", "test-identifier"],
+          ["t", "test"]
+        ],
+        content: "test content for addressable event",
+        sig: "553e66e4316cd6f8e2c363b7677d41da0f6b37775daa7728acdda6e477ed2fbf03be27c33f1eddaa2ee2711e9ca7c0ad7e97dd4d3eb4c1cf9ceaf98d9000af6a"
+      };
+    });
+    
+    afterEach(() => {
+      relay.disconnect();
+    });
+    
+    test('should process and store addressable events', () => {
+      // Access the private method directly for testing
+      (relay as any).processAddressableEvent(testEvent);
+      
+      // Get the stored event using the public API
+      const storedEvent = relay.getLatestAddressableEvent(30001, testEvent.pubkey, "test-identifier");
+      
+      // Verify it was stored correctly
+      expect(storedEvent).toBeDefined();
+      expect(storedEvent?.id).toBe(testEvent.id);
+      expect(storedEvent?.kind).toBe(30001);
+    });
+    
+    test('should replace older events with the same pubkey, kind, and d-tag', () => {
+      // Create an older event with the same pubkey, kind, and d-tag
+      const olderEvent = {
+        ...testEvent,
+        id: "c0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3ee",
+        created_at: 1671312700, // Older timestamp
+        content: "older content"
+      };
+      
+      // Create a newer event with the same pubkey, kind, and d-tag
+      const newerEvent = {
+        ...testEvent,
+        id: "d0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3ff",
+        created_at: 1671312900, // Newer timestamp
+        content: "newer content"
+      };
+      
+      // Process events out of order (newer first, then older)
+      (relay as any).processAddressableEvent(newerEvent);
+      (relay as any).processAddressableEvent(olderEvent);
+      
+      // Get the stored event
+      const storedEvent = relay.getLatestAddressableEvent(30001, testEvent.pubkey, "test-identifier");
+      
+      // Verify the newer event was kept
+      expect(storedEvent).toBeDefined();
+      expect(storedEvent?.id).toBe(newerEvent.id);
+      expect(storedEvent?.content).toBe("newer content");
+    });
+    
+    test('should handle events with different d-tags separately', () => {
+      // Create an event with a different d-tag
+      const differentDTagEvent = {
+        ...testEvent,
+        id: "e0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f400",
+        tags: [
+          ["d", "different-identifier"],
+          ["t", "test"]
+        ],
+        content: "different d-tag content"
+      };
+      
+      // Process both events
+      (relay as any).processAddressableEvent(testEvent);
+      (relay as any).processAddressableEvent(differentDTagEvent);
+      
+      // Get the stored events
+      const event1 = relay.getLatestAddressableEvent(30001, testEvent.pubkey, "test-identifier");
+      const event2 = relay.getLatestAddressableEvent(30001, testEvent.pubkey, "different-identifier");
+      
+      // Verify both events were stored
+      expect(event1).toBeDefined();
+      expect(event1?.id).toBe(testEvent.id);
+      expect(event1?.content).toBe("test content for addressable event");
+      
+      expect(event2).toBeDefined();
+      expect(event2?.id).toBe(differentDTagEvent.id);
+      expect(event2?.content).toBe("different d-tag content");
+    });
+    
+    test('should retrieve addressable events by pubkey', () => {
+      // Create another event with the same pubkey but different kind and d-tag
+      const anotherEvent = {
+        ...testEvent,
+        id: "f0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f401",
+        kind: 30002,
+        tags: [
+          ["d", "another-identifier"],
+          ["t", "test"]
+        ],
+        content: "another content"
+      };
+      
+      // Process both events
+      (relay as any).processAddressableEvent(testEvent);
+      (relay as any).processAddressableEvent(anotherEvent);
+      
+      // Get events by pubkey
+      const events = relay.getAddressableEventsByPubkey(testEvent.pubkey);
+      
+      // Verify both events were retrieved
+      expect(events.length).toBe(2);
+      expect(events.some(e => e.id === testEvent.id)).toBe(true);
+      expect(events.some(e => e.id === anotherEvent.id)).toBe(true);
+    });
+    
+    test('should retrieve addressable events by kind', () => {
+      // Create another event with the same kind but different pubkey
+      const differentPubkeyEvent = {
+        ...testEvent,
+        id: "g0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f402",
+        pubkey: "994704d5780d85163c138d2695ca263eb7552b0f2c5ebaf86c8d9c4e62a337f4",
+        tags: [
+          ["d", "another-pubkey-identifier"],
+          ["t", "test"]
+        ],
+        content: "different pubkey content"
+      };
+      
+      // Process both events
+      (relay as any).processAddressableEvent(testEvent);
+      (relay as any).processAddressableEvent(differentPubkeyEvent);
+      
+      // Get events by kind
+      const events = relay.getAddressableEventsByKind(30001);
+      
+      // Verify both events were retrieved
+      expect(events.length).toBe(2);
+      expect(events.some(e => e.id === testEvent.id)).toBe(true);
+      expect(events.some(e => e.id === differentPubkeyEvent.id)).toBe(true);
+    });
+    
+    test('should properly handle addressable events through handleMessage', () => {
+      // Create a subscription to receive events
+      const subscriptionId = "test-sub-id";
+      const onEvent = jest.fn();
+      relay.subscribe([{}], onEvent);
+      
+      // Manually set up the buffer for the subscription
+      (relay as any).eventBuffers.set(subscriptionId, []);
+      
+      // Create a valid addressable event
+      const addressableEvent: NostrEvent = {
+        id: "h0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f403",
+        pubkey: testEvent.pubkey,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 30001,
+        tags: [["d", "test-identifier"]],
+        content: "Addressable event through handleMessage",
+        sig: "d".repeat(128),
+      };
+      
+      // Override the async validation to always return true for testing
+      (relay as any).validateEventAsync = jest.fn().mockResolvedValue(true);
+      
+      // Process the event through handleMessage
+      (relay as any).handleMessage(["EVENT", subscriptionId, addressableEvent]);
+      
+      // Manually flush the event buffer
+      (relay as any).flushSubscriptionBuffer(subscriptionId);
+      
+      // Verify the event was processed as an addressable event
+      const storedEvent = relay.getLatestAddressableEvent(30001, testEvent.pubkey, "test-identifier");
+      expect(storedEvent).toBeDefined();
+      expect(storedEvent?.id).toBe(addressableEvent.id);
+    });
+  });
 });

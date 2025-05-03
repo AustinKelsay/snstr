@@ -190,3 +190,40 @@ export function createMetadataEvent(
     content: JSON.stringify(metadata),
   };
 }
+
+/**
+ * Create an addressable event (kinds 30000-39999)
+ * These are events that can be replaced based on kind, pubkey, and d-tag value
+ *
+ * @param kind The kind of the event (must be between 30000-39999)
+ * @param dTagValue The value for the d tag that identifies this addressable event
+ * @param content The content of the event
+ * @param privateKey The private key to derive the pubkey from
+ * @param additionalTags Optional additional tags for the event
+ * @returns An unsigned event with pubkey automatically set
+ */
+export function createAddressableEvent(
+  kind: number,
+  dTagValue: string,
+  content: string,
+  privateKey: string,
+  additionalTags: string[][] = [],
+): UnsignedEvent {
+  if (kind < 30000 || kind >= 40000) {
+    throw new Error('Addressable events must have kind between 30000-39999');
+  }
+
+  const pubkey = getPublicKey(privateKey);
+  
+  // Ensure the d tag is included and is the first tag
+  const dTag = ['d', dTagValue];
+  const tags = [dTag, ...additionalTags];
+
+  return {
+    pubkey,
+    created_at: Math.floor(Date.now() / 1000),
+    kind,
+    tags,
+    content,
+  };
+}

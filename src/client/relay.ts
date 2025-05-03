@@ -25,6 +25,9 @@ export class Relay {
   private autoReconnect = true; // Whether to automatically reconnect
   private maxReconnectAttempts = 10; // Maximum number of reconnection attempts
   private maxReconnectDelay = 30000; // Maximum delay between reconnect attempts (ms)
+  // Track replaceable and addressable events according to NIP-01
+  private replaceableEvents: Map<string, Map<number, NostrEvent>> = new Map();
+  private addressableEvents: Map<string, NostrEvent> = new Map();
 
   constructor(
     url: string,
@@ -463,6 +466,16 @@ export class Relay {
           break;
         }
 
+        // Process replaceable events (kinds 0, 3, 10000-19999)
+        if (event.kind === 0 || event.kind === 3 || (event.kind >= 10000 && event.kind < 20000)) {
+          this.processReplaceableEvent(event);
+        }
+        
+        // Process addressable events (kinds 30000-39999)
+        if (event.kind >= 30000 && event.kind < 40000) {
+          this.processAddressableEvent(event);
+        }
+
         const subscription = this.subscriptions.get(subscriptionId);
         if (subscription) {
           if (debug)
@@ -843,5 +856,94 @@ export class Relay {
       }
       return false;
     }
+  }
+
+  /**
+   * Process a replaceable event according to NIP-01
+   * For events with kinds 0, 3, or 10000-19999, only the latest one should be stored
+   */
+  private processReplaceableEvent(event: NostrEvent): void {
+    const key = event.pubkey;
+    
+    if (!this.replaceableEvents.has(key)) {
+      this.replaceableEvents.set(key, new Map());
+    }
+    
+    const userEvents = this.replaceableEvents.get(key)!;
+    const existingEvent = userEvents.get(event.kind);
+    
+    if (!existingEvent || existingEvent.created_at < event.created_at) {
+      userEvents.set(event.kind, event);
+      // In a full implementation, we might want to notify subscribers about the replacement
+    }
+  }
+
+  /**
+   * Process an addressable event according to NIP-01
+   * For events with kinds 30000-39999, only the latest event for each combination of
+   * kind, pubkey, and d tag value should be stored
+   */
+  private processAddressableEvent(event: NostrEvent): void {
+    // Find the d tag value (if any)
+    const dTag = event.tags.find(tag => tag[0] === 'd');
+    const dValue = dTag ? dTag[1] : '';
+    
+    // Create a composite key from kind, pubkey, and d-tag value
+    const key = `${event.kind}:${event.pubkey}:${dValue}`;
+    
+    const existingEvent = this.addressableEvents.get(key);
+    
+    if (!existingEvent || existingEvent.created_at < event.created_at) {
+      this.addressableEvents.set(key, event);
+      // In a full implementation, we might want to notify subscribers about the replacement
+    }
+  }
+
+  /**
+   * Get the latest replaceable event of a specific kind for a pubkey
+   * 
+   * @param pubkey The public key of the user
+   * @param kind The kind of event to retrieve (0, 3, or 10000-19999)
+   * @returns The latest event or undefined if none exists
+   */
+  public getLatestReplaceableEvent(pubkey: string, kind: number): NostrEvent | undefined {
+    const userEvents = this.replaceableEvents.get(pubkey);
+    if (!userEvents) return undefined;
+    return userEvents.get(kind);
+  }
+
+  /**
+   * Get the latest addressable event for a specific kind, pubkey, and d-tag value
+   * 
+   * @param kind The kind of event to retrieve (30000-39999)
+   * @param pubkey The public key of the user
+   * @param dTagValue The value of the d tag
+   * @returns The latest event or undefined if none exists
+   */
+  public getLatestAddressableEvent(kind: number, pubkey: string, dTagValue: string = ''): NostrEvent | undefined {
+    const key = `${kind}:${pubkey}:${dTagValue}`;
+    return this.addressableEvents.get(key);
+  }
+
+  /**
+   * Get all addressable events for a specific pubkey
+   * 
+   * @param pubkey The public key of the user
+   * @returns Array of addressable events
+   */
+  public getAddressableEventsByPubkey(pubkey: string): NostrEvent[] {
+    return Array.from(this.addressableEvents.values())
+      .filter(event => event.pubkey === pubkey);
+  }
+
+  /**
+   * Get all addressable events for a specific kind
+   * 
+   * @param kind The kind of event to retrieve (30000-39999)
+   * @returns Array of addressable events
+   */
+  public getAddressableEventsByKind(kind: number): NostrEvent[] {
+    return Array.from(this.addressableEvents.values())
+      .filter(event => event.kind === kind);
   }
 }

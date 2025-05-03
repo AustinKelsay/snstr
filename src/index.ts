@@ -13,7 +13,10 @@ export {
   verifySignature,
 } from "./utils/crypto";
 
-export { createEvent } from "./utils/event";
+export { 
+  createEvent,
+  createAddressableEvent 
+} from "./utils/event";
 
 // Export NIP-04 utilities
 export {

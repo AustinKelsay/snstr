@@ -343,4 +343,108 @@ export class Nostr {
       failureCount,
     };
   }
+
+  /**
+   * Get the latest replaceable event of a specific kind for a pubkey from all connected relays
+   * 
+   * @param pubkey The public key of the user
+   * @param kind The kind of event to retrieve (0, 3, or 10000-19999)
+   * @returns The latest event or null if none exists
+   */
+  public getLatestReplaceableEvent(pubkey: string, kind: number): NostrEvent | null {
+    let latestEvent: NostrEvent | null = null;
+    
+    for (const relay of this.relays.values()) {
+      const event = relay.getLatestReplaceableEvent(pubkey, kind);
+      if (event && (!latestEvent || event.created_at > latestEvent.created_at)) {
+        latestEvent = event;
+      }
+    }
+    
+    return latestEvent;
+  }
+
+  /**
+   * Get the latest addressable event for a specific kind, pubkey, and d-tag value
+   * from all connected relays
+   * 
+   * @param kind The kind of event to retrieve (30000-39999)
+   * @param pubkey The public key of the user
+   * @param dTagValue The value of the d tag
+   * @returns The latest event or null if none exists
+   */
+  public getLatestAddressableEvent(kind: number, pubkey: string, dTagValue: string = ''): NostrEvent | null {
+    let latestEvent: NostrEvent | null = null;
+    
+    for (const relay of this.relays.values()) {
+      const event = relay.getLatestAddressableEvent(kind, pubkey, dTagValue);
+      if (event && (!latestEvent || event.created_at > latestEvent.created_at)) {
+        latestEvent = event;
+      }
+    }
+    
+    return latestEvent;
+  }
+
+  /**
+   * Get all addressable events for a specific pubkey from all connected relays
+   * 
+   * @param pubkey The public key of the user
+   * @returns Array of unique addressable events
+   */
+  public getAddressableEventsByPubkey(pubkey: string): NostrEvent[] {
+    const eventsMap = new Map<string, NostrEvent>();
+    
+    for (const relay of this.relays.values()) {
+      const events = relay.getAddressableEventsByPubkey(pubkey);
+      
+      for (const event of events) {
+        // Find the d tag value
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        const dValue = dTag ? dTag[1] : '';
+        
+        // Create a composite key from kind, pubkey, and d-tag value
+        const key = `${event.kind}:${event.pubkey}:${dValue}`;
+        
+        // Only keep the latest event for each key
+        const existing = eventsMap.get(key);
+        if (!existing || event.created_at > existing.created_at) {
+          eventsMap.set(key, event);
+        }
+      }
+    }
+    
+    return Array.from(eventsMap.values());
+  }
+
+  /**
+   * Get all addressable events for a specific kind from all connected relays
+   * 
+   * @param kind The kind of event to retrieve (30000-39999)
+   * @returns Array of unique addressable events
+   */
+  public getAddressableEventsByKind(kind: number): NostrEvent[] {
+    const eventsMap = new Map<string, NostrEvent>();
+    
+    for (const relay of this.relays.values()) {
+      const events = relay.getAddressableEventsByKind(kind);
+      
+      for (const event of events) {
+        // Find the d tag value
+        const dTag = event.tags.find(tag => tag[0] === 'd');
+        const dValue = dTag ? dTag[1] : '';
+        
+        // Create a composite key from pubkey and d-tag value (kind is already filtered)
+        const key = `${event.pubkey}:${dValue}`;
+        
+        // Only keep the latest event for each key
+        const existing = eventsMap.get(key);
+        if (!existing || event.created_at > existing.created_at) {
+          eventsMap.set(key, event);
+        }
+      }
+    }
+    
+    return Array.from(eventsMap.values());
+  }
 }

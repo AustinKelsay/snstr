@@ -4,6 +4,7 @@ import {
   createTextNote,
   createDirectMessage,
   createMetadataEvent,
+  createAddressableEvent,
   UnsignedEvent,
   getEventHash,
 } from "../../src/utils/event";
@@ -254,6 +255,94 @@ describe("Event Creation and Signing", () => {
       const signedEvent = await createSignedEvent(template, privateKey);
       expect(signedEvent.id).toBeDefined();
       expect(signedEvent.sig).toBeDefined();
+    });
+  });
+
+  describe("createAddressableEvent", () => {
+    it("should create an addressable event with the correct kind, d-tag, and pubkey", async () => {
+      const kind = 30001;
+      const dTagValue = "test-identifier";
+      const content = "Addressable event content";
+      const additionalTags = [["t", "test"], ["client", "snstr"]];
+
+      const template = createAddressableEvent(
+        kind,
+        dTagValue,
+        content,
+        privateKey,
+        additionalTags,
+      );
+
+      expect(template.kind).toBe(30001);
+      expect(template.content).toBe(content);
+      expect(template.pubkey).toBe(publicKey);
+      
+      // Check that the d tag is included and is the first tag
+      expect(template.tags[0]).toEqual(["d", dTagValue]);
+      
+      // Check that additional tags are included
+      expect(template.tags).toContainEqual(["t", "test"]);
+      expect(template.tags).toContainEqual(["client", "snstr"]);
+      
+      // Create a signed version and verify it
+      const signedEvent = await createSignedEvent(template, privateKey);
+      expect(signedEvent.id).toBeDefined();
+      expect(signedEvent.sig).toBeDefined();
+      
+      const isValid = await verifySignature(
+        signedEvent.id,
+        signedEvent.sig,
+        signedEvent.pubkey,
+      );
+      expect(isValid).toBe(true);
+    });
+    
+    it("should throw an error if kind is outside the valid range (30000-39999)", async () => {
+      // Test with kinds outside the valid range
+      const invalidKinds = [1, 29999, 40000, 50000];
+      
+      for (const kind of invalidKinds) {
+        expect(() => {
+          createAddressableEvent(
+            kind,
+            "test-identifier",
+            "Invalid kind test",
+            privateKey,
+          );
+        }).toThrow('Addressable events must have kind between 30000-39999');
+      }
+    });
+    
+    it("should work with different d-tag values", async () => {
+      // Test with various d-tag values
+      const dTagValues = ["", "simple", "complex-value", "value_with_underscores", "123"];
+      
+      for (const dTagValue of dTagValues) {
+        const template = createAddressableEvent(
+          30001,
+          dTagValue,
+          "Test with different d-tag values",
+          privateKey,
+        );
+        
+        expect(template.tags[0]).toEqual(["d", dTagValue]);
+      }
+    });
+    
+    it("should allow creating events with different kinds in the valid range", async () => {
+      // Test with different valid kinds
+      const validKinds = [30000, 30001, 35000, 39999];
+      
+      for (const kind of validKinds) {
+        const template = createAddressableEvent(
+          kind,
+          "test-identifier",
+          "Valid kind test",
+          privateKey,
+        );
+        
+        expect(template.kind).toBe(kind);
+      }
     });
   });
 });

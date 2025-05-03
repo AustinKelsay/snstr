@@ -23,6 +23,11 @@ npm run example:dm             # Direct message example
 npm run example:dm:verbose     # Direct message with verbose logging
 npm run example:dm:public      # Direct message using public relays
 
+# Addressable events (kinds 30000-39999)
+npm run example:addressable         # Addressable events example
+npm run example:addressable:verbose # Addressable events with verbose logging
+npm run example:addressable:public  # Addressable events using public relays
+
 # NIP-specific examples
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
@@ -65,6 +70,7 @@ See the [NIP-46 README](./nip46/README.md) for more details on the remote signin
 - `relay-connection.ts` - Connection management with improved error handling
 - `crypto-demo.ts` - Cryptography examples
 - `direct-message.ts` - Direct messaging example
+- `addressable-events.ts` - Addressable events (kinds 30000-39999) example
 - `nip04/` - NIP-04 (Encrypted Direct Messages) examples
 - `nip05/` - NIP-05 (DNS Identifier Verification) examples 
 - `nip07/` - NIP-07 (Web Browser Extension) examples

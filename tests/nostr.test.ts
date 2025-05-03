@@ -1,4 +1,4 @@
-import { Nostr, NostrEvent, Filter, RelayEvent } from "../src";
+import { Nostr, NostrEvent, Filter, RelayEvent, Relay } from "../src";
 import { NostrRelay } from "../src/utils/ephemeral-relay";
 import { generateKeypair } from "../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../src/nip04";
@@ -487,5 +487,160 @@ describe("Nostr client", () => {
         true,
       );
     });
+  });
+});
+
+describe('Addressable events functionality', () => {
+  let nostr: Nostr;
+  let mockRelays: any[]; // Using any for mocks
+
+  beforeEach(() => {
+    // Create mock relay objects instead of actual Relay instances
+    mockRelays = [
+      { 
+        getLatestAddressableEvent: jest.fn(),
+        getAddressableEventsByPubkey: jest.fn(),
+        getAddressableEventsByKind: jest.fn()
+      },
+      {
+        getLatestAddressableEvent: jest.fn(),
+        getAddressableEventsByPubkey: jest.fn(),
+        getAddressableEventsByKind: jest.fn()
+      }
+    ];
+
+    // Create a Nostr instance
+    nostr = new Nostr();
+    
+    // Add the mocked relays to the nostr instance
+    (nostr as any).relays.set('wss://relay1.example.com', mockRelays[0]);
+    (nostr as any).relays.set('wss://relay2.example.com', mockRelays[1]);
+  });
+
+  test('getLatestAddressableEvent should return the latest event from all relays', () => {
+    // Prepare test events with different timestamps
+    const event1: NostrEvent = {
+      id: 'id1',
+      pubkey: 'pubkey1',
+      created_at: 1000,
+      kind: 30001,
+      tags: [['d', 'identifier']],
+      content: 'content1',
+      sig: 'sig1'
+    };
+
+    const event2: NostrEvent = {
+      id: 'id2',
+      pubkey: 'pubkey1',
+      created_at: 2000, // Newer timestamp
+      kind: 30001,
+      tags: [['d', 'identifier']],
+      content: 'content2',
+      sig: 'sig2'
+    };
+
+    // Set up mocks to return different events from different relays
+    mockRelays[0].getLatestAddressableEvent.mockReturnValue(event1);
+    mockRelays[1].getLatestAddressableEvent.mockReturnValue(event2);
+
+    // Call the method under test
+    const result = nostr.getLatestAddressableEvent(30001, 'pubkey1', 'identifier');
+
+    // Verify relay methods were called correctly
+    expect(mockRelays[0].getLatestAddressableEvent).toHaveBeenCalledWith(30001, 'pubkey1', 'identifier');
+    expect(mockRelays[1].getLatestAddressableEvent).toHaveBeenCalledWith(30001, 'pubkey1', 'identifier');
+
+    // Verify the newer event was returned
+    expect(result).toEqual(event2);
+  });
+
+  test('getLatestAddressableEvent should return null if no events found', () => {
+    // Set up mocks to return undefined for both relays
+    mockRelays[0].getLatestAddressableEvent.mockReturnValue(undefined);
+    mockRelays[1].getLatestAddressableEvent.mockReturnValue(undefined);
+
+    // Call the method under test
+    const result = nostr.getLatestAddressableEvent(30001, 'pubkey1', 'identifier');
+
+    // Verify null was returned when no events found
+    expect(result).toBeNull();
+  });
+
+  test('getAddressableEventsByPubkey should return unique events from all relays', () => {
+    // Prepare test events
+    const event1: NostrEvent = {
+      id: 'id1',
+      pubkey: 'pubkey1',
+      created_at: 1000,
+      kind: 30001,
+      tags: [['d', 'identifier1']],
+      content: 'content1',
+      sig: 'sig1'
+    };
+
+    const event2: NostrEvent = {
+      id: 'id2',
+      pubkey: 'pubkey1',
+      created_at: 2000,
+      kind: 30002,
+      tags: [['d', 'identifier2']],
+      content: 'content2',
+      sig: 'sig2'
+    };
+
+    // Set up the relays to return overlapping events
+    mockRelays[0].getAddressableEventsByPubkey.mockReturnValue([event1, event2]);
+    mockRelays[1].getAddressableEventsByPubkey.mockReturnValue([event1]); // Duplicate of event1
+
+    // Call the method under test
+    const results = nostr.getAddressableEventsByPubkey('pubkey1');
+
+    // Verify relay methods were called correctly
+    expect(mockRelays[0].getAddressableEventsByPubkey).toHaveBeenCalledWith('pubkey1');
+    expect(mockRelays[1].getAddressableEventsByPubkey).toHaveBeenCalledWith('pubkey1');
+
+    // Verify we get both events without duplication
+    expect(results.length).toBe(2);
+    expect(results).toContainEqual(event1);
+    expect(results).toContainEqual(event2);
+  });
+
+  test('getAddressableEventsByKind should return unique events from all relays', () => {
+    // Prepare test events
+    const event1: NostrEvent = {
+      id: 'id1',
+      pubkey: 'pubkey1',
+      created_at: 1000,
+      kind: 30001,
+      tags: [['d', 'identifier1']],
+      content: 'content1',
+      sig: 'sig1'
+    };
+
+    const event2: NostrEvent = {
+      id: 'id2',
+      pubkey: 'pubkey2',
+      created_at: 2000,
+      kind: 30001,
+      tags: [['d', 'identifier2']],
+      content: 'content2',
+      sig: 'sig2'
+    };
+
+    // Set up the relays to return overlapping events
+    mockRelays[0].getAddressableEventsByKind.mockReturnValue([event1]);
+    mockRelays[1].getAddressableEventsByKind.mockReturnValue([event1, event2]); // Includes a duplicate of event1
+
+    // Call the method under test
+    const results = nostr.getAddressableEventsByKind(30001);
+
+    // Verify relay methods were called correctly
+    expect(mockRelays[0].getAddressableEventsByKind).toHaveBeenCalledWith(30001);
+    expect(mockRelays[1].getAddressableEventsByKind).toHaveBeenCalledWith(30001);
+
+    // Verify we get both events without duplication
+    expect(results.length).toBe(2);
+    expect(results).toContainEqual(event1);
+    expect(results).toContainEqual(event2);
   });
 });
