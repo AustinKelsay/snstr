@@ -15,9 +15,9 @@
  * npm run example:addressable
  */
 
-import { Nostr, createAddressableEvent, NostrEvent, generateKeypair } from "../src";
-import { createSignedEvent } from "../src/utils/event";
-import { NostrRelay } from "../src/utils/ephemeral-relay";
+import { Nostr, createAddressableEvent, NostrEvent, generateKeypair } from "../../src";
+import { createSignedEvent } from "../../src/utils/event";
+import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 // Create an ephemeral relay for the example
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
@@ -169,13 +169,13 @@ async function main() {
     const allArticles = client.getAddressableEventsByPubkey(keys.publicKey);
     
     console.log(`Found ${allArticles.length} articles by this author:`);
-    allArticles.forEach((article, index) => {
+    allArticles.forEach((article: NostrEvent, index: number) => {
       // Find the d-tag value
-      const dTag = article.tags.find(tag => tag[0] === 'd');
+      const dTag = article.tags.find((tag: string[]) => tag[0] === 'd');
       const dValue = dTag ? dTag[1] : 'unknown';
       
       // Find the title tag
-      const titleTag = article.tags.find(tag => tag[0] === 'title');
+      const titleTag = article.tags.find((tag: string[]) => tag[0] === 'title');
       const title = titleTag ? titleTag[1] : 'Untitled';
       
       console.log(`Article ${index + 1}: "${title}" (d-tag: ${dValue})`);

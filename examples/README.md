@@ -28,6 +28,11 @@ npm run example:addressable         # Addressable events example
 npm run example:addressable:verbose # Addressable events with verbose logging
 npm run example:addressable:public  # Addressable events using public relays
 
+# Replaceable events (kinds 0, 3, 10000-19999)
+npm run example:replaceable         # Replaceable events example
+npm run example:replaceable:verbose # Replaceable events with verbose logging
+npm run example:replaceable:public  # Replaceable events using public relays
+
 # NIP-specific examples
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
@@ -71,6 +76,7 @@ See the [NIP-46 README](./nip46/README.md) for more details on the remote signin
 - `crypto-demo.ts` - Cryptography examples
 - `direct-message.ts` - Direct messaging example
 - `addressable-events.ts` - Addressable events (kinds 30000-39999) example
+- `NIP-01/replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) example
 - `nip04/` - NIP-04 (Encrypted Direct Messages) examples
 - `nip05/` - NIP-05 (DNS Identifier Verification) examples 
 - `nip07/` - NIP-07 (Web Browser Extension) examples

@@ -948,4 +948,113 @@ describe("Relay", () => {
       expect(storedEvent?.id).toBe(addressableEvent.id);
     });
   });
+
+  describe('Replaceable events (kinds 0, 3, 10000-19999)', () => {
+    let relay: Relay;
+    let testEvent: NostrEvent;
+    
+    beforeEach(async () => {
+      relay = new Relay(ephemeralRelay.url);
+      await relay.connect();
+      
+      // Create a valid replaceable event (kind 0)
+      testEvent = {
+        id: "a0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3cd",
+        pubkey: "884704d5780d85163c138d2695ca263eb7552b0f2c5ebaf86c8d9c4e62a337e3",
+        created_at: 1671312795,
+        kind: 0,
+        tags: [
+          ["name", "Test User"],
+          ["about", "Test description"]
+        ],
+        content: JSON.stringify({name: "Test User", about: "Test description"}),
+        sig: "553e66e4316cd6f8e2c363b7677d41da0f6b37775daa7728acdda6e477ed2fbf03be27c33f1eddaa2ee2711e9ca7c0ad7e97dd4d3eb4c1cf9ceaf98d9000af6a"
+      };
+    });
+    
+    test('should process and store replaceable events', () => {
+      // Process the event
+      (relay as any).processReplaceableEvent(testEvent);
+      
+      // Create a newer version
+      const newerEvent = { 
+        ...testEvent,
+        created_at: testEvent.created_at + 1000,
+        id: "b1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3cf",
+        content: JSON.stringify({name: "Test User Updated", about: "Updated description"})
+      };
+      
+      // Process the newer event
+      (relay as any).processReplaceableEvent(newerEvent);
+      
+      // Get the latest event
+      const retrievedEvent = relay.getLatestReplaceableEvent(testEvent.pubkey, testEvent.kind);
+      
+      // It should be the newer event
+      expect(retrievedEvent).toBeDefined();
+      expect(retrievedEvent?.id).toBe(newerEvent.id);
+      expect(retrievedEvent?.content).toBe(newerEvent.content);
+    });
+    
+    test('should keep older event if newer one has older timestamp', () => {
+      // Process the event
+      (relay as any).processReplaceableEvent(testEvent);
+      
+      // Create an event with newer id but older timestamp
+      const olderEvent = { 
+        ...testEvent,
+        created_at: testEvent.created_at - 1000, // Older timestamp
+        id: "c1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3c0", // Newer id
+        content: JSON.stringify({name: "Test User Older", about: "This should not replace the original"})
+      };
+      
+      // Process the older event
+      (relay as any).processReplaceableEvent(olderEvent);
+      
+      // Get the latest event
+      const retrievedEvent = relay.getLatestReplaceableEvent(testEvent.pubkey, testEvent.kind);
+      
+      // It should still be the original event
+      expect(retrievedEvent).toBeDefined();
+      expect(retrievedEvent?.id).toBe(testEvent.id);
+      expect(retrievedEvent?.content).toBe(testEvent.content);
+    });
+    
+    test('should retrieve replaceable events by pubkey and kind', () => {
+      // Process events of different kinds
+      (relay as any).processReplaceableEvent(testEvent); // kind 0
+      
+      // Create a kind 3 event
+      const contactEvent = { 
+        ...testEvent,
+        kind: 3,
+        content: "",
+        tags: [["p", "some-pubkey", "some-relay"]],
+        id: "d1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3d1"
+      };
+      
+      // Create a kind 10002 event
+      const relayEvent = { 
+        ...testEvent,
+        kind: 10002,
+        content: "",
+        tags: [["r", "wss://relay.example.com", "read"]],
+        id: "e1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3e2"
+      };
+      
+      // Process these events
+      (relay as any).processReplaceableEvent(contactEvent);
+      (relay as any).processReplaceableEvent(relayEvent);
+      
+      // Retrieve each kind
+      const retrievedKind0 = relay.getLatestReplaceableEvent(testEvent.pubkey, 0);
+      const retrievedKind3 = relay.getLatestReplaceableEvent(testEvent.pubkey, 3);
+      const retrievedKind10002 = relay.getLatestReplaceableEvent(testEvent.pubkey, 10002);
+      
+      // Verify correct events were retrieved
+      expect(retrievedKind0?.id).toBe(testEvent.id);
+      expect(retrievedKind3?.id).toBe(contactEvent.id);
+      expect(retrievedKind10002?.id).toBe(relayEvent.id);
+    });
+  });
 });

@@ -49,6 +49,8 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Relay connections with automatic reconnect
 - Filter-based subscriptions
 - NIP-01 compliant event validation and verification
+- Support for replaceable events (kinds 0, 3, 10000-19999)
+- Support for addressable events (kinds 30000-39999)
 
 ### Advanced Features
 - NIP-01: Basic protocol
@@ -67,6 +69,8 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 SNSTR currently implements the following Nostr Implementation Possibilities (NIPs):
 
 - NIP-01: Basic protocol functionality (events, subscriptions, relay connections) with comprehensive event validation
+  - Replaceable events: Support for events where only the latest one per pubkey+kind is stored
+  - Addressable events: Support for events uniquely identified by pubkey+kind+d-tag
 - NIP-04: Encrypted direct messages using AES-CBC
 - NIP-05: DNS identifier verification and relay discovery
 - NIP-11: Relay Information Document for discovering relay metadata and capabilities

@@ -99,7 +99,13 @@
     "example:identity": "npm run example:nip05 && npm run example:nip07 && npm run example:nip19",
     "example:payments": "npm run example:nip47 && npm run example:nip57",
     "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling",
-    "example:relay-reconnect": "ts-node examples/client/relay-reconnect.ts"
+    "example:relay-reconnect": "ts-node examples/client/relay-reconnect.ts",
+    "example:addressable": "ts-node examples/nip01/addressable-events.ts",
+    "example:addressable:verbose": "VERBOSE=true ts-node examples/nip01/addressable-events.ts",
+    "example:addressable:public": "USE_PUBLIC_RELAYS=true ts-node examples/nip01/addressable-events.ts",
+    "example:replaceable": "ts-node examples/nip01/replaceable-events.ts",
+    "example:replaceable:verbose": "VERBOSE=true ts-node examples/nip01/replaceable-events.ts",
+    "example:replaceable:public": "USE_PUBLIC_RELAYS=true ts-node examples/nip01/replaceable-events.ts"
   },
   "keywords": [
     "nostr",
