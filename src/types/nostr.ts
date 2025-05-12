@@ -8,17 +8,6 @@ export interface NostrEvent {
   sig: string;
 }
 
-export type NostrFilter = {
-  ids?: string[];
-  authors?: string[];
-  kinds?: number[];
-  "#e"?: string[];
-  "#p"?: string[];
-  since?: number;
-  until?: number;
-  limit?: number;
-};
-
 export interface EventTemplate {
   kind: number;
   content: string;
@@ -26,15 +15,34 @@ export interface EventTemplate {
   created_at?: number;
 }
 
-export type Filter = {
+export type NostrFilter = {
   ids?: string[];
   authors?: string[];
   kinds?: number[];
-  "#e"?: string[];
-  "#p"?: string[];
+  // Standard tag filters from NIP-01
+  "#e"?: string[];  // event references
+  "#p"?: string[];  // pubkey references
+  "#a"?: string[];  // address references
+  "#d"?: string[];  // d tag values for addressable events
+  "#t"?: string[];  // topic/tag values
+  "#r"?: string[];  // reference/URL values
+  "#g"?: string[];  // geohash values
+  "#u"?: string[];  // URL values
+  // Common extended tag filters
+  "#c"?: string[];  // content warning
+  "#l"?: string[];  // language
+  "#m"?: string[];  // MIME type
+  "#s"?: string[];  // subject
+  // Time filters
   since?: number;
   until?: number;
   limit?: number;
+};
+
+export type Filter = NostrFilter & {
+  // Allow additional tag filters while maintaining type safety for the common ones
+  [key: `#${string}`]: string[];
+  // Allow other custom filter properties
   [key: string]: any;
 };
 

@@ -56,6 +56,7 @@
     "example:relay-connection": "ts-node examples/relay-connection.ts",
     "example:event-ordering": "ts-node examples/event-ordering-demo.ts",
     "example:validation": "npm run example:relay-connection && npm run example && npm run example:dm && npm run example:event-ordering",
+    "example:filter-types": "ts-node examples/filter-types.ts",
      
     "// NIP Examples": "-------------- NIP Examples --------------",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
@@ -105,7 +106,9 @@
     "example:addressable:public": "USE_PUBLIC_RELAYS=true ts-node examples/nip01/addressable-events.ts",
     "example:replaceable": "ts-node examples/nip01/replaceable-events.ts",
     "example:replaceable:verbose": "VERBOSE=true ts-node examples/nip01/replaceable-events.ts",
-    "example:replaceable:public": "USE_PUBLIC_RELAYS=true ts-node examples/nip01/replaceable-events.ts"
+    "example:replaceable:public": "USE_PUBLIC_RELAYS=true ts-node examples/nip01/replaceable-events.ts",
+    "example:nip01:validation": "ts-node examples/NIP-01/validation-flow.ts",
+    "example:nip01:validation:debug": "DEBUG=nostr:* ts-node examples/NIP-01/validation-flow.ts"
   },
   "keywords": [
     "nostr",
