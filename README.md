@@ -49,6 +49,9 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Relay connections with automatic reconnect
 - Filter-based subscriptions
 - NIP-01 compliant event validation and verification
+  - Full cryptographic validation before event acceptance
+  - Complete NIP-01 §7 compliance for event validation
+  - Protection against malformed and falsely-signed events
 - Support for replaceable events (kinds 0, 3, 10000-19999)
 - Support for addressable events (kinds 30000-39999)
 

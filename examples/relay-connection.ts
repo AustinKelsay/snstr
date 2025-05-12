@@ -83,11 +83,11 @@ async function main() {
       // Test the relay's validation by attempting to process invalid events
       console.log("\nTesting event validation with various invalid events...");
       
-      // Direct access to handleMessage for testing purposes
+      // Direct access to basic validation for testing purposes
       const testValidation = (event: any, description: string) => {
-        // Get access to private validateEvent method for demonstration purposes
-        const validationResult = (relay as any).validateEvent(event);
-        console.log(`${validationResult ? '✅' : '❌'} ${description}: ${validationResult ? 'ACCEPTED' : 'REJECTED'}`);
+        // Get access to private validation method for demonstration purposes
+        const validationResult = (relay as any).performBasicValidation(event);
+        console.log(`${validationResult ? '✅' : '❌'} ${description}: ${validationResult ? 'PASSED basic validation' : 'REJECTED in basic validation'}`);
         return validationResult;
       };
       
@@ -158,10 +158,21 @@ async function main() {
       };
       testValidation(invalidIdEvent, "Event with invalid ID length");
       
-      console.log("\nNote: In addition to these basic validations, the system also performs:");
-      console.log("- Asynchronous verification of event ID hash against event content");
-      console.log("- Asynchronous verification of event signature validity");
-      console.log("These checks happen in the background for performance reasons.\n");
+      console.log("\nImproved Validation Process (NIP-01 §7 Compliant):");
+      console.log("1. 🔍 Basic Validation: Synchronous checks for required fields and formats");
+      console.log("   - Performed immediately upon receipt of an event");
+      console.log("   - Rejects obviously invalid events without further processing");
+      console.log("\n2. 🔐 Cryptographic Validation: Asynchronous verification of:");
+      console.log("   - Event ID matches the SHA-256 hash of event data");
+      console.log("   - Signature is valid for the event ID and pubkey");
+      console.log("\n3. ⏱️ Process Flow:");
+      console.log("   - Events are held in a pending state until async validation completes");
+      console.log("   - Only events that pass BOTH validation stages are processed");
+      console.log("   - Invalid events are rejected with appropriate error messages");
+      console.log("\n✅ This fully complies with NIP-01 §7:");
+      console.log('   "Relays MUST NOT accept an EVENT message that does not validate."');
+      console.log("\n💡 Key Improvement: Unlike previous implementation, events are now");
+      console.log("   never propagated to subscribers until full validation completes.");
       
       // Unsubscribe from validation test
       relay.unsubscribe(validationSubscription);

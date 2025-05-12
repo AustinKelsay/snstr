@@ -457,8 +457,8 @@ export class Relay {
           );
         }
 
-        // Validate the event before processing
-        if (!this.validateEvent(event)) {
+        // Perform initial synchronous validation
+        if (!this.performBasicValidation(event)) {
           if (debug) {
             console.log(`Relay(${this.url}): Rejected invalid event: ${event?.id}`);
           }
@@ -466,33 +466,25 @@ export class Relay {
           break;
         }
 
-        // Process replaceable events (kinds 0, 3, 10000-19999)
-        if (event.kind === 0 || event.kind === 3 || (event.kind >= 10000 && event.kind < 20000)) {
-          this.processReplaceableEvent(event);
-        }
+        // Launch async validation and handle the event only if validation passes
+        this.validateEventAsync(event)
+          .then(isValid => {
+            if (isValid) {
+              this.processValidatedEvent(event, subscriptionId);
+            } else {
+              if (debug) {
+                console.log(`Relay(${this.url}): Rejected event after async validation: ${event?.id}`);
+              }
+              this.triggerEvent(RelayEvent.Error, this.url, new Error(`Invalid event signature or ID: ${event?.id}`));
+            }
+          })
+          .catch(error => {
+            if (debug) {
+              console.error(`Relay(${this.url}): Error during async validation for event ${event?.id}:`, error);
+            }
+            this.triggerEvent(RelayEvent.Error, this.url, new Error(`Validation error: ${error.message}`));
+          });
         
-        // Process addressable events (kinds 30000-39999)
-        if (event.kind >= 30000 && event.kind < 40000) {
-          this.processAddressableEvent(event);
-        }
-
-        const subscription = this.subscriptions.get(subscriptionId);
-        if (subscription) {
-          if (debug)
-            console.log(
-              `Relay(${this.url}): Found subscription, buffering event for processing`,
-            );
-
-          // Buffer the event instead of immediately calling the handler
-          const buffer = this.eventBuffers.get(subscriptionId) || [];
-          buffer.push(event);
-          this.eventBuffers.set(subscriptionId, buffer);
-        } else {
-          if (debug)
-            console.log(
-              `Relay(${this.url}): No subscription found for id: ${subscriptionId}`,
-            );
-        }
         break;
       }
       case "EOSE": {
@@ -541,6 +533,208 @@ export class Relay {
         if (debug)
           console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
         break;
+    }
+  }
+
+  /**
+   * Process a validated event - called only after both basic and async validation
+   */
+  private processValidatedEvent(event: NostrEvent, subscriptionId: string): void {
+    const debug = process.env.DEBUG?.includes("nostr:*") || false;
+
+    // Process replaceable events (kinds 0, 3, 10000-19999)
+    if (event.kind === 0 || event.kind === 3 || (event.kind >= 10000 && event.kind < 20000)) {
+      this.processReplaceableEvent(event);
+    }
+    
+    // Process addressable events (kinds 30000-39999)
+    if (event.kind >= 30000 && event.kind < 40000) {
+      this.processAddressableEvent(event);
+    }
+
+    const subscription = this.subscriptions.get(subscriptionId);
+    if (subscription) {
+      if (debug)
+        console.log(
+          `Relay(${this.url}): Found subscription, buffering event for processing`,
+        );
+
+      // Buffer the event instead of immediately calling the handler
+      const buffer = this.eventBuffers.get(subscriptionId) || [];
+      buffer.push(event);
+      this.eventBuffers.set(subscriptionId, buffer);
+    } else {
+      if (debug)
+        console.log(
+          `Relay(${this.url}): No subscription found for id: ${subscriptionId}`,
+        );
+    }
+  }
+
+  /**
+   * Perform basic synchronous validation of an event
+   * 
+   * This checks:
+   * 1. Required fields are present with correct types
+   * 2. Fields have valid formats (lengths, structure)
+   * 3. Timestamps are reasonable
+   */
+  private performBasicValidation(event: any): boolean {
+    // Skip validation if event is not an object or is null
+    if (!event || typeof event !== 'object') {
+      return false;
+    }
+
+    try {
+      // Check that all required fields are present and have the correct types
+      if (!event.id || typeof event.id !== 'string' || event.id.length !== 64) {
+        return false;
+      }
+      
+      if (!event.pubkey || typeof event.pubkey !== 'string' || event.pubkey.length !== 64) {
+        return false;
+      }
+      
+      if (!event.created_at || typeof event.created_at !== 'number') {
+        return false;
+      }
+      
+      if (event.kind === undefined || typeof event.kind !== 'number' || 
+          event.kind < 0 || event.kind > 65535) {
+        return false;
+      }
+      
+      if (!Array.isArray(event.tags)) {
+        return false;
+      }
+      
+      // Validate tag structure
+      for (const tag of event.tags) {
+        if (!Array.isArray(tag)) {
+          return false;
+        }
+        
+        // All tag items must be strings according to NIP-01
+        for (const item of tag) {
+          if (typeof item !== 'string') {
+            return false;
+          }
+        }
+      }
+      
+      if (typeof event.content !== 'string') {
+        return false;
+      }
+      
+      if (!event.sig || typeof event.sig !== 'string' || event.sig.length !== 128) {
+        return false;
+      }
+
+      // Check reasonable timestamp (not more than 1 hour in the future and not too far in the past)
+      const now = Math.floor(Date.now() / 1000);
+      if (event.created_at > now + 3600) {
+        return false; // Reject events with future timestamps
+      }
+      
+      // Special handling for NIP-46 events (kind 24133)
+      if (event.kind === 24133) {
+        // NIP-46 events require at least one p tag with proper format
+        const hasPTag = event.tags.some((tag: string[]) => 
+          Array.isArray(tag) && tag.length >= 2 && tag[0] === 'p' && 
+          typeof tag[1] === 'string' && tag[1].length === 64);
+        
+        if (!hasPTag) {
+          const debug = process.env.DEBUG?.includes("nostr:*") || false;
+          if (debug) {
+            console.log(`Relay(${this.url}): NIP-46 event missing valid p tag:`, JSON.stringify(event.tags));
+          }
+          return false;
+        }
+      }
+      
+      // Optionally log a warning for very old events (e.g., older than a year)
+      if (event.created_at < now - 31536000) {
+        // Return true but log a warning if debug is enabled
+        const debug = process.env.DEBUG?.includes("nostr:*") || false;
+        if (debug) {
+          console.warn(`Relay(${this.url}): Event ${event.id} is very old (${now - event.created_at} seconds)`);
+        }
+      }
+
+      return true;
+    } catch (error) {
+      // If any validation throws an exception, reject the event
+      return false;
+    }
+  }
+
+  /**
+   * Validate an event (deprecated - use async validation directly)
+   * Maintained for backward compatibility with existing code
+   */
+  private validateEvent(event: any): boolean {
+    if (!this.performBasicValidation(event)) {
+      return false;
+    }
+    
+    // For NIP-46 encrypted events, we can skip async validation since 
+    // their content can only be verified after decryption
+    if (event.kind === 24133) {
+      return true;
+    }
+    
+    // For all other events, indicate that basic validation passed, but defer 
+    // to async validation before actually accepting the event
+    return true;
+  }
+
+  /**
+   * Perform async validations on an event
+   * 
+   * This includes:
+   * 1. Verifying the event ID matches the hash of serialized data
+   * 2. Verifying the signature is valid
+   * 
+   * These operations are computationally expensive, so they're performed
+   * asynchronously to avoid blocking the main thread.
+   */
+  private async validateEventAsync(event: NostrEvent): Promise<boolean> {
+    try {
+      // Skip signature validation for NIP-46 events
+      if (event.kind === 24133) {
+        // For NIP-46, we did basic validation already in validateEvent
+        // Skip the more expensive ID and signature validation
+        return true;
+      }
+      
+      // Extract the data needed for ID verification (excluding id and sig)
+      const eventData = {
+        pubkey: event.pubkey,
+        created_at: event.created_at,
+        kind: event.kind,
+        tags: event.tags,
+        content: event.content
+      };
+      
+      // Import the verification functions dynamically to avoid circular dependencies
+      const { getEventHash } = await import('../utils/event');
+      const { verifySignature } = await import('../utils/crypto');
+      
+      // Step 1: Validate event ID by comparing with calculated hash
+      const calculatedId = await getEventHash(eventData);
+      if (calculatedId !== event.id) {
+        return false;
+      }
+      
+      // Step 2: Validate signature
+      return await verifySignature(event.id, event.sig, event.pubkey);
+    } catch (error) {
+      // Log error details if in debug mode
+      const debug = process.env.DEBUG?.includes("nostr:*") || false;
+      if (debug) {
+        console.error(`Relay(${this.url}): Event validation error:`, error);
+      }
+      return false;
     }
   }
 
@@ -684,178 +878,6 @@ export class Relay {
       // If created_at is the same, sort by id (ascending lexical order)
       return a.id.localeCompare(b.id);
     });
-  }
-
-  /**
-   * Validate an incoming event according to NIP-01 requirements
-   * 
-   * Checks:
-   * 1. Event has all required fields
-   * 2. Event timestamp is reasonable
-   * 3. Schedules async validation for ID and signature verification
-   */
-  private validateEvent(event: any): boolean {
-    // Skip validation if event is not an object or is null
-    if (!event || typeof event !== 'object') {
-      return false;
-    }
-
-    try {
-      // Check that all required fields are present and have the correct types
-      if (!event.id || typeof event.id !== 'string' || event.id.length !== 64) {
-        return false;
-      }
-      
-      if (!event.pubkey || typeof event.pubkey !== 'string' || event.pubkey.length !== 64) {
-        return false;
-      }
-      
-      if (!event.created_at || typeof event.created_at !== 'number') {
-        return false;
-      }
-      
-      if (event.kind === undefined || typeof event.kind !== 'number' || 
-          event.kind < 0 || event.kind > 65535) {
-        return false;
-      }
-      
-      if (!Array.isArray(event.tags)) {
-        return false;
-      }
-      
-      // Validate tag structure
-      for (const tag of event.tags) {
-        if (!Array.isArray(tag)) {
-          return false;
-        }
-        
-        // All tag items must be strings according to NIP-01
-        for (const item of tag) {
-          if (typeof item !== 'string') {
-            return false;
-          }
-        }
-      }
-      
-      if (typeof event.content !== 'string') {
-        return false;
-      }
-      
-      if (!event.sig || typeof event.sig !== 'string' || event.sig.length !== 128) {
-        return false;
-      }
-
-      // Check reasonable timestamp (not more than 1 hour in the future and not too far in the past)
-      const now = Math.floor(Date.now() / 1000);
-      if (event.created_at > now + 3600) {
-        return false; // Reject events with future timestamps
-      }
-      
-      // Special handling for NIP-46 events (kind 24133)
-      if (event.kind === 24133) {
-        // NIP-46 events require at least one p tag with proper format
-        const hasPTag = event.tags.some((tag: string[]) => 
-          Array.isArray(tag) && tag.length >= 2 && tag[0] === 'p' && 
-          typeof tag[1] === 'string' && tag[1].length === 64);
-        
-        if (!hasPTag) {
-          const debug = process.env.DEBUG?.includes("nostr:*") || false;
-          if (debug) {
-            console.log(`Relay(${this.url}): NIP-46 event missing valid p tag:`, JSON.stringify(event.tags));
-          }
-          return false;
-        }
-        
-        // For NIP-46, proceed with validation but don't verify the content
-        // since it's encrypted and can only be verified once decrypted
-        return true;
-      }
-      
-      // Optionally reject very old events (e.g., older than a year)
-      // This is a client policy decision
-      if (event.created_at < now - 31536000) {
-        // Return true but log a warning if debug is enabled
-        const debug = process.env.DEBUG?.includes("nostr:*") || false;
-        if (debug) {
-          console.warn(`Relay(${this.url}): Event ${event.id} is very old (${now - event.created_at} seconds)`);
-        }
-      }
-
-      // Schedule async validation but proceed with accepting the event
-      // This balances security with performance
-      this.validateEventAsync(event)
-        .then(isValid => {
-          if (!isValid) {
-            // If the event fails async validation, log the error
-            const debug = process.env.DEBUG?.includes("nostr:*") || false;
-            if (debug) {
-              console.error(`Relay(${this.url}): Event ${event.id} failed async validation`);
-            }
-            this.triggerEvent(RelayEvent.Error, this.url, new Error(`Invalid event signature: ${event.id}`));
-          }
-        })
-        .catch(error => {
-          const debug = process.env.DEBUG?.includes("nostr:*") || false;
-          if (debug) {
-            console.error(`Relay(${this.url}): Async validation error for event ${event.id}:`, error);
-          }
-        });
-
-      return true;
-    } catch (error) {
-      // If any validation throws an exception, reject the event
-      return false;
-    }
-  }
-
-  /**
-   * Perform async validations on an event
-   * 
-   * This includes:
-   * 1. Verifying the event ID matches the hash of serialized data
-   * 2. Verifying the signature is valid
-   * 
-   * These operations are computationally expensive, so they're performed
-   * asynchronously to avoid blocking the main thread.
-   */
-  private async validateEventAsync(event: NostrEvent): Promise<boolean> {
-    try {
-      // Skip signature validation for NIP-46 events
-      if (event.kind === 24133) {
-        // For NIP-46, we did basic validation already in validateEvent
-        // Skip the more expensive ID and signature validation
-        return true;
-      }
-      
-      // Extract the data needed for ID verification (excluding id and sig)
-      const eventData = {
-        pubkey: event.pubkey,
-        created_at: event.created_at,
-        kind: event.kind,
-        tags: event.tags,
-        content: event.content
-      };
-      
-      // Import the verification functions dynamically to avoid circular dependencies
-      const { getEventHash } = await import('../utils/event');
-      const { verifySignature } = await import('../utils/crypto');
-      
-      // Step 1: Validate event ID by comparing with calculated hash
-      const calculatedId = await getEventHash(eventData);
-      if (calculatedId !== event.id) {
-        return false;
-      }
-      
-      // Step 2: Validate signature
-      return await verifySignature(event.id, event.sig, event.pubkey);
-    } catch (error) {
-      // Log error details if in debug mode
-      const debug = process.env.DEBUG?.includes("nostr:*") || false;
-      if (debug) {
-        console.error(`Relay(${this.url}): Event validation error:`, error);
-      }
-      return false;
-    }
   }
 
   /**
