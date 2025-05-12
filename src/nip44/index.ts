@@ -4,7 +4,7 @@ import {
   hexToBytes,
   concatBytes,
 } from "@noble/hashes/utils";
-import { sha256 } from "@noble/hashes/sha256";
+import { sha256 } from "@noble/hashes/sha2";
 import {
   extract as hkdf_extract,
   expand as hkdf_expand,

@@ -15,7 +15,8 @@ export {
 
 export { 
   createEvent,
-  createAddressableEvent 
+  createAddressableEvent,
+  getEventHash,
 } from "./utils/event";
 
 // Export NIP-04 utilities

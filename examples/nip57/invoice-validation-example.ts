@@ -21,21 +21,11 @@ import * as crypto from "../../src/utils/crypto";
 const VALID_HASH =
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 const INVALID_HASH =
-  "invalid0hash0value0that0will0not0match0anything0invalid0hash0value";
+  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 // Store original functions to restore later
 const originalParseBolt11Invoice = utils.parseBolt11Invoice;
-const originalSha256 = crypto.sha256;
-
-// Helper to create hash bytes from a hex string
-function createMockHashBytes(hexString: string): Uint8Array {
-  // Convert hex string to bytes
-  const bytes = new Uint8Array(hexString.length / 2);
-  for (let i = 0; i < hexString.length; i += 2) {
-    bytes[i / 2] = parseInt(hexString.substring(i, i + 2), 16);
-  }
-  return bytes;
-}
+const originalSha256Hex = crypto.sha256Hex;
 
 // Mock the bolt11 parser
 function mockParseBolt11Invoice(bolt11: string) {
@@ -57,15 +47,15 @@ function mockParseBolt11Invoice(bolt11: string) {
 }
 
 // Mock the SHA-256 function for the valid case
-function mockSha256Valid(data: string): Uint8Array {
-  console.log(`Calculating hash for: ${data.substring(0, 30)}...`);
-  return createMockHashBytes(VALID_HASH);
+function mockSha256HexValid(data: string | Uint8Array): string {
+  console.log(`Calculating hash for: ${typeof data === 'string' ? data.substring(0, 30) : 'byte array'}...`);
+  return VALID_HASH;
 }
 
 // Mock the SHA-256 function for the invalid case
-function mockSha256Invalid(data: string): Uint8Array {
-  console.log(`Calculating hash for: ${data.substring(0, 30)}...`);
-  return createMockHashBytes(INVALID_HASH);
+function mockSha256HexInvalid(data: string | Uint8Array): string {
+  console.log(`Calculating hash for: ${typeof data === 'string' ? data.substring(0, 30) : 'byte array'}...`);
+  return INVALID_HASH;
 }
 
 async function main() {
@@ -85,7 +75,7 @@ async function main() {
   try {
     // Override the functions with our mocks
     (utils as any).parseBolt11Invoice = mockParseBolt11Invoice;
-    (crypto as any).sha256 = mockSha256Valid;
+    (crypto as any).sha256Hex = mockSha256HexValid;
 
     // Example 1: Valid case - Hash matches
     console.log("EXAMPLE 1: VALID ZAP RECEIPT (hashes match)");
@@ -155,7 +145,7 @@ async function main() {
     console.log("--------------------------------------------------");
 
     // Override the sha256 function with our invalid mock
-    (crypto as any).sha256 = mockSha256Invalid;
+    (crypto as any).sha256Hex = mockSha256HexInvalid;
 
     // Create an invalid zap request
     const invalidZapRequestTemplate = createZapRequest(
@@ -223,7 +213,7 @@ async function main() {
     console.log("----------------------------------------------------------");
 
     // Reset sha256 to valid function to isolate the description hash issue
-    (crypto as any).sha256 = mockSha256Valid;
+    (crypto as any).sha256Hex = mockSha256HexValid;
 
     // Create a zap receipt with a bolt11 invoice missing a description hash
     const missingHashZapReceiptTemplate = createZapReceipt(
@@ -265,7 +255,7 @@ async function main() {
   } finally {
     // Restore original functions
     (utils as any).parseBolt11Invoice = originalParseBolt11Invoice;
-    (crypto as any).sha256 = originalSha256;
+    (crypto as any).sha256Hex = originalSha256Hex;
   }
 
   console.log("\n✅ Example completed");

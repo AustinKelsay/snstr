@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { schnorr } from "@noble/curves/secp256k1";
-import { sha256 } from "@noble/hashes/sha256";
+import { sha256 } from "@noble/hashes/sha2";
+import { bytesToHex } from "@noble/hashes/utils";
 import EventEmitter from "events";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -663,7 +664,7 @@ function match_tags(filters: string[][], tags: string[][]): boolean {
 function verify_event(event: SignedEvent) {
   const { content, created_at, id, kind, pubkey, sig, tags } = event;
   const pimg = JSON.stringify([0, pubkey, created_at, kind, tags, content]);
-  const dig = Buffer.from(sha256(pimg)).toString("hex");
+  const dig = bytesToHex(sha256(pimg));
   if (dig !== id) return false;
   return schnorr.verify(sig, id, pubkey);
 }

@@ -1,6 +1,7 @@
 import { Nostr } from "../client/nostr";
 import { NostrEvent } from "../types/nostr";
-import { getPublicKey, signEvent, getEventHash } from "../utils/crypto";
+import { getPublicKey, signEvent } from "../utils/crypto";
+import { getEventHash } from "../utils/event";
 import { createEvent, createSignedEvent } from "../utils/event";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import {

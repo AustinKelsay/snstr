@@ -3,7 +3,6 @@ import {
   getPublicKey,
   signEvent,
   verifySignature,
-  sha256,
   sha256Hex,
 } from "../src/utils/crypto";
 import {
@@ -11,7 +10,6 @@ import {
   decrypt as decryptNIP04,
   getSharedSecret as getNIP04SharedSecret,
 } from "../src/nip04";
-import { NostrEvent } from "../src/types/nostr";
 
 describe("Crypto Utilities", () => {
   describe("sha256", () => {
@@ -23,9 +21,8 @@ describe("Crypto Utilities", () => {
 
     it("should hash Uint8Array correctly", () => {
       const input = new TextEncoder().encode("test message");
-      const hash = sha256(input);
-      expect(hash).toBeInstanceOf(Uint8Array);
-      expect(hash.length).toBe(32);
+      const hash = sha256Hex(input);
+      expect(hash).toMatch(/^[0-9a-f]{64}$/);
     });
   });
 

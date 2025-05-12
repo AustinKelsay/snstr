@@ -1,15 +1,10 @@
 import { EventTemplate, NostrEvent } from "../types/nostr";
 import { getPublicKey } from "./crypto";
 import { encrypt as encryptNIP04 } from "../nip04";
-import { createHash } from "crypto";
 import { schnorr } from "@noble/curves/secp256k1";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { sha256Hex } from "./crypto";
 import { signEvent as signEventCrypto } from "./crypto";
-
-async function sha256Hash(data: string): Promise<string> {
-  return createHash("sha256").update(data).digest("hex");
-}
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 

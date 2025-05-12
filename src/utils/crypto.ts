@@ -1,31 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1";
 import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
-import { sha256 as nobleSha256 } from "@noble/hashes/sha256";
-import { EventTemplate, NostrEvent } from "../types/nostr";
-import { hmac } from "@noble/hashes/hmac";
-import { concatBytes, utf8ToBytes } from "@noble/hashes/utils";
-import { createHash } from "crypto";
-
-async function sha256Hash(data: string): Promise<string> {
-  return createHash("sha256").update(data).digest("hex");
-}
-
-/**
- * Compute the event ID from the event data
- */
-export async function getEventHash(
-  event: Omit<NostrEvent, "id" | "sig">,
-): Promise<string> {
-  const serialized = JSON.stringify([
-    0,
-    event.pubkey,
-    event.created_at,
-    event.kind,
-    event.tags,
-    event.content,
-  ]);
-  return await sha256Hash(serialized);
-}
+import { sha256 as nobleSha256 } from "@noble/hashes/sha2";
 
 /**
  * Sign an event with the given private key
@@ -84,13 +59,14 @@ export function getPublicKey(privateKey: string): string {
 // NIP-04 functions have been moved to the dedicated module at src/nip04/index.ts
 // For NIP-04 encryption/decryption, please import from '../nip04' instead
 
-export function sha256(data: string | Uint8Array): Uint8Array {
+/**
+ * Compute SHA-256 hash of data
+ * @param data The data to hash (string or Uint8Array)
+ * @returns The hash as a Uint8Array
+ */
+export function sha256Hex(data: string | Uint8Array): string {
   if (typeof data === "string") {
     data = new TextEncoder().encode(data);
   }
-  return nobleSha256(data);
-}
-
-export function sha256Hex(data: string | Uint8Array): string {
-  return bytesToHex(sha256(data));
+  return bytesToHex(nobleSha256(data));
 }

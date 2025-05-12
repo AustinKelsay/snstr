@@ -11,7 +11,7 @@
 
 import { NostrEvent, EventTemplate } from "../types/nostr";
 import { createEvent, getEventHash } from "../utils/event";
-import { sha256, signEvent, verifySignature } from "../utils/crypto";
+import { sha256Hex, signEvent, verifySignature } from "../utils/crypto";
 import { parseBolt11Invoice } from "./utils";
 
 // Export types from client.ts
@@ -315,12 +315,7 @@ export function validateZapReceipt(
 
     // Calculate SHA-256 hash of the zap request JSON
     const zapRequestJson = descriptionTag[1];
-    const hashBytes = sha256(zapRequestJson);
-
-    // Convert calculated hash to hex string for comparison
-    const calculatedHash = Array.from(hashBytes)
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+    const calculatedHash = sha256Hex(zapRequestJson);
 
     // Compare the hashes
     if (calculatedHash !== invoiceDescriptionHash) {

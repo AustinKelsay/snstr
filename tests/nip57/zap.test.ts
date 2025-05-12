@@ -18,7 +18,7 @@ jest.mock("../../src/utils/crypto", () => {
 
   return {
     ...originalModule,
-    sha256: jest.fn().mockImplementation(originalModule.sha256),
+    sha256Hex: jest.fn().mockImplementation(originalModule.sha256Hex),
     verifySignature: jest
       .fn()
       .mockImplementation(originalModule.verifySignature),
@@ -40,14 +40,14 @@ jest.mock("../../src/nip57/utils", () => {
 });
 
 // Import mocked functions after mocking
-import { sha256, verifySignature } from "../../src/utils/crypto";
+import { sha256Hex, verifySignature } from "../../src/utils/crypto";
 import {
   parseBolt11Invoice,
   fetchLnurlPayMetadata,
 } from "../../src/nip57/utils";
 
 // Store originals for restoration
-const originalSha256 = jest.requireActual("../../src/utils/crypto").sha256;
+const originalSha256Hex = jest.requireActual("../../src/utils/crypto").sha256Hex;
 const originalVerifySignature = jest.requireActual(
   "../../src/utils/crypto",
 ).verifySignature;
@@ -75,7 +75,7 @@ describe("NIP-57: Lightning Zaps", () => {
     jest.clearAllMocks();
 
     // Reset to original implementations by default
-    (sha256 as jest.Mock).mockImplementation(originalSha256);
+    (sha256Hex as jest.Mock).mockImplementation(originalSha256Hex);
     (verifySignature as jest.Mock).mockImplementation(originalVerifySignature);
     (parseBolt11Invoice as jest.Mock).mockImplementation(
       originalParseBolt11Invoice,
@@ -87,7 +87,7 @@ describe("NIP-57: Lightning Zaps", () => {
 
   // Restore original implementations after all tests
   afterAll(() => {
-    (sha256 as jest.Mock).mockImplementation(originalSha256);
+    (sha256Hex as jest.Mock).mockImplementation(originalSha256Hex);
     (verifySignature as jest.Mock).mockImplementation(originalVerifySignature);
     (parseBolt11Invoice as jest.Mock).mockImplementation(
       originalParseBolt11Invoice,
@@ -333,13 +333,9 @@ describe("NIP-57: Lightning Zaps", () => {
       );
 
       // Mock the parser to return valid data
-      const mockHashBytes = new Uint8Array([1, 2, 3, 4]);
-      const mockHashHex = Array.from(mockHashBytes)
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
-
+      const mockHashHex = "01020304";
       // Setup mocks for this test only
-      (sha256 as jest.Mock).mockReturnValueOnce(mockHashBytes);
+      (sha256Hex as jest.Mock).mockReturnValueOnce(mockHashHex);
       (verifySignature as jest.Mock).mockReturnValueOnce(true);
       (parseBolt11Invoice as jest.Mock).mockReturnValueOnce({
         descriptionHash: mockHashHex,
@@ -452,12 +448,8 @@ describe("NIP-57: Lightning Zaps", () => {
         );
 
         // Mock hash calculation to match the hash in invoice - scoped to this test only
-        const mockHashBytes = new Uint8Array([1, 2, 3, 4]);
-        const mockHashHex = Array.from(mockHashBytes)
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-
-        (sha256 as jest.Mock).mockReturnValueOnce(mockHashBytes);
+        const mockHashHex = "01020304";
+        (sha256Hex as jest.Mock).mockReturnValueOnce(mockHashHex);
         (verifySignature as jest.Mock).mockReturnValueOnce(true);
 
         // Mock invoice parsing to return matching hash - scoped to this test only
@@ -473,8 +465,8 @@ describe("NIP-57: Lightning Zaps", () => {
           lnurlServerKeypair.publicKey,
         );
 
-        // Check that sha256 was called with the description tag content
-        expect(sha256).toHaveBeenCalled();
+        // Check that sha256Hex was called with the description tag content
+        expect(sha256Hex).toHaveBeenCalled();
         expect(parseBolt11Invoice).toHaveBeenCalledWith("lnbc1000n1...");
 
         expect(validation.valid).toBe(true);
@@ -522,12 +514,8 @@ describe("NIP-57: Lightning Zaps", () => {
         );
 
         // Mock hash calculation - this will be different from invoice hash
-        const mockHashBytes = new Uint8Array([1, 2, 3, 4]);
-        const calculatedHashHex = Array.from(mockHashBytes)
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-
-        (sha256 as jest.Mock).mockReturnValue(mockHashBytes);
+        const calculatedHashHex = "01020304";
+        (sha256Hex as jest.Mock).mockReturnValue(calculatedHashHex);
 
         // Mock invoice parsing with different hash
         (parseBolt11Invoice as jest.Mock).mockReturnValue({
@@ -695,15 +683,8 @@ describe("NIP-57: Lightning Zaps", () => {
         // Mock the invoice parsing to return our custom data with description hash
         (parseBolt11Invoice as jest.Mock).mockReturnValue(mockInvoiceData);
 
-        // And mock the sha256 function to return the expected hash value
-        // The descriptionHash from the invoice is already a hex string,
-        // so we need to convert it to a Uint8Array for our mock
-        const descHashBytes = new Uint8Array(
-          mockInvoiceData.descriptionHash
-            .match(/.{1,2}/g)!
-            .map((byte) => parseInt(byte, 16)),
-        );
-        (sha256 as jest.Mock).mockReturnValue(descHashBytes);
+        // And mock the sha256Hex function to return the expected hash value
+        (sha256Hex as jest.Mock).mockReturnValue(mockInvoiceData.descriptionHash);
 
         // Create zap receipt with our real invoice
         const zapReceiptTemplate = createZapReceipt(
@@ -730,12 +711,12 @@ describe("NIP-57: Lightning Zaps", () => {
           lnurlServerKeypair.publicKey,
         );
 
-        // Should be valid since we mocked sha256 to return the expected hash
+        // Should be valid since we mocked sha256Hex to return the expected hash
         expect(validation.valid).toBe(true);
 
         // Now test with incorrect hash
-        const wrongHashBytes = new Uint8Array([0, 1, 2, 3]); // different hash
-        (sha256 as jest.Mock).mockReturnValue(wrongHashBytes);
+        const wrongHashHex = "00010203"; // different hash
+        (sha256Hex as jest.Mock).mockReturnValue(wrongHashHex);
 
         const validationWithWrongHash = validateZapReceipt(
           signedZapReceipt,
@@ -923,14 +904,10 @@ describe("NIP-57: Lightning Zaps", () => {
         lnurlServerKeypair.privateKey,
       );
 
-      // When validating, we need to mock sha256 to return the correct hash
+      // When validating, we need to mock sha256Hex to return the correct hash
       const descriptionHash = realInvoiceData?.descriptionHash;
       if (descriptionHash) {
-        // Convert hex string to Uint8Array
-        const descHashBytes = new Uint8Array(
-          descriptionHash.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)),
-        );
-        (sha256 as jest.Mock).mockReturnValue(descHashBytes);
+        (sha256Hex as jest.Mock).mockReturnValue(descriptionHash);
       }
 
       // 6. Validate the zap receipt
@@ -948,7 +925,7 @@ describe("NIP-57: Lightning Zaps", () => {
 
       // 8. Finally, check that our new implementation used the correct methods
       expect(parseBolt11Invoice).toHaveBeenCalledWith(realInvoice);
-      expect(sha256).toHaveBeenCalled();
+      expect(sha256Hex).toHaveBeenCalled();
     });
   });
 });
