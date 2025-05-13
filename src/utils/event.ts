@@ -147,16 +147,16 @@ export function createTextNote(
  * @param tags Optional additional tags
  * @returns An unsigned event with pubkey automatically set and content encrypted
  */
-export function createDirectMessage(
+export async function createDirectMessage(
   content: string,
   recipientPubkey: string,
   privateKey: string,
   tags: string[][] = [],
-): UnsignedEvent {
+): Promise<UnsignedEvent> {
   const pubkey = getPublicKey(privateKey);
 
   // Encrypt the content using NIP-04
-  const encryptedContent = encryptNIP04(content, privateKey, recipientPubkey);
+  const encryptedContent = await encryptNIP04(content, privateKey, recipientPubkey);
 
   return {
     pubkey,

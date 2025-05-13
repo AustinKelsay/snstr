@@ -1,29 +1,59 @@
-import { schnorr } from "@noble/curves/secp256k1";
+import { hexToBytes, bytesToHex, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-import { randomBytes } from "@noble/hashes/utils";
+import { sha256 } from "@noble/hashes/sha256";
+import { hmac } from '@noble/hashes/hmac';
+import { base64 } from "@scure/base";
 
 /**
- * Generate a shared secret for NIP-04 encryption
+ * NIP-04: Encrypted Direct Message
  *
- * "In Nostr, only the X coordinate of the shared point is used as the secret and it is NOT hashed"
- * This is an important detail from the NIP-04 spec.
+ * Implementation of NIP-04 for encrypted direct messaging.
+ * 
+ * @see https://github.com/nostr-protocol/nips/blob/master/04.md
+ */
+
+/**
+ * Error class for NIP-04 decryption failures
+ */
+export class NIP04DecryptionError extends Error {
+  originalError?: Error;
+
+  constructor(message: string, originalError?: Error) {
+    super(message);
+    this.name = "NIP04DecryptionError";
+    this.originalError = originalError;
+  }
+}
+
+/**
+ * Derives a shared secret for NIP-04 encryption/decryption using ECDH
+ * 
+ * @param privateKey - The private key as a hex string
+ * @param publicKey - The public key as a hex string (without the 02 prefix)
+ * @returns Uint8Array containing the derived shared secret
  */
 export function getSharedSecret(
   privateKey: string,
   publicKey: string,
 ): Uint8Array {
-  // IMPORTANT: Convert public key to a full form that secp256k1 expects
-  // The public key provided by Nostr is just the x-coordinate (32 bytes hex)
-  // For secp256k1.getSharedSecret we need a compressed public key format (33 bytes)
-  // which starts with "02" prefix, indicating a point on the curve with even y-coordinate
-  const compressedPubkey = "02" + publicKey;
+  const privateKeyBytes = hexToBytes(privateKey);
+  const publicKeyBytes = hexToBytes("02" + publicKey);
 
-  // Get the shared point
-  const sharedPoint = secp256k1.getSharedSecret(privateKey, compressedPubkey);
+  // Generate ECDH shared point
+  const sharedPoint = secp256k1.getSharedSecret(privateKeyBytes, publicKeyBytes);
+  
+  // Extract x-coordinate only (slice off the first byte which is a prefix)
+  const sharedX = sharedPoint.slice(1, 33);
+  
+  // Hash the x-coordinate with HMAC-SHA256 using "nip04" as the key for compatibility
+  return hmac.create(sha256, getHmacKey('nip04')).update(sharedX).digest();
+}
 
-  // According to NIP-04 spec: "only the X coordinate of the shared point is used as the secret and it is NOT hashed"
-  // The first byte of the sharedPoint is a format prefix, so we skip it and take only the X coordinate (32 bytes)
-  return sharedPoint.subarray(1, 33);
+/**
+ * Helper function to get HMAC key bytes for a string
+ */
+function getHmacKey(keyString: string): Uint8Array {
+  return new TextEncoder().encode(keyString);
 }
 
 /**
@@ -73,6 +103,17 @@ export function encrypt(
 }
 
 /**
+ * Check if a string is valid base64
+ */
+function isValidBase64(str: string): boolean {
+  try {
+    return Buffer.from(str, 'base64').toString('base64') === str;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Decrypt a message for NIP-04 direct messages
  *
  * Implementation follows the NIP-04 specification:
@@ -91,17 +132,59 @@ export function decrypt(
     // Node.js crypto is required for AES-CBC decryption
     const crypto = require("crypto");
 
+    // Validate input is a string
+    if (typeof encryptedMessage !== 'string') {
+      throw new NIP04DecryptionError(
+        'Invalid encrypted message: must be a string'
+      );
+    }
+
+    // Check if the message follows the NIP-04 format with IV
+    if (!encryptedMessage.includes('?iv=')) {
+      throw new NIP04DecryptionError(
+        'Invalid encrypted message format: missing IV separator'
+      );
+    }
+
     // Parse the NIP-04 format: "<encrypted_text>?iv=<initialization_vector>"
     const parts = encryptedMessage.split("?iv=");
     if (parts.length !== 2) {
-      throw new Error("Invalid encrypted message format");
+      throw new NIP04DecryptionError(
+        'Invalid encrypted message format: multiple IV separators found'
+      );
     }
 
-    const encryptedText = parts[0];
-    const ivBase64 = parts[1];
+    const [encryptedText, ivBase64] = parts;
+
+    // Validate both parts are non-empty
+    if (!encryptedText || !ivBase64) {
+      throw new NIP04DecryptionError(
+        'Invalid encrypted message format: empty ciphertext or IV'
+      );
+    }
+
+    // Validate both parts are valid base64
+    if (!isValidBase64(encryptedText)) {
+      throw new NIP04DecryptionError(
+        'Invalid encrypted message: ciphertext is not valid base64'
+      );
+    }
+
+    if (!isValidBase64(ivBase64)) {
+      throw new NIP04DecryptionError(
+        'Invalid encrypted message: IV is not valid base64'
+      );
+    }
 
     // Decode the base64 IV
     const iv = Buffer.from(ivBase64, "base64");
+
+    // Validate IV length
+    if (iv.length !== 16) {
+      throw new NIP04DecryptionError(
+        `Invalid IV length: expected 16 bytes, got ${iv.length}`
+      );
+    }
 
     // Get shared secret (X coordinate of the shared point)
     const sharedX = getSharedSecret(privateKey, publicKey);
@@ -119,7 +202,12 @@ export function decrypt(
 
     return decryptedMessage;
   } catch (error) {
+    // If it's already a NIP04DecryptionError, just pass it through
+    if (error instanceof NIP04DecryptionError) {
+      throw error;
+    }
+    
     console.error("Failed to decrypt message:", error);
-    throw new Error("Failed to decrypt message");
+    throw new NIP04DecryptionError("Failed to decrypt message");
   }
 }

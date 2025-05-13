@@ -186,7 +186,7 @@ export class Nostr {
       throw new Error("Private key is not set");
     }
 
-    const dmTemplate = createDirectMessage(
+    const dmTemplate = await createDirectMessage(
       content,
       recipientPubkey,
       this.privateKey,

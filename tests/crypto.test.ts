@@ -9,6 +9,7 @@ import {
   encrypt as encryptNIP04,
   decrypt as decryptNIP04,
   getSharedSecret as getNIP04SharedSecret,
+  NIP04DecryptionError,
 } from "../src/nip04";
 
 describe("Crypto Utilities", () => {
@@ -140,9 +141,9 @@ describe("Crypto Utilities", () => {
       const evePrivateKey = eveKeypair.privateKey;
 
       // Eve tries to decrypt with her key
-      expect(() => {
-        decryptNIP04(encrypted, evePrivateKey, alicePublicKey);
-      }).toThrow();
+      expect(() => 
+        decryptNIP04(encrypted, evePrivateKey, alicePublicKey)
+      ).toThrow(NIP04DecryptionError);
     });
 
     test("should produce different ciphertexts for the same message to different recipients", async () => {
@@ -211,9 +212,9 @@ describe("Crypto Utilities", () => {
         parts[0].substring(0, parts[0].length - 1) + "X" + "?iv=" + parts[1];
 
       // Decryption should throw an error
-      expect(() => {
-        decryptNIP04(tampered, bobPrivateKey, alicePublicKey);
-      }).toThrow();
+      expect(() =>
+        decryptNIP04(tampered, bobPrivateKey, alicePublicKey)
+      ).toThrow(NIP04DecryptionError);
     });
   });
 });

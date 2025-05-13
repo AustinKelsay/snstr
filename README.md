@@ -124,6 +124,8 @@ import {
 } from 'snstr';
 ```
 
+Our NIP-04 implementation uses HMAC-SHA256 with the key "nip04" for shared secret derivation, ensuring compatibility with nip04 spec compliant libraries and nostr clients while providing robust validation and error handling.
+
 ### NIP-44: Versioned Encryption (ChaCha20 + HMAC)
 
 ```typescript
@@ -1323,6 +1325,12 @@ const decrypted = decryptNIP04(
   aliceKeypair.publicKey
 );
 ```
+
+Our NIP-04 implementation:
+- Uses HMAC-SHA256 with the key "nip04" for shared secret derivation
+- Ensures compatibility with nostr-tools and other Nostr clients
+- Includes robust validation and detailed error reporting
+- Works consistently across browsers and Node.js environments
 
 For more details on the NIP-04 implementation, see [src/nip04/README.md](src/nip04/README.md).
 

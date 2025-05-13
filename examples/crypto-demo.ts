@@ -5,6 +5,7 @@ import {
   decryptNIP04,
   getNIP04SharedSecret,
 } from "../src";
+import { bytesToHex } from "@noble/hashes/utils";
 
 /**
  * Demo of the Nostr cryptography functions
@@ -46,7 +47,7 @@ async function main() {
     console.log(`\nOriginal message: "${message}"`);
 
     // Alice encrypts the message using her private key and Bob's public key
-    const encryptedMessage = encryptNIP04(
+    const encryptedMessage = await encryptNIP04(
       message,
       aliceKeypair.privateKey,
       bobKeypair.publicKey,
@@ -55,7 +56,7 @@ async function main() {
 
     // Bob receives the message and decrypts it using his private key and Alice's public key
     console.log("\nBob decrypts the message...");
-    const decryptedMessage = decryptNIP04(
+    const decryptedMessage = await decryptNIP04(
       encryptedMessage,
       bobKeypair.privateKey,
       aliceKeypair.publicKey,
@@ -65,7 +66,7 @@ async function main() {
     // Even if Eve intercepts the message, she cannot decrypt it without Bob's private key
     console.log("\nEve tries to decrypt the message...");
     try {
-      const eveDecryption = decryptNIP04(
+      const eveDecryption = await decryptNIP04(
         encryptedMessage,
         eveKeypair.privateKey,
         aliceKeypair.publicKey,
@@ -90,8 +91,8 @@ async function main() {
     );
 
     // Convert to hex for display
-    const aliceHex = Buffer.from(aliceSharedSecret).toString("hex");
-    const bobHex = Buffer.from(bobSharedSecret).toString("hex");
+    const aliceHex = bytesToHex(aliceSharedSecret);
+    const bobHex = bytesToHex(bobSharedSecret);
 
     console.log("\nShared secret computed by Alice:");
     console.log(aliceHex.slice(0, 32) + "...");

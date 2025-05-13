@@ -219,7 +219,7 @@ describe("Event Creation and Signing", () => {
       const recipientPubkey = getPublicKey(recipientPrivateKey);
       const tags = [["t", "test"]];
 
-      const template = createDirectMessage(
+      const template = await createDirectMessage(
         content,
         recipientPubkey,
         privateKey,
