@@ -546,9 +546,8 @@ export class Relay {
     if (event.kind === 0 || event.kind === 3 || (event.kind >= 10000 && event.kind < 20000)) {
       this.processReplaceableEvent(event);
     }
-    
-    // Process addressable events (kinds 30000-39999)
-    if (event.kind >= 30000 && event.kind < 40000) {
+    // Process addressable events (kinds 30000-39999) - using else to make them mutually exclusive
+    else if (event.kind >= 30000 && event.kind < 40000) {
       this.processAddressableEvent(event);
     }
 

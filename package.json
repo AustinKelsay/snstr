@@ -41,6 +41,7 @@
     "test:all": "npm test",
     "test:core": "jest tests/event/event.test.ts tests/nostr.test.ts tests/relay.test.ts tests/event/event-ordering.test.ts",
     "test:event:all": "jest tests/event",
+    "test:event:addressable": "jest tests/event/addressable-events.test.ts",
     "test:crypto": "jest tests/crypto.test.ts tests/nip04/encryption.test.ts tests/nip44",
     "test:identity": "jest tests/nip05.test.ts tests/nip07.test.ts tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57",

@@ -118,6 +118,27 @@ async function main() {
     // Wait a moment for the relay to process the event
     await new Promise(resolve => setTimeout(resolve, 1000));
     
+    // ADDED: Subscribe to fetch the events first
+    console.log("Fetching events via subscription...");
+    await new Promise<void>((resolve) => {
+      const subIds = client.subscribe(
+        [{ kinds: [30001], authors: [keys.publicKey] }],
+        (event) => {
+          console.log(`Received event via subscription: ${event.id.slice(0, 8)}...`);
+        },
+        () => {
+          console.log("EOSE received, subscription complete");
+          setTimeout(resolve, 1000); // Wait a bit after EOSE
+        }
+      );
+      
+      // Auto-close subscription after 5 seconds just in case
+      setTimeout(() => {
+        client.unsubscribe(subIds);
+        resolve();
+      }, 5000);
+    });
+    
     const latestArticle = client.getLatestAddressableEvent(30001, keys.publicKey, articleId);
     
     if (latestArticle) {
@@ -215,6 +236,28 @@ async function main() {
     
     // 9. Retrieve all events of a specific kind
     console.log("\n--- Retrieving all products (kind 30078) ---");
+    
+    // ADDED: Subscribe to fetch the products first
+    console.log("Fetching products via subscription...");
+    await new Promise<void>((resolve) => {
+      const subIds = client.subscribe(
+        [{ kinds: [30078], authors: [keys.publicKey] }],
+        (event) => {
+          console.log(`Received product via subscription: ${event.id.slice(0, 8)}...`);
+        },
+        () => {
+          console.log("EOSE received, subscription complete");
+          setTimeout(resolve, 1000); // Wait a bit after EOSE
+        }
+      );
+      
+      // Auto-close subscription after 5 seconds just in case
+      setTimeout(() => {
+        client.unsubscribe(subIds);
+        resolve();
+      }, 5000);
+    });
+    
     const allProducts = client.getAddressableEventsByKind(30078);
     
     console.log(`Found ${allProducts.length} products:`);
