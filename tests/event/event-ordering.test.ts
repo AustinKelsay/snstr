@@ -19,8 +19,8 @@ describe("Event ordering", () => {
       if (a.created_at !== b.created_at) {
         return b.created_at - a.created_at;
       }
-      // If created_at is the same, sort by id (ascending lexical order)
-      return a.id.localeCompare(b.id);
+      // If created_at is the same, sort by id (descending lexical order)
+      return b.id.localeCompare(a.id);
     });
   }
 
@@ -88,8 +88,8 @@ describe("Event ordering", () => {
 
     // Check the order (ordered by ID lexically)
     expect(sortedEvents.length).toBe(2);
-    expect(sortedEvents[0]).toEqual(event2); // 'aaa' should come first
-    expect(sortedEvents[1]).toEqual(event1); // 'bbb' should come second
+    expect(sortedEvents[0]).toEqual(event1); // 'bbb' should come first (descending)
+    expect(sortedEvents[1]).toEqual(event2); // 'aaa' should come second (descending)
   });
 
   test("should handle multiple events in correct order", () => {
@@ -139,12 +139,12 @@ describe("Event ordering", () => {
     // Expected order:
     // 1. ddd (newest timestamp: 3000)
     // 2. ccc (middle timestamp: 2000)
-    // 3. aaa (oldest timestamp: 1000, but lexically first)
-    // 4. bbb (oldest timestamp: 1000, but lexically second)
+    // 3. bbb (oldest timestamp: 1000, but lexically first due to descending sort)
+    // 4. aaa (oldest timestamp: 1000, but lexically second due to descending sort)
     expect(sortedEvents.length).toBe(4);
     expect(sortedEvents[0].id).toBe("ddd"); // Newest timestamp
     expect(sortedEvents[1].id).toBe("ccc"); // Middle timestamp
-    expect(sortedEvents[2].id).toBe("aaa"); // Same oldest timestamp, lexically first
-    expect(sortedEvents[3].id).toBe("bbb"); // Same oldest timestamp, lexically second
+    expect(sortedEvents[2].id).toBe("bbb"); // Same oldest timestamp, lexically first (descending)
+    expect(sortedEvents[3].id).toBe("aaa"); // Same oldest timestamp, lexically second (descending)
   });
 });

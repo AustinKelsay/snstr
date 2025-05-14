@@ -138,20 +138,20 @@ async function main() {
     const sameTimestamp = now + 60;
 
     // Event A (lexically first ID)
-    console.log("Creating event A with ID that should come first lexically...");
+    console.log("Creating event A with ID that should come first lexically (e.g., starts with 0-3)...");
     let eventA: NostrEvent;
 
-    // Keep trying until we get an ID that starts with 'a'
+    // Keep trying until we get an ID that starts with '0'-'3'
     do {
       const eventATemplate = {
         kind: 1,
-        content: `Event A - same timestamp ${sameTimestamp}, ID should come first lexically ${Math.random()}`,
+        content: `Event A - same timestamp ${sameTimestamp}, ID should be like 0xxx-3xxx... ${Math.random()}`,
         tags: [["t", "test"]],
         created_at: sameTimestamp,
         pubkey: keys.publicKey,
       };
       eventA = await createSignedEvent(eventATemplate, keys.privateKey);
-    } while (eventA.id[0] > "b");
+    } while (eventA.id[0] > '3'); // Continue if first char is '4' through 'f'
 
     await client.publishEvent(eventA);
     console.log(
@@ -160,21 +160,21 @@ async function main() {
 
     // Event B (lexically middle ID)
     console.log(
-      "Creating event B with ID that should come second lexically...",
+      "Creating event B with ID that should come second lexically (e.g., starts with 6-9)...",
     );
     let eventB: NostrEvent;
 
-    // Keep trying until we get an ID that starts with 'c-f'
+    // Keep trying until we get an ID that starts with '6'-'9'
     do {
       const eventBTemplate = {
         kind: 1,
-        content: `Event B - same timestamp ${sameTimestamp}, ID should come second lexically ${Math.random()}`,
+        content: `Event B - same timestamp ${sameTimestamp}, ID should be like 6xxx-9xxx... ${Math.random()}`,
         tags: [["t", "test"]],
         created_at: sameTimestamp,
         pubkey: keys.publicKey,
       };
       eventB = await createSignedEvent(eventBTemplate, keys.privateKey);
-    } while (eventB.id[0] < "c" || eventB.id[0] > "f");
+    } while (eventB.id[0] < '6' || eventB.id[0] > '9'); // Continue if not in '6'-'9' range
 
     await client.publishEvent(eventB);
     console.log(
@@ -182,20 +182,20 @@ async function main() {
     );
 
     // Event C (lexically last ID)
-    console.log("Creating event C with ID that should come third lexically...");
+    console.log("Creating event C with ID that should come third lexically (e.g., starts with c-f)...");
     let eventC: NostrEvent;
 
-    // Keep trying until we get an ID that starts with 'x-z'
+    // Keep trying until we get an ID that starts with 'c'-'f'
     do {
       const eventCTemplate = {
         kind: 1,
-        content: `Event C - same timestamp ${sameTimestamp}, ID should come third lexically ${Math.random()}`,
+        content: `Event C - same timestamp ${sameTimestamp}, ID should be like cxxx-fxxx... ${Math.random()}`,
         tags: [["t", "test"]],
         created_at: sameTimestamp,
         pubkey: keys.publicKey,
       };
       eventC = await createSignedEvent(eventCTemplate, keys.privateKey);
-    } while (eventC.id[0] < "x");
+    } while (eventC.id[0] < 'c'); // Continue if first char is '0' through 'b'
 
     await client.publishEvent(eventC);
     console.log(
@@ -222,13 +222,13 @@ async function main() {
         );
         isOrdered = false;
       }
-      // If timestamps are identical, check ID ordering
+      // If timestamps are identical, check ID ordering (descending)
       else if (
         prevEvent.created_at === currentEvent.created_at &&
-        prevEvent.id.localeCompare(currentEvent.id) > 0
+        prevEvent.id.localeCompare(currentEvent.id) < 0 // prevEvent.id should be greater than or equal to currentEvent.id
       ) {
         console.log(
-          `❌ ID ordering issue: ${prevEvent.id.slice(0, 8)} should come after ${currentEvent.id.slice(0, 8)}`,
+          `❌ ID ordering issue: ${prevEvent.id.slice(0, 8)}... (lexically smaller) should come after ${currentEvent.id.slice(0, 8)}... (lexically larger) when timestamps are the same, due to descending ID sort.`,
         );
         isOrdered = false;
       }

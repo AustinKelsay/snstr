@@ -213,8 +213,8 @@ export class NostrRelay {
       if (a.created_at !== b.created_at) {
         return b.created_at - a.created_at;
       }
-      // If created_at is the same, sort by id (ascending lexical order)
-      return a.id.localeCompare(b.id);
+      // If created_at is the same, sort by id (descending lexical order)
+      return b.id.localeCompare(a.id);
     });
   }
 }
