@@ -72,7 +72,7 @@ See the [NIP-46 README](./nip46/README.md) for more details on the remote signin
 ## Directory Structure
 
 - `basic-usage.ts` - Core functionality demo
-- `relay-connection.ts` - Connection management with improved error handling
+- `relay-connection.ts` - Connection management with improved error handling and protocol-compliant subscription management (including proper unsubscribeAll() implementation)
 - `crypto-demo.ts` - Cryptography examples
 - `direct-message.ts` - Direct messaging example
 - `addressable-events.ts` - Addressable events (kinds 30000-39999) example

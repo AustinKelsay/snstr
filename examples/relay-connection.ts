@@ -174,6 +174,56 @@ async function main() {
       console.log("\n💡 Key Improvement: Unlike previous implementation, events are now");
       console.log("   never propagated to subscribers until full validation completes.");
       
+      // ---------- NEW: Demonstrate proper unsubscribeAll implementation ----------
+      console.log("\n--- Demonstrating Protocol-Compliant unsubscribeAll() ---");
+      
+      // Create multiple subscriptions to demonstrate unsubscribeAll
+      console.log("Creating multiple subscriptions...");
+      const subId1 = relay.subscribe([{ kinds: [1], limit: 3 }], () => {
+        console.log("Subscription 1 received an event");
+      });
+      
+      const subId2 = relay.subscribe([{ kinds: [0], limit: 2 }], () => {
+        console.log("Subscription 2 received an event");
+      });
+      
+      const subId3 = relay.subscribe([{ kinds: [4], limit: 1 }], () => {
+        console.log("Subscription 3 received an event");
+      });
+      
+      // Show how many active subscriptions we have
+      console.log(`Active subscriptions: ${relay.getSubscriptionIds().size}`);
+      console.log("Subscription IDs:", Array.from(relay.getSubscriptionIds()));
+      
+      // Create a Nostr client with this relay
+      console.log("\nCreating Nostr client with this relay to demonstrate unsubscribeAll...");
+      const { Nostr } = await import("../src");
+      const client = new Nostr(["wss://relay.nostr.band"]);
+      
+      // Create a subscription through the client
+      client.subscribe([{ kinds: [1], limit: 2 }], () => {
+        console.log("Client subscription received an event");
+      });
+      
+      // Demonstrate protocol-compliant unsubscribeAll
+      console.log("\nCalling client.unsubscribeAll()...");
+      client.unsubscribeAll();
+      
+      // Check if the relay is still connected (it should be)
+      console.log(`Relay is still connected: ${(relay as any).connected}`);
+      
+      // Check if all client subscriptions were correctly closed
+      console.log(`Relay subscription count after unsubscribeAll: ${relay.getSubscriptionIds().size}`);
+      console.log("Remaining subscription IDs:", Array.from(relay.getSubscriptionIds()));
+      
+      // Close individual subscriptions to clean up
+      console.log("\nClosing remaining individual subscriptions...");
+      relay.unsubscribe(subId1);
+      relay.unsubscribe(subId2);
+      relay.unsubscribe(subId3);
+      
+      console.log(`Final subscription count: ${relay.getSubscriptionIds().size}`);
+      
       // Unsubscribe from validation test
       relay.unsubscribe(validationSubscription);
     } else {

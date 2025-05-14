@@ -792,6 +792,14 @@ export class Relay {
   }
 
   /**
+   * Get all subscription IDs for this relay
+   * @returns A Set containing all active subscription IDs
+   */
+  public getSubscriptionIds(): Set<string> {
+    return new Set(this.subscriptions.keys());
+  }
+
+  /**
    * Get the current buffer flush delay in milliseconds
    */
   public getBufferFlushDelay(): number {

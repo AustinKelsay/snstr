@@ -289,8 +289,11 @@ export class Nostr {
   public unsubscribeAll(): void {
     // Clear all subscriptions on all relays
     this.relays.forEach((relay) => {
-      // The Relay class handles clearing its internal subscription map
-      relay.disconnect();
+      // Get all subscription IDs for this relay
+      const subscriptionIds = Array.from(relay.getSubscriptionIds());
+      
+      // Close each subscription properly
+      subscriptionIds.forEach(id => relay.unsubscribe(id));
     });
   }
 

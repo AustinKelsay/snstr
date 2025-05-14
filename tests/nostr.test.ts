@@ -272,6 +272,52 @@ describe("Nostr Client", () => {
         client.unsubscribe(subIds);
       }).not.toThrow();
     });
+
+    // Add test for unsubscribeAll() method
+    test("should properly close all subscriptions with unsubscribeAll", async () => {
+      // Start ephemeral relay
+      const mockRelay = new NostrRelay(3405);
+      await mockRelay.start();
+      
+      const client = new Nostr([mockRelay.url]);
+      await client.connectToRelays();
+      
+      // Get first relay using type assertion to access private property
+      const relayMap = (client as any).relays as Map<string, Relay>;
+      const relay = Array.from(relayMap.values())[0] as Relay;
+      expect(relay).toBeDefined();
+      
+      // Spy on relay's unsubscribe method
+      const unsubscribeSpy = jest.spyOn(relay, 'unsubscribe');
+      
+      // Create multiple subscriptions
+      const subIds = [
+        client.subscribe([{ kinds: [1], limit: 5 }], () => {}),
+        client.subscribe([{ kinds: [0], limit: 3 }], () => {}),
+        client.subscribe([{ kinds: [4], limit: 2 }], () => {})
+      ];
+      
+      // Verify subscriptions were created
+      const subscriptionCount = relay.getSubscriptionIds().size;
+      expect(subscriptionCount).toBe(3);
+      
+      // Call unsubscribeAll
+      client.unsubscribeAll();
+      
+      // Verify unsubscribe was called for each subscription
+      expect(unsubscribeSpy).toHaveBeenCalledTimes(3);
+      
+      // Verify all subscriptions were removed
+      expect(relay.getSubscriptionIds().size).toBe(0);
+      
+      // Verify relay is still connected (not disconnected)
+      expect((relay as any).connected).toBe(true);
+      
+      // Cleanup
+      client.disconnectFromRelays();
+      await mockRelay.close();
+      unsubscribeSpy.mockRestore();
+    });
   });
 });
 

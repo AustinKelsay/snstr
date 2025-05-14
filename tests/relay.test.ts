@@ -378,6 +378,37 @@ describe("Relay", () => {
       // Cleanup
       relay.disconnect();
     });
+
+    test("should get subscription IDs with getSubscriptionIds", async () => {
+      const relay = new Relay(ephemeralRelay.url);
+      await relay.connect();
+
+      // Create multiple subscriptions
+      const subId1 = relay.subscribe([{ kinds: [1], limit: 5 }], () => {});
+      const subId2 = relay.subscribe([{ kinds: [0], limit: 3 }], () => {});
+      const subId3 = relay.subscribe([{ kinds: [4], limit: 2 }], () => {});
+
+      // Get subscription IDs
+      const subIds = relay.getSubscriptionIds();
+
+      // Verify that the subscription IDs are correct
+      expect(subIds.size).toBe(3);
+      expect(subIds.has(subId1)).toBe(true);
+      expect(subIds.has(subId2)).toBe(true);
+      expect(subIds.has(subId3)).toBe(true);
+
+      // Unsubscribe one and check that it gets removed
+      relay.unsubscribe(subId2);
+      
+      const remainingIds = relay.getSubscriptionIds();
+      expect(remainingIds.size).toBe(2);
+      expect(remainingIds.has(subId1)).toBe(true);
+      expect(remainingIds.has(subId2)).toBe(false);
+      expect(remainingIds.has(subId3)).toBe(true);
+
+      // Cleanup
+      relay.disconnect();
+    });
   });
 
   describe("Tag Filtering", () => {
