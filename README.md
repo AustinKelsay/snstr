@@ -114,6 +114,8 @@ import {
 import { createEvent } from 'snstr';
 ```
 
+SNSTR's cryptographic functions ensure secure key generation with proper validation for the secp256k1 curve parameters, preventing potential vulnerabilities from invalid private keys.
+
 ### NIP-04: Encrypted Direct Messages (AES-CBC)
 
 ```typescript
@@ -1511,6 +1513,26 @@ SNSTR implements comprehensive validation of Nostr events according to NIP-01 re
    - Warns about unusually old events
 
 This validation prevents various attacks including event forgery, content tampering, and replay attacks.
+
+### Secure Private Key Generation
+
+SNSTR implements secure private key generation for the secp256k1 curve:
+
+1. **Range Validation**: All generated private keys are guaranteed to be within the valid range:
+   - Greater than zero
+   - Less than the curve order (n = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141)
+
+2. **Security Protections**:
+   - Prevents zero keys that could lead to signature operation failures
+   - Prevents keys equal to or larger than the curve order
+   - Uses the noble-curves library's secure key generation utilities
+
+3. **Performance and Compatibility**:
+   - Negligible performance impact
+   - Full compatibility with Nostr protocol requirements
+   - Works consistently across browsers and Node.js environments
+
+These measures prevent potential vulnerabilities that could arise from invalid private keys.
 
 ### NIP-19 Security Enhancements
 

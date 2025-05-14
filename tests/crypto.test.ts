@@ -34,6 +34,21 @@ describe("Crypto Utilities", () => {
       expect(keypair.publicKey).toMatch(/^[0-9a-f]{64}$/);
     });
 
+    it("should generate private keys within the valid secp256k1 curve range", async () => {
+      // The secp256k1 curve order 
+      const curveOrder = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+      
+      // Test multiple generated keys to ensure they're all valid
+      for (let i = 0; i < 5; i++) {
+        const keypair = await generateKeypair();
+        const privateKeyBigInt = BigInt(`0x${keypair.privateKey}`);
+        
+        // Valid private keys must be: 0 < privateKey < curve order
+        expect(privateKeyBigInt).toBeGreaterThan(BigInt(0));
+        expect(privateKeyBigInt).toBeLessThan(curveOrder);
+      }
+    });
+
     it("should derive correct public key from private key", () => {
       const privateKey =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";

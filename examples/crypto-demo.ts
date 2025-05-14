@@ -19,6 +19,7 @@ async function main() {
   try {
     // 1. Generate keypairs
     console.log("Generating keypairs...");
+    console.log("(Using secp256k1 curve with secure range validation)");
 
     // Alice's keypair
     const aliceKeypair = await generateKeypair();

@@ -41,8 +41,9 @@ export async function generateKeypair(): Promise<{
   privateKey: string;
   publicKey: string;
 }> {
-  const privateKeyBytes = randomBytes(32);
-  const privateKey = bytesToHex(privateKeyBytes);
+  // Use the library's built-in private key generation
+  // This ensures the private key is in the valid range (1 <= privateKey < curve order)
+  const privateKey = bytesToHex(schnorr.utils.randomPrivateKey());
   const publicKey = getPublicKey(privateKey);
   return { privateKey, publicKey };
 }
