@@ -117,7 +117,7 @@ describe("NIP-44 Test Vectors", () => {
 
       expect(() => {
         decrypt(tampered, bobKeypair.privateKey, aliceKeypair.publicKey);
-      }).toThrow("NIP-44: Authentication failed");
+      }).toThrow(/Authentication failed/);
     });
 
     test("should throw on wrong decryption key", () => {
@@ -130,7 +130,7 @@ describe("NIP-44 Test Vectors", () => {
       expect(() => {
         // Try to decrypt using wrong key
         decrypt(encrypted, eveKeypair.privateKey, aliceKeypair.publicKey);
-      }).toThrow("NIP-44: Authentication failed");
+      }).toThrow(/Authentication failed/);
     });
   });
 

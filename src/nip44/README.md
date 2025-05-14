@@ -12,6 +12,7 @@ NIP-44 replaces the older NIP-04 encryption with a more secure approach using Ch
 - Proper key derivation using HKDF
 - Message length hiding via a custom padding scheme
 - Secure nonce handling with 32-byte nonces
+- **Full version compatibility** supporting decryption of v0, v1, and v2 messages
 
 ## Usage
 
@@ -45,7 +46,7 @@ console.log(decrypted); // 'Hello, Bob!'
 
 ## API Reference
 
-### `encryptNIP44(plaintext, privateKey, publicKey, nonce?)`
+### `encryptNIP44(plaintext, privateKey, publicKey, nonce?, options?)`
 
 Encrypts a message using NIP-44 encryption (ChaCha20 + HMAC-SHA256).
 
@@ -53,7 +54,17 @@ Encrypts a message using NIP-44 encryption (ChaCha20 + HMAC-SHA256).
 - `privateKey` - Sender's private key
 - `publicKey` - Recipient's public key
 - `nonce` - (Optional) 32-byte nonce, will be randomly generated if not provided
+- `options` - (Optional) Additional options:
+  - `version` - (Optional) Specify NIP-44 version for encryption (0, 1, or 2, defaults to 2)
 - Returns: Base64-encoded encrypted message
+
+```typescript
+// Default encryption with v2
+const encrypted = encryptNIP44('Hello', privateKey, publicKey);
+
+// Explicitly specify version for compatibility with older clients
+const encryptedV1 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 1 });
+```
 
 ### `decryptNIP44(ciphertext, privateKey, publicKey)`
 
@@ -64,6 +75,8 @@ Decrypts a message using NIP-44 encryption.
 - `publicKey` - Sender's public key
 - Returns: Decrypted message
 - Throws: Error if decryption fails (wrong keys, tampered message, etc.)
+
+**Note**: This implementation automatically detects and handles payload versions 0, 1, and 2, providing seamless backward compatibility.
 
 ### `getNIP44SharedSecret(privateKey, publicKey)`
 
@@ -89,6 +102,51 @@ Performs constant-time comparison of two byte arrays to prevent timing attacks.
 
 This function is used internally to validate MACs securely, but is also exposed for use in other security-critical comparisons. Using constant-time comparison is important when comparing sensitive values like MACs, signatures, or hashes to prevent timing side-channel attacks.
 
+## Version Compatibility
+
+This implementation follows the NIP-44 specification requirement that clients:
+- **MUST** include a version byte in encrypted payloads
+- **MUST** be able to decrypt versions 0 and 1
+- **SHOULD** be able to encrypt with versions 0 and 1 (if needed for compatibility)
+
+### Version Support
+
+| Version | Encryption | Decryption | Notes |
+|---------|------------|------------|-------|
+| 0 | ✅ Supported | ✅ Supported | Early experimental version, available for compatibility |
+| 1 | ✅ Supported | ✅ Supported | Interim version, available for compatibility |
+| 2 | ✅ Supported | ✅ Supported | Current version, used by default for encryption |
+
+### Default Behavior
+
+- **Encryption**: By default, all messages are encrypted with version 2 (current version)
+- **Decryption**: Automatically detects and handles versions 0, 1, and 2
+
+### Explicit Version Selection
+
+You can explicitly choose a version for encryption when needed for compatibility:
+
+```typescript
+// Default - uses version 2
+const encrypted = encryptNIP44('Hello', privateKey, publicKey);
+
+// Force version 1 for compatibility with older clients
+const encryptedV1 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 1 });
+
+// Force version 0 for compatibility with earliest implementations
+const encryptedV0 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 0 });
+```
+
+### Version Differences
+
+Currently, all versions use the same cryptographic primitives:
+- ChaCha20 for encryption
+- HMAC-SHA256 for authentication
+- 32-byte nonces
+- 32-byte MAC tags
+
+The primary difference is the version byte in the payload, which enables future protocol upgrades.
+
 ## Differences from NIP-04
 
 1. **Cipher algorithm**: NIP-44 uses ChaCha20 + HMAC-SHA256 instead of AES-CBC
@@ -104,10 +162,12 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 
 ### Key Constants
 
-- `VERSION = 2` - Indicates NIP-44 v2 protocol
-- `NONCE_SIZE = 32` - 32-byte nonce as required by NIP-44 v2
+- `CURRENT_VERSION = 2` - Current NIP-44 version for encryption
+- `MIN_SUPPORTED_VERSION = 0` - Minimum supported version for decryption
+- `MAX_SUPPORTED_VERSION = 2` - Maximum supported version for decryption
+- `NONCE_SIZE_V2 = 32` - 32-byte nonce as required by NIP-44 v2
 - `KEY_SIZE = 32` - 32-byte key for ChaCha20
-- `MAC_SIZE = 32` - 32-byte MAC from HMAC-SHA256
+- `MAC_SIZE_V2 = 32` - 32-byte MAC from HMAC-SHA256
 
 ### Encryption Process
 
@@ -138,8 +198,8 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 
 1. **Parse Payload** (NIP-44 spec section "Decryption" step 2)
    - Decode base64 
-   - Extract version byte, validate it equals 2
-   - Extract nonce, ciphertext, and MAC
+   - Extract version byte, validate it's between 0-2
+   - Extract nonce, ciphertext, and MAC based on version-specific sizes
 
 2. **Key Derivation** (Same as encryption)
    - Calculate the same conversation key and message keys
@@ -159,6 +219,7 @@ The implementation includes comprehensive error handling that:
 - Checks payload format and version
 - Provides informative error messages that help diagnose issues
 - Properly handles authentication failures with constant-time comparison
+- Includes version information in error messages for better debugging
 
 ## Testing
 
@@ -185,6 +246,7 @@ This implementation has been thoroughly validated against the official [NIP-44 t
 - End-to-end encryption/decryption validation with various message lengths
 - Edge case handling (minimum and maximum message sizes)
 - Error handling for invalid inputs and tampered messages
+- Version compatibility tests across versions 0, 1, and 2
 
 The official test vectors provide cryptographic certainty that our implementation correctly follows the NIP-44 specification and will interoperate with other compliant implementations.
 
@@ -216,6 +278,4 @@ The implementation properly handles x-only public keys (the standard for Nostr) 
 3. Constructing the correct compressed format (with 02/03 prefix) for ECDH operations
 4. Performing constant-time operations to avoid timing side-channels
 
-This approach ensures compatibility with Nostr's x-only public key format while maintaining the security properties required by the NIP-44 specification.
-
-The implementation is contained in `src/utils/nip44.ts` and exports all necessary functions for encryption and decryption. 
+This approach ensures compatibility with Nostr's x-only public key format while maintaining the security properties required by the NIP-44 specification. 

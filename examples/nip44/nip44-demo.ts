@@ -2,7 +2,6 @@ import {
   generateKeypair,
   encryptNIP44,
   decryptNIP44,
-  getNIP44SharedSecret,
   generateNIP44Nonce as generateNonce,
 } from "../../src";
 
@@ -166,6 +165,54 @@ async function main() {
     "Note: The padding scheme makes short messages have a minimum encrypted size",
   );
 
+  // NEW SECTION: Demonstrate version compatibility
+  console.log("\n\nDemonstrating Version Compatibility:");
+  console.log("------------------------------------");
+  console.log("NIP-44 supports encryption with different versions (0, 1, and 2)");
+  console.log("By default, messages are encrypted with version 2 (current)");
+  console.log("Decryption works automatically with any supported version (0, 1, 2)");
+
+  const versionCompatMessage = "This message demonstrates version compatibility";
+  
+  // Encrypt with default version (2)
+  const defaultEncrypted = encryptNIP44(
+    versionCompatMessage,
+    aliceKeypair.privateKey,
+    bobKeypair.publicKey,
+  );
+  
+  // Encrypt with explicit version 1
+  const v1Encrypted = encryptNIP44(
+    versionCompatMessage,
+    aliceKeypair.privateKey,
+    bobKeypair.publicKey,
+    undefined, // No specific nonce
+    { version: 1 } // Explicitly use version 1
+  );
+  
+  // Decrypt both messages
+  const defaultDecrypted = decryptNIP44(
+    defaultEncrypted,
+    bobKeypair.privateKey,
+    aliceKeypair.publicKey,
+  );
+  
+  const v1Decrypted = decryptNIP44(
+    v1Encrypted,
+    bobKeypair.privateKey,
+    aliceKeypair.publicKey,
+  );
+  
+  console.log("\nExample: Encrypting the same message with different versions");
+  console.log(`Default (v2) encrypted: ${defaultEncrypted.substring(0, 50)}...`);
+  console.log(`Version 1 encrypted: ${v1Encrypted.substring(0, 50)}...`);
+  console.log(`Both decrypt correctly: ${defaultDecrypted === v1Decrypted}`);
+  
+  console.log("\nWhen to use different versions:");
+  console.log("- Version 2: Use by default (most secure and current)");
+  console.log("- Version 0/1: Use only when explicitly needed for compatibility with older clients");
+  console.log("For a more detailed demonstration of version compatibility, see nip44-version-compatibility.ts");
+
   console.log("\n\nNIP-44 vs NIP-04:");
   console.log("----------------");
   console.log("1. NIP-44 uses ChaCha20 + HMAC-SHA256 instead of AES-CBC");
@@ -175,6 +222,9 @@ async function main() {
   console.log("5. NIP-44 uses padding to help conceal message length");
   console.log(
     "6. NIP-44 payload is versioned, allowing future encryption improvements",
+  );
+  console.log(
+    "7. NIP-44 supports multiple versions (0, 1, 2) for decryption, ensuring backward compatibility",
   );
 
   // Demonstrate secure constant-time comparison

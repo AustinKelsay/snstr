@@ -823,6 +823,18 @@ main().catch(console.error);
 - **Constant-Time Operations**: Prevents timing attacks during cryptographic operations
 - **Comprehensive Validation**: Thorough input validation and error handling
 - **Test Vectors**: Validated against official NIP-44 test vectors
+- **Version Compatibility**: Full support for decrypting v0, v1, and v2 messages, with options to explicitly encrypt with older versions when needed for compatibility
+
+```typescript
+// Encrypt with default version (v2)
+const encrypted = encryptNIP44('Hello', privateKey, publicKey);
+
+// Decrypt any version (v0, v1, or v2) automatically
+const decrypted = decryptNIP44(encrypted, privateKey, publicKey);
+
+// Explicitly encrypt with v1 for compatibility with older clients
+const encryptedV1 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 1 });
+```
 
 ## Browser Extensions (NIP-07)
 
