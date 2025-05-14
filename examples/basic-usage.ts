@@ -365,7 +365,7 @@ async function main() {
 
     // Create a direct message with automatic pubkey derivation
     const recipient = keys.publicKey; // Just using the same key for demo
-    const directMessage = createDirectMessage(
+    const directMessage = await createDirectMessage(
       "This is an encrypted message",
       recipient,
       keys.privateKey,

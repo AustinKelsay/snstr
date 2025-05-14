@@ -5,13 +5,20 @@ This directory contains the test suite for the SNSTR Nostr client library. The t
 ## Directory Structure
 
 - **Root Tests**: Core functionality tests for basic library features
-  - `event.test.ts` - Tests for event creation and signing
   - `nostr.test.ts` - Tests for the main Nostr client
-  - `integration.test.ts` - End-to-end integration tests
-  - `crypto.test.ts` - Tests for cryptographic utilities
   - `relay.test.ts` - Tests for relay connection handling
+  - `crypto.test.ts` - Tests for cryptographic utilities
+  - `filters.test.ts` - Tests for filter functionality
+  - `integration.test.ts` - End-to-end integration tests
+  - `nostr-publish.test.ts` - Tests for publication functionality
   - `nip05.test.ts` - Tests for NIP-05 (Mapping Nostr keys to DNS-based internet identifiers)
   - `nip07.test.ts` - Tests for NIP-07 (Web browser extension)
+  - `nip11.test.ts` - Tests for NIP-11 (Relay Information Document)
+
+- **Nested Directories**:
+  - `/event` - Tests for event-related functionality
+  - `/client` - Tests for client-related functionality
+    - `relay-reconnect.test.ts` - Tests for relay reconnection
 
 - **NIP-specific Directories**: Additional tests organized by NIP number
   - `/nip04` - Tests for NIP-04 (Encrypted Direct Messages)

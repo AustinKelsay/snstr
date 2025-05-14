@@ -13,15 +13,15 @@ npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
 
 # Connection management examples
-npm run example:relay          # Relay connection with timeout handling
+npm run example:relay-connection # Relay connection with timeout handling
 
 # Crypto examples
 npm run example:crypto         # Cryptography examples
 
 # Direct message examples
-npm run example:dm             # Direct message example
-npm run example:dm:verbose     # Direct message with verbose logging
-npm run example:dm:public      # Direct message using public relays
+npm run example:dm             # NIP-04 direct message example
+npm run example:dm:verbose     # NIP-04 direct message with verbose logging
+npm run example:dm:public      # NIP-04 direct message using public relays
 
 # Addressable events (kinds 30000-39999)
 npm run example:addressable         # Addressable events example
@@ -72,20 +72,34 @@ See the [NIP-46 README](./nip46/README.md) for more details on the remote signin
 ## Directory Structure
 
 - `basic-usage.ts` - Core functionality demo
-- `relay-connection.ts` - Connection management with improved error handling and protocol-compliant subscription management (including proper unsubscribeAll() implementation)
 - `crypto-demo.ts` - Cryptography examples
-- `direct-message.ts` - Direct messaging example
-- `addressable-events.ts` - Addressable events (kinds 30000-39999) example
-- `NIP-01/replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) example
-- `nip04/` - NIP-04 (Encrypted Direct Messages) examples
-- `nip05/` - NIP-05 (DNS Identifier Verification) examples 
-- `nip07/` - NIP-07 (Web Browser Extension) examples
-- `nip19/` - NIP-19 (Bech32-encoded entities) examples
-- `nip44/` - NIP-44 (Encrypted Direct Messages with ChaCha20) examples
-- `nip46/` - NIP-46 (Nostr Connect/Remote Signing) examples
-- `nip47/` - NIP-47 (Nostr Wallet Connect) examples
-- `nip57/` - NIP-57 (Lightning Zaps) examples
-- `javascript/` - JavaScript examples for non-TypeScript environments
+- `/client` - Client-related examples
+  - `relay-connection.ts` - Connection management with error handling
+  - `event-ordering-demo.ts` - Event ordering demonstration
+  - `filter-types.ts` - Filter type examples
+  - `addressable-events.ts` - Addressable events (kinds 30000-39999)
+  - `replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999)
+  - `validation-flow.ts` - NIP-01 validation flow
+  - `relay-reconnect.ts` - Relay reconnection with exponential backoff
+- `/nip04` - NIP-04 (Encrypted Direct Messages) examples
+  - `direct-message.ts` - Direct messaging example
+- `/nip05` - NIP-05 (DNS Identifier Verification) examples 
+- `/nip07` - NIP-07 (Web Browser Extension) examples
+- `/nip11` - NIP-11 (Relay Information Document) examples
+- `/nip19` - NIP-19 (Bech32-encoded entities) examples
+  - `nip19-demo.ts` - Comprehensive overview of all NIP-19 functionality
+  - `bech32-example.ts` - Basic Bech32 encoding/decoding (npub, nsec, note)
+  - `tlv-example.ts` - TLV entity encoding/decoding (nprofile, nevent, naddr)
+  - `validation-example.ts` - Validation and error handling for NIP-19 entities
+  - `nip19-security.ts` - Security features like relay URL validation and TLV entry limits
+- `/nip44` - NIP-44 (Encrypted Direct Messages with ChaCha20) examples
+  - `nip44-demo.ts` - TypeScript implementation of NIP-44 encryption
+  - `nip44-demo.js` - JavaScript implementation of NIP-44 encryption
+  - `nip44-version-compatibility.ts` - Demonstrates versioned encryption compatibility
+  - `nip44-test-vector.ts` - Test vectors for NIP-44 encryption
+- `/nip46` - NIP-46 (Nostr Connect/Remote Signing) examples
+- `/nip47` - NIP-47 (Nostr Wallet Connect) examples
+- `/nip57` - NIP-57 (Lightning Zaps) examples
 
 ## Building Examples
 
@@ -97,32 +111,16 @@ npm run build:examples
 
 This will compile all examples to the `dist-examples` directory. 
 
-## NIP-19: Bech32-Encoded Entities
-
-- [basic-demo.ts](nip19/basic-demo.ts) - Comprehensive overview of all NIP-19 functionality
-- [bech32-example.ts](nip19/bech32-example.ts) - Basic Bech32 encoding/decoding (npub, nsec, note)
-- [tlv-example.ts](nip19/tlv-example.ts) - TLV entity encoding/decoding (nprofile, nevent, naddr)
-- [validation-example.ts](nip19/validation-example.ts) - Validation and error handling for NIP-19 entities
-- [security-example.ts](nip19/security-example.ts) - Security features like relay URL validation and TLV entry limits
-- [nip19-demo.ts](nip19/nip19-demo.ts) - Interactive demo with various encoding/decoding operations
-
-Run these examples with:
-
-```bash
-# Basic NIP-19 demo
-npm run example:nip19
-
-# Specific examples
-npm run example:nip19:bech32
-npm run example:nip19:tlv
-npm run example:nip19:validation
-npm run example:nip19:security
-npm run example:nip19:demo
-```
-
-NIP-19 provides human-readable encoding for Nostr entities such as public keys, private keys, note IDs, profiles, events, and addresses.
-
 ## Client Examples
 
 ### Relay Management
-- **[Relay Reconnection](./client/relay-reconnect.ts)**: Demonstrates how to configure and use automatic reconnection with exponential backoff when connections to relays are interrupted. 
+- **[Relay Reconnection](./client/relay-reconnect.ts)**: Demonstrates how to configure and use automatic reconnection with exponential backoff when connections to relays are interrupted.
+
+### NIP-01 Implementation
+- **[Validation Flow](./client/validation-flow.ts)**: Shows the complete validation pipeline for events, including cryptographic validation.
+- **[Addressable Events](./client/addressable-events.ts)**: Demonstrates how to work with addressable events (kinds 30000-39999).
+- **[Replaceable Events](./client/replaceable-events.ts)**: Shows how to publish and update replaceable events (kinds 0, 3, 10000-19999).
+
+### Event Handling
+- **[Event Ordering](./client/event-ordering-demo.ts)**: Demonstrates how events are ordered according to NIP-01 specifications.
+- **[Filter Types](./client/filter-types.ts)**: Shows different filter types and how to use them effectively.

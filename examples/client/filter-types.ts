@@ -11,10 +11,10 @@
  * npm run example:filter-types
  */
 
-import { Nostr, NostrFilter, Filter } from '../src';
-import { NostrRelay } from '../src/utils/ephemeral-relay';
-import { generateKeypair } from '../src/utils/crypto';
-import { createSignedEvent } from '../src/utils/event';
+import { Nostr, NostrFilter, Filter } from '../../src';
+import { NostrRelay } from '../../src/utils/ephemeral-relay';
+import { generateKeypair } from '../../src/utils/crypto';
+import { createSignedEvent } from '../../src/utils/event';
 
 async function main() {
   console.log('Starting Filter Types Example');

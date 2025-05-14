@@ -7,7 +7,7 @@ import {
   filterAddress,
   filterEntity,
   isValidRelayUrl,
-} from "../src/nip19";
+} from "../../src/nip19";
 
 console.log("=== NIP-19 Security Examples ===");
 
