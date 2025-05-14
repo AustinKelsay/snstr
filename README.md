@@ -124,7 +124,7 @@ SNSTR includes comprehensive examples for all supported features and NIPs:
 npm run example
 
 # Run the direct messaging example
-npm run example:dm
+npm run example:dm  # Uses NIP-04 implementation
 
 # Run client-related examples
 npm run example:relay-connection  # Relay connection management
@@ -236,7 +236,7 @@ npm run example:advanced   # Advanced protocol examples (NIP-46, error handling)
 
 # Feature-specific examples
 npm run example:crypto     # Cryptographic functions
-npm run example:dm         # Direct messaging (NIP-04 directory)
+npm run example:dm         # Direct messaging (NIP-04)
 npm run example:relay-connection  # Relay connection management
 
 # Client-specific examples
@@ -285,9 +285,9 @@ npm run format
 
 ### Directory Structure Notes
 
-- All NIP implementations follow the `nipXX` naming pattern (lowercase) in both source code and examples
-- Core functionality (including NIP-01 features) is integrated throughout the base implementation
-- Client-specific examples are organized in the `examples/client` directory
+- **Source Code**: All NIP implementations follow the `src/nipXX` naming pattern (lowercase)
+- **Examples**: Organized by NIP in `examples/nipXX` directories and client examples in `examples/client`
+- **Core Functionality**: NIP-01 features are integrated throughout the base implementation
 - For more details on code organization standards, see the [NIP Implementation Guide](src/NIP_STANDARDIZATION.md)
 
 ## Security
