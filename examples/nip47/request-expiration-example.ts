@@ -6,9 +6,7 @@ import {
   NIP47Method,
   TransactionType,
   generateKeypair,
-  generateNWCURL,
   NIP47ConnectionOptions,
-  NIP47NotificationType,
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
@@ -49,9 +47,9 @@ class ExpirationDemoWallet implements WalletImplementation {
   }
 
   async payInvoice(
-    invoice: string,
+    _invoice: string,
     amount?: number,
-    maxfee?: number,
+    _maxfee?: number,
   ): Promise<any> {
     // Simulate a long-running operation that might exceed expiration
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -67,7 +65,7 @@ class ExpirationDemoWallet implements WalletImplementation {
     };
   }
 
-  async makeInvoice(amount: number, description: string): Promise<any> {
+  async makeInvoice(amount: number, _description: string): Promise<any> {
     return {
       invoice: `lnbc${amount}n1demo${randomHex(10)}`,
       payment_hash: randomHex(32),
@@ -281,7 +279,7 @@ async function main() {
     // Use a longer expiration (5 minutes)
     const longExpiration = now + 300;
     try {
-      const invoice = await client.makeInvoice(
+      await client.makeInvoice(
         5000,
         "Long-lived invoice",
         undefined,

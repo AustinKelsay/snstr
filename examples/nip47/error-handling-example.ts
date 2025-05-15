@@ -6,9 +6,7 @@ import {
   NIP47Method,
   TransactionType,
   generateKeypair,
-  generateNWCURL,
   NIP47ConnectionOptions,
-  NIP47NotificationType,
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
@@ -71,9 +69,9 @@ class ErrorDemoWallet implements WalletImplementation {
   }
 
   async payInvoice(
-    invoice: string,
+    _invoice: string,
     amount?: number,
-    maxfee?: number,
+    _maxfee?: number,
   ): Promise<any> {
     const paymentAmount = amount || 2000; // Default 2000 msats (intentionally more than balance)
     const fee = 100; // Fixed fee for simplicity
@@ -135,7 +133,7 @@ class ErrorDemoWallet implements WalletImplementation {
     };
   }
 
-  async makeInvoice(amount: number, description: string): Promise<any> {
+  async makeInvoice(amount: number, _description: string): Promise<any> {
     if (this.errorMode === "internal") {
       throw {
         code: NIP47ErrorCode.INTERNAL_ERROR,

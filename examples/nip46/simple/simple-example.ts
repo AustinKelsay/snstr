@@ -4,7 +4,6 @@ import {
   generateKeypair,
   verifySignature,
 } from "../../../src";
-import { LogLevel } from "../../../src/nip46/utils/logger";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 async function main() {

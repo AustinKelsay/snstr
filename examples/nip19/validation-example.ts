@@ -54,8 +54,7 @@ function demonstrateHexValidation() {
   console.log("\nInvalid hex cases:");
   invalidHexCases.forEach(({ name, value }: { name: string; value: any }) => {
     try {
-      // @ts-ignore - purposely testing invalid input
-      const encoded = encodePublicKey(value);
+      encodePublicKey(value);
       console.error(`❌ Should have failed but passed: ${name}`);
     } catch (error: unknown) {
       const errorMessage =
@@ -104,7 +103,7 @@ function demonstrateRelayValidation() {
   invalidRelays.forEach(
     ({ name, relays }: { name: string; relays: string[] }) => {
       try {
-        const encoded = encodeProfile({
+        encodeProfile({
           pubkey:
             "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
           relays: relays,
@@ -208,8 +207,7 @@ function demonstrateRequiredFields() {
   console.log("\nMissing required field cases:");
   requiredFieldCases.forEach(({ name, data }: { name: string; data: any }) => {
     try {
-      // @ts-ignore - purposely testing invalid input
-      const encoded = encodeAddress(data);
+      encodeAddress(data);
       console.error(`❌ Should have failed but passed: ${name}`);
     } catch (error: unknown) {
       const errorMessage =
@@ -274,7 +272,7 @@ function demonstrateSizeLimits() {
   sizeLimitCases.forEach(
     ({ name, test }: { name: string; test: () => string }) => {
       try {
-        const encoded = test();
+        test(); 
         console.error(`❌ Should have failed but passed: ${name}`);
       } catch (error: unknown) {
         const errorMessage =
@@ -351,8 +349,7 @@ function demonstrateIncorrectPrefix() {
   console.log("Using type-specific decode with wrong type:");
 
   try {
-    // @ts-ignore - purposely using wrong function
-    const result = encodePrivateKey(npub);
+    encodePrivateKey(npub);
     console.error(
       "❌ Should have failed but passed: Trying to encode npub as private key",
     );
@@ -423,7 +420,7 @@ function demonstrateGracefulErrorHandling() {
     "\nExample of safely handling decoded profiles with potentially invalid URLs:",
   );
 
-  function safeDecodeProfile(nprofile: string) {
+  function _safeDecodeProfile(nprofile: string) {
     try {
       // Step 1: Decode the profile
       const decodedProfile = decodeProfile(nprofile);

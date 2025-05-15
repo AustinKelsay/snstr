@@ -16,19 +16,13 @@ import {
   NostrEvent,
   generateKeypair,
   NostrZapClient,
-  ZapFilterOptions,
-  ZapStats,
   createZapRequest,
-  createZapReceipt,
-  parseZapSplit,
-  calculateZapSplitAmounts,
   validateZapReceipt,
 } from "../../src";
 
-import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
+import { createSignedEvent } from "../../src/nip01/event";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import {
-  getLightningAddressUrl,
   fetchLnurlPayMetadata,
   buildZapCallbackUrl,
 } from "../../src/nip57/utils";

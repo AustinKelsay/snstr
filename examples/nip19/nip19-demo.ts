@@ -268,7 +268,7 @@ function demonstrateErrorHandling() {
   };
 
   try {
-    // @ts-ignore - intentionally passing invalid data for demonstration
+    // @ts-expect-error - purposely testing invalid input
     const nprofile = encodeProfile(incompleteProfile);
     console.log(`Encoded: ${nprofile}`);
   } catch (error) {

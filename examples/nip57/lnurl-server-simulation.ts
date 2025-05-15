@@ -16,9 +16,7 @@ import {
   createZapRequest,
   createZapReceipt,
   validateZapReceipt,
-  ZapRequestOptions,
-  LnurlPayResponse,
-  fetchLnurlPayMetadata,
+  ZapRequestOptions
 } from "../../src";
 
 // Import the function directly from the nip57 module
@@ -297,17 +295,13 @@ class MockLnurlServer {
       const pTag = zapRequest.tags.find((tag) => tag[0] === "p");
       const eTag = zapRequest.tags.find((tag) => tag[0] === "e");
       const aTag = zapRequest.tags.find((tag) => tag[0] === "a");
-      const relaysTag = zapRequest.tags.find((tag) => tag[0] === "relays");
+      zapRequest.tags.find((tag) => tag[0] === "relays");
       const pSenderTag = zapRequest.tags.find((tag) => tag[0] === "P");
 
       if (!pTag) {
         console.error("Zap request has no p tag");
         return;
       }
-
-      // Get relays to publish to
-      const relays = relaysTag?.slice(1) || [DEFAULT_RELAY_URL];
-
       // Create a zap receipt
       const zapReceiptTemplate = createZapReceipt(
         {

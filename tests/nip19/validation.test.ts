@@ -11,7 +11,6 @@ import {
   decodeEvent,
   encodeAddress,
   decodeAddress,
-  Prefix,
 } from "../../src/nip19";
 
 describe("NIP-19: Validation and Edge Cases", () => {

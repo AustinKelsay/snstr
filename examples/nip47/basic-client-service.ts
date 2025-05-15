@@ -53,9 +53,9 @@ class SimpleWallet implements WalletImplementation {
   }
 
   async payInvoice(
-    invoice: string,
+    _invoice: string,
     amount?: number,
-    maxfee?: number,
+    _maxfee?: number,
   ): Promise<any> {
     // Simplified payment logic
     const paymentAmount = amount || 1000; // Default 1000 msats
@@ -160,12 +160,12 @@ class SimpleWallet implements WalletImplementation {
   }
 
   async listTransactions(
-    from?: number,
-    until?: number,
+    _from?: number,
+    _until?: number,
     limit?: number,
-    offset?: number,
-    unpaid?: boolean,
-    type?: string,
+    _offset?: number,
+    _unpaid?: boolean,
+    _type?: string,
   ): Promise<NIP47Transaction[]> {
     let transactions = Array.from(this.invoices.values());
 

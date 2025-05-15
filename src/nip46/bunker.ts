@@ -408,7 +408,7 @@ export class NostrRemoteSignerBunker {
 
     // No auth challenge required, proceed with connection
     // Create or update the client session
-    let clientSession = this.connectedClients.get(clientPubkey) || {
+    const clientSession = this.connectedClients.get(clientPubkey) || {
       permissions: new Set<string>(),
       lastSeen: Date.now(),
       preferredEncryption: this.preferredEncryption,

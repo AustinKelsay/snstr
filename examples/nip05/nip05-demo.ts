@@ -10,21 +10,8 @@
 import {
   verifyNIP05,
   lookupNIP05,
-  getNIP05PubKey,
   getNIP05Relays,
 } from "../../src/nip05";
-
-// Enable verbose logging if environment variable is set
-const verbose = process.env.VERBOSE === "true";
-
-/**
- * Log function that only prints if verbose mode is enabled
- */
-function log(...args: any[]) {
-  if (verbose) {
-    console.log(...args);
-  }
-}
 
 async function main() {
   // Example NIP-05 identifiers to test with

@@ -1,4 +1,3 @@
-import { NostrEvent } from "../../../src/types/nostr";
 import {
   createSignedEvent,
   createTextNote,

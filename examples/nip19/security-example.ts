@@ -11,10 +11,8 @@ import {
   encodeAddress,
   decode,
   ProfileData,
-  EventData,
-  AddressData,
 } from "../../src/nip19";
-const chalk = require("chalk");
+import chalk from "chalk";
 
 /**
  * Security Example for NIP-19
@@ -28,20 +26,17 @@ const chalk = require("chalk");
 
 // Constants defined locally (values based on codebase implementation)
 const MAX_RELAYS = 20; // Max number of relays allowed
-const MAX_TLV_ENTRIES = 20; // Max number of TLV entries
 const MAX_RELAY_URL_LENGTH = 512; // Max length for relay URLs
 const MAX_IDENTIFIER_LENGTH = 1024; // Max length for identifiers
 
 // Helper function to run and log a function with a try/catch
-function tryExample(name: string, fn: () => any) {
+function _tryExample(name: string, fn: () => void) {
   console.log(chalk.cyan(`\n=== ${name} ===`));
   try {
-    const result = fn();
-    console.log(chalk.green("✓ Success:"), result);
-    return result;
-  } catch (error: any) {
-    console.log(chalk.red("✗ Error:"), error.message);
-    return null;
+    fn();
+    console.log(chalk.green("✓ Success:"));
+  } catch (error: unknown) {
+    console.log(chalk.red("✗ Error:"), error instanceof Error ? error.message : String(error));
   }
 }
 

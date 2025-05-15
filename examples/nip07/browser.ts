@@ -86,7 +86,7 @@ async function nip07Example() {
 
     // Subscribe to notes from our own pubkey
     const pubkeyToWatch = pubkey;
-    const subscriptionIds = client.subscribe(
+    client.subscribe(
       [{ kinds: [1], authors: [pubkeyToWatch], limit: 10 }],
       (event, relay) => {
         console.log(`Received note from ${relay}:`, event);

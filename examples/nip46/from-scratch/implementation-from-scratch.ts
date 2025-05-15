@@ -1,6 +1,5 @@
 import {
   generateKeypair,
-  getPublicKey,
   signEvent,
   verifySignature,
   encryptNIP04,
@@ -8,7 +7,6 @@ import {
 } from "../../../src";
 import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
-import { SimpleNIP46Client, SimpleNIP46Bunker } from "../../../src";
 
 // Simple in-memory relay for testing
 class TestRelay {
@@ -85,7 +83,7 @@ class MinimalNIP46Client {
     });
 
     // Send connect request
-    const userPubkey = await this.sendRequest("connect", [this.signerPubkey]);
+    await this.sendRequest("connect", [this.signerPubkey]);
 
     // Get user public key
     return await this.sendRequest("get_public_key", []);

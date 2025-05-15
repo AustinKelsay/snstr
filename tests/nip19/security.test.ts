@@ -16,10 +16,7 @@ import {
   encodeProfile,
   decodeProfile,
   encodeEvent,
-  decodeEvent,
   encodeAddress,
-  decodeAddress,
-  decode,
   ProfileData,
 } from "../../src/nip19/index";
 import { isValidRelayUrl, filterProfile } from "../../src/nip19/secure";

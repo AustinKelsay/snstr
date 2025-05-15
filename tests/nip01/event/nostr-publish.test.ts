@@ -1,4 +1,4 @@
-import { Nostr, Relay, NostrEvent, RelayEvent } from "../../../src";
+import { Nostr, NostrEvent } from "../../../src";
 
 // Simulated relay for testing
 class MockRelay {
@@ -26,10 +26,7 @@ class MockRelay {
     return true;
   }
 
-  async publish(
-    event: NostrEvent,
-    options: { timeout?: number } = {},
-  ): Promise<{ success: boolean; reason?: string }> {
+  async publish(): Promise<{ success: boolean; reason?: string }> {
     // Return and remove the first result from the array, or the last one if only one remains
     return this.publishResults.length > 1
       ? this.publishResults.shift()!

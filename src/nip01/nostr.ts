@@ -1,6 +1,6 @@
 import { Relay } from "./relay";
 import { NostrEvent, Filter, RelayEvent } from "../types/nostr";
-import { getPublicKey, generateKeypair, signEvent } from "../utils/crypto";
+import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { decrypt as decryptNIP04 } from "../nip04";
 import {
   createSignedEvent,

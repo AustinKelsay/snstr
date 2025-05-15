@@ -797,7 +797,7 @@ describe("Relay", () => {
       ): Promise<boolean> => {
         try {
           // Extract the data for ID verification
-          const eventData = {
+          const _eventData = {
             pubkey: event.pubkey,
             created_at: event.created_at,
             kind: event.kind,

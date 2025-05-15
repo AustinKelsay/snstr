@@ -2,7 +2,6 @@ import {
   getSharedSecret,
   encrypt,
   decrypt,
-  generateNonce,
   getMessageKeys,
   decodePayload,
   hmacWithAAD,
@@ -135,7 +134,6 @@ describe("NIP-44 implementation against official test vectors", () => {
           console.log(
             `Testing encrypt/decrypt for version: ${version} with plaintext: "${plaintext.substring(0, 20)}..."`,
           );
-          const nonceForEnc = generateNonce(); // Uses NONCE_SIZE_V2, adapt if v0/v1 have different nonce needs for encrypt
           // Our encryptVX functions will use specific NONCE_SIZE_VX if no nonce is passed.
           // If a nonce is passed, it must match the version's expected nonce size.
           // For simplicity here, we let encryptVX generate its own nonce according to its version.
@@ -293,7 +291,7 @@ describe("NIP-44 implementation against official test vectors", () => {
       const v2encrypted = encrypt(plaintext, sec1, pub2, undefined, {
         version: 2,
       });
-      let decodedV2Buffer = Buffer.from(v2encrypted, "base64"); // Changed variable name for clarity
+      const decodedV2Buffer = Buffer.from(v2encrypted, "base64"); // Changed variable name for clarity
 
       // Tamper with the version byte
       if (decodedV2Buffer.length > 0) {

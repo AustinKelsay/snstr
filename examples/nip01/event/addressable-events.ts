@@ -312,6 +312,7 @@ async function main() {
 
     try {
       // Try to create an addressable event with an invalid kind
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const invalidEvent = createAddressableEvent(
         20000, // Invalid kind for addressable events (must be 30000-39999)
         "invalid-id",

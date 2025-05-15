@@ -10,8 +10,7 @@ import {
   generateKeypair,
   createZapRequest,
   createZapReceipt,
-  validateZapReceipt,
-  NostrEvent,
+  validateZapReceipt
 } from "../../src";
 import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 import * as utils from "../../src/nip57/utils";

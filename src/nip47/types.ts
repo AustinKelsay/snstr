@@ -1,5 +1,3 @@
-import { NostrEvent } from "../types/nostr";
-
 // Event kinds defined in NIP-47
 export enum NIP47EventKind {
   INFO = 13194,
@@ -230,12 +228,12 @@ export interface NIP47Transaction {
 // Method-specific request interfaces
 export interface GetInfoRequest extends NIP47Request {
   method: NIP47Method.GET_INFO;
-  params: {};
+  params: Record<string, never>;
 }
 
 export interface GetBalanceRequest extends NIP47Request {
   method: NIP47Method.GET_BALANCE;
-  params: {};
+  params: Record<string, never>;
 }
 
 export interface PayInvoiceRequest extends NIP47Request {

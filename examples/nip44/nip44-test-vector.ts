@@ -253,7 +253,7 @@ async function runVectors() {
   const specificVector = testVectors.v2.valid.encrypt_decrypt[0];
 
   if (specificVector) {
-    const { sec1, sec2, plaintext, payload, nonce } = specificVector;
+    const { sec1, sec2, plaintext, payload } = specificVector;
 
     if (sec1 && sec2 && plaintext && payload) {
       const pub1 = getPublicKeyHex(sec1);

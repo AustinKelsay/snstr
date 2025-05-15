@@ -14,7 +14,34 @@ import {
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
-import { Nostr } from "../../src/nip01/nostr";
+
+// Define WalletInfo interface
+interface WalletInfo {
+  alias: string;
+  color: string;
+  pubkey: string;
+  network: string;
+  methods: NIP47Method[];
+  notifications: NIP47NotificationType[];
+}
+
+// Define PaymentResult interface
+interface PaymentResult {
+  preimage: string;
+  payment_hash: string;
+  amount: number;
+  fees_paid: number;
+}
+
+// Define InvoiceResult interface
+interface InvoiceResult {
+  invoice: string;
+  payment_hash: string;
+  amount: number;
+  created_at: number;
+  expires_at: number;
+  description_hash?: string;
+}
 
 // Simple in-memory wallet implementation for demonstration
 class DemoWallet implements WalletImplementation {
@@ -40,7 +67,7 @@ class DemoWallet implements WalletImplementation {
     this.invoices.set(sampleInvoice.payment_hash, sampleInvoice);
   }
 
-  async getInfo(): Promise<any> {
+  async getInfo(): Promise<WalletInfo> {
     return {
       alias: "DemoWallet",
       color: "#ff9900",
@@ -68,8 +95,7 @@ class DemoWallet implements WalletImplementation {
   async payInvoice(
     invoice: string,
     amount?: number,
-    maxfee?: number,
-  ): Promise<any> {
+  ): Promise<PaymentResult> {
     // Simulate payment
     const paymentAmount = amount || 1000; // Default 1000 msats
     const fee = Math.floor(paymentAmount * 0.01); // 1% fee
@@ -123,7 +149,7 @@ class DemoWallet implements WalletImplementation {
     description: string,
     description_hash?: string,
     expiry?: number,
-  ): Promise<any> {
+  ): Promise<InvoiceResult> {
     // Generate fake invoice
     const paymentHash = randomHex(32);
     const expiryTime = Math.floor(Date.now() / 1000) + (expiry || 3600);
@@ -133,7 +159,6 @@ class DemoWallet implements WalletImplementation {
       type: TransactionType.INCOMING,
       invoice: `lnbc${amount}n1demo${randomHex(10)}`,
       description,
-      description_hash: description_hash,
       payment_hash: paymentHash,
       amount,
       fees_paid: 0,
@@ -141,15 +166,26 @@ class DemoWallet implements WalletImplementation {
       expires_at: expiryTime,
     };
 
-    this.invoices.set(paymentHash, txn);
+    // Add description_hash if provided
+    if (description_hash) {
+      txn.description_hash = description_hash;
+    }
 
-    return {
-      invoice: txn.invoice,
+    this.invoices.set(paymentHash, txn);
+    
+    const result: InvoiceResult = {
+      invoice: txn.invoice!,
       payment_hash: paymentHash,
       amount,
       created_at: txn.created_at,
       expires_at: expiryTime,
     };
+    
+    if (description_hash) {
+      result.description_hash = description_hash;
+    }
+
+    return result;
   }
 
   async lookupInvoice(params: {
@@ -452,11 +488,17 @@ async function main() {
       const balanceResult = await client.getBalance({
         expiration: pastExpiration,
       });
-      console.log("This should not be reached due to expiration");
-    } catch (error: any) {
-      console.log(
-        `Caught error as expected: ${error.message} (Code: ${error.code})`,
-      );
+      console.log("This should not be reached due to expiration", balanceResult);
+    } catch (error: unknown) {
+      if (error instanceof NIP47ClientError) {
+        console.log(
+          `Caught error as expected: ${error.message} (Code: ${error.code})`,
+        );
+      } else {
+        console.log(
+          `Caught error as expected: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     }
 
     // Demonstrate error handling
