@@ -9,6 +9,7 @@ Thank you for your interest in contributing to SNSTR! This document provides gui
 - [Pull Request Process](#pull-request-process)
 - [Testing](#testing)
 - [Coding Standards](#coding-standards)
+- [Branch Strategy](#branch-strategy)
 - [Release Process](#release-process)
 
 ## Getting Started
@@ -60,6 +61,33 @@ npm run test:coverage
 - Add proper JSDoc comments to functions and classes
 - Maintain backward compatibility when possible
 - Follow the NIP implementation standards in [NIP_STANDARDIZATION.md](src/NIP_STANDARDIZATION.md)
+
+## Branch Strategy
+
+The project uses the following branch strategy:
+
+### Main Branches
+
+- **main**: Production-ready code. All releases are made from this branch.
+- **staging**: Integration branch for testing changes before promotion to main.
+
+### Feature Branches
+
+- Create feature branches from `staging` with the format: `feature/your-feature-name`
+- Bug fix branches should have the format: `fix/issue-description`
+
+### Workflow
+
+1. Develop features in feature branches
+2. Create PRs targeting the `staging` branch
+3. After approval, merge to `staging` for integration testing
+4. When ready for release, promote `staging` to `main` using:
+   ```bash
+   npm run promote
+   ```
+5. Create releases from the `main` branch
+
+The CI pipeline runs tests for both `main` and `staging` branches, but releases are only created from the `main` branch.
 
 ## Release Process
 

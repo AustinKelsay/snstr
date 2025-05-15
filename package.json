@@ -122,7 +122,10 @@
     "release:minor": "npm run release:prepare && npm version minor",
     "release:major": "npm run release:prepare && npm version major",
     "release:push": "git push && git push --tags",
-    "release": "npm run release:patch && npm run release:push"
+    "release": "npm run release:patch && npm run release:push",
+    
+    "// Branch Management": "-------------- Branch Management --------------",
+    "promote": "scripts/promote-to-main.sh"
   },
   "keywords": [
     "nostr",
