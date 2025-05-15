@@ -12,12 +12,16 @@ import {
   NIP46Metadata,
   NIP46EncryptionResult,
   NIP46ClientSession,
+  NIP46KeyPair,
+  NIP46UnsignedEventData,
+  NIP46ConnectionError,
+  NIP46EncryptionError
 } from "./types";
 
 export class NostrRemoteSignerBunker {
   private nostr: Nostr;
-  private userKeypair: { publicKey: string; privateKey: string };
-  private signerKeypair: { publicKey: string; privateKey: string };
+  private userKeypair: NIP46KeyPair;
+  private signerKeypair: NIP46KeyPair;
   private options: NIP46BunkerOptions;
   private connectedClients: Map<string, NIP46ClientSession>;
   private pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
@@ -79,7 +83,7 @@ export class NostrRemoteSignerBunker {
 
     if (!this.signerKeypair.privateKey) {
       console.error("[NIP46 BUNKER] Error: Signer private key not set");
-      throw new Error("Signer private key not set");
+      throw new NIP46ConnectionError("Signer private key not set");
     }
 
     // Connect to relays
@@ -202,8 +206,10 @@ export class NostrRemoteSignerBunker {
 
         // Send a success response to the client
         this.sendResponse(challenge.clientPubkey, challenge.id, "ack").catch(
-          (err) =>
-            console.error("[NIP46 BUNKER] Error sending auth response:", err),
+          (err) => {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            console.error("[NIP46 BUNKER] Error sending auth response:", errorMessage);
+          }
         );
 
         // Remove the challenge
@@ -283,7 +289,8 @@ export class NostrRemoteSignerBunker {
             request.id,
           );
       } catch (e) {
-        console.error("[NIP46 BUNKER] Failed to parse request JSON:", e);
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        console.error("[NIP46 BUNKER] Failed to parse request JSON:", errorMessage);
         return;
       }
 
@@ -342,8 +349,9 @@ export class NostrRemoteSignerBunker {
         response.error,
         response.auth_url,
       );
-    } catch (error: any) {
-      console.error("[NIP46 BUNKER] Error handling request:", error.message);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[NIP46 BUNKER] Error handling request:", errorMessage);
     }
   }
 
@@ -467,7 +475,7 @@ export class NostrRemoteSignerBunker {
 
     try {
       // Parse the event template
-      const eventTemplate = JSON.parse(request.params[0]);
+      const eventTemplate: NIP46UnsignedEventData = JSON.parse(request.params[0]);
 
       // Check event kind permission
       if (
@@ -492,11 +500,12 @@ export class NostrRemoteSignerBunker {
         id: request.id,
         result: JSON.stringify(signedEvent),
       };
-    } catch (error: any) {
-      console.error("[NIP46 BUNKER] Error signing event:", error.message);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[NIP46 BUNKER] Error signing event:", errorMessage);
       return {
         id: request.id,
-        error: `Failed to sign event: ${error.message}`,
+        error: `Failed to sign event: ${errorMessage}`,
       };
     }
   }
@@ -602,11 +611,12 @@ export class NostrRemoteSignerBunker {
         id: request.id,
         result,
       };
-    } catch (error: any) {
-      console.error("[NIP46 BUNKER] Error during encryption:", error.message);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[NIP46 BUNKER] Error during encryption:", errorMessage);
       return {
         id: request.id,
-        error: `Operation failed: ${error.message}`,
+        error: `Operation failed: ${errorMessage}`,
       };
     }
   }
@@ -617,12 +627,12 @@ export class NostrRemoteSignerBunker {
   private async sendResponse(
     clientPubkey: string,
     id: string,
-    result: any = null,
+    result: string | null = null,
     error?: string,
     auth_url?: string,
   ): Promise<void> {
     if (!this.signerKeypair.privateKey) {
-      throw new Error("Signer private key not set");
+      throw new NIP46ConnectionError("Signer private key not set");
     }
 
     // Create the response object
@@ -706,9 +716,10 @@ export class NostrRemoteSignerBunker {
         id: "",
         sig: "",
       });
-    } catch (error: any) {
-      console.error("[NIP46 BUNKER] Failed to send response:", error.message);
-      throw new Error(`Failed to send response: ${error.message}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[NIP46 BUNKER] Failed to send response:", errorMessage);
+      throw new NIP46EncryptionError(`Failed to send response: ${errorMessage}`);
     }
   }
 
@@ -763,7 +774,8 @@ export class NostrRemoteSignerBunker {
       await this.nostr.publishEvent(event);
       return event;
     } catch (error) {
-      console.error("Failed to publish metadata:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Failed to publish metadata:", errorMessage);
       return undefined;
     }
   }

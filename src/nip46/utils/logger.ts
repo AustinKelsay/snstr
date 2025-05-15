@@ -17,6 +17,9 @@ export interface LoggerOptions {
   includeTimestamp?: boolean;
 }
 
+// Type for log arguments that covers most common use cases
+type LogArg = string | number | boolean | object | null | undefined;
+
 export class Logger {
   private level: LogLevel;
   private prefix: string;
@@ -42,31 +45,31 @@ export class Logger {
     return formattedMessage + message;
   }
 
-  error(message: string, ...args: any[]): void {
+  error(message: string, ...args: LogArg[]): void {
     if (this.level >= LogLevel.ERROR) {
       console.error(this.formatMessage(message), ...args);
     }
   }
 
-  warn(message: string, ...args: any[]): void {
+  warn(message: string, ...args: LogArg[]): void {
     if (this.level >= LogLevel.WARN) {
       console.warn(this.formatMessage(message), ...args);
     }
   }
 
-  info(message: string, ...args: any[]): void {
+  info(message: string, ...args: LogArg[]): void {
     if (this.level >= LogLevel.INFO) {
       console.log(this.formatMessage(message), ...args);
     }
   }
 
-  debug(message: string, ...args: any[]): void {
+  debug(message: string, ...args: LogArg[]): void {
     if (this.level >= LogLevel.DEBUG) {
       console.log(this.formatMessage(message), ...args);
     }
   }
 
-  trace(message: string, ...args: any[]): void {
+  trace(message: string, ...args: LogArg[]): void {
     if (this.level >= LogLevel.TRACE) {
       console.log(this.formatMessage(message), ...args);
     }

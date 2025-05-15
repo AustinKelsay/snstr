@@ -5,6 +5,8 @@ import {
 } from "../../src";
 import { NIP46AuthChallenge } from "../../src/nip46/types";
 
+// No need for interface since we're using 'as any' for testing
+
 describe("NIP-46 Auth Challenges", () => {
   let userKeypair: { publicKey: string; privateKey: string };
   let signerKeypair: { publicKey: string; privateKey: string };
@@ -48,8 +50,15 @@ describe("NIP-46 Auth Challenges", () => {
       permissions: ["sign_event:1", "get_public_key"],
     };
 
-    // Access private field using type assertion
-    (bunker as any).pendingAuthChallenges.set("test-id", challenge);
+    // Access private fields for testing purposes
+    const testBunker = bunker as unknown as {
+      pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
+      connectedClients: Map<string, { 
+        permissions: Set<string>;
+        lastSeen: number; 
+      }>;
+    };
+    testBunker.pendingAuthChallenges.set("test-id", challenge);
 
     // Resolve the challenge
     const resolved = bunker.resolveAuthChallenge(userKeypair.publicKey);
@@ -58,15 +67,15 @@ describe("NIP-46 Auth Challenges", () => {
     expect(resolved).toBe(true);
 
     // Verify challenge was removed
-    expect((bunker as any).pendingAuthChallenges.size).toBe(0);
+    expect(testBunker.pendingAuthChallenges.size).toBe(0);
 
     // Verify client session was created with permissions
-    const clientSession = (bunker as any).connectedClients.get(
+    const clientSession = testBunker.connectedClients.get(
       userKeypair.publicKey,
     );
     expect(clientSession).toBeTruthy();
-    expect(clientSession.permissions.has("sign_event:1")).toBe(true);
-    expect(clientSession.permissions.has("get_public_key")).toBe(true);
+    expect(clientSession!.permissions.has("sign_event:1")).toBe(true);
+    expect(clientSession!.permissions.has("get_public_key")).toBe(true);
   });
 
   test("resolveAuthChallenge returns false when no challenges exist", async () => {

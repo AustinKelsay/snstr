@@ -4,6 +4,7 @@ import {
   generateKeypair,
   verifySignature,
 } from "../../src";
+import { NIP46Error } from "../../src/nip46/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 async function main() {
@@ -94,8 +95,14 @@ async function main() {
     // Clean up
     await client.disconnect();
     await bunker.stop();
-  } catch (error: any) {
-    console.error("Error:", error.message);
+  } catch (error: unknown) {
+    if (error instanceof NIP46Error) {
+      console.error("NIP46 Error:", error.message);
+    } else if (error instanceof Error) {
+      console.error("Error:", error.message);
+    } else {
+      console.error("Unknown error:", error);
+    }
   } finally {
     // Clean up
     if (relay) {
@@ -105,4 +112,10 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((error: unknown) => {
+  if (error instanceof Error) {
+    console.error("Unhandled error:", error.message);
+  } else {
+    console.error("Unhandled unknown error:", error);
+  }
+});

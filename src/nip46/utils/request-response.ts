@@ -3,19 +3,7 @@
  *
  * This module contains types and helper functions for NIP-46 request/response handling.
  */
-
-// Basic request/response types
-export interface NIP46Request {
-  id: string;
-  method: string;
-  params: string[];
-}
-
-export interface NIP46Response {
-  id: string;
-  result?: string;
-  error?: string;
-}
+import { NIP46Method, NIP46Request, NIP46Response } from "../types";
 
 /**
  * Generate a unique request ID
@@ -29,7 +17,7 @@ export function generateRequestId(): string {
 /**
  * Create a NIP-46 request object
  */
-export function createRequest(method: string, params: string[]): NIP46Request {
+export function createRequest(method: NIP46Method, params: string[]): NIP46Request {
   return {
     id: generateRequestId(),
     method,
@@ -53,3 +41,7 @@ export function createSuccessResponse(
 export function createErrorResponse(id: string, error: string): NIP46Response {
   return { id, error };
 }
+
+// Re-export types for backward compatibility
+export type { NIP46Request, NIP46Response };
+export { NIP46Method };
