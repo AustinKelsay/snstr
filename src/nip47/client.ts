@@ -700,9 +700,10 @@ export class NostrWalletConnectClient {
         this.clientPrivkey,
         this.pubkey,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Failed to encrypt request: ${error?.message || "Unknown error"}`,
+        `Failed to encrypt request: ${err.message || "Unknown error"}`,
         "ENCRYPTION_ERROR" as NIP47ErrorCode,
         { originalError: error }
       );
@@ -714,9 +715,10 @@ export class NostrWalletConnectClient {
     let eventId: string;
     try {
       eventId = await getEventHash(event);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Failed to generate event hash: ${error?.message || "Unknown error"}`,
+        `Failed to generate event hash: ${err.message || "Unknown error"}`,
         "INTERNAL_ERROR" as NIP47ErrorCode,
         { originalError: error }
       );
@@ -749,13 +751,14 @@ export class NostrWalletConnectClient {
       // Sign and publish the event
       const signedEvent = await createSignedEvent(event, this.clientPrivkey);
       await this.client.publishEvent(signedEvent);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.pendingRequests.delete(eventId);
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Failed to publish request: ${error?.message || "Unknown error"}`,
+        `Failed to publish request: ${err.message || "Unknown error"}`,
         NIP47ErrorCode.PUBLISH_FAILED,
         { originalError: error },
       );
@@ -791,12 +794,13 @@ export class NostrWalletConnectClient {
       }
 
       return response.result as GetInfoResponse["result"];
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error getting wallet info: ${error?.message || "Unknown error"}`,
+        `Error getting wallet info: ${err.message || "Unknown error"}`,
         "INTERNAL_ERROR" as NIP47ErrorCode,
         { originalError: error }
       );
@@ -834,7 +838,7 @@ export class NostrWalletConnectClient {
         }
 
         return await operation();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Only retry if it's a retriable error
         if (error instanceof NIP47ClientError && error.isRetriable()) {
           lastError = error;
@@ -911,12 +915,13 @@ export class NostrWalletConnectClient {
 
       const response = await this.sendRequest(request, options?.expiration);
       return response.result as PayInvoiceResponse["result"];
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error paying invoice: ${error?.message || "Unknown error"}`,
+        `Error paying invoice: ${err.message || "Unknown error"}`,
         "PAYMENT_FAILED" as NIP47ErrorCode,
         { originalError: error }
       );
@@ -961,12 +966,13 @@ export class NostrWalletConnectClient {
 
       const response = await this.sendRequest(request, options?.expiration);
       return response.result as MakeInvoiceResponse["result"];
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error creating invoice: ${error?.message || "Unknown error"}`,
+        `Error creating invoice: ${err.message || "Unknown error"}`,
         "INTERNAL_ERROR" as NIP47ErrorCode,
         { originalError: error }
       );
@@ -1012,7 +1018,7 @@ export class NostrWalletConnectClient {
 
       // If we get here, the request was successful
       return response.result as NIP47Transaction;
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         // Check specifically for NOT_FOUND errors
         if (error.code === NIP47ErrorCode.NOT_FOUND) {
@@ -1031,8 +1037,9 @@ export class NostrWalletConnectClient {
       }
 
       // For other errors, we wrap with a generic LOOKUP_INVOICE_FAILED error
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error looking up invoice: ${error?.message || "Unknown error"}`,
+        `Error looking up invoice: ${err.message || "Unknown error"}`,
         NIP47ErrorCode.LOOKUP_INVOICE_FAILED,
         { originalError: error }
       );

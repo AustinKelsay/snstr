@@ -428,15 +428,15 @@ export interface PaymentSentNotification extends NIP47Notification<NIP47Transact
 
 // Wallet implementation interface
 export interface WalletImplementation {
-  getInfo(): Promise<any>;
+  getInfo(): Promise<GetInfoResponseResult>;
   getBalance(): Promise<number>;
-  payInvoice(invoice: string, amount?: number, maxfee?: number): Promise<any>;
+  payInvoice(invoice: string, amount?: number, maxfee?: number): Promise<PaymentResponseResult>;
   makeInvoice(
     amount: number,
     description: string,
     description_hash?: string,
     expiry?: number,
-  ): Promise<any>;
+  ): Promise<MakeInvoiceResponseResult>;
   lookupInvoice(params: {
     payment_hash?: string;
     invoice?: string;
@@ -451,7 +451,7 @@ export interface WalletImplementation {
   ): Promise<NIP47Transaction[]>;
   signMessage?(
     message: string,
-  ): Promise<{ signature: string; message: string }>;
+  ): Promise<SignMessageResponseResult>;
 }
 
 // Extended method response interfaces

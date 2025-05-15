@@ -13,13 +13,19 @@ import {
   generateNWCURL,
   parseNWCURL,
   NIP47ErrorCode,
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
+  SignMessageResponseResult,
+  NIP47Notification,
 } from "../../src/nip47";
+import { NIP47ClientError } from "../../src/nip47/client";
 
 // Mock Implementation
 class MockWalletImplementation implements WalletImplementation {
   private balance: number = 50000000; // 50,000 sats
 
-  async getInfo(): Promise<any> {
+  async getInfo(): Promise<GetInfoResponseResult> {
     return {
       alias: "Test Wallet",
       color: "#ff0000",
@@ -44,7 +50,7 @@ class MockWalletImplementation implements WalletImplementation {
     return this.balance;
   }
 
-  async payInvoice(_invoice: string): Promise<any> {
+  async payInvoice(_invoice: string): Promise<PaymentResponseResult> {
     return {
       preimage:
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -55,7 +61,7 @@ class MockWalletImplementation implements WalletImplementation {
     };
   }
 
-  async makeInvoice(amount: number, _description: string): Promise<any> {
+  async makeInvoice(amount: number, _description: string): Promise<MakeInvoiceResponseResult> {
     return {
       invoice: "lnbc10n1ptest",
       payment_hash:
@@ -115,7 +121,7 @@ class MockWalletImplementation implements WalletImplementation {
 
   async signMessage(
     message: string,
-  ): Promise<{ signature: string; message: string }> {
+  ): Promise<SignMessageResponseResult> {
     return {
       signature:
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -123,6 +129,13 @@ class MockWalletImplementation implements WalletImplementation {
     };
   }
 }
+
+// Type for the mock wallet access
+type ServiceWithMockAccess = {
+  walletImpl: {
+    lookupInvoice: (params: { payment_hash?: string; invoice?: string }) => Promise<NIP47Transaction>;
+  };
+};
 
 describe("NIP-47: Nostr Wallet Connect", () => {
   let relay: NostrRelay;
@@ -320,11 +333,11 @@ describe("NIP-47: Nostr Wallet Connect", () => {
     it("should receive notifications from service", async () => {
       jest.setTimeout(10000);
       // Set up notification handler
-      const notificationPromise = new Promise<any>((resolve) => {
+      const notificationPromise = new Promise<NIP47Notification<NIP47Transaction>>((resolve) => {
         client.onNotification(
           NIP47NotificationType.PAYMENT_RECEIVED,
-          (notification) => {
-            resolve(notification);
+          (notification: NIP47Notification<unknown>) => {
+            resolve(notification as NIP47Notification<NIP47Transaction>);
           },
         );
       });
@@ -342,7 +355,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           fees_paid: 0,
           created_at: Math.floor(Date.now() / 1000),
           settled_at: Math.floor(Date.now() / 1000),
-        },
+        } as unknown as Record<string, unknown>,
       );
 
       // Wait for notification
@@ -367,7 +380,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         fail("Should have thrown an error for expired request");
       } catch (error) {
         expect(error).toBeDefined();
-        expect((error as { code: string }).code).toBe(
+        expect((error as NIP47ClientError).code).toBe(
           NIP47ErrorCode.REQUEST_EXPIRED,
         );
       }
@@ -382,7 +395,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         fail("Should have thrown an INVALID_REQUEST error");
       } catch (error) {
         expect(error).toBeDefined();
-        expect((error as { code: string }).code).toBe(
+        expect((error as NIP47ClientError).code).toBe(
           NIP47ErrorCode.INVALID_REQUEST,
         );
       }
@@ -392,11 +405,12 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       jest.setTimeout(10000);
 
       // Mock the wallet implementation to throw a NOT_FOUND error
-      const originalLookup = (service as any).walletImpl.lookupInvoice;
+      const serviceMock = service as unknown as ServiceWithMockAccess;
+      const originalLookup = serviceMock.walletImpl.lookupInvoice;
 
       // Create a more specific mocking that replicates a real NOT_FOUND error
       const testPaymentHash = "nonexistent_hash_123";
-      (service as any).walletImpl.lookupInvoice = (params: {
+      serviceMock.walletImpl.lookupInvoice = (params: {
         payment_hash?: string;
         invoice?: string;
       }) => {
@@ -409,24 +423,25 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       try {
         await client.lookupInvoice({ payment_hash: testPaymentHash });
         fail("Should have thrown a NOT_FOUND error");
-      } catch (error: any) {
+      } catch (error) {
         expect(error).toBeDefined();
-        expect(error.code).toBe(NIP47ErrorCode.NOT_FOUND);
+        const nip47Error = error as NIP47ClientError;
+        expect(nip47Error.code).toBe(NIP47ErrorCode.NOT_FOUND);
 
         // Verify the error message contains the specific information about what wasn't found
-        expect(error.message).toContain("Could not find payment_hash");
-        expect(error.message).toContain(testPaymentHash);
-        expect(error.message).toContain("in the wallet's database");
+        expect(nip47Error.message).toContain("Could not find payment_hash");
+        expect(nip47Error.message).toContain(testPaymentHash);
+        expect(nip47Error.message).toContain("in the wallet's database");
 
         // Verify error has proper categorization
-        expect(error.category).toBe("RESOURCE");
+        expect(nip47Error.category).toBe("RESOURCE");
 
         // Verify the error has a recovery hint
-        expect(error.recoveryHint).toBeDefined();
-        expect(error.recoveryHint).toContain("For lookupInvoice");
+        expect(nip47Error.recoveryHint).toBeDefined();
+        expect(nip47Error.recoveryHint).toContain("For lookupInvoice");
       } finally {
         // Restore original implementation
-        (service as any).walletImpl.lookupInvoice = originalLookup;
+        serviceMock.walletImpl.lookupInvoice = originalLookup;
       }
     });
 
@@ -434,11 +449,12 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       jest.setTimeout(10000);
 
       // Mock the wallet implementation to throw a NOT_FOUND error
-      const originalLookup = (service as any).walletImpl.lookupInvoice;
+      const serviceMock = service as unknown as ServiceWithMockAccess;
+      const originalLookup = serviceMock.walletImpl.lookupInvoice;
 
       // Create a test with invoice parameter instead of payment_hash
       const testInvoice = "lnbc10n1pdummy";
-      (service as any).walletImpl.lookupInvoice = (params: {
+      serviceMock.walletImpl.lookupInvoice = (params: {
         payment_hash?: string;
         invoice?: string;
       }) => {
@@ -451,21 +467,22 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       try {
         await client.lookupInvoice({ invoice: testInvoice });
         fail("Should have thrown a NOT_FOUND error");
-      } catch (error: any) {
+      } catch (error) {
         expect(error).toBeDefined();
-        expect(error.code).toBe(NIP47ErrorCode.NOT_FOUND);
+        const nip47Error = error as NIP47ClientError;
+        expect(nip47Error.code).toBe(NIP47ErrorCode.NOT_FOUND);
 
         // Verify the error message contains the specific information about what wasn't found
-        expect(error.message).toContain("Could not find invoice");
-        expect(error.message).toContain(testInvoice);
+        expect(nip47Error.message).toContain("Could not find invoice");
+        expect(nip47Error.message).toContain(testInvoice);
 
         // Verify the client correctly formats the error message with the appropriate context
-        expect(error.message).toMatch(
+        expect(nip47Error.message).toMatch(
           /Invoice not found: Could not find invoice: .+ in the wallet's database/,
         );
       } finally {
         // Restore original implementation
-        (service as any).walletImpl.lookupInvoice = originalLookup;
+        serviceMock.walletImpl.lookupInvoice = originalLookup;
       }
     });
   });

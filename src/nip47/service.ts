@@ -494,9 +494,10 @@ export class NostrWalletService {
                 payment_hash: request.params.payment_hash,
                 invoice: request.params.invoice,
               });
-            } catch (error: any) {
+            } catch (error: unknown) {
+              const err = error as { code?: NIP47ErrorCode; message?: string; data?: Record<string, unknown> };
               // Enhance NOT_FOUND errors with more context for lookupInvoice
-              if (error.code === NIP47ErrorCode.NOT_FOUND) {
+              if (err.code === NIP47ErrorCode.NOT_FOUND) {
                 const lookupType = request.params.payment_hash
                   ? "payment_hash"
                   : "invoice";
@@ -543,7 +544,14 @@ export class NostrWalletService {
 
         case NIP47Method.SIGN_MESSAGE:
           if (this.isSignMessageParams(request.method, request.params)) {
-            result = await this.walletImpl.signMessage?.(request.params.message);
+            if (!this.walletImpl.signMessage) {
+              return this.createErrorResponse(
+                request.method,
+                NIP47ErrorCode.INVALID_REQUEST,
+                "sign_message method not implemented by wallet",
+              );
+            }
+            result = await this.walletImpl.signMessage(request.params.message);
           } else {
             return this.createErrorResponse(
               request.method,
@@ -562,12 +570,13 @@ export class NostrWalletService {
       }
 
       return this.createSuccessResponse(request.method, result);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as { code?: NIP47ErrorCode; message?: string; data?: Record<string, unknown> };
       return this.createErrorResponse(
         request.method,
-        error.code || NIP47ErrorCode.INTERNAL_ERROR,
-        error.message || "An error occurred processing the request",
-        error.data,
+        err.code || NIP47ErrorCode.INTERNAL_ERROR,
+        err.message || "An error occurred processing the request",
+        err.data,
       );
     }
   }
