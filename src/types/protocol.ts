@@ -75,7 +75,7 @@ export enum RelayEvent {
 export interface RelayEventHandler {
   [RelayEvent.Connect]?: (relay: string) => void;
   [RelayEvent.Disconnect]?: (relay: string) => void;
-  [RelayEvent.Error]?: (relay: string, error: any) => void;
+  [RelayEvent.Error]?: (relay: string, error: Error | unknown) => void;
   [RelayEvent.Notice]?: (relay: string, notice: string) => void;
   [RelayEvent.OK]?: (
     eventId: string,

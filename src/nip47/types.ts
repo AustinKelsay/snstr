@@ -183,30 +183,105 @@ export interface NIP47ConnectionOptions {
 
 // Base request interface
 export interface NIP47Request {
-  method: string;
-  params: Record<string, any>;
+  method: NIP47Method;
+  params: NIP47RequestParams;
+}
+
+// Union type for request params
+export type NIP47RequestParams = 
+  | GetInfoParams
+  | GetBalanceParams
+  | PayInvoiceParams
+  | MakeInvoiceParams
+  | LookupInvoiceParams
+  | ListTransactionsParams
+  | SignMessageParams
+  | PayKeysendParams
+  | MultiPayInvoiceParams
+  | MultiPayKeysendParams;
+
+// Method-specific param types
+export type GetInfoParams = Record<string, never>;
+export type GetBalanceParams = Record<string, never>;
+
+export interface PayInvoiceParams {
+  invoice: string;
+  amount?: number;
+  maxfee?: number;
+}
+
+export interface MakeInvoiceParams {
+  amount: number;
+  description: string;
+  description_hash?: string;
+  expiry?: number;
+}
+
+export interface LookupInvoiceParams {
+  payment_hash?: string;
+  invoice?: string;
+}
+
+export interface ListTransactionsParams {
+  from?: number;
+  until?: number;
+  limit?: number;
+  offset?: number;
+  unpaid?: boolean;
+  type?: string;
+}
+
+export interface SignMessageParams {
+  message: string;
+}
+
+// Extended method param types
+export interface PayKeysendParams {
+  pubkey: string;
+  amount: number;
+  maxfee?: number;
+  customRecords?: Record<string, string>;
+}
+
+export interface MultiPayInvoiceParams {
+  invoices: Array<{
+    invoice: string;
+    amount?: number;
+    maxfee?: number;
+  }>;
+  maxTotalFee?: number;
+}
+
+export interface MultiPayKeysendParams {
+  payments: Array<{
+    pubkey: string;
+    amount: number;
+    maxfee?: number;
+    customRecords?: Record<string, string>;
+  }>;
+  maxTotalFee?: number;
 }
 
 // NIP-47 error (extended with more fields)
 export interface NIP47Error {
-  code: string;
+  code: NIP47ErrorCode;
   message: string;
-  category?: string;
+  category?: NIP47ErrorCategory;
   recoveryHint?: string;
-  data?: any; // Additional data relevant to the error
+  data?: Record<string, unknown>; // Additional data relevant to the error
 }
 
 // Base response interface
 export interface NIP47Response {
-  result_type: string;
-  result: any | null;
+  result_type: NIP47Method;
+  result: NIP47ResponseResult | null;
   error: NIP47Error | null; // Must be null for successful responses, not undefined
 }
 
 // Base notification interface
-export interface NIP47Notification {
-  notification_type: string;
-  notification: Record<string, any>;
+export interface NIP47Notification<T = Record<string, unknown>> {
+  notification_type: NIP47NotificationType;
+  notification: T;
 }
 
 // Transaction interface for list_transactions and notifications
@@ -222,79 +297,71 @@ export interface NIP47Transaction {
   created_at: number;
   expires_at?: number;
   settled_at?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
-// Method-specific request interfaces
-export interface GetInfoRequest extends NIP47Request {
-  method: NIP47Method.GET_INFO;
-  params: Record<string, never>;
+// Union type for response results
+export type NIP47ResponseResult = 
+  | GetInfoResponseResult
+  | number // for GetBalanceResponse
+  | PaymentResponseResult
+  | MakeInvoiceResponseResult
+  | NIP47Transaction // for LookupInvoiceResponse
+  | ListTransactionsResponseResult
+  | SignMessageResponseResult
+  | PaymentResponseResult // for PayKeysendResponse
+  | MultiPaymentResponseResult // for MultiPayInvoice and MultiPayKeysend
+
+export interface GetInfoResponseResult {
+  alias?: string;
+  color?: string;
+  pubkey?: string;
+  network?: string;
+  block_height?: number;
+  block_hash?: string;
+  methods: string[];
+  notifications?: string[];
 }
 
-export interface GetBalanceRequest extends NIP47Request {
-  method: NIP47Method.GET_BALANCE;
-  params: Record<string, never>;
+export interface PaymentResponseResult {
+  preimage: string;
+  payment_hash: string;
+  amount: number;
+  fees_paid: number;
 }
 
-export interface PayInvoiceRequest extends NIP47Request {
-  method: NIP47Method.PAY_INVOICE;
-  params: {
-    invoice: string;
-    amount?: number;
-    maxfee?: number;
-  };
+export interface MakeInvoiceResponseResult {
+  invoice: string;
+  payment_hash: string;
+  amount: number;
+  created_at: number;
+  expires_at?: number;
 }
 
-export interface MakeInvoiceRequest extends NIP47Request {
-  method: NIP47Method.MAKE_INVOICE;
-  params: {
+export interface ListTransactionsResponseResult {
+  transactions: NIP47Transaction[];
+}
+
+export interface SignMessageResponseResult {
+  message: string;
+  signature: string;
+}
+
+export interface MultiPaymentResponseResult {
+  payments: Array<{
+    preimage: string;
+    payment_hash: string;
     amount: number;
-    description: string;
-    description_hash?: string;
-    expiry?: number;
-  };
-}
-
-export interface LookupInvoiceRequest extends NIP47Request {
-  method: NIP47Method.LOOKUP_INVOICE;
-  params: {
-    payment_hash?: string;
-    invoice?: string;
-  };
-}
-
-export interface ListTransactionsRequest extends NIP47Request {
-  method: NIP47Method.LIST_TRANSACTIONS;
-  params: {
-    from?: number;
-    until?: number;
-    limit?: number;
-    offset?: number;
-    unpaid?: boolean;
-    type?: string;
-  };
-}
-
-export interface SignMessageRequest extends NIP47Request {
-  method: NIP47Method.SIGN_MESSAGE;
-  params: {
-    message: string;
-  };
+    fees_paid: number;
+  }>;
+  total_amount: number;
+  total_fees_paid: number;
 }
 
 // Method-specific response interfaces
 export interface GetInfoResponse extends NIP47Response {
   result_type: NIP47Method.GET_INFO;
-  result: {
-    alias?: string;
-    color?: string;
-    pubkey?: string;
-    network?: string;
-    block_height?: number;
-    block_hash?: string;
-    methods: string[];
-    notifications?: string[];
-  } | null;
+  result: GetInfoResponseResult | null;
   error: NIP47Error | null;
 }
 
@@ -306,24 +373,13 @@ export interface GetBalanceResponse extends NIP47Response {
 
 export interface PayInvoiceResponse extends NIP47Response {
   result_type: NIP47Method.PAY_INVOICE;
-  result: {
-    preimage: string;
-    payment_hash: string;
-    amount: number;
-    fees_paid: number;
-  } | null;
+  result: PaymentResponseResult | null;
   error: NIP47Error | null;
 }
 
 export interface MakeInvoiceResponse extends NIP47Response {
   result_type: NIP47Method.MAKE_INVOICE;
-  result: {
-    invoice: string;
-    payment_hash: string;
-    amount: number;
-    created_at: number;
-    expires_at?: number;
-  } | null;
+  result: MakeInvoiceResponseResult | null;
   error: NIP47Error | null;
 }
 
@@ -335,30 +391,39 @@ export interface LookupInvoiceResponse extends NIP47Response {
 
 export interface ListTransactionsResponse extends NIP47Response {
   result_type: NIP47Method.LIST_TRANSACTIONS;
-  result: {
-    transactions: NIP47Transaction[];
-  } | null;
+  result: ListTransactionsResponseResult | null;
   error: NIP47Error | null;
 }
 
 export interface SignMessageResponse extends NIP47Response {
   result_type: NIP47Method.SIGN_MESSAGE;
-  result: {
-    message: string;
-    signature: string;
-  } | null;
+  result: SignMessageResponseResult | null;
   error: NIP47Error | null;
 }
 
-// Notification interfaces
-export interface PaymentReceivedNotification extends NIP47Notification {
-  notification_type: NIP47NotificationType.PAYMENT_RECEIVED;
-  notification: NIP47Transaction;
+// Extended method request interfaces
+export interface PayKeysendRequest extends NIP47Request {
+  method: NIP47Method.PAY_KEYSEND;
+  params: PayKeysendParams;
 }
 
-export interface PaymentSentNotification extends NIP47Notification {
+export interface MultiPayInvoiceRequest extends NIP47Request {
+  method: NIP47Method.MULTI_PAY_INVOICE;
+  params: MultiPayInvoiceParams;
+}
+
+export interface MultiPayKeysendRequest extends NIP47Request {
+  method: NIP47Method.MULTI_PAY_KEYSEND;
+  params: MultiPayKeysendParams;
+}
+
+// Notification interfaces
+export interface PaymentReceivedNotification extends NIP47Notification<NIP47Transaction> {
+  notification_type: NIP47NotificationType.PAYMENT_RECEIVED;
+}
+
+export interface PaymentSentNotification extends NIP47Notification<NIP47Transaction> {
   notification_type: NIP47NotificationType.PAYMENT_SENT;
-  notification: NIP47Transaction;
 }
 
 // Wallet implementation interface
@@ -387,4 +452,59 @@ export interface WalletImplementation {
   signMessage?(
     message: string,
   ): Promise<{ signature: string; message: string }>;
+}
+
+// Extended method response interfaces
+export interface PayKeysendResponse extends NIP47Response {
+  result_type: NIP47Method.PAY_KEYSEND;
+  result: PaymentResponseResult | null;
+  error: NIP47Error | null;
+}
+
+export interface MultiPayInvoiceResponse extends NIP47Response {
+  result_type: NIP47Method.MULTI_PAY_INVOICE;
+  result: MultiPaymentResponseResult | null;
+  error: NIP47Error | null;
+}
+
+export interface MultiPayKeysendResponse extends NIP47Response {
+  result_type: NIP47Method.MULTI_PAY_KEYSEND;
+  result: MultiPaymentResponseResult | null;
+  error: NIP47Error | null;
+}
+
+// Method-specific request interfaces
+export interface GetInfoRequest extends NIP47Request {
+  method: NIP47Method.GET_INFO;
+  params: GetInfoParams;
+}
+
+export interface GetBalanceRequest extends NIP47Request {
+  method: NIP47Method.GET_BALANCE;
+  params: GetBalanceParams;
+}
+
+export interface PayInvoiceRequest extends NIP47Request {
+  method: NIP47Method.PAY_INVOICE;
+  params: PayInvoiceParams;
+}
+
+export interface MakeInvoiceRequest extends NIP47Request {
+  method: NIP47Method.MAKE_INVOICE;
+  params: MakeInvoiceParams;
+}
+
+export interface LookupInvoiceRequest extends NIP47Request {
+  method: NIP47Method.LOOKUP_INVOICE;
+  params: LookupInvoiceParams;
+}
+
+export interface ListTransactionsRequest extends NIP47Request {
+  method: NIP47Method.LIST_TRANSACTIONS;
+  params: ListTransactionsParams;
+}
+
+export interface SignMessageRequest extends NIP47Request {
+  method: NIP47Method.SIGN_MESSAGE;
+  params: SignMessageParams;
 }

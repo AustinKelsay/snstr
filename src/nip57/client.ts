@@ -9,7 +9,7 @@
  * - Working with zap splits
  */
 
-import { NostrEvent } from "../types/nostr";
+import { NostrEvent, Filter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { createSignedEvent } from "../nip01/event";
 import {
@@ -38,6 +38,22 @@ export interface ZapClientOptions {
 }
 
 /**
+ * Success action to be performed after payment
+ */
+export interface LnurlSuccessAction {
+  /** Type of success action */
+  tag: string;
+  /** Action message */
+  message?: string;
+  /** URL to visit after payment */
+  url?: string;
+  /** Description of the action */
+  description?: string;
+  /** CDATA for the action */
+  cdata?: string;
+}
+
+/**
  * Result of generating a zap invoice
  */
 export interface ZapInvoiceResult {
@@ -51,7 +67,7 @@ export interface ZapInvoiceResult {
   paymentHash?: string;
 
   /** Optional success action to be performed after payment */
-  successAction?: any;
+  successAction?: LnurlSuccessAction;
 
   /** Error message if invoice generation failed */
   error?: string;
@@ -228,22 +244,22 @@ export class NostrZapClient {
     pubkey: string,
     options: ZapFilterOptions = {},
   ): Promise<NostrEvent[]> {
-    const filter = {
+    const filter: Filter = {
       kinds: [9735],
       "#p": [pubkey],
       limit: options.limit || 20,
     };
 
     if (options.since) {
-      (filter as any).since = options.since;
+      filter.since = options.since;
     }
 
     if (options.until) {
-      (filter as any).until = options.until;
+      filter.until = options.until;
     }
 
     if (options.authors && options.authors.length > 0) {
-      (filter as any).authors = options.authors;
+      filter.authors = options.authors;
     }
 
     // Create a promise to collect events
@@ -319,22 +335,22 @@ export class NostrZapClient {
     eventId: string,
     options: ZapFilterOptions = {},
   ): Promise<NostrEvent[]> {
-    const filter = {
+    const filter: Filter = {
       kinds: [9735],
       "#e": [eventId],
       limit: options.limit || 20,
     };
 
     if (options.since) {
-      (filter as any).since = options.since;
+      filter.since = options.since;
     }
 
     if (options.until) {
-      (filter as any).until = options.until;
+      filter.until = options.until;
     }
 
     if (options.authors && options.authors.length > 0) {
-      (filter as any).authors = options.authors;
+      filter.authors = options.authors;
     }
 
     // Create a promise to collect events
@@ -371,25 +387,25 @@ export class NostrZapClient {
   async fetchZapReceipts(
     options: ZapFilterOptions = {},
   ): Promise<NostrEvent[]> {
-    const filter = {
+    const filter: Filter = {
       kinds: [9735],
       limit: options.limit || 20,
     };
 
     if (options.since) {
-      (filter as any).since = options.since;
+      filter.since = options.since;
     }
 
     if (options.until) {
-      (filter as any).until = options.until;
+      filter.until = options.until;
     }
 
     if (options.authors && options.authors.length > 0) {
-      (filter as any).authors = options.authors;
+      filter.authors = options.authors;
     }
 
     if (options.events && options.events.length > 0) {
-      (filter as any)["#e"] = options.events;
+      filter["#e"] = options.events;
     }
 
     // Create a promise to collect events
@@ -699,7 +715,7 @@ export class ZapClient {
       if (!senderPubkey && !options.anonymousZap) {
         return {
           invoice: "",
-          zapRequest: null as any,
+          zapRequest: {} as NostrEvent,
           error: "No public key available and not anonymous zap",
         };
       }
@@ -709,7 +725,7 @@ export class ZapClient {
       if (!metadata) {
         return {
           invoice: "",
-          zapRequest: null as any,
+          zapRequest: {} as NostrEvent,
           error: "Invalid LNURL or failed to fetch metadata",
         };
       }
@@ -718,7 +734,7 @@ export class ZapClient {
       if (!supportsNostrZaps(metadata)) {
         return {
           invoice: "",
-          zapRequest: null as any,
+          zapRequest: {} as NostrEvent,
           error: "LNURL does not support Nostr zaps",
         };
       }
@@ -730,7 +746,7 @@ export class ZapClient {
       ) {
         return {
           invoice: "",
-          zapRequest: null as any,
+          zapRequest: {} as NostrEvent,
           error: `Amount out of range (${metadata.minSendable}-${metadata.maxSendable} millisats)`,
         };
       }
@@ -786,7 +802,7 @@ export class ZapClient {
 
       // Fetch invoice from LNURL
       const invoiceResponse = await fetch(callbackUrl);
-      const invoiceData = await invoiceResponse.json();
+      const invoiceData = await invoiceResponse.json() as LnurlInvoiceResponse;
 
       if (invoiceData.status === "ERROR") {
         return {
@@ -806,7 +822,7 @@ export class ZapClient {
       console.error("Error getting zap invoice:", error);
       return {
         invoice: "",
-        zapRequest: null as any,
+        zapRequest: {} as NostrEvent,
         error: `Error: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
@@ -835,6 +851,18 @@ export class ZapClient {
     const splitInfo = parseZapSplit(event);
     return calculateZapSplitAmounts(totalAmount, splitInfo);
   }
+}
+
+// Define a type for LNURL invoice responses
+/**
+ * LNURL invoice response
+ */
+export interface LnurlInvoiceResponse {
+  pr: string;
+  payment_hash?: string;
+  successAction?: LnurlSuccessAction;
+  status?: string;
+  reason?: string;
 }
 
 export default ZapClient;

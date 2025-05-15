@@ -402,11 +402,26 @@ export function calculateZapSplitAmounts(
 }
 
 /**
+ * Raw LNURL response data before validation
+ */
+interface LnurlPayResponseRaw {
+  callback?: string;
+  maxSendable?: number;
+  minSendable?: number;
+  metadata?: string;
+  commentAllowed?: number;
+  tag?: string;
+  allowsNostr?: boolean;
+  nostrPubkey?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Parse LNURL payload response
  * @param data LNURL response data
  * @returns Parsed LNURL pay response or null if invalid
  */
-export function parseLnurlPayResponse(data: any): LnurlPayResponse | null {
+export function parseLnurlPayResponse(data: LnurlPayResponseRaw): LnurlPayResponse | null {
   if (
     !data ||
     !data.callback ||

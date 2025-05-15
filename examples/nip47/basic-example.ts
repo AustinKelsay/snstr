@@ -377,7 +377,7 @@ async function main() {
     if (client.supportsNotification(NIP47NotificationType.PAYMENT_RECEIVED)) {
       client.onNotification(
         NIP47NotificationType.PAYMENT_RECEIVED,
-        (notification: NIP47Notification) => {
+        (notification: NIP47Notification<unknown>) => {
           console.log("\nReceived payment notification:", notification);
         },
       );

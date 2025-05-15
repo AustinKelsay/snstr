@@ -43,7 +43,7 @@ export type Filter = NostrFilter & {
   // Allow additional tag filters while maintaining type safety for the common ones
   [key: `#${string}`]: string[];
   // Allow other custom filter properties
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 export type Subscription = {
@@ -65,7 +65,7 @@ export enum RelayEvent {
 export type RelayEventHandler = {
   [RelayEvent.Connect]?: (relay: string) => void;
   [RelayEvent.Disconnect]?: (relay: string) => void;
-  [RelayEvent.Error]?: (relay: string, error: any) => void;
+  [RelayEvent.Error]?: (relay: string, error: unknown) => void;
   [RelayEvent.Notice]?: (relay: string, notice: string) => void;
   [RelayEvent.OK]?: (
     eventId: string,

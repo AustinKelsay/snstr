@@ -14,6 +14,14 @@ import {
   NIP47ErrorCode,
   ERROR_CATEGORIES,
   ERROR_RECOVERY_HINTS,
+  NIP47NotificationType,
+  NIP47RequestParams,
+  PayInvoiceParams,
+  MakeInvoiceParams,
+  LookupInvoiceParams,
+  ListTransactionsParams,
+  SignMessageParams,
+  NIP47ResponseResult,
 } from "./types";
 
 /**
@@ -43,12 +51,12 @@ export interface NostrWalletServiceOptions {
   /**
    * Supported methods
    */
-  methods: string[];
+  methods: NIP47Method[];
 
   /**
    * Supported notification types
    */
-  notificationTypes?: string[];
+  notificationTypes?: NIP47NotificationType[];
 
   /**
    * List of authorized client public keys.
@@ -70,8 +78,8 @@ export class NostrWalletService {
   private relays: string[];
   private name: string;
   private client: Nostr;
-  private supportedMethods: string[];
-  private supportedNotificationTypes: string[];
+  private supportedMethods: NIP47Method[];
+  private supportedNotificationTypes: NIP47NotificationType[];
   private walletImpl: WalletImplementation;
   private subIds: string[] = [];
   private authorizedClients: string[] = [];
@@ -241,7 +249,7 @@ export class NostrWalletService {
             NIP47ErrorCode.REQUEST_EXPIRED,
             "Request has expired",
             event.id,
-            "unknown", // Method unknown at this point, we haven't decrypted the request yet
+            NIP47Method.GET_INFO, // Use a placeholder method since we don't know the actual method yet
           );
           return;
         }
@@ -261,7 +269,7 @@ export class NostrWalletService {
           NIP47ErrorCode.UNAUTHORIZED_CLIENT,
           "Client not authorized to use this wallet service",
           event.id,
-          "unknown", // Method unknown at this point, we haven't decrypted the request yet
+          NIP47Method.GET_INFO, // Use a placeholder method since we don't know the actual method yet
         );
         return;
       }
@@ -351,7 +359,7 @@ export class NostrWalletService {
   /**
    * Create a properly formatted successful response according to NIP-47 spec
    */
-  private createSuccessResponse(method: string, result: any): NIP47Response {
+  private createSuccessResponse(method: NIP47Method, result: NIP47ResponseResult): NIP47Response {
     return {
       result_type: method,
       result,
@@ -363,10 +371,10 @@ export class NostrWalletService {
    * Create a properly formatted error response according to NIP-47 spec
    */
   private createErrorResponse(
-    method: string,
-    errorCode: string,
+    method: NIP47Method,
+    errorCode: NIP47ErrorCode,
     errorMessage: string,
-    data?: any,
+    data?: Record<string, unknown>,
   ): NIP47Response {
     // Determine error category and recovery hint
     const category = ERROR_CATEGORIES[errorCode];
@@ -386,6 +394,41 @@ export class NostrWalletService {
   }
 
   /**
+   * Type guard for PayInvoiceParams
+   */
+  private isPayInvoiceParams(method: NIP47Method, params: NIP47RequestParams): params is PayInvoiceParams {
+    return method === NIP47Method.PAY_INVOICE;
+  }
+
+  /**
+   * Type guard for MakeInvoiceParams
+   */
+  private isMakeInvoiceParams(method: NIP47Method, params: NIP47RequestParams): params is MakeInvoiceParams {
+    return method === NIP47Method.MAKE_INVOICE;
+  }
+
+  /**
+   * Type guard for LookupInvoiceParams
+   */
+  private isLookupInvoiceParams(method: NIP47Method, params: NIP47RequestParams): params is LookupInvoiceParams {
+    return method === NIP47Method.LOOKUP_INVOICE;
+  }
+
+  /**
+   * Type guard for ListTransactionsParams
+   */
+  private isListTransactionsParams(method: NIP47Method, params: NIP47RequestParams): params is ListTransactionsParams {
+    return method === NIP47Method.LIST_TRANSACTIONS;
+  }
+
+  /**
+   * Type guard for SignMessageParams
+   */
+  private isSignMessageParams(method: NIP47Method, params: NIP47RequestParams): params is SignMessageParams {
+    return method === NIP47Method.SIGN_MESSAGE;
+  }
+
+  /**
    * Handle a request and produce a response
    */
   private async handleRequest(request: NIP47Request): Promise<NIP47Response> {
@@ -393,7 +436,7 @@ export class NostrWalletService {
     if (!this.supportedMethods.includes(request.method)) {
       return this.createErrorResponse(
         request.method,
-        "INVALID_REQUEST",
+        NIP47ErrorCode.INVALID_REQUEST,
         `Method ${request.method} not supported`,
       );
     }
@@ -412,68 +455,108 @@ export class NostrWalletService {
           break;
 
         case NIP47Method.PAY_INVOICE:
-          result = await this.walletImpl.payInvoice(
-            request.params.invoice,
-            request.params.amount,
-            request.params.maxfee,
-          );
+          if (this.isPayInvoiceParams(request.method, request.params)) {
+            result = await this.walletImpl.payInvoice(
+              request.params.invoice,
+              request.params.amount,
+              request.params.maxfee,
+            );
+          } else {
+            return this.createErrorResponse(
+              request.method,
+              NIP47ErrorCode.INVALID_REQUEST,
+              "Invalid parameters for pay_invoice method",
+            );
+          }
           break;
 
         case NIP47Method.MAKE_INVOICE:
-          result = await this.walletImpl.makeInvoice(
-            request.params.amount,
-            request.params.description,
-            request.params.description_hash,
-            request.params.expiry,
-          );
+          if (this.isMakeInvoiceParams(request.method, request.params)) {
+            result = await this.walletImpl.makeInvoice(
+              request.params.amount,
+              request.params.description,
+              request.params.description_hash,
+              request.params.expiry,
+            );
+          } else {
+            return this.createErrorResponse(
+              request.method,
+              NIP47ErrorCode.INVALID_REQUEST,
+              "Invalid parameters for make_invoice method",
+            );
+          }
           break;
 
         case NIP47Method.LOOKUP_INVOICE:
-          try {
-            result = await this.walletImpl.lookupInvoice({
-              payment_hash: request.params.payment_hash,
-              invoice: request.params.invoice,
-            });
-          } catch (error: any) {
-            // Enhance NOT_FOUND errors with more context for lookupInvoice
-            if (error.code === NIP47ErrorCode.NOT_FOUND) {
-              const lookupType = request.params.payment_hash
-                ? "payment_hash"
-                : "invoice";
-              const lookupValue =
-                request.params.payment_hash || request.params.invoice;
+          if (this.isLookupInvoiceParams(request.method, request.params)) {
+            try {
+              result = await this.walletImpl.lookupInvoice({
+                payment_hash: request.params.payment_hash,
+                invoice: request.params.invoice,
+              });
+            } catch (error: any) {
+              // Enhance NOT_FOUND errors with more context for lookupInvoice
+              if (error.code === NIP47ErrorCode.NOT_FOUND) {
+                const lookupType = request.params.payment_hash
+                  ? "payment_hash"
+                  : "invoice";
+                const lookupValue =
+                  request.params.payment_hash || request.params.invoice;
 
-              return this.createErrorResponse(
-                request.method,
-                NIP47ErrorCode.NOT_FOUND,
-                `Invoice not found: Could not find ${lookupType}: ${lookupValue} in the wallet's database`,
-              );
+                return this.createErrorResponse(
+                  request.method,
+                  NIP47ErrorCode.NOT_FOUND,
+                  `Invoice not found: Could not find ${lookupType}: ${lookupValue} in the wallet's database`,
+                );
+              }
+              throw error;
             }
-            throw error;
+          } else {
+            return this.createErrorResponse(
+              request.method,
+              NIP47ErrorCode.INVALID_REQUEST,
+              "Invalid parameters for lookup_invoice method",
+            );
           }
           break;
 
         case NIP47Method.LIST_TRANSACTIONS: {
-          const transactions = await this.walletImpl.listTransactions(
-            request.params.from,
-            request.params.until,
-            request.params.limit,
-            request.params.offset,
-            request.params.unpaid,
-            request.params.type,
-          );
-          result = { transactions };
+          if (this.isListTransactionsParams(request.method, request.params)) {
+            const transactions = await this.walletImpl.listTransactions(
+              request.params.from,
+              request.params.until,
+              request.params.limit,
+              request.params.offset,
+              request.params.unpaid,
+              request.params.type,
+            );
+            result = { transactions };
+          } else {
+            return this.createErrorResponse(
+              request.method,
+              NIP47ErrorCode.INVALID_REQUEST,
+              "Invalid parameters for list_transactions method",
+            );
+          }
           break;
         }
 
         case NIP47Method.SIGN_MESSAGE:
-          result = await this.walletImpl.signMessage?.(request.params.message);
+          if (this.isSignMessageParams(request.method, request.params)) {
+            result = await this.walletImpl.signMessage?.(request.params.message);
+          } else {
+            return this.createErrorResponse(
+              request.method,
+              NIP47ErrorCode.INVALID_REQUEST,
+              "Invalid parameters for sign_message method",
+            );
+          }
           break;
 
         default:
           return this.createErrorResponse(
             request.method,
-            "INVALID_REQUEST",
+            NIP47ErrorCode.INVALID_REQUEST,
             `Method ${request.method} not supported`,
           );
       }
@@ -482,7 +565,7 @@ export class NostrWalletService {
     } catch (error: any) {
       return this.createErrorResponse(
         request.method,
-        error.code || "INTERNAL_ERROR",
+        error.code || NIP47ErrorCode.INTERNAL_ERROR,
         error.message || "An error occurred processing the request",
         error.data,
       );
@@ -494,8 +577,8 @@ export class NostrWalletService {
    */
   public async sendNotification(
     clientPubkey: string,
-    type: string,
-    notification: any,
+    type: NIP47NotificationType,
+    notification: Record<string, unknown>,
   ): Promise<void> {
     // Check if notification type is supported
     if (!this.supportedNotificationTypes.includes(type)) {
@@ -540,11 +623,11 @@ export class NostrWalletService {
   private async sendErrorResponse(
     clientPubkey: string,
     senderPubkey: string,
-    errorCode: string,
+    errorCode: NIP47ErrorCode,
     errorMessage: string,
     requestId: string,
-    method: string = "unknown",
-    data?: any,
+    method: NIP47Method,
+    data?: Record<string, unknown>,
   ): Promise<void> {
     // Create error response using the utility method
     const response = this.createErrorResponse(
