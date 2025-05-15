@@ -166,15 +166,30 @@ export class NostrRelay {
       }
 
       this._isClosing = true;
+      
+      // Clear any listeners on the emitter
+      this._emitter.removeAllListeners();
 
       if (this._wss) {
         // Clean up clients first
         if (this._wss.clients && this._wss.clients.size > 0) {
+          // Keep track of clients to make sure they all close
+          const clientsToClose = this._wss.clients.size;
+          let closedClients = 0;
+          
           this._wss.clients.forEach((client) => {
             try {
+              // Add close handler to track when clients are closed
+              client.once('close', () => {
+                closedClients++;
+                DEBUG && console.log(`[ relay ] client closed (${closedClients}/${clientsToClose})`);
+              });
+              
               client.close(1000, "Server shutting down");
             } catch (e) {
-              // Ignore errors
+              // Count error closures as closed
+              closedClients++;
+              DEBUG && console.log(`[ relay ] error closing client: ${e}`);
             }
           });
         }
@@ -183,21 +198,38 @@ export class NostrRelay {
         this._subs.clear();
         this._cache = [];
 
-        // Close server with timeout
+        // Close server with timeout that self-cancels (unref)
         const timeout = setTimeout(() => {
           DEBUG &&
             console.log("[ relay ] server close timed out, forcing cleanup");
           this._wss = null;
           resolve();
-        }, 500);
+        }, 1000).unref(); // Use unref to avoid keeping the process alive
 
         const wss = this._wss;
         this._wss = null;
 
-        wss.close(() => {
+        try {
+          wss.close(() => {
+            clearTimeout(timeout);
+            
+            // Final cleanup
+            process.nextTick(() => {
+              // Ensure everything is fully cleaned up before resolving
+              try {
+                wss.removeAllListeners();
+              } catch (e) {
+                // Ignore errors during cleanup
+              }
+              resolve();
+            });
+          });
+        } catch (e) {
+          // Handle errors during close
+          DEBUG && console.log(`[ relay ] error during server close: ${e}`);
           clearTimeout(timeout);
           resolve();
-        });
+        }
       } else {
         resolve();
       }

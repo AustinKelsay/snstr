@@ -309,12 +309,52 @@ export class NostrWalletConnectClient {
   /**
    * Disconnect from the wallet service
    */
-  public disconnect(): void {
-    if (this.subIds.length > 0) {
-      this.client.unsubscribe(this.subIds);
-      this.subIds = [];
-    }
-    this.initialized = false;
+  public disconnect(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      try {
+        // Clean up any pending subscriptions
+        if (this.subIds.length > 0) {
+          this.client.unsubscribe(this.subIds);
+          this.subIds = [];
+        }
+
+        // Reject any pending requests
+        if (this.pendingRequests.size > 0) {
+          this.pendingRequests.forEach((resolver) => {
+            resolver({
+              result_type: "unknown",
+              result: null,
+              error: {
+                code: "CONNECTION_CLOSED" as NIP47ErrorCode,
+                message: "Client disconnected before receiving response",
+              },
+            });
+          });
+          
+          this.pendingRequests.clear();
+        }
+        
+        // Clear notification handlers
+        this.notificationHandlers.clear();
+        
+        // Disconnect from relay (don't wait for it)
+        try {
+          this.client.disconnectFromRelays();
+        } catch (error) {
+          console.error("Error disconnecting from relays:", error);
+        }
+        
+        this.initialized = false;
+        
+        // Short delay to allow relay disconnection to complete
+        setTimeout(() => {
+          resolve();
+        }, 100).unref();
+      } catch (error) {
+        console.error("Error during client disconnect:", error);
+        resolve();
+      }
+    });
   }
 
   /**

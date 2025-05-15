@@ -44,7 +44,7 @@ class MockWalletImplementation implements WalletImplementation {
     return this.balance;
   }
 
-  async payInvoice(invoice: string): Promise<any> {
+  async payInvoice(_invoice: string): Promise<any> {
     return {
       preimage:
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -55,7 +55,7 @@ class MockWalletImplementation implements WalletImplementation {
     };
   }
 
-  async makeInvoice(amount: number, description: string): Promise<any> {
+  async makeInvoice(amount: number, _description: string): Promise<any> {
     return {
       invoice: "lnbc10n1ptest",
       payment_hash:
@@ -80,12 +80,12 @@ class MockWalletImplementation implements WalletImplementation {
   }
 
   async listTransactions(
-    from?: number,
-    until?: number,
-    limit?: number,
-    offset?: number,
-    unpaid?: boolean,
-    type?: string,
+    _from?: number,
+    _until?: number,
+    _limit?: number,
+    _offset?: number,
+    _unpaid?: boolean,
+    _type?: string,
   ): Promise<NIP47Transaction[]> {
     return [
       {
@@ -178,9 +178,29 @@ describe("NIP-47: Nostr Wallet Connect", () => {
 
   afterAll(async () => {
     // Clean up resources
-    client.disconnect();
-    service.disconnect();
-    await relay.close();
+    try {
+      // Add timeout to ensure cleanup completes
+      jest.setTimeout(5000);
+      
+      // First disconnect the client and service, await if possible
+      if (client) {
+        await client.disconnect();
+      }
+      
+      if (service) {
+        await service.disconnect();
+      }
+      
+      // Then close the relay with explicit wait
+      if (relay) {
+        await relay.close();
+        
+        // Allow a small delay for final socket cleanup
+        await new Promise(resolve => setTimeout(resolve, 100).unref());
+      }
+    } catch (error) {
+      console.error("Error during test cleanup:", error);
+    }
   });
 
   describe("URL Handling", () => {
@@ -357,7 +377,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       jest.setTimeout(10000);
 
       try {
-        // @ts-ignore - deliberately call with invalid parameters
+        // @ts-expect-error - deliberately call with invalid parameters
         await client.makeInvoice(null);
         fail("Should have thrown an INVALID_REQUEST error");
       } catch (error) {
@@ -453,7 +473,6 @@ describe("NIP-47: Nostr Wallet Connect", () => {
   describe("Response Validation", () => {
     it("should validate response structure according to NIP-47 specification", async () => {
       // Access the private validateResponse method for testing
-      // @ts-ignore - accessing private method for testing
       const validateResponse = client["validateResponse"].bind(client);
 
       // Valid successful response

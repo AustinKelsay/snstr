@@ -130,11 +130,31 @@ export class NostrWalletService {
   /**
    * Disconnect from relays
    */
-  public disconnect(): void {
-    if (this.subIds.length > 0) {
-      this.client.unsubscribe(this.subIds);
-      this.subIds = [];
-    }
+  public disconnect(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      try {
+        // Clean up subscriptions
+        if (this.subIds.length > 0) {
+          this.client.unsubscribe(this.subIds);
+          this.subIds = [];
+        }
+        
+        // Make sure we aren't leaving any pending operations
+        try {
+          this.client.disconnectFromRelays();
+        } catch (error) {
+          console.error("Error disconnecting service from relays:", error);
+        }
+        
+        // Short delay to allow disconnection to complete
+        setTimeout(() => {
+          resolve();
+        }, 100).unref();
+      } catch (error) {
+        console.error("Error during service disconnect:", error);
+        resolve();
+      }
+    });
   }
 
   /**
