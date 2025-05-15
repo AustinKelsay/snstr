@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-examples/
+coverage/
+*.js
+*.d.ts 
