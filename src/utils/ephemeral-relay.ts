@@ -381,7 +381,7 @@ class ClientSession {
           this.send(["OK", event.id, false, "NIP-46 event failed validation"]);
           return;
         }
-        
+
         this.relay.store(event);
 
         // Find subscriptions that match this event
@@ -529,52 +529,65 @@ class ClientSession {
   // Method to validate NIP-46 events
   validateNIP46Event(event: SignedEvent): boolean {
     // Check required fields exist with proper types
-    if (!event.id || typeof event.id !== 'string' || event.id.length !== 64) {
+    if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
       this.log.debug("NIP-46 validation failed: invalid id");
       return false;
     }
-    
-    if (!event.pubkey || typeof event.pubkey !== 'string' || event.pubkey.length !== 64) {
+
+    if (
+      !event.pubkey ||
+      typeof event.pubkey !== "string" ||
+      event.pubkey.length !== 64
+    ) {
       this.log.debug("NIP-46 validation failed: invalid pubkey");
       return false;
     }
-    
-    if (!event.created_at || typeof event.created_at !== 'number') {
+
+    if (!event.created_at || typeof event.created_at !== "number") {
       this.log.debug("NIP-46 validation failed: invalid created_at");
       return false;
     }
-    
+
     if (event.kind !== 24133) {
       this.log.debug("NIP-46 validation failed: invalid kind");
       return false;
     }
-    
+
     if (!Array.isArray(event.tags)) {
       this.log.debug("NIP-46 validation failed: invalid tags");
       return false;
     }
-    
+
     // For NIP-46, we need to have at least one p tag with a valid pubkey
-    const hasPTag = event.tags.some((tag: string[]) => 
-      Array.isArray(tag) && 
-      tag.length >= 2 && 
-      tag[0] === 'p' && 
-      typeof tag[1] === 'string' && 
-      tag[1].length === 64 && 
-      /^[0-9a-f]{64}$/.test(tag[1]));
-    
+    const hasPTag = event.tags.some(
+      (tag: string[]) =>
+        Array.isArray(tag) &&
+        tag.length >= 2 &&
+        tag[0] === "p" &&
+        typeof tag[1] === "string" &&
+        tag[1].length === 64 &&
+        /^[0-9a-f]{64}$/.test(tag[1]),
+    );
+
     if (!hasPTag) {
       // For debugging, log the tags structure
-      this.log.debug("NIP-46 validation failed: no valid p tag found", JSON.stringify(event.tags));
+      this.log.debug(
+        "NIP-46 validation failed: no valid p tag found",
+        JSON.stringify(event.tags),
+      );
       return false;
     }
-    
-    if (typeof event.content !== 'string') {
+
+    if (typeof event.content !== "string") {
       this.log.debug("NIP-46 validation failed: invalid content");
       return false;
     }
-    
-    if (!event.sig || typeof event.sig !== 'string' || event.sig.length !== 128) {
+
+    if (
+      !event.sig ||
+      typeof event.sig !== "string" ||
+      event.sig.length !== 128
+    ) {
       this.log.debug("NIP-46 validation failed: invalid signature");
       return false;
     }
@@ -582,11 +595,16 @@ class ClientSession {
     // Verify signature for NIP-46 events
     try {
       if (!verify_event(event)) {
-        this.log.debug("NIP-46 validation failed: invalid signature verification");
+        this.log.debug(
+          "NIP-46 validation failed: invalid signature verification",
+        );
         return false;
       }
     } catch (error) {
-      this.log.debug("NIP-46 validation failed: error during signature verification", error);
+      this.log.debug(
+        "NIP-46 validation failed: error during signature verification",
+        error,
+      );
       return false;
     }
 

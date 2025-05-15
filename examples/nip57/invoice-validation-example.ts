@@ -48,13 +48,17 @@ function mockParseBolt11Invoice(bolt11: string) {
 
 // Mock the SHA-256 function for the valid case
 function mockSha256HexValid(data: string | Uint8Array): string {
-  console.log(`Calculating hash for: ${typeof data === 'string' ? data.substring(0, 30) : 'byte array'}...`);
+  console.log(
+    `Calculating hash for: ${typeof data === "string" ? data.substring(0, 30) : "byte array"}...`,
+  );
   return VALID_HASH;
 }
 
 // Mock the SHA-256 function for the invalid case
 function mockSha256HexInvalid(data: string | Uint8Array): string {
-  console.log(`Calculating hash for: ${typeof data === 'string' ? data.substring(0, 30) : 'byte array'}...`);
+  console.log(
+    `Calculating hash for: ${typeof data === "string" ? data.substring(0, 30) : "byte array"}...`,
+  );
   return INVALID_HASH;
 }
 

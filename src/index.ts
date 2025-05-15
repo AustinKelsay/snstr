@@ -13,7 +13,7 @@ export {
   verifySignature,
 } from "./utils/crypto";
 
-export { 
+export {
   createEvent,
   createAddressableEvent,
   getEventHash,

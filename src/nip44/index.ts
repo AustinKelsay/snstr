@@ -307,10 +307,13 @@ export function getMessageKeys(
     );
   }
 
-  if (nonce.length < NONCE_SIZE_V0) { // Assuming V0 has the smallest possible nonce, check against it.
+  if (nonce.length < NONCE_SIZE_V0) {
+    // Assuming V0 has the smallest possible nonce, check against it.
     // This check might need refinement if V0/V1 nonces are smaller and still valid inputs here.
     // However, getMessageKeys is currently only called by encrypt/decrypt which would use version-specific nonce sizes.
-    throw new Error(`NIP-44: Nonce too short for key derivation. Min expected: ${NONCE_SIZE_V0}, got: ${nonce.length}`);
+    throw new Error(
+      `NIP-44: Nonce too short for key derivation. Min expected: ${NONCE_SIZE_V0}, got: ${nonce.length}`,
+    );
   }
 
   // Use HKDF-expand to derive 76 bytes of key material from the conversation key and nonce
@@ -360,9 +363,12 @@ export function hmacWithAAD(
   message: Uint8Array,
   aad: Uint8Array, // aad is the NIP-44 nonce (e.g. 32 bytes for v2)
 ): Uint8Array {
-  if (aad.length < NONCE_SIZE_V0) { // Allow for potentially smaller nonces from older versions.
-                                   // This check needs to be correct for the SMALLEST valid nonce size.
-    throw new Error(`NIP-44: AAD (nonce) too short. Min expected: ${NONCE_SIZE_V0} bytes, got: ${aad.length}`);
+  if (aad.length < NONCE_SIZE_V0) {
+    // Allow for potentially smaller nonces from older versions.
+    // This check needs to be correct for the SMALLEST valid nonce size.
+    throw new Error(
+      `NIP-44: AAD (nonce) too short. Min expected: ${NONCE_SIZE_V0} bytes, got: ${aad.length}`,
+    );
   }
 
   // Concatenate the nonce (AAD) with the ciphertext, then calculate HMAC-SHA256
@@ -424,7 +430,9 @@ function encryptV2(
   // Generate random nonce if not provided
   const nonceBytes = nonce || generateNonce(); // generateNonce uses NONCE_SIZE_V2
   if (nonceBytes.length !== NONCE_SIZE_V2) {
-    throw new Error(`NIP-44 (v2): Nonce must be ${NONCE_SIZE_V2} bytes, got ${nonceBytes.length}`);
+    throw new Error(
+      `NIP-44 (v2): Nonce must be ${NONCE_SIZE_V2} bytes, got ${nonceBytes.length}`,
+    );
   }
 
   // Get the conversation key (shared secret)
@@ -470,10 +478,15 @@ function encryptV1(
   // For now, it will effectively call V2 logic but with version byte 1.
   const nonceBytes = nonce || randomBytes(NONCE_SIZE_V1);
   if (nonceBytes.length !== NONCE_SIZE_V1) {
-    throw new Error(`NIP-44 (v1): Nonce must be ${NONCE_SIZE_V1} bytes, got ${nonceBytes.length}`);
+    throw new Error(
+      `NIP-44 (v1): Nonce must be ${NONCE_SIZE_V1} bytes, got ${nonceBytes.length}`,
+    );
   }
   const conversation_key = getSharedSecret(privateKey, publicKey); // Uses "nip44-v2" salt
-  const { chacha_key, chacha_nonce, hmac_key } = getMessageKeys(conversation_key, nonceBytes);
+  const { chacha_key, chacha_nonce, hmac_key } = getMessageKeys(
+    conversation_key,
+    nonceBytes,
+  );
   const padded = pad(plaintext);
   const ciphertext = chacha20(chacha_key, chacha_nonce, padded);
   const mac = hmacWithAAD(hmac_key, ciphertext, nonceBytes);
@@ -493,10 +506,15 @@ function encryptV0(
   // console.warn("NIP-44: encryptV0 is a placeholder and not fully implemented. Encryption will use V2 logic if forced (with V0 byte).");
   const nonceBytes = nonce || randomBytes(NONCE_SIZE_V0);
   if (nonceBytes.length !== NONCE_SIZE_V0) {
-    throw new Error(`NIP-44 (v0): Nonce must be ${NONCE_SIZE_V0} bytes, got ${nonceBytes.length}`);
+    throw new Error(
+      `NIP-44 (v0): Nonce must be ${NONCE_SIZE_V0} bytes, got ${nonceBytes.length}`,
+    );
   }
   const conversation_key = getSharedSecret(privateKey, publicKey); // Uses "nip44-v2" salt
-  const { chacha_key, chacha_nonce, hmac_key } = getMessageKeys(conversation_key, nonceBytes);
+  const { chacha_key, chacha_nonce, hmac_key } = getMessageKeys(
+    conversation_key,
+    nonceBytes,
+  );
   const padded = pad(plaintext);
   const ciphertext = chacha20(chacha_key, chacha_nonce, padded);
   const mac = hmacWithAAD(hmac_key, ciphertext, nonceBytes);
@@ -543,16 +561,19 @@ export function encrypt(
   if (versionToEncryptWith !== CURRENT_VERSION) {
     // Allow specific older versions if explicitly requested and implemented
     if (versionToEncryptWith !== 0 && versionToEncryptWith !== 1) {
-        throw new Error(
-            `NIP-44: Unsupported encryption version: ${versionToEncryptWith}. Currently only supporting ${CURRENT_VERSION} for general encryption, or explicit 0, 1 for compatibility.`
-        );
+      throw new Error(
+        `NIP-44: Unsupported encryption version: ${versionToEncryptWith}. Currently only supporting ${CURRENT_VERSION} for general encryption, or explicit 0, 1 for compatibility.`,
+      );
     }
     // console.warn(`NIP-44: Encrypting with non-current version ${versionToEncryptWith} due to explicit option.`);
   }
   // Further check if it's in the decryptable range just in case.
-  if (versionToEncryptWith < MIN_SUPPORTED_VERSION || versionToEncryptWith > MAX_SUPPORTED_VERSION) {
+  if (
+    versionToEncryptWith < MIN_SUPPORTED_VERSION ||
+    versionToEncryptWith > MAX_SUPPORTED_VERSION
+  ) {
     throw new Error(
-        `NIP-44: Encryption version ${versionToEncryptWith} is outside the supported range [${MIN_SUPPORTED_VERSION}-${MAX_SUPPORTED_VERSION}].`
+      `NIP-44: Encryption version ${versionToEncryptWith} is outside the supported range [${MIN_SUPPORTED_VERSION}-${MAX_SUPPORTED_VERSION}].`,
     );
   }
 
@@ -565,7 +586,9 @@ export function encrypt(
       return encryptV2(plaintext, privateKey, publicKey, nonce);
     } else {
       // This should be caught by the version validation above
-      throw new Error(`NIP-44: Unexpected encryption version: ${versionToEncryptWith}`);
+      throw new Error(
+        `NIP-44: Unexpected encryption version: ${versionToEncryptWith}`,
+      );
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -573,9 +596,13 @@ export function encrypt(
       if (error.message.startsWith("NIP-44:")) {
         throw error;
       }
-      throw new Error(`NIP-44: Encryption failed (version ${versionToEncryptWith}): ${error.message}`);
+      throw new Error(
+        `NIP-44: Encryption failed (version ${versionToEncryptWith}): ${error.message}`,
+      );
     }
-    throw new Error(`NIP-44: Encryption failed (version ${versionToEncryptWith})`);
+    throw new Error(
+      `NIP-44: Encryption failed (version ${versionToEncryptWith})`,
+    );
   }
 }
 
@@ -594,7 +621,9 @@ export function decodePayload(payload: string): {
   const minDynamicBase64Length = Math.ceil((minDynamicPayloadSize * 4) / 3);
 
   if (payload.length < minDynamicBase64Length) {
-    throw new Error(`NIP-44: Invalid ciphertext length. Minimum base64 length is ${minDynamicBase64Length}, got ${payload.length}.`);
+    throw new Error(
+      `NIP-44: Invalid ciphertext length. Minimum base64 length is ${minDynamicBase64Length}, got ${payload.length}.`,
+    );
   }
 
   // Decode the base64 payload
@@ -604,10 +633,13 @@ export function decodePayload(payload: string): {
   } catch (error) {
     throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
   }
-  
+
   // Extract version byte
-  if (data.length < 1) { // Should be caught by earlier length check, but good for robustness
-    throw new Error(`NIP-44: Invalid payload, too short to contain version byte.`);
+  if (data.length < 1) {
+    // Should be caught by earlier length check, but good for robustness
+    throw new Error(
+      `NIP-44: Invalid payload, too short to contain version byte.`,
+    );
   }
   const version = data[0];
 
@@ -619,11 +651,15 @@ export function decodePayload(payload: string): {
   }
 
   // Determine nonce and MAC sizes based on version
-  const nonceSize = version === 0 ? NONCE_SIZE_V0 : 
-                   version === 1 ? NONCE_SIZE_V1 : NONCE_SIZE_V2;
-                   
-  const macSize = version === 0 ? MAC_SIZE_V0 : 
-                 version === 1 ? MAC_SIZE_V1 : MAC_SIZE_V2;
+  const nonceSize =
+    version === 0
+      ? NONCE_SIZE_V0
+      : version === 1
+        ? NONCE_SIZE_V1
+        : NONCE_SIZE_V2;
+
+  const macSize =
+    version === 0 ? MAC_SIZE_V0 : version === 1 ? MAC_SIZE_V1 : MAC_SIZE_V2;
 
   // Verify minimum payload length for the detected version
   const minVersionedPayloadSize = VERSION_BYTE_SIZE + nonceSize + 1 + macSize; // version + nonce + min_ciphertext (1 byte) + mac
@@ -636,10 +672,15 @@ export function decodePayload(payload: string): {
   // Extract components
   const nonce = data.subarray(VERSION_BYTE_SIZE, VERSION_BYTE_SIZE + nonceSize);
   const mac = data.subarray(data.length - macSize);
-  const ciphertext = data.subarray(VERSION_BYTE_SIZE + nonceSize, data.length - macSize);
-  
+  const ciphertext = data.subarray(
+    VERSION_BYTE_SIZE + nonceSize,
+    data.length - macSize,
+  );
+
   if (ciphertext.length === 0) {
-    throw new Error(`NIP-44: Ciphertext cannot be empty for version ${version}.`);
+    throw new Error(
+      `NIP-44: Ciphertext cannot be empty for version ${version}.`,
+    );
   }
 
   return { version, nonce, ciphertext, mac };
@@ -719,7 +760,7 @@ function decryptV0(
   // This needs to be replaced with actual V0 specification.
   // There's no official NIP for v0, it was an early experimental version.
   // console.warn("NIP-44: decryptV0 is using V2 logic as a placeholder. Verify V0 specification if possible.");
-   try {
+  try {
     return decryptV2(encryptedData, nonce, mac, privateKey, publicKey);
   } catch (error) {
     if (error instanceof Error && error.message.includes("NIP-44 (v2)")) {
@@ -755,7 +796,12 @@ export function decrypt(
 
   try {
     // Decode and extract the payload components
-    const { version, nonce, ciphertext: encryptedData, mac } = decodePayload(ciphertext);
+    const {
+      version,
+      nonce,
+      ciphertext: encryptedData,
+      mac,
+    } = decodePayload(ciphertext);
 
     // Call the appropriate version-specific decrypt function
     if (version === 0) {

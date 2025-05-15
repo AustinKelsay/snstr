@@ -65,10 +65,10 @@ async function main() {
       // Unsubscribe
       console.log("\nUnsubscribing...");
       relay.unsubscribe(subscription);
-      
+
       // ---------- NEW: Demonstrate event validation ----------
       console.log("\n--- Demonstrating NIP-01 Event Validation ---");
-      
+
       // Create a validation test subscription
       console.log("Setting up subscription for validation testing...");
       const validationSubscription = relay.subscribe(
@@ -78,20 +78,22 @@ async function main() {
         },
         () => {
           console.log("EOSE received for validation subscription");
-        }
+        },
       );
-      
+
       // Test the relay's validation by attempting to process invalid events
       console.log("\nTesting event validation with various invalid events...");
-      
+
       // Direct access to basic validation for testing purposes
       const testValidation = (event: any, description: string) => {
         // Get access to private validation method for demonstration purposes
         const validationResult = (relay as any).performBasicValidation(event);
-        console.log(`${validationResult ? '✅' : '❌'} ${description}: ${validationResult ? 'PASSED basic validation' : 'REJECTED in basic validation'}`);
+        console.log(
+          `${validationResult ? "✅" : "❌"} ${description}: ${validationResult ? "PASSED basic validation" : "REJECTED in basic validation"}`,
+        );
         return validationResult;
       };
-      
+
       // Test 1: Valid event (should pass basic validation)
       const validEvent: NostrEvent = {
         id: "a".repeat(64),
@@ -100,17 +102,17 @@ async function main() {
         kind: 1,
         tags: [["t", "test"]],
         content: "This is a valid event",
-        sig: "c".repeat(128)
+        sig: "c".repeat(128),
       };
       testValidation(validEvent, "Well-formed event");
-      
+
       // Test 2: Event with future timestamp (should fail)
       const futureEvent = {
         ...validEvent,
-        created_at: Math.floor(Date.now() / 1000) + 7200 // 2 hours in the future
+        created_at: Math.floor(Date.now() / 1000) + 7200, // 2 hours in the future
       };
       testValidation(futureEvent, "Event with future timestamp");
-      
+
       // Test 3: Event with missing field
       const missingFieldEvent = {
         id: "a".repeat(64),
@@ -119,10 +121,10 @@ async function main() {
         kind: 1,
         tags: [],
         content: "Missing created_at",
-        sig: "c".repeat(128)
+        sig: "c".repeat(128),
       };
       testValidation(missingFieldEvent, "Event missing required field");
-      
+
       // Test 4: Event with invalid field type
       const invalidFieldTypeEvent = {
         id: "a".repeat(64),
@@ -131,10 +133,10 @@ async function main() {
         kind: 1,
         tags: [],
         content: "Invalid created_at type",
-        sig: "c".repeat(128)
+        sig: "c".repeat(128),
       };
       testValidation(invalidFieldTypeEvent, "Event with invalid field type");
-      
+
       // Test 5: Event with invalid tag structure
       const invalidTagsEvent = {
         id: "a".repeat(64),
@@ -143,10 +145,10 @@ async function main() {
         kind: 1,
         tags: ["not an array of arrays"], // invalid tag structure
         content: "Invalid tags",
-        sig: "c".repeat(128)
+        sig: "c".repeat(128),
       };
       testValidation(invalidTagsEvent, "Event with invalid tag structure");
-      
+
       // Test 6: Event with too short ID
       const invalidIdEvent = {
         id: "a".repeat(60), // too short
@@ -155,76 +157,105 @@ async function main() {
         kind: 1,
         tags: [],
         content: "ID too short",
-        sig: "c".repeat(128)
+        sig: "c".repeat(128),
       };
       testValidation(invalidIdEvent, "Event with invalid ID length");
-      
+
       console.log("\nImproved Validation Process (NIP-01 §7 Compliant):");
-      console.log("1. 🔍 Basic Validation: Synchronous checks for required fields and formats");
+      console.log(
+        "1. 🔍 Basic Validation: Synchronous checks for required fields and formats",
+      );
       console.log("   - Performed immediately upon receipt of an event");
-      console.log("   - Rejects obviously invalid events without further processing");
-      console.log("\n2. 🔐 Cryptographic Validation: Asynchronous verification of:");
+      console.log(
+        "   - Rejects obviously invalid events without further processing",
+      );
+      console.log(
+        "\n2. 🔐 Cryptographic Validation: Asynchronous verification of:",
+      );
       console.log("   - Event ID matches the SHA-256 hash of event data");
       console.log("   - Signature is valid for the event ID and pubkey");
       console.log("\n3. ⏱️ Process Flow:");
-      console.log("   - Events are held in a pending state until async validation completes");
-      console.log("   - Only events that pass BOTH validation stages are processed");
-      console.log("   - Invalid events are rejected with appropriate error messages");
+      console.log(
+        "   - Events are held in a pending state until async validation completes",
+      );
+      console.log(
+        "   - Only events that pass BOTH validation stages are processed",
+      );
+      console.log(
+        "   - Invalid events are rejected with appropriate error messages",
+      );
       console.log("\n✅ This fully complies with NIP-01 §7:");
-      console.log('   "Relays MUST NOT accept an EVENT message that does not validate."');
-      console.log("\n💡 Key Improvement: Unlike previous implementation, events are now");
-      console.log("   never propagated to subscribers until full validation completes.");
-      
+      console.log(
+        '   "Relays MUST NOT accept an EVENT message that does not validate."',
+      );
+      console.log(
+        "\n💡 Key Improvement: Unlike previous implementation, events are now",
+      );
+      console.log(
+        "   never propagated to subscribers until full validation completes.",
+      );
+
       // ---------- NEW: Demonstrate proper unsubscribeAll implementation ----------
-      console.log("\n--- Demonstrating Protocol-Compliant unsubscribeAll() ---");
-      
+      console.log(
+        "\n--- Demonstrating Protocol-Compliant unsubscribeAll() ---",
+      );
+
       // Create multiple subscriptions to demonstrate unsubscribeAll
       console.log("Creating multiple subscriptions...");
       const subId1 = relay.subscribe([{ kinds: [1], limit: 3 }], () => {
         console.log("Subscription 1 received an event");
       });
-      
+
       const subId2 = relay.subscribe([{ kinds: [0], limit: 2 }], () => {
         console.log("Subscription 2 received an event");
       });
-      
+
       const subId3 = relay.subscribe([{ kinds: [4], limit: 1 }], () => {
         console.log("Subscription 3 received an event");
       });
-      
+
       // Show how many active subscriptions we have
       console.log(`Active subscriptions: ${relay.getSubscriptionIds().size}`);
       console.log("Subscription IDs:", Array.from(relay.getSubscriptionIds()));
-      
+
       // Create a Nostr client with this relay
-      console.log("\nCreating Nostr client with this relay to demonstrate unsubscribeAll...");
+      console.log(
+        "\nCreating Nostr client with this relay to demonstrate unsubscribeAll...",
+      );
       const { Nostr } = await import("../../../src/nip01/nostr");
       const client = new Nostr(["wss://relay.nostr.band"]);
-      
+
       // Create a subscription through the client
       client.subscribe([{ kinds: [1], limit: 2 }], () => {
         console.log("Client subscription received an event");
       });
-      
+
       // Demonstrate protocol-compliant unsubscribeAll
       console.log("\nCalling client.unsubscribeAll()...");
       client.unsubscribeAll();
-      
+
       // Check if the relay is still connected (it should be)
       console.log(`Relay is still connected: ${(relay as any).connected}`);
-      
+
       // Check if all client subscriptions were correctly closed
-      console.log(`Relay subscription count after unsubscribeAll: ${relay.getSubscriptionIds().size}`);
-      console.log("Remaining subscription IDs:", Array.from(relay.getSubscriptionIds()));
-      
+      console.log(
+        `Relay subscription count after unsubscribeAll: ${relay.getSubscriptionIds().size}`,
+      );
+      console.log(
+        "Remaining subscription IDs:",
+        Array.from(relay.getSubscriptionIds()),
+      );
+
       // Close individual subscriptions to clean up
       console.log("\nClosing remaining individual subscriptions...");
       relay.unsubscribe(subId1);
       relay.unsubscribe(subId2);
       relay.unsubscribe(subId3);
-      
-      console.log(`Final subscription count: ${relay.getSubscriptionIds().size}`);
-      
+
+      console.log(
+        `Final subscription count: ${relay.getSubscriptionIds().size}`,
+      );
+
       // Unsubscribe from validation test
       relay.unsubscribe(validationSubscription);
     } else {
@@ -252,7 +283,7 @@ async function main() {
   const invalidRelay = new Relay("wss://invalid.relay.example", {
     connectionTimeout: 3000,
     bufferFlushDelay: 50,
-    autoReconnect: false // Disable automatic reconnection attempts
+    autoReconnect: false, // Disable automatic reconnection attempts
   });
 
   invalidRelay.on(RelayEvent.Error, (relayUrl, error) => {
@@ -278,8 +309,13 @@ async function main() {
   const connectionTimeoutChanged = relay.getConnectionTimeout() === 10000;
   if (connectionTimeoutChanged && relay.getConnectionTimeout() !== 10000) {
     console.error("Expected connection timeout to be 10000ms");
-  } else if (!connectionTimeoutChanged && relay.getConnectionTimeout() !== 5000) {
-    console.error(`Expected connection timeout to be 5000ms, but got ${relay.getConnectionTimeout()}ms`);
+  } else if (
+    !connectionTimeoutChanged &&
+    relay.getConnectionTimeout() !== 5000
+  ) {
+    console.error(
+      `Expected connection timeout to be 5000ms, but got ${relay.getConnectionTimeout()}ms`,
+    );
   }
 
   // Make sure to disconnect the invalid relay

@@ -282,8 +282,10 @@ async function main() {
         tags: [],
         content: "This event has a future timestamp",
       };
-      
-      console.log("Publishing event with future timestamp (should be rejected)...");
+
+      console.log(
+        "Publishing event with future timestamp (should be rejected)...",
+      );
       const publishResult = await client.publishEvent({
         ...futureEvent,
         id: "a".repeat(64), // Dummy ID
@@ -291,8 +293,13 @@ async function main() {
       });
 
       if (!publishResult.success) {
-        console.log(`✅ Correctly rejected event with future timestamp: ${publishResult.relayResults.size > 0 ? 
-          Array.from(publishResult.relayResults.values())[0].reason : "validation failed"}`);
+        console.log(
+          `✅ Correctly rejected event with future timestamp: ${
+            publishResult.relayResults.size > 0
+              ? Array.from(publishResult.relayResults.values())[0].reason
+              : "validation failed"
+          }`,
+        );
       } else {
         console.log("❌ Event with future timestamp was unexpectedly accepted");
       }
@@ -315,30 +322,38 @@ async function main() {
 
       // Calculate the correct hash
       const correctId = await getEventHash(eventTemplate);
-      
+
       // Create an event with a wrong ID
       const wrongIdEvent = {
         ...eventTemplate,
         id: "f".repeat(64), // Incorrect ID
       };
-      
+
       // Sign the event with the wrong ID
       const signature = await signEvent(wrongIdEvent.id, keys.privateKey);
       const signedEvent = {
         ...wrongIdEvent,
         sig: signature,
       };
-      
-      console.log("Publishing event with incorrect ID (should be rejected during async validation)...");
+
+      console.log(
+        "Publishing event with incorrect ID (should be rejected during async validation)...",
+      );
       console.log(`Correct ID: ${correctId}`);
       console.log(`Wrong ID: ${signedEvent.id}`);
-      
+
       const publishResult = await client.publishEvent(signedEvent);
-      console.log(`Event was ${publishResult.success ? "accepted (initial validation only)" : "rejected"}`);
-      
+      console.log(
+        `Event was ${publishResult.success ? "accepted (initial validation only)" : "rejected"}`,
+      );
+
       // Note: The event might be accepted initially because ID validation happens asynchronously
-      console.log("Note: ID validation happens asynchronously to improve performance");
-      console.log("      Events with invalid IDs will be rejected during async validation");
+      console.log(
+        "Note: ID validation happens asynchronously to improve performance",
+      );
+      console.log(
+        "      Events with invalid IDs will be rejected during async validation",
+      );
     } catch (error) {
       console.log(
         `Error during ID validation test: ${error instanceof Error ? error.message : "unknown error"}`,

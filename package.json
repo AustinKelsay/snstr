@@ -114,7 +114,15 @@
     "example:identity": "npm run example:nip05 && npm run example:nip07 && npm run example:nip19",
     "example:payments": "npm run example:nip47 && npm run example:nip57",
     "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling",
-    "example:validation": "npm run example:nip01:validation"
+    "example:validation": "npm run example:nip01:validation",
+
+    "// Release": "-------------- Release Commands --------------",
+    "release:prepare": "npm run lint && npm test && npm run build",
+    "release:patch": "npm run release:prepare && npm version patch",
+    "release:minor": "npm run release:prepare && npm version minor",
+    "release:major": "npm run release:prepare && npm version major",
+    "release:push": "git push && git push --tags",
+    "release": "npm run release:patch && npm run release:push"
   },
   "keywords": [
     "nostr",

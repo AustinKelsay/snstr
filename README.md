@@ -19,6 +19,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
   - [Code Quality Scripts](#code-quality-scripts)
 - [Development](#development)
 - [Security](#security)
+- [Release Process](#release-process)
 
 ## Features
 
@@ -331,3 +332,53 @@ SNSTR implements robust security features throughout the codebase:
 - **Input Validation**: Thorough validation and error checking across all components
 
 For details on security considerations for specific NIPs, see the documentation in each implementation folder.
+
+## Release Process
+
+SNSTR uses GitHub Actions for continuous integration and automated releases.
+
+### Automated Workflow
+
+The project includes a GitHub Actions workflow that:
+
+1. **Builds and tests** the library on multiple Node.js versions (16.x, 18.x, 20.x)
+2. **Runs linting** to ensure code quality
+3. **Executes all tests** with coverage reports
+4. **Builds the main library** and examples
+5. **Creates releases** when triggered by version tags or manual dispatch
+
+### Creating a Release
+
+There are two ways to trigger a release:
+
+#### Option 1: Manual Release via GitHub Actions
+
+1. Go to the "Actions" tab in the GitHub repository
+2. Select the "Build, Test, and Release" workflow
+3. Click "Run workflow"
+4. Choose the release type (patch, minor, or major)
+5. Click "Run workflow" to start the process
+
+This will:
+- Bump the version in package.json
+- Create a git tag
+- Build the project
+- Create a GitHub Release
+- Publish to npm (if configured with NPM_TOKEN)
+
+#### Option 2: Manual Tag Creation
+
+1. Update the version in package.json locally
+2. Create and push a git tag:
+   ```bash
+   git tag -a v0.1.1 -m "Release v0.1.1"
+   git push origin v0.1.1
+   ```
+3. The GitHub Actions workflow will automatically create a release
+
+### Release Prerequisites
+
+To enable npm publishing, you need to:
+
+1. Add your NPM_TOKEN to repository secrets
+2. Ensure you have proper access to the npm package name

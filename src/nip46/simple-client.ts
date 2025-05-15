@@ -314,8 +314,8 @@ export class SimpleNIP46Client {
 
         // Use the utilities to sign the event correctly
         // Import the createSignedEvent function
-        const { createSignedEvent } = require('../utils/event');
-        
+        const { createSignedEvent } = require("../utils/event");
+
         // Create a properly signed event using promises
         createSignedEvent(eventData, this.clientKeys.privateKey)
           .then((signedEvent: NostrEvent) => {
@@ -325,7 +325,9 @@ export class SimpleNIP46Client {
           .catch((err: any) => {
             clearTimeout(timeoutId);
             this.pendingRequests.delete(request.id);
-            reject(new Error(`Failed to sign or publish event: ${err.message}`));
+            reject(
+              new Error(`Failed to sign or publish event: ${err.message}`),
+            );
           });
       } catch (error: any) {
         clearTimeout(timeoutId);

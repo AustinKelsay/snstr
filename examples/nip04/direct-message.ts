@@ -14,7 +14,12 @@
  * in favor of NIP-44. It's provided here for compatibility with older clients.
  */
 
-import { encrypt, decrypt, getSharedSecret, NIP04DecryptionError } from "../../src/nip04";
+import {
+  encrypt,
+  decrypt,
+  getSharedSecret,
+  NIP04DecryptionError,
+} from "../../src/nip04";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { bytesToHex } from "@noble/hashes/utils";
 
@@ -24,19 +29,24 @@ async function main() {
 
     // Generate keys for Alice and Bob
     console.log("Generating keypairs...");
-    
+
     // Generate random keypairs for Alice and Bob
     const alicePrivateKey = secp256k1.utils.randomPrivateKey();
-    const alicePublicKey = bytesToHex(secp256k1.getPublicKey(alicePrivateKey, true).slice(1));
-    
+    const alicePublicKey = bytesToHex(
+      secp256k1.getPublicKey(alicePrivateKey, true).slice(1),
+    );
+
     const bobPrivateKey = secp256k1.utils.randomPrivateKey();
-    const bobPublicKey = bytesToHex(secp256k1.getPublicKey(bobPrivateKey, true).slice(1));
+    const bobPublicKey = bytesToHex(
+      secp256k1.getPublicKey(bobPrivateKey, true).slice(1),
+    );
 
     console.log(`Alice's public key: ${alicePublicKey.slice(0, 8)}...`);
     console.log(`Bob's public key: ${bobPublicKey.slice(0, 8)}...`);
 
     // The message Alice wants to send to Bob
-    const message = "Hello Bob! This is a secret message that only you can read.";
+    const message =
+      "Hello Bob! This is a secret message that only you can read.";
     console.log(`\nOriginal message: "${message}"`);
 
     // Alice encrypts a message for Bob using NIP-04
@@ -49,7 +59,9 @@ async function main() {
     console.log(`Encrypted message: ${encryptedMessage}`);
 
     // Simulate transmission over a Nostr network
-    console.log("\nMessage would be transmitted in a Nostr Event of kind 4 (encrypted direct message)");
+    console.log(
+      "\nMessage would be transmitted in a Nostr Event of kind 4 (encrypted direct message)",
+    );
     console.log("Event structure would look like:");
     console.log({
       kind: 4,
@@ -104,22 +116,31 @@ async function main() {
       { type: "Multiple IV separators", message: "part1?iv=part2?iv=part3" },
       { type: "Empty ciphertext", message: "?iv=validIV" },
       { type: "Empty IV", message: "validciphertext?iv=" },
-      { type: "Invalid base64 ciphertext", message: "invalid!base64?iv=aGVsbG8=" },
-      { type: "Invalid base64 IV", message: `${encryptedMessage.split("?iv=")[0]}?iv=invalid!iv!` },
-      { type: "Incorrect IV length", message: `${encryptedMessage.split("?iv=")[0]}?iv=aGVsbG8=` }, // "hello" in base64
+      {
+        type: "Invalid base64 ciphertext",
+        message: "invalid!base64?iv=aGVsbG8=",
+      },
+      {
+        type: "Invalid base64 IV",
+        message: `${encryptedMessage.split("?iv=")[0]}?iv=invalid!iv!`,
+      },
+      {
+        type: "Incorrect IV length",
+        message: `${encryptedMessage.split("?iv=")[0]}?iv=aGVsbG8=`,
+      }, // "hello" in base64
     ];
 
     for (const { type, message } of malformedMessages) {
       try {
         console.log(`\nTrying to decrypt: ${type}`);
         console.log(`Message: ${message}`);
-        
+
         const result = decrypt(
           message,
           bytesToHex(bobPrivateKey),
           alicePublicKey,
         );
-        
+
         console.log(`Unexpected success! Decrypted: ${result}`);
       } catch (error) {
         if (error instanceof NIP04DecryptionError) {

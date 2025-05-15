@@ -20,19 +20,19 @@ export type NostrFilter = {
   authors?: string[];
   kinds?: number[];
   // Standard tag filters from NIP-01
-  "#e"?: string[];  // event references
-  "#p"?: string[];  // pubkey references
-  "#a"?: string[];  // address references
-  "#d"?: string[];  // d tag values for addressable events
-  "#t"?: string[];  // topic/tag values
-  "#r"?: string[];  // reference/URL values
-  "#g"?: string[];  // geohash values
-  "#u"?: string[];  // URL values
+  "#e"?: string[]; // event references
+  "#p"?: string[]; // pubkey references
+  "#a"?: string[]; // address references
+  "#d"?: string[]; // d tag values for addressable events
+  "#t"?: string[]; // topic/tag values
+  "#r"?: string[]; // reference/URL values
+  "#g"?: string[]; // geohash values
+  "#u"?: string[]; // URL values
   // Common extended tag filters
-  "#c"?: string[];  // content warning
-  "#l"?: string[];  // language
-  "#m"?: string[];  // MIME type
-  "#s"?: string[];  // subject
+  "#c"?: string[]; // content warning
+  "#l"?: string[]; // language
+  "#m"?: string[]; // MIME type
+  "#s"?: string[]; // subject
   // Time filters
   since?: number;
   until?: number;

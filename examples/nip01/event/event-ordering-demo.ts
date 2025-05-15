@@ -138,7 +138,9 @@ async function main() {
     const sameTimestamp = now + 60;
 
     // Event A (lexically first ID)
-    console.log("Creating event A with ID that should come first lexically (e.g., starts with 0-3)...");
+    console.log(
+      "Creating event A with ID that should come first lexically (e.g., starts with 0-3)...",
+    );
     let eventA: NostrEvent;
 
     // Keep trying until we get an ID that starts with '0'-'3'
@@ -151,7 +153,7 @@ async function main() {
         pubkey: keys.publicKey,
       };
       eventA = await createSignedEvent(eventATemplate, keys.privateKey);
-    } while (eventA.id[0] > '3'); // Continue if first char is '4' through 'f'
+    } while (eventA.id[0] > "3"); // Continue if first char is '4' through 'f'
 
     await client.publishEvent(eventA);
     console.log(
@@ -174,7 +176,7 @@ async function main() {
         pubkey: keys.publicKey,
       };
       eventB = await createSignedEvent(eventBTemplate, keys.privateKey);
-    } while (eventB.id[0] < '6' || eventB.id[0] > '9'); // Continue if not in '6'-'9' range
+    } while (eventB.id[0] < "6" || eventB.id[0] > "9"); // Continue if not in '6'-'9' range
 
     await client.publishEvent(eventB);
     console.log(
@@ -182,7 +184,9 @@ async function main() {
     );
 
     // Event C (lexically last ID)
-    console.log("Creating event C with ID that should come third lexically (e.g., starts with c-f)...");
+    console.log(
+      "Creating event C with ID that should come third lexically (e.g., starts with c-f)...",
+    );
     let eventC: NostrEvent;
 
     // Keep trying until we get an ID that starts with 'c'-'f'
@@ -195,7 +199,7 @@ async function main() {
         pubkey: keys.publicKey,
       };
       eventC = await createSignedEvent(eventCTemplate, keys.privateKey);
-    } while (eventC.id[0] < 'c'); // Continue if first char is '0' through 'b'
+    } while (eventC.id[0] < "c"); // Continue if first char is '0' through 'b'
 
     await client.publishEvent(eventC);
     console.log(

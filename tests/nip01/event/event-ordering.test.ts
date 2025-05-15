@@ -3,8 +3,8 @@
  * It tests that events are properly sorted:
  * 1. By created_at timestamp (newest first)
  * 2. By event ID (lexically) when timestamps are the same
- * 
- * Note: The integration test for the relay's buffer mechanism is in 
+ *
+ * Note: The integration test for the relay's buffer mechanism is in
  * event-ordering-integration.test.ts but requires additional work to properly
  * mock the WebSocket connections.
  */
@@ -48,7 +48,7 @@ describe("Event ordering", () => {
 
     // Put events in an array (in a random order)
     const events = [event1, event2];
-    
+
     // Sort the events
     const sortedEvents = sortEvents(events);
 
@@ -82,7 +82,7 @@ describe("Event ordering", () => {
 
     // Put events in an array (in a random order)
     const events = [event1, event2];
-    
+
     // Sort the events
     const sortedEvents = sortEvents(events);
 
@@ -130,9 +130,9 @@ describe("Event ordering", () => {
         tags: [],
         content: "Middle event with id 'ccc'",
         sig: "sig",
-      }
+      },
     ];
-    
+
     // Sort the events
     const sortedEvents = sortEvents(events);
 

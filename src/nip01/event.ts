@@ -156,7 +156,11 @@ export async function createDirectMessage(
   const pubkey = getPublicKey(privateKey);
 
   // Encrypt the content using NIP-04
-  const encryptedContent = await encryptNIP04(content, privateKey, recipientPubkey);
+  const encryptedContent = await encryptNIP04(
+    content,
+    privateKey,
+    recipientPubkey,
+  );
 
   return {
     pubkey,
@@ -205,13 +209,13 @@ export function createAddressableEvent(
   additionalTags: string[][] = [],
 ): UnsignedEvent {
   if (kind < 30000 || kind >= 40000) {
-    throw new Error('Addressable events must have kind between 30000-39999');
+    throw new Error("Addressable events must have kind between 30000-39999");
   }
 
   const pubkey = getPublicKey(privateKey);
-  
+
   // Ensure the d tag is included and is the first tag
-  const dTag = ['d', dTagValue];
+  const dTag = ["d", dTagValue];
   const tags = [dTag, ...additionalTags];
 
   return {

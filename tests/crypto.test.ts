@@ -35,14 +35,16 @@ describe("Crypto Utilities", () => {
     });
 
     it("should generate private keys within the valid secp256k1 curve range", async () => {
-      // The secp256k1 curve order 
-      const curveOrder = BigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
-      
+      // The secp256k1 curve order
+      const curveOrder = BigInt(
+        "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+      );
+
       // Test multiple generated keys to ensure they're all valid
       for (let i = 0; i < 5; i++) {
         const keypair = await generateKeypair();
         const privateKeyBigInt = BigInt(`0x${keypair.privateKey}`);
-        
+
         // Valid private keys must be: 0 < privateKey < curve order
         expect(privateKeyBigInt).toBeGreaterThan(BigInt(0));
         expect(privateKeyBigInt).toBeLessThan(curveOrder);
@@ -156,8 +158,8 @@ describe("Crypto Utilities", () => {
       const evePrivateKey = eveKeypair.privateKey;
 
       // Eve tries to decrypt with her key
-      expect(() => 
-        decryptNIP04(encrypted, evePrivateKey, alicePublicKey)
+      expect(() =>
+        decryptNIP04(encrypted, evePrivateKey, alicePublicKey),
       ).toThrow(NIP04DecryptionError);
     });
 
@@ -228,7 +230,7 @@ describe("Crypto Utilities", () => {
 
       // Decryption should throw an error
       expect(() =>
-        decryptNIP04(tampered, bobPrivateKey, alicePublicKey)
+        decryptNIP04(tampered, bobPrivateKey, alicePublicKey),
       ).toThrow(NIP04DecryptionError);
     });
   });

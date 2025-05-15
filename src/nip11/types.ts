@@ -92,4 +92,4 @@ export interface FeeSchedule {
   period?: number;
   /** Human-readable description of the fee */
   description?: string;
-} 
+}

@@ -47,7 +47,9 @@ import {
 } from "../../src/nip57/utils";
 
 // Store originals for restoration
-const originalSha256Hex = jest.requireActual("../../src/utils/crypto").sha256Hex;
+const originalSha256Hex = jest.requireActual(
+  "../../src/utils/crypto",
+).sha256Hex;
 const originalVerifySignature = jest.requireActual(
   "../../src/utils/crypto",
 ).verifySignature;
@@ -684,7 +686,9 @@ describe("NIP-57: Lightning Zaps", () => {
         (parseBolt11Invoice as jest.Mock).mockReturnValue(mockInvoiceData);
 
         // And mock the sha256Hex function to return the expected hash value
-        (sha256Hex as jest.Mock).mockReturnValue(mockInvoiceData.descriptionHash);
+        (sha256Hex as jest.Mock).mockReturnValue(
+          mockInvoiceData.descriptionHash,
+        );
 
         // Create zap receipt with our real invoice
         const zapReceiptTemplate = createZapReceipt(

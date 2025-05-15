@@ -5,7 +5,7 @@ import {
   NIP46Method,
   NIP46Request,
   NIP46Response,
-  NIP46ClientSession
+  NIP46ClientSession,
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
@@ -24,7 +24,10 @@ export const NIP46_METHODS = {
 };
 
 // Helper functions for response creation
-export function createSuccessResponse(id: string, result: string): NIP46Response {
+export function createSuccessResponse(
+  id: string,
+  result: string,
+): NIP46Response {
   return { id, result };
 }
 
@@ -325,7 +328,8 @@ export class SimpleNIP46Bunker {
     }
 
     // Extract parameters
-    const [requestedSignerPubkey, requestedSecret, permissionsParam] = request.params;
+    const [requestedSignerPubkey, requestedSecret, permissionsParam] =
+      request.params;
 
     // Validate signer pubkey
     if (requestedSignerPubkey !== this.signerKeys.publicKey) {
@@ -351,7 +355,7 @@ export class SimpleNIP46Bunker {
     };
 
     // Add requested permissions if provided
-    if (permissionsParam && typeof permissionsParam === 'string') {
+    if (permissionsParam && typeof permissionsParam === "string") {
       permissionsParam.split(",").forEach((permission: string) => {
         session.permissions.add(permission.trim());
       });
@@ -477,11 +481,7 @@ export class SimpleNIP46Bunker {
 
     try {
       // Encrypt the message
-      const encrypted = encrypt(
-        plaintext,
-        this.userKeys.privateKey,
-        recipient,
-      );
+      const encrypted = encrypt(plaintext, this.userKeys.privateKey, recipient);
 
       this.logger.debug(`NIP-04 encryption successful`);
 
@@ -524,11 +524,7 @@ export class SimpleNIP46Bunker {
 
     try {
       // Decrypt the message
-      const decrypted = decrypt(
-        ciphertext,
-        this.userKeys.privateKey,
-        sender,
-      );
+      const decrypted = decrypt(ciphertext, this.userKeys.privateKey, sender);
 
       this.logger.debug(`NIP-04 decryption successful`);
 
@@ -572,8 +568,8 @@ export class SimpleNIP46Bunker {
 
       // Create a properly signed event
       const signedEvent = await createSignedEvent(
-        eventData, 
-        this.signerKeys.privateKey
+        eventData,
+        this.signerKeys.privateKey,
       );
 
       // Use the Nostr class to publish the event

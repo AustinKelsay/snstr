@@ -1,14 +1,14 @@
 import { hexToBytes, bytesToHex, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
-import { hmac } from '@noble/hashes/hmac';
+import { hmac } from "@noble/hashes/hmac";
 import { base64 } from "@scure/base";
 
 /**
  * NIP-04: Encrypted Direct Message
  *
  * Implementation of NIP-04 for encrypted direct messaging.
- * 
+ *
  * @see https://github.com/nostr-protocol/nips/blob/master/04.md
  */
 
@@ -27,7 +27,7 @@ export class NIP04DecryptionError extends Error {
 
 /**
  * Derives a shared secret for NIP-04 encryption/decryption using ECDH
- * 
+ *
  * @param privateKey - The private key as a hex string
  * @param publicKey - The public key as a hex string (without the 02 prefix)
  * @returns Uint8Array containing the derived shared secret
@@ -40,13 +40,16 @@ export function getSharedSecret(
   const publicKeyBytes = hexToBytes("02" + publicKey);
 
   // Generate ECDH shared point
-  const sharedPoint = secp256k1.getSharedSecret(privateKeyBytes, publicKeyBytes);
-  
+  const sharedPoint = secp256k1.getSharedSecret(
+    privateKeyBytes,
+    publicKeyBytes,
+  );
+
   // Extract x-coordinate only (slice off the first byte which is a prefix)
   const sharedX = sharedPoint.slice(1, 33);
-  
+
   // Hash the x-coordinate with HMAC-SHA256 using "nip04" as the key for compatibility
-  return hmac.create(sha256, getHmacKey('nip04')).update(sharedX).digest();
+  return hmac.create(sha256, getHmacKey("nip04")).update(sharedX).digest();
 }
 
 /**
@@ -107,7 +110,7 @@ export function encrypt(
  */
 function isValidBase64(str: string): boolean {
   try {
-    return Buffer.from(str, 'base64').toString('base64') === str;
+    return Buffer.from(str, "base64").toString("base64") === str;
   } catch {
     return false;
   }
@@ -133,16 +136,16 @@ export function decrypt(
     const crypto = require("crypto");
 
     // Validate input is a string
-    if (typeof encryptedMessage !== 'string') {
+    if (typeof encryptedMessage !== "string") {
       throw new NIP04DecryptionError(
-        'Invalid encrypted message: must be a string'
+        "Invalid encrypted message: must be a string",
       );
     }
 
     // Check if the message follows the NIP-04 format with IV
-    if (!encryptedMessage.includes('?iv=')) {
+    if (!encryptedMessage.includes("?iv=")) {
       throw new NIP04DecryptionError(
-        'Invalid encrypted message format: missing IV separator'
+        "Invalid encrypted message format: missing IV separator",
       );
     }
 
@@ -150,7 +153,7 @@ export function decrypt(
     const parts = encryptedMessage.split("?iv=");
     if (parts.length !== 2) {
       throw new NIP04DecryptionError(
-        'Invalid encrypted message format: multiple IV separators found'
+        "Invalid encrypted message format: multiple IV separators found",
       );
     }
 
@@ -159,20 +162,20 @@ export function decrypt(
     // Validate both parts are non-empty
     if (!encryptedText || !ivBase64) {
       throw new NIP04DecryptionError(
-        'Invalid encrypted message format: empty ciphertext or IV'
+        "Invalid encrypted message format: empty ciphertext or IV",
       );
     }
 
     // Validate both parts are valid base64
     if (!isValidBase64(encryptedText)) {
       throw new NIP04DecryptionError(
-        'Invalid encrypted message: ciphertext is not valid base64'
+        "Invalid encrypted message: ciphertext is not valid base64",
       );
     }
 
     if (!isValidBase64(ivBase64)) {
       throw new NIP04DecryptionError(
-        'Invalid encrypted message: IV is not valid base64'
+        "Invalid encrypted message: IV is not valid base64",
       );
     }
 
@@ -182,7 +185,7 @@ export function decrypt(
     // Validate IV length
     if (iv.length !== 16) {
       throw new NIP04DecryptionError(
-        `Invalid IV length: expected 16 bytes, got ${iv.length}`
+        `Invalid IV length: expected 16 bytes, got ${iv.length}`,
       );
     }
 
@@ -206,7 +209,7 @@ export function decrypt(
     if (error instanceof NIP04DecryptionError) {
       throw error;
     }
-    
+
     console.error("Failed to decrypt message:", error);
     throw new NIP04DecryptionError("Failed to decrypt message");
   }
