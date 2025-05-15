@@ -5,7 +5,12 @@
  * to prevent attacks like XSS through invalid relay URLs.
  */
 
-import type { ProfileData, EventData, AddressData } from "./index";
+import {
+  ProfileData,
+  EventData,
+  AddressData,
+  RelayUrl
+} from "./types";
 
 /**
  * Validates if a relay URL is safe to use
@@ -17,7 +22,7 @@ import type { ProfileData, EventData, AddressData } from "./index";
  * - No null bytes or dangerous characters in hostname
  * - No null bytes in query parameters
  */
-export function isValidRelayUrl(url: string): boolean {
+export function isValidRelayUrl(url: RelayUrl): boolean {
   try {
     // Basic protocol check
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {

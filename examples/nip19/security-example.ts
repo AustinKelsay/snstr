@@ -11,6 +11,7 @@ import {
   encodeAddress,
   decode,
   ProfileData,
+  Bech32String
 } from "../../src/nip19";
 import chalk from "chalk";
 
@@ -479,7 +480,7 @@ async function main() {
 
   try {
     // Step 1: Decode the profile (this follows NIP-19 spec and includes ALL relays)
-    const profile = decodeProfile(maliciousNprofile);
+    const profile = decodeProfile(maliciousNprofile as Bech32String);
     console.log("Decoded profile:");
     console.log(profile);
 
@@ -517,7 +518,7 @@ async function main() {
 
   try {
     // Step 1: Decode the event
-    const event = decodeEvent(maliciousNevent);
+    const event = decodeEvent(maliciousNevent as Bech32String);
     console.log("Decoded event:");
     console.log(event);
 
@@ -538,7 +539,7 @@ async function main() {
 
   try {
     // Step 1: Decode the address
-    const address = decodeAddress(maliciousNaddr);
+    const address = decodeAddress(maliciousNaddr as Bech32String);
     console.log("Decoded address:");
     console.log(address);
 
@@ -557,13 +558,13 @@ async function main() {
   function safelyDecodeAndUse(bech32Str: string) {
     try {
       if (bech32Str.startsWith("nprofile1")) {
-        const profile = decodeProfile(bech32Str);
+        const profile = decodeProfile(bech32Str as Bech32String);
         return filterProfile(profile);
       } else if (bech32Str.startsWith("nevent1")) {
-        const event = decodeEvent(bech32Str);
+        const event = decodeEvent(bech32Str as Bech32String);
         return filterEvent(event);
       } else if (bech32Str.startsWith("naddr1")) {
-        const address = decodeAddress(bech32Str);
+        const address = decodeAddress(bech32Str as Bech32String);
         return filterAddress(address);
       } else {
         // Handle other types or throw error

@@ -15,6 +15,8 @@ import {
   decode,
   decodeEvent,
   decodeProfile,
+  Bech32String,
+  AddressData
 } from "../../src/nip19";
 
 /**
@@ -52,9 +54,9 @@ function demonstrateHexValidation() {
 
   // Invalid cases
   console.log("\nInvalid hex cases:");
-  invalidHexCases.forEach(({ name, value }: { name: string; value: any }) => {
+  invalidHexCases.forEach(({ name, value }: { name: string; value: string | number }) => {
     try {
-      encodePublicKey(value);
+      encodePublicKey(value as string);
       console.error(`❌ Should have failed but passed: ${name}`);
     } catch (error: unknown) {
       const errorMessage =
@@ -205,9 +207,9 @@ function demonstrateRequiredFields() {
 
   // Invalid cases
   console.log("\nMissing required field cases:");
-  requiredFieldCases.forEach(({ name, data }: { name: string; data: any }) => {
+  requiredFieldCases.forEach(({ name, data }: { name: string; data: Partial<AddressData> }) => {
     try {
-      encodeAddress(data);
+      encodeAddress(data as AddressData);
       console.error(`❌ Should have failed but passed: ${name}`);
     } catch (error: unknown) {
       const errorMessage =
@@ -420,10 +422,10 @@ function demonstrateGracefulErrorHandling() {
     "\nExample of safely handling decoded profiles with potentially invalid URLs:",
   );
 
-  function _safeDecodeProfile(nprofile: string) {
+  function _safeDecodeProfile(nprofileStr: Bech32String) {
     try {
       // Step 1: Decode the profile
-      const decodedProfile = decodeProfile(nprofile);
+      const decodedProfile = decodeProfile(nprofileStr);
 
       // Step 2: Filter out invalid relay URLs
       const validateRelayUrl = (url: string): boolean => {

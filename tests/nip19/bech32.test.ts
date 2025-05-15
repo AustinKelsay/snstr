@@ -10,6 +10,7 @@ import {
   encodeNoteId,
   decodeNoteId,
   decode,
+  Bech32String
 } from "../../src/nip19";
 
 // Test data fixtures
@@ -157,7 +158,7 @@ describe("NIP-19: Basic Bech32 Entities", () => {
 
     test("should throw with appropriate error for invalid bech32 strings", () => {
       // Arrange & Act & Assert
-      expect(() => decode("not-a-valid-bech32-string")).toThrow(
+      expect(() => decode("not-a-valid-bech32-string" as Bech32String)).toThrow(
         /Invalid bech32 string format/,
       );
     });
