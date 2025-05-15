@@ -109,9 +109,25 @@ For more examples including encryption, relay management, and NIP-specific featu
 
 The project is organized with detailed documentation for different components:
 
-- **[NIP Implementation Guide](src/NIP_STANDARDIZATION.md)**: Standards for implementing NIPs
+#### Core Documentation
 - **[Test Documentation](tests/README.md)**: Overview of test organization and execution
 - **[Examples Documentation](examples/README.md)**: Complete guide to examples for all features
+
+#### NIP Documentation
+- **[NIP-01](src/nip01/README.md)**: Basic protocol functionality
+- **[NIP-04](src/nip04/README.md)**: Encrypted direct messages
+- **[NIP-05](src/nip05/README.md)**: DNS identifier verification
+- **[NIP-07](src/nip07/README.md)**: Browser extension integration
+- **[NIP-11](src/nip11/README.md)**: Relay information document
+- **[NIP-19](src/nip19/README.md)**: Bech32-encoded entities
+- **[NIP-44](src/nip44/README.md)**: Versioned encryption
+- **[NIP-46](src/nip46/README.md)**: Remote signing protocol
+- **[NIP-47](src/nip47/README.md)**: Nostr Wallet Connect
+- **[NIP-57](src/nip57/README.md)**: Lightning Zaps
+
+
+#### Standardization Guidelines
+- **[NIP Implementation Guide](src/NIP_STANDARDIZATION.md)**: Standards for implementing NIPs
 - **[Test Standardization](tests/TEST_STANDARDIZATION.md)**: Guide for writing standardized tests
 - **[Example Standardization](examples/EXAMPLE_STANDARDIZATION.md)**: Guide for creating standardized examples
 
