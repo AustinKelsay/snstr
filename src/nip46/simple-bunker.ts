@@ -2,14 +2,11 @@ import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { encrypt, decrypt } from "../nip04";
 import {
-  NIP46Method,
   NIP46Request,
   NIP46Response,
-  NIP46ClientSession,
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
-import { generateKeypair } from "../utils/crypto";
 
 // Additional constants for NIP-46
 export const NIP46_METHODS = {

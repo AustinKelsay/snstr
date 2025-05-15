@@ -1,7 +1,6 @@
 import {
   randomBytes,
   utf8ToBytes,
-  hexToBytes,
   concatBytes,
 } from "@noble/hashes/utils";
 import { sha256 } from "@noble/hashes/sha2";

@@ -24,7 +24,6 @@ import {
   fetchLnurlPayMetadata,
   supportsNostrZaps,
   buildZapCallbackUrl,
-  extractLnurlMetadata,
 } from "./utils";
 
 /**
@@ -649,7 +648,7 @@ export class ZapClient {
       }
 
       // Use provided LNURL or fetch from profile
-      let lnurl = lnurlFromProfile;
+      const lnurl = lnurlFromProfile;
       if (!lnurl) {
         // In a real implementation, we would fetch the user's profile to get their LNURL
         // For now, return false as we don't have profile fetching implemented

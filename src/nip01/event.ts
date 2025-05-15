@@ -1,8 +1,6 @@
 import { EventTemplate, NostrEvent } from "../types/nostr";
 import { getPublicKey } from "../utils/crypto";
 import { encrypt as encryptNIP04 } from "../nip04";
-import { schnorr } from "@noble/curves/secp256k1";
-import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 
@@ -62,22 +60,6 @@ export async function getEventHash(
 
   // Hash the serialized data
   return sha256Hex(serialized);
-}
-
-async function signEvent(
-  event: Omit<NostrEvent, "sig">,
-  privateKey: string,
-): Promise<NostrEvent> {
-  const signatureBytes = await schnorr.sign(
-    hexToBytes(event.id),
-    hexToBytes(privateKey),
-  );
-  const signature = bytesToHex(signatureBytes);
-
-  return {
-    ...event,
-    sig: signature,
-  };
 }
 
 /**

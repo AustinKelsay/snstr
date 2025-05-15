@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { schnorr } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
@@ -22,7 +21,7 @@ interface EventFilter {
   since?: number;
   until?: number;
   limit?: number;
-  [key: string]: any | undefined;
+  [key: string]: unknown | undefined;
 }
 
 interface SignedEvent {
@@ -40,39 +39,6 @@ interface Subscription {
   instance: ClientSession;
   sub_id: string;
 }
-
-/* ================ [ Schema ] ================ */
-
-const num = z.number().max(Number.MAX_SAFE_INTEGER),
-  str = z.string(),
-  stamp = num.min(500_000_000),
-  hex = str.regex(/^[0-9a-fA-F]*$/).refine((e) => e.length % 2 === 0),
-  hash = hex.refine((e) => e.length === 64),
-  sig = hex.refine((e) => e.length === 128),
-  tags = str.array();
-
-const event_schema = z.object({
-  content: str,
-  created_at: stamp,
-  id: hash,
-  kind: num,
-  pubkey: hash,
-  sig: sig,
-  tags: tags.array(),
-});
-
-const filter_schema = z
-  .object({
-    ids: hash.array().optional(),
-    authors: hash.array().optional(),
-    kinds: num.array().optional(),
-    since: stamp.optional(),
-    until: stamp.optional(),
-    limit: num.optional(),
-  })
-  .catchall(tags);
-
-const sub_schema = z.tuple([str]).rest(filter_schema);
 
 /* ================ [ Server Class ] ================ */
 
@@ -306,7 +272,7 @@ class ClientSession {
   }
 
   _handler(message: string) {
-    let verb: string, payload: any;
+    let verb: string, _payload: unknown[];
 
     try {
       // Try to parse as JSON
@@ -317,7 +283,7 @@ class ClientSession {
         // Check if it's a standard Nostr message
         if (["EVENT", "REQ", "CLOSE"].includes(parsed[0])) {
           // Handle standard Nostr messages
-          [verb, ...payload] = parsed;
+          [verb, ..._payload] = parsed;
 
           switch (verb) {
             case "EVENT":
@@ -348,9 +314,11 @@ class ClientSession {
                   "invalid: REQ message missing params",
                 ]);
               }
-              const sub_id = parsed[1];
-              const filters = parsed.slice(2);
-              return this._onreq(sub_id, filters);
+              {
+                const sub_id = parsed[1];
+                const filters = parsed.slice(2);
+                return this._onreq(sub_id, filters);
+              }
 
             case "CLOSE":
               if (parsed.length !== 2) {
@@ -438,7 +406,7 @@ class ClientSession {
               }
 
               // Send to matching subscription
-              const [clientId, subId] = uid.split("/");
+              const [_clientId, subId] = uid.split("/");
               sub.instance.send(["EVENT", subId, event]);
               break;
             }
@@ -487,9 +455,6 @@ class ClientSession {
 
     // Add subscription
     this.addSub(sub_id, ...filters);
-
-    // Check for NIP-46 subscription
-    const hasNip46Filter = filters.some((f) => f.kinds?.includes(24133));
 
     // For each filter
     let count = 0;
@@ -647,16 +612,12 @@ class ClientSession {
 
 /* ================ [ Methods ] ================ */
 
-function assert(value: unknown): asserts value {
-  if (value === false) throw new Error("assertion failed!");
-}
-
 function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
-  const { authors, ids, kinds, since, until, limit, ...rest } = filter;
+  const { authors, ids, kinds, since, until, ...rest } = filter;
 
   const tag_filters: string[][] = Object.entries(rest)
     .filter((e) => e[0].startsWith("#"))
-    .map((e) => [e[0].slice(1, 2), ...e[1]]);
+    .map((e) => [e[0].slice(1, 2), ...(e[1] as string[])]);
 
   if (ids !== undefined && !ids.includes(event.id)) {
     return false;

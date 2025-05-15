@@ -1,6 +1,6 @@
 import { Nostr } from "../nip01/nostr";
 import { NostrEvent } from "../types/nostr";
-import { getPublicKey, signEvent } from "../utils/crypto";
+import { signEvent } from "../utils/crypto";
 import { getEventHash } from "../nip01/event";
 import { createEvent, createSignedEvent } from "../nip01/event";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
@@ -9,7 +9,6 @@ import {
   NIP47Request,
   NIP47Response,
   NIP47EventKind,
-  NIP47NotificationType,
   NIP47Notification,
   WalletImplementation,
   NIP47ErrorCode,
@@ -454,7 +453,7 @@ export class NostrWalletService {
           }
           break;
 
-        case NIP47Method.LIST_TRANSACTIONS:
+        case NIP47Method.LIST_TRANSACTIONS: {
           const transactions = await this.walletImpl.listTransactions(
             request.params.from,
             request.params.until,
@@ -465,6 +464,7 @@ export class NostrWalletService {
           );
           result = { transactions };
           break;
+        }
 
         case NIP47Method.SIGN_MESSAGE:
           result = await this.walletImpl.signMessage?.(request.params.message);
