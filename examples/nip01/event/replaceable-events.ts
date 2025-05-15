@@ -16,7 +16,7 @@
  */
 
 import { Nostr, NostrEvent, generateKeypair } from "../../src";
-import { createEvent, createSignedEvent } from "../../src/utils/event";
+import { createEvent, createSignedEvent } from "../../src/nip01/event";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 // Create an ephemeral relay for the example

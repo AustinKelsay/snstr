@@ -15,9 +15,11 @@
  * npm run example:addressable
  */
 
-import { Nostr, createAddressableEvent, NostrEvent, generateKeypair } from "../../src";
-import { createSignedEvent } from "../../src/utils/event";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { Nostr } from "../../../src/nip01/nostr";
+import { NostrEvent } from "../../../src/types/nostr";
+import { generateKeypair } from "../../../src/utils/crypto";
+import { createAddressableEvent, createSignedEvent } from "../../../src/nip01/event";
+import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 // Create an ephemeral relay for the example
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";

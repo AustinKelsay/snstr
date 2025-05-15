@@ -15,8 +15,22 @@ src/nipXX/
 └── README.md      # Documentation
 ```
 
+### Special Structure for NIP-01
+
+NIP-01 (core protocol) has a specialized structure due to its foundational nature:
+
+```
+src/nip01/
+├── event.ts           # Event creation, validation, and utility functions
+├── nostr.ts           # Main Nostr client implementation 
+├── relay.ts           # Relay connection and subscription management
+├── relay-connection.ts # WebSocket connection handling
+└── README.md          # Documentation
+```
+
 ### When to Split Files
 
+- **NIP-01**: Uses its own structure as the foundation of the protocol
 - **Small NIPs**: For simple NIPs (like NIP-04, NIP-05), having just `index.ts` and `README.md` is sufficient
 - **Medium NIPs**: For NIPs with more functionality, split into `index.ts`, `types.ts`, and `README.md`
 - **Complex NIPs**: For complex NIPs (like NIP-46, NIP-47, NIP-57), use the full structure with additional files as needed
@@ -132,6 +146,22 @@ Every NIP should have a README.md file with the following sections:
 The main `src/index.ts` file should have consistent export grouping:
 
 ```typescript
+// Export NIP-01 core protocol components
+export {
+  // Classes
+  Nostr,
+  RelayPool,
+  
+  // Types
+  Event,
+  Filter,
+  RelayEvent,
+  
+  // Functions
+  createEvent,
+  verifyEvent
+} from './nip01';
+
 // Export NIP-XX utilities
 export {
   // Constants

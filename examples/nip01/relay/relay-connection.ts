@@ -1,4 +1,5 @@
-import { Relay, RelayEvent, NostrEvent } from "../../src";
+import { Relay } from "../../../src/nip01/relay";
+import { RelayEvent, NostrEvent } from "../../../src/types/nostr";
 
 /**
  * This example demonstrates the improved connection handling in SNSTR
@@ -197,7 +198,7 @@ async function main() {
       
       // Create a Nostr client with this relay
       console.log("\nCreating Nostr client with this relay to demonstrate unsubscribeAll...");
-      const { Nostr } = await import("../../src");
+      const { Nostr } = await import("../../../src/nip01/nostr");
       const client = new Nostr(["wss://relay.nostr.band"]);
       
       // Create a subscription through the client

@@ -7,7 +7,7 @@ import {
   createTextNote,
   createDirectMessage,
   createMetadataEvent,
-} from "../utils/event";
+} from "./event";
 
 export class Nostr {
   private relays: Map<string, Relay> = new Map();

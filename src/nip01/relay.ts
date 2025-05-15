@@ -716,7 +716,7 @@ export class Relay {
       };
       
       // Import the verification functions dynamically to avoid circular dependencies
-      const { getEventHash } = await import('../utils/event');
+      const { getEventHash } = await import('./event');
       const { verifySignature } = await import('../utils/crypto');
       
       // Step 1: Validate event ID by comparing with calculated hash

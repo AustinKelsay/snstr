@@ -3,12 +3,12 @@
  * Tests that verify the functionality of the expanded filter types from NIP-01
  */
 
-import { NostrFilter, Filter, RelayEvent } from '../src/types/nostr';
-import { Relay } from '../src/client/relay';
-import { NostrRelay } from '../src/utils/ephemeral-relay';
-import { NostrEvent } from '../src/types/nostr';
-import { createSignedEvent } from '../src/utils/event';
-import { generateKeypair } from '../src/utils/crypto';
+import { NostrFilter, Filter } from '../../../src/types/nostr';
+import { Relay } from '../../../src/nip01/relay';
+import { NostrRelay } from '../../../src/utils/ephemeral-relay';
+import { NostrEvent } from '../../../src/types/nostr';
+import { createSignedEvent } from '../../../src/nip01/event';
+import { generateKeypair } from '../../../src/utils/crypto';
 
 // Helper function to wait for events
 const waitForEvents = (relay: Relay, filter: Filter, expectedCount: number): Promise<NostrEvent[]> => {

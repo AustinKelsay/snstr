@@ -13,7 +13,7 @@ import {
   validateZapReceipt,
   NostrEvent,
 } from "../../src";
-import { createSignedEvent, UnsignedEvent } from "../../src/utils/event";
+import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 import * as utils from "../../src/nip57/utils";
 import * as crypto from "../../src/utils/crypto";
 

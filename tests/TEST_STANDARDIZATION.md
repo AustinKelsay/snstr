@@ -4,32 +4,52 @@ This document outlines the recommended structure and organization for test files
 
 ## Test Directory Structure
 
-Tests should follow a mirrored structure to the source code:
+Tests should be organized by NIP number, with subdirectories for specific components:
 
 ```
 tests/
-├── nip04/                     # Tests for NIP-04 implementation
-│   ├── encryption.test.ts     # Tests for encryption functionality
-│   └── vectors.test.ts        # Tests against standard vectors
-├── nip05/                     # Tests for NIP-05 implementation
-│   └── nip05.test.ts          # All NIP-05 tests
-├── nip19.test.ts              # For simpler NIPs, a single test file is fine
-├── integration.test.ts        # Cross-NIP integration tests
-└── utils/                     # Tests for utility functions
-    └── crypto.test.ts         # Tests for cryptographic utilities
+├── nip01/                              # Tests for NIP-01 (core protocol) implementation
+│   ├── nostr.test.ts                   # Tests for the main Nostr client
+│   ├── event/                          # Tests for event functionality
+│   │   ├── event.test.ts               # Event creation and validation tests
+│   │   ├── event-ordering.test.ts      # Event ordering tests
+│   │   ├── event-ordering-integration.test.ts # Integration tests for event ordering
+│   │   ├── addressable-events.test.ts  # Tests for addressable events
+│   │   └── nostr-publish.test.ts       # Tests for event publication
+│   └── relay/                          # Tests for relay functionality
+│       ├── relay.test.ts               # Core relay functionality tests
+│       ├── filters.test.ts             # Filter and subscription tests
+│       └── relay-reconnect.test.ts     # Relay reconnection tests
+├── nip04/                              # Tests for NIP-04 implementation
+│   ├── encryption.test.ts              # Tests for encryption functionality
+│   └── vectors.test.ts                 # Tests against standard vectors
+├── nip05/                              # Tests for NIP-05 implementation
+│   └── nip05.test.ts                   # DNS identity verification tests
+├── nip07/                              # Tests for NIP-07 implementation
+│   └── nip07.test.ts                   # Browser extension integration tests
+├── nip11/                              # Tests for NIP-11 implementation
+│   └── nip11.test.ts                   # Relay information document tests
+├── nip19/                              # Tests for NIP-19 implementation
+│   └── bech32.test.ts                  # Bech32 encoding/decoding tests
+├── integration.test.ts                 # Cross-NIP integration tests
+└── utils/                              # Tests for utility functions
+    └── crypto.test.ts                  # Tests for cryptographic utilities
 ```
 
 ### When to Use Directories vs Single Files
 
-- **Single File**: For simple NIPs with limited functionality, use a single test file (e.g., `nip19.test.ts`)
-- **Directory**: For complex NIPs with multiple features, use a directory with multiple test files (e.g., `tests/nip47/`)
+- **NIP Directory**: Each NIP should have its own directory (e.g., `tests/nip01/`, `tests/nip04/`)
+- **Component Subdirectories**: For complex NIPs, use subdirectories for specific components (e.g., `event/`, `relay/`)
+- **Single File**: For simple components or NIPs with limited functionality, use a single test file
 - **Special Files**: For integration tests or tests that span multiple NIPs, use appropriately named files in the root of the tests directory
 
 ## File Naming Conventions
 
 - Test files should be named with `.test.ts` suffix
 - File names should clearly indicate what they're testing:
-  - `feature.test.ts` for specific feature tests
+  - `component.test.ts` for specific component tests (e.g., `event.test.ts`, `relay.test.ts`)
+  - `feature.test.ts` for specific feature tests (e.g., `encryption.test.ts`)
+  - `feature-detail.test.ts` for detailed aspects of features (e.g., `event-ordering.test.ts`)
   - `integration.test.ts` for integration tests
   - `vectors.test.ts` for vector-based tests
   - `e2e.test.ts` for end-to-end tests
@@ -139,10 +159,18 @@ The following scripts should be maintained for running tests:
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest tests/integration.test.ts",
+    "test:nip01": "jest tests/nip01",
+    "test:nip01:event": "jest tests/nip01/event",
+    "test:nip01:relay": "jest tests/nip01/relay",
+    "test:nostr": "jest tests/nip01/nostr.test.ts",
+    "test:event": "jest tests/nip01/event/event.test.ts",
+    "test:relay": "jest tests/nip01/relay",
     "test:nip04": "jest tests/nip04",
+    "test:nip05": "jest tests/nip05",
+    "test:nip07": "jest tests/nip07",
+    "test:nip11": "jest tests/nip11",
+    "test:nip19": "jest tests/nip19",
     "test:nip44": "jest tests/nip44",
-    "test:nip19": "jest tests/nip19.test.ts",
-    "test:nip05": "jest tests/nip05.test.ts",
     "test:nip46": "jest tests/nip46",
     "test:nip47": "jest tests/nip47",
     "test:nip57": "jest tests/nip57"
@@ -152,24 +180,25 @@ The following scripts should be maintained for running tests:
 
 ## Test Documentation
 
-Each test directory should include a README.md file explaining:
+Each NIP test directory should include a README.md file explaining:
 
 - What aspects of the NIP are being tested
+- What components are included in this test directory
 - Any special test setup required
 - Explanation of test fixtures or test vectors
 - Coverage goals and current status
 
-For complex NIPs, include a README.md in the test directory:
+For all NIP test directories, include a README.md:
 
 ```markdown
 # NIP-XX Tests
 
 This directory contains tests for the NIP-XX implementation.
 
-## Test Coverage
+## Components Tested
 
-- ✅ Feature A
-- ✅ Feature B 
+- ✅ Component A: Brief description
+- ✅ Component B: Brief description
 - ✅ Error Handling
 - ✅ Official Test Vectors
 
@@ -181,8 +210,8 @@ npm run test:nipXX
 
 ## Test Files
 
-- `feature-a.test.ts`: Tests for Feature A
-- `feature-b.test.ts`: Tests for Feature B
+- `component-a.test.ts`: Tests for Component A
+- `component-b.test.ts`: Tests for Component B
 - `vectors.test.ts`: Tests using official test vectors
 ```
 
@@ -195,7 +224,7 @@ When implementing tests for a NIP, ensure:
 - [ ] Test files follow the naming conventions
 - [ ] Integration tests with other NIPs if applicable
 - [ ] Test script added to package.json
-- [ ] README.md added if using a test directory
+- [ ] README.md added to the NIP test directory
 - [ ] Mocks are properly reset between tests
 
 ## Migration Plan

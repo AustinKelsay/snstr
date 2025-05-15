@@ -1,5 +1,5 @@
 import { NostrEvent } from "../types/nostr";
-import { Nostr } from "../client/nostr";
+import { Nostr } from "../nip01/nostr";
 import * as nip07 from "./index";
 
 /**

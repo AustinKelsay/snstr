@@ -12,36 +12,24 @@ npm run example                # Basic usage with ephemeral relay
 npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
 
-# Connection management examples
-npm run example:relay-connection # Relay connection with timeout handling
-npm run example:relay-reconnect  # Relay reconnection with exponential backoff
-
 # Crypto examples
 npm run example:crypto         # Cryptography examples (key generation, signing, verification)
+
+# NIP-01 examples
+npm run example:nip01:event:ordering       # Event ordering demonstration
+npm run example:nip01:event:addressable    # Addressable events (kinds 30000-39999)
+npm run example:nip01:event:replaceable    # Replaceable events (kinds 0, 3, 10000-19999)
+npm run example:nip01:relay:connection     # Relay connection with timeout handling
+npm run example:nip01:relay:reconnect      # Relay reconnection with exponential backoff
+npm run example:nip01:relay:filters        # Filter type examples
+npm run example:nip01:validation           # NIP-01 validation flow
 
 # Direct message examples
 npm run example:dm             # NIP-04 direct message example
 npm run example:dm:verbose     # NIP-04 direct message with verbose logging
 npm run example:dm:public      # NIP-04 direct message using public relays
 
-# Event examples
-npm run example:event-ordering # Event ordering demonstration
-npm run example:filter-types   # Filter type examples
-npm run example:validation     # Run various validation examples
-
-# Addressable events (kinds 30000-39999)
-npm run example:addressable         # Addressable events example
-npm run example:addressable:verbose # Addressable events with verbose logging
-npm run example:addressable:public  # Addressable events using public relays
-
-# Replaceable events (kinds 0, 3, 10000-19999)
-npm run example:replaceable         # Replaceable events example
-npm run example:replaceable:verbose # Replaceable events with verbose logging
-npm run example:replaceable:public  # Replaceable events using public relays
-
 # NIP-specific examples
-npm run example:nip01:validation      # NIP-01 validation flow
-npm run example:nip01:validation:debug # NIP-01 validation with debug logging
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
 npm run example:nip05:verbose  # NIP-05 with verbose logging
@@ -123,14 +111,17 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
 
 - `basic-usage.ts` - Core functionality demo including event creation, signing, and relay publishing
 - `crypto-demo.ts` - Cryptography examples including key pair generation, signing, and verification
+- `/nip01` - [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) (Core Protocol) examples
+  - `/event` - Event-related examples
+    - `event-ordering-demo.ts` - Event ordering demonstration with timestamp and lexicographic ordering
+    - `addressable-events.ts` - Addressable events (kinds 30000-39999) with semantic content addressing
+    - `replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) with update mechanisms
+  - `/relay` - Relay-related examples
+    - `relay-connection.ts` - Connection management with error handling and timeout configuration
+    - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
+    - `filter-types.ts` - Filter type examples for event retrieval optimization
 - `/client` - Client-related examples
-  - `relay-connection.ts` - Connection management with error handling and timeout configuration
-  - `event-ordering-demo.ts` - Event ordering demonstration with timestamp and lexicographic ordering
-  - `filter-types.ts` - Filter type examples for event retrieval optimization
-  - `addressable-events.ts` - Addressable events (kinds 30000-39999) with semantic content addressing
-  - `replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) with update mechanisms
   - `validation-flow.ts` - NIP-01 validation flow for event verification
-  - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
 - `/nip04` - [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) (Encrypted Direct Messages) examples
   - `direct-message.ts` - Direct messaging example with shared secret encryption
 - `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples 

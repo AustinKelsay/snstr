@@ -1,5 +1,5 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
-import { Nostr } from "../client/nostr";
+import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import {

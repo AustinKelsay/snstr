@@ -10,7 +10,7 @@
  */
 
 import { NostrEvent, EventTemplate } from "../types/nostr";
-import { createEvent, getEventHash } from "../utils/event";
+import { createEvent, getEventHash } from "../nip01/event";
 import { sha256Hex, signEvent, verifySignature } from "../utils/crypto";
 import { parseBolt11Invoice } from "./utils";
 

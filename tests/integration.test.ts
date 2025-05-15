@@ -1,7 +1,6 @@
-import { Nostr } from "../src/client/nostr";
+import { Nostr } from "../src/nip01/nostr";
 import { NostrEvent, RelayEvent } from "../src/types/nostr";
 import { generateKeypair } from "../src/utils/crypto";
-import { createTextNote } from "../src/utils/event";
 import {
   startEphemeralRelay,
   stopEphemeralRelay,

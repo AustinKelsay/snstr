@@ -1,5 +1,5 @@
-import { Relay, RelayEvent, NostrEvent } from "../src";
-import { NostrRelay } from "../src/utils/ephemeral-relay";
+import { Relay, RelayEvent, NostrEvent } from "../../../src";
+import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 // Ephemeral relay port for tests
 const RELAY_TEST_PORT = 3444;

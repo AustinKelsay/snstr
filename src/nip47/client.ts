@@ -1,7 +1,7 @@
-import { Nostr } from "../client/nostr";
+import { Nostr } from "../nip01/nostr";
 import { NostrEvent } from "../types/nostr";
 import { getPublicKey } from "../utils/crypto";
-import { createEvent, createSignedEvent, getEventHash } from "../utils/event";
+import { createEvent, createSignedEvent, getEventHash } from "../nip01/event";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import {
   NIP47Method,

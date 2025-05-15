@@ -6,7 +6,7 @@ import {
   getEventHash,
   createTextNote,
   createDirectMessage,
-} from "../src/utils/event";
+} from "../src/nip01/event";
 import { signEvent } from "../src/utils/crypto";
 
 // Set this to false to use external relays instead of ephemeral relay

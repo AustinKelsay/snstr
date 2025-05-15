@@ -14,7 +14,7 @@ import {
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
-import { Nostr } from "../../src/client/nostr";
+import { Nostr } from "../../src/nip01/nostr";
 
 // Simple in-memory wallet implementation for demonstration
 class DemoWallet implements WalletImplementation {

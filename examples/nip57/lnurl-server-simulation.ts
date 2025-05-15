@@ -24,7 +24,7 @@ import {
 // Import the function directly from the nip57 module
 import { parseLnurlPayResponse } from "../../src/nip57";
 
-import { createSignedEvent, UnsignedEvent } from "../../src/utils/event";
+import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { createServer } from "http";
 import { parse as parseUrl } from "url";

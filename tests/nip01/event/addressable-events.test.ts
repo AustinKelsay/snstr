@@ -1,7 +1,7 @@
-import { generateKeypair } from "../../src/utils/crypto";
-import { createAddressableEvent, createSignedEvent } from "../../src/utils/event";
-import { Relay } from "../../src/client/relay";
-import { NostrEvent } from "../../src/types/nostr";
+import { generateKeypair } from "../../../src/utils/crypto";
+import { createAddressableEvent, createSignedEvent } from "../../../src/nip01/event";
+import { Relay } from "../../../src/nip01/relay";
+import { NostrEvent } from "../../../src/types/nostr";
 
 // Mock WebSocket
 jest.mock("websocket-polyfill", () => {});

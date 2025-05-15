@@ -53,7 +53,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
 - **NIP-47**: Nostr Wallet Connect for secure wallet communication
 
-For detailed information on each implementation, see the corresponding files in the `src/` directory. Note that NIP-01 functionality is implemented throughout the core files (event handling, relay communication, etc.) rather than in a dedicated directory.
+For detailed information on each implementation, see the corresponding directories in the `src/` directory (e.g., `src/nip01/`, `src/nip04/`, etc.).
 
 ## Installation
 
@@ -142,15 +142,16 @@ npm run example
 # Run the direct messaging example
 npm run example:dm  # Uses NIP-04 implementation
 
-# Run client-related examples
-npm run example:relay-connection  # Relay connection management
-npm run example:event-ordering    # Event ordering demonstration
-npm run example:filter-types      # Filter types
-npm run example:addressable       # Addressable events
-npm run example:replaceable       # Replaceable events
-npm run example:nip01:validation  # NIP-01 validation flow
+# Run NIP-01 examples
+npm run example:nip01:event:ordering      # Event ordering demonstration
+npm run example:nip01:event:addressable   # Addressable events
+npm run example:nip01:event:replaceable   # Replaceable events
+npm run example:nip01:relay:connection    # Relay connection management
+npm run example:nip01:relay:filters       # Filter types
+npm run example:nip01:relay:reconnect     # Relay reconnection
+npm run example:nip01:validation          # NIP-01 validation flow
 
-# Run NIP-specific examples
+# Run other NIP-specific examples
 npm run example:nip04  # Encrypted direct messages
 npm run example:nip05  # DNS identifiers
 npm run example:nip19  # Bech32-encoded entities
@@ -170,18 +171,19 @@ SNSTR includes a comprehensive test suite that uses an ephemeral relay to avoid 
 npm test
 
 # Run tests by category
-npm run test:core     # Core functionality tests
+npm run test:core     # Core functionality tests (NIP-01)
 npm run test:crypto   # Encryption and crypto tests
 npm run test:identity # Identity-related tests
 npm run test:protocols # Protocol implementation tests
 
 # Run tests for specific NIPs
-npm run test:nip04
-npm run test:nip44
-npm run test:nip57
+npm run test:nip01    # NIP-01 (core protocol)
+npm run test:nip04    # NIP-04 (encrypted messages)
+npm run test:nip44    # NIP-44 (versioned encryption)
+npm run test:nip57    # NIP-57 (Lightning Zaps)
 ```
 
-The test suite is organized with a mix of individual test files (like `relay.test.ts`, `nostr.test.ts`) for core functionality and dedicated directories (like `nip19/`, `nip44/`) for NIP-specific tests. This structure allows for focused testing of specific implementations while maintaining comprehensive coverage.
+The test suite is organized by NIP number, with dedicated directories for each implemented NIP (e.g., `tests/nip01/`, `tests/nip04/`, etc.). This structure allows for focused testing of specific implementations while maintaining comprehensive coverage.
 
 For more information about the test structure and methodology, see the [tests README](./tests/README.md).
 
@@ -210,17 +212,19 @@ npm run test:watch
 npm run test:coverage
 
 # Test by category
-npm run test:core          # Core functionality (event, nostr, relay)
-npm run test:crypto        # All crypto (core + NIP-04 + NIP-44)
+npm run test:core          # Core functionality (NIP-01)
+npm run test:crypto        # All crypto (utils/crypto + NIP-04 + NIP-44)
 npm run test:identity      # Identity-related features (NIP-05, NIP-07, NIP-19)
 npm run test:protocols     # Protocol implementations (NIP-46, NIP-47, NIP-57)
 npm run test:integration   # Integration tests
 
-# Test specific core components
-npm run test:event         # Event creation and validation
+# Test specific NIP-01 components
+npm run test:nip01         # All NIP-01 tests
+npm run test:nip01:event   # Event-related tests
+npm run test:nip01:relay   # Relay-related tests 
 npm run test:nostr         # Nostr client 
+npm run test:event         # Event creation and validation
 npm run test:relay         # Relay functionality
-npm run test:crypto:core   # Core cryptographic utilities only
 
 # Test specific NIPs
 npm run test:nip04         # NIP-04 (Encrypted Direct Messages)
@@ -243,6 +247,15 @@ npm run example
 npm run example:verbose    # Verbose logging
 npm run example:debug      # Debug logging
 
+# NIP-01 examples
+npm run example:nip01:event:ordering     # Event ordering demonstration
+npm run example:nip01:event:addressable  # Addressable events
+npm run example:nip01:event:replaceable  # Replaceable events
+npm run example:nip01:relay:connection   # Relay connection management
+npm run example:nip01:relay:filters      # Filter types
+npm run example:nip01:relay:reconnect    # Relay reconnection
+npm run example:nip01:validation         # NIP-01 validation flow
+
 # Example categories
 npm run example:basic      # Basic functionality (core, crypto, direct messages)
 npm run example:messaging  # Messaging examples (DM, NIP-04, NIP-44)
@@ -253,12 +266,6 @@ npm run example:advanced   # Advanced protocol examples (NIP-46, error handling)
 # Feature-specific examples
 npm run example:crypto     # Cryptographic functions
 npm run example:dm         # Direct messaging (NIP-04)
-npm run example:relay-connection  # Relay connection management
-
-# Client-specific examples
-npm run example:addressable      # Addressable events (kinds 30000-39999)
-npm run example:replaceable      # Replaceable events (kinds 0, 3, 10000-19999)
-npm run example:nip01:validation # Event validation workflow
 
 # NIP-specific examples
 npm run example:nip04      # Encrypted direct messages (NIP-04)
@@ -302,8 +309,15 @@ npm run format
 ### Directory Structure Notes
 
 - **Source Code**: All NIP implementations follow the `src/nipXX` naming pattern (lowercase)
-- **Examples**: Organized by NIP in `examples/nipXX` directories and client examples in `examples/client`
-- **Core Functionality**: NIP-01 features are integrated throughout the base implementation
+- **Core Protocol**: NIP-01 is implemented in the `src/nip01/` directory with specialized files:
+  - `event.ts`: Event creation, validation, and utilities
+  - `nostr.ts`: Main Nostr client implementation
+  - `relay.ts`: Relay connection and subscription management
+  - `relay-connection.ts`: WebSocket connection handling
+- **Examples**: Organized by NIP in `examples/nipXX` directories
+  - NIP-01 examples further divided into `event/` and `relay/` subdirectories
+  - Client-specific examples in `examples/client`
+- **Tests**: Organized by NIP in `tests/nipXX` directories
 - For more details on code organization standards, see the [NIP Implementation Guide](src/NIP_STANDARDIZATION.md)
 
 ## Security

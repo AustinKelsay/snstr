@@ -9,7 +9,7 @@
  * mock the WebSocket connections.
  */
 
-import { NostrEvent } from "../../src/types/nostr";
+import { NostrEvent } from "../../../src/types/nostr";
 
 describe("Event ordering", () => {
   // Simple implementation of the sorting function based on NIP-01 spec

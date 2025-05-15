@@ -1,32 +1,30 @@
 # SNSTR Test Suite
 
-This directory contains the test suite for the SNSTR Nostr client library. The tests are organized to validate different components and NIPs (Nostr Implementation Possibilities) implementations.
+This directory contains the test suite for the SNSTR Nostr client library. The tests are organized by NIP (Nostr Implementation Possibilities) to validate different components of the library.
 
 ## Directory Structure
 
-- **Root Tests**: Core functionality tests for basic library features
-  - `nostr.test.ts` - Tests for the main Nostr client
-  - `relay.test.ts` - Tests for relay connection handling
-  - `crypto.test.ts` - Tests for cryptographic utilities
-  - `filters.test.ts` - Tests for filter functionality
-  - `integration.test.ts` - End-to-end integration tests
-  - `nostr-publish.test.ts` - Tests for publication functionality
-  - `nip05.test.ts` - Tests for NIP-05 (Mapping Nostr keys to DNS-based internet identifiers)
-  - `nip07.test.ts` - Tests for NIP-07 (Web browser extension)
-  - `nip11.test.ts` - Tests for NIP-11 (Relay Information Document)
+Tests are organized into directories by NIP number, with subdirectories for specific components where needed:
 
-- **Nested Directories**:
-  - `/event` - Tests for event-related functionality
-    - `event.test.ts` - Core event tests
-    - `event-ordering.test.ts` - Event ordering tests
-    - `addressable-events.test.ts` - Tests for addressable events
-    - `event-ordering-integration.test.ts` - Integration tests for event ordering
-  - `/client` - Tests for client-related functionality
-    - `relay-reconnect.test.ts` - Tests for relay reconnection
-
-- **NIP-specific Directories**: Tests organized by NIP number
+- **NIP-specific Directories**:
+  - `/nip01` - Tests for NIP-01 (Core Protocol Functionality)
+    - `nostr.test.ts` - Tests for the main Nostr client
+    - `/event` - Tests for event-related functionality
+      - `event.test.ts` - Core event tests
+      - `event-ordering.test.ts` - Event ordering tests
+      - `addressable-events.test.ts` - Tests for addressable events
+    - `/relay` - Tests for relay-related functionality
+      - `connection.test.ts` - Relay connection tests
+      - `filter.test.ts` - Subscription filter tests
+      - `reconnect.test.ts` - Tests for relay reconnection
   - `/nip04` - Tests for NIP-04 (Encrypted Direct Messages)
     - `encryption.test.ts` - Tests for NIP-04 encryption
+  - `/nip05` - Tests for NIP-05 (DNS-based Verification)
+    - `nip05.test.ts` - Tests for DNS identity verification
+  - `/nip07` - Tests for NIP-07 (Browser Extension Integration)
+    - `nip07.test.ts` - Tests for browser extension functionality
+  - `/nip11` - Tests for NIP-11 (Relay Information Document)
+    - `nip11.test.ts` - Tests for relay information functionality
   - `/nip19` - Tests for NIP-19 (bech32-encoded entities)
     - `bech32.test.ts` - Tests for basic bech32 encoding/decoding
     - `tlv.test.ts` - Tests for TLV entity handling
@@ -49,6 +47,13 @@ This directory contains the test suite for the SNSTR Nostr client library. The t
   - `/nip57` - Tests for NIP-57 (Lightning Zaps)
     - `zap.test.ts` - Zap functionality tests
 
+- **Other Directories**:
+  - `/utils` - Tests for utility functions
+    - `crypto.test.ts` - Tests for cryptographic utilities
+  
+- **Root Tests**:
+  - `integration.test.ts` - End-to-end integration tests
+
 ## Running Tests
 
 To run all tests:
@@ -57,18 +62,10 @@ To run all tests:
 npm test
 ```
 
-To run tests for a specific component:
-
-```bash
-npm run test:nostr       # Run Nostr client tests
-npm run test:relay       # Run relay tests
-npm run test:event       # Run event tests
-npm run test:event:all   # Run all event directory tests
-```
-
 To run tests for a specific NIP:
 
 ```bash
+npm run test:nip01       # Run all NIP-01 core protocol tests
 npm run test:nip04       # Run NIP-04 tests
 npm run test:nip05       # Run NIP-05 tests
 npm run test:nip19       # Run NIP-19 tests
@@ -78,13 +75,23 @@ npm run test:nip47       # Run NIP-47 tests
 npm run test:nip57       # Run NIP-57 tests
 ```
 
+For NIP-01 components specifically:
+
+```bash
+npm run test:nip01:event    # Run all event-related tests
+npm run test:nip01:relay    # Run all relay-related tests
+npm run test:nostr          # Run Nostr client tests
+npm run test:event          # Run event creation/validation tests
+npm run test:relay:connection # Run relay connection tests
+```
+
 ## Test Categories
 
 Tests are also organized into logical categories:
 
 ```bash
-npm run test:core        # Core functionality (event, nostr, relay)
-npm run test:crypto      # All crypto (core + NIP-04 + NIP-44)
+npm run test:core        # Core functionality (all NIP-01 tests)
+npm run test:crypto      # All crypto (utils/crypto + NIP-04 + NIP-44)
 npm run test:identity    # Identity-related (NIP-05, NIP-07, NIP-19)
 npm run test:protocols   # Protocol implementations (NIP-46, NIP-47, NIP-57)
 npm run test:integration # Run integration tests
@@ -102,9 +109,9 @@ npm run test:coverage
 
 When adding new tests:
 
-1. For core functionality, add tests to the appropriate root test file
-2. For NIP-specific features, add tests to the corresponding NIP directory
-3. If implementing a new NIP, create a new directory following the naming convention `nip{number}`
+1. For a new NIP implementation, create a new directory following the naming convention `nip{XX}`
+2. For components of complex NIPs, create subdirectories (e.g., `event/`, `relay/`)
+3. Add a README.md to each NIP directory explaining what is being tested
 4. Follow the structure outlined in [TEST_STANDARDIZATION.md](./TEST_STANDARDIZATION.md)
 
 ## Test Conventions

@@ -3,8 +3,8 @@
  * This test validates that events are properly ordered according to the NIP-01 specification.
  */
 
-import { Relay } from "../../src/client/relay";
-import { NostrEvent } from "../../src/types/nostr";
+import { Relay } from "../../../src/nip01/relay";
+import { NostrEvent } from "../../../src/types/nostr";
 import { jest } from "@jest/globals";
 
 /**

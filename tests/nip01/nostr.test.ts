@@ -1,8 +1,8 @@
-import { Nostr, NostrEvent, Filter, RelayEvent, Relay } from "../src";
-import { NostrRelay } from "../src/utils/ephemeral-relay";
-import { generateKeypair } from "../src/utils/crypto";
-import { encrypt as encryptNIP04 } from "../src/nip04";
-import { createMetadataEvent } from "../src/utils/event";
+import { Nostr, NostrEvent, Filter, RelayEvent, Relay } from "../../src";
+import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { generateKeypair } from "../../src/utils/crypto";
+import { encrypt as encryptNIP04 } from "../../src/nip04";
+import { createMetadataEvent } from "../../src/nip01/event";
 
 // Use ephemeral relay for all tests
 const RELAY_TEST_PORT = 3555;

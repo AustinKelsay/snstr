@@ -1,10 +1,10 @@
 import { EventTemplate, NostrEvent } from "../types/nostr";
-import { getPublicKey } from "./crypto";
+import { getPublicKey } from "../utils/crypto";
 import { encrypt as encryptNIP04 } from "../nip04";
 import { schnorr } from "@noble/curves/secp256k1";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
-import { sha256Hex } from "./crypto";
-import { signEvent as signEventCrypto } from "./crypto";
+import { sha256Hex } from "../utils/crypto";
+import { signEvent as signEventCrypto } from "../utils/crypto";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 

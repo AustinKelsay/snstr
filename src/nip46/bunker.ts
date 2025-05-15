@@ -1,8 +1,8 @@
-import { Nostr } from "../client/nostr";
+import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
-import { createSignedEvent } from "../utils/event";
+import { createSignedEvent } from "../nip01/event";
 import {
   NIP46Method,
   NIP46Request,

@@ -18,7 +18,7 @@ import {
   parseZapSplit,
   calculateZapSplitAmounts,
 } from "../../src";
-import { createSignedEvent, UnsignedEvent } from "../../src/utils/event";
+import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 
 // For a real ephemeral relay implementation
 import { NostrRelay } from "../../src/utils/ephemeral-relay";

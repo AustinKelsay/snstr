@@ -6,7 +6,7 @@ import {
   encryptNIP04,
   decryptNIP04,
 } from "../../../src";
-import { getEventHash } from "../../../src/utils/event";
+import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
 import { SimpleNIP46Client, SimpleNIP46Bunker } from "../../../src";
 

@@ -1,4 +1,4 @@
-import { Nostr, Relay, NostrEvent, RelayEvent } from "../src";
+import { Nostr, Relay, NostrEvent, RelayEvent } from "../../../src";
 
 // Simulated relay for testing
 class MockRelay {

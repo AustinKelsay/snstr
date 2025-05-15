@@ -1,6 +1,6 @@
 // Export client classes
-export { Nostr } from "./client/nostr";
-export { Relay } from "./client/relay";
+export { Nostr } from "./nip01/nostr";
+export { Relay } from "./nip01/relay";
 
 // Export types
 export * from "./types/nostr";
@@ -17,7 +17,7 @@ export {
   createEvent,
   createAddressableEvent,
   getEventHash,
-} from "./utils/event";
+} from "./nip01/event";
 
 // Export NIP-04 utilities
 export {

@@ -1,5 +1,5 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
-import { Nostr } from "../client/nostr";
+import { Nostr } from "../nip01/nostr";
 import { encrypt, decrypt } from "../nip04";
 import {
   NIP46Method,
@@ -8,7 +8,7 @@ import {
   NIP46ClientSession
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
-import { createSignedEvent, UnsignedEvent } from "../utils/event";
+import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 import { generateKeypair } from "../utils/crypto";
 
 // Additional constants for NIP-46

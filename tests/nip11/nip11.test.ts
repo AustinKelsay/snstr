@@ -6,7 +6,7 @@ import {
   relayRequiresPayment, 
   useFetchImplementation,
   clearRelayInfoCache
-} from '../src/nip11';
+} from '../../src/nip11';
 
 describe('NIP-11 Functions', () => {
   // Mock the global fetch function

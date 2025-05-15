@@ -10,7 +10,7 @@ import {
   LnurlPayResponse,
 } from "../../src";
 import { generateKeypair } from "../../src";
-import { createSignedEvent, UnsignedEvent } from "../../src/utils/event";
+import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 
 // Mock only the specific functions we need for testing
 jest.mock("../../src/utils/crypto", () => {

@@ -11,6 +11,16 @@ examples/
 ├── README.md                  # Main README for all examples
 ├── basic-usage.ts             # Core functionality demo
 ├── crypto-demo.ts             # Cryptography examples
+├── nip01/                     # NIP-01 specific examples
+│   ├── README.md              # Documentation for NIP-01 examples
+│   ├── event/                 # Event-related examples
+│   │   ├── event-ordering-demo.ts # Event ordering examples
+│   │   ├── addressable-events.ts  # Addressable events examples
+│   │   └── replaceable-events.ts  # Replaceable events examples
+│   └── relay/                 # Relay-related examples
+│       ├── relay-connection.ts    # Connection management examples
+│       ├── filter-types.ts        # Filter type examples
+│       └── relay-reconnect.ts     # Reconnection examples
 ├── nip04/                     # NIP-04 specific examples
 │   ├── README.md              # Documentation for NIP-04 examples
 │   └── direct-message.ts      # NIP-04 specific example
@@ -25,7 +35,7 @@ examples/
 
 - **Root Examples**: Core functionality examples should be at the root level
 - **NIP-Specific Directories**: Each NIP should have its own directory with README.md
-- **Complex NIPs**: For complex NIPs, subdirectories can be used for different aspects
+- **Component Subdirectories**: For complex NIPs like NIP-01, use subdirectories for different components (e.g., event, relay)
 - **JavaScript Directory**: For JavaScript examples without TypeScript
 
 ## README.md Structure
@@ -75,17 +85,9 @@ Each example file should:
 ## Standardized File Naming
 
 - `basic-example.ts`: Simple implementation of core functionality
-- `[feature]-example.ts`: Example focusing on a specific feature
+- `[feature]-example.ts`: Example focusing on a specific feature (e.g., `relay-connection.ts`)
+- `[feature]-demo.ts`: Interactive demo of a specific feature (e.g., `event-ordering-demo.ts`)
 - `advanced-example.ts`: More complex implementation
-- `[feature]-demo.ts`: Interactive demo of a specific feature
-
-## JavaScript Examples
-
-For JavaScript examples:
-- Place in the `javascript/` directory
-- Create comparable examples to TypeScript ones
-- Include clear comments for JavaScript users
-- Note any differences from TypeScript usage
 
 ## NPM Scripts for Examples
 
@@ -98,8 +100,20 @@ Add these to package.json:
     "example:verbose": "VERBOSE=1 ts-node examples/basic-usage.ts",
     "example:debug": "DEBUG=1 ts-node examples/basic-usage.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
+    
+    "// NIP-01 Examples": "-------------- NIP-01 Examples --------------",
+    "example:nip01:event:ordering": "ts-node examples/nip01/event/event-ordering-demo.ts",
+    "example:nip01:event:addressable": "ts-node examples/nip01/event/addressable-events.ts",
+    "example:nip01:event:replaceable": "ts-node examples/nip01/event/replaceable-events.ts",
+    "example:nip01:relay:connection": "ts-node examples/nip01/relay/relay-connection.ts",
+    "example:nip01:relay:filters": "ts-node examples/nip01/relay/filter-types.ts",
+    "example:nip01:relay:reconnect": "ts-node examples/nip01/relay/relay-reconnect.ts",
+    "example:nip01:validation": "ts-node examples/client/validation-flow.ts",
+    
+    "// Other NIPs": "-------------- Other NIPs --------------",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
+    "example:nip19": "ts-node examples/nip19/nip19-demo.ts"
     // Add scripts for each example
   }
 }
@@ -133,10 +147,11 @@ To standardize existing examples:
 
 1. Create directories for each NIP
 2. Move existing examples to appropriate directories
-3. Add README.md files to each directory
-4. Standardize file naming
-5. Add header comments to example files
-6. Create missing examples for NIPs with insufficient coverage
-7. Update main README.md with new structure
+3. For complex NIPs like NIP-01, organize by component (event, relay)
+4. Add README.md files to each directory
+5. Standardize file naming
+6. Add header comments to example files
+7. Create missing examples for NIPs with insufficient coverage
+8. Update main README.md with new structure
 
 This standardization will make examples more consistent, easier to navigate, and more helpful for new users of the library. 

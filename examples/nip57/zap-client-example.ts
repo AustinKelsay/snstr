@@ -25,7 +25,7 @@ import {
   validateZapReceipt,
 } from "../../src";
 
-import { createSignedEvent, UnsignedEvent } from "../../src/utils/event";
+import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import {
   getLightningAddressUrl,

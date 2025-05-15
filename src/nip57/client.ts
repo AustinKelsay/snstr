@@ -10,8 +10,8 @@
  */
 
 import { NostrEvent } from "../types/nostr";
-import { Nostr } from "../client/nostr";
-import { createSignedEvent } from "../utils/event";
+import { Nostr } from "../nip01/nostr";
+import { createSignedEvent } from "../nip01/event";
 import {
   createZapRequest,
   validateZapReceipt,

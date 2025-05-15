@@ -2,8 +2,7 @@
  * Tests for Relay Reconnection functionality
  */
 
-import { Relay } from '../../src/client/relay';
-import { RelayEvent } from '../../src/types/nostr';
+import { Relay } from '../../../src/nip01/relay';
 
 // Mock WebSocket
 jest.mock('websocket-polyfill', () => ({}));

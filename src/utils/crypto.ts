@@ -1,5 +1,5 @@
 import { schnorr } from "@noble/curves/secp256k1";
-import { bytesToHex, hexToBytes, randomBytes } from "@noble/hashes/utils";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { sha256 as nobleSha256 } from "@noble/hashes/sha2";
 
 /**

@@ -1,4 +1,4 @@
-import { NostrEvent } from "../../src/types/nostr";
+import { NostrEvent } from "../../../src/types/nostr";
 import {
   createSignedEvent,
   createTextNote,
@@ -7,9 +7,9 @@ import {
   createAddressableEvent,
   UnsignedEvent,
   getEventHash,
-} from "../../src/utils/event";
-import { verifySignature } from "../../src/utils/crypto";
-import { getPublicKey } from "../../src/utils/crypto";
+} from "../../../src/nip01/event";
+import { verifySignature } from "../../../src/utils/crypto";
+import { getPublicKey } from "../../../src/utils/crypto";
 
 describe("Event Creation and Signing", () => {
   const privateKey =
