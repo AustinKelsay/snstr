@@ -13,7 +13,7 @@ import {
   lookupNIP05,
   getNIP05PubKey,
   getNIP05Relays,
-} from "../src/nip05";
+} from "../../src/nip05";
 
 // Mock implementations for testing without network
 global.fetch = jest.fn();

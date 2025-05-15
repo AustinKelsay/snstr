@@ -2,6 +2,7 @@ import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
+import { createSignedEvent } from "../nip01/event";
 import {
   NIP46Request,
   NIP46Response,
@@ -311,10 +312,6 @@ export class SimpleNIP46Client {
           tags: [["p", this.signerPubkey]],
           content: encrypted,
         };
-
-        // Use the utilities to sign the event correctly
-        // Import the createSignedEvent function
-        const { createSignedEvent } = require("../utils/event");
 
         // Create a properly signed event using promises
         createSignedEvent(eventData, this.clientKeys.privateKey)

@@ -48,6 +48,8 @@ Tests are organized into directories by NIP number, with subdirectories for spec
     - `zap.test.ts` - Zap functionality tests
 
 - **Other Directories**:
+  - `/types` - Type definitions and helpers for testing
+    - `index.ts` - Test utility types and type-safe accessors
   - `/utils` - Tests for utility functions
     - `crypto.test.ts` - Tests for cryptographic utilities
   
@@ -121,3 +123,4 @@ When adding new tests:
 - Follow the AAA (Arrange, Act, Assert) pattern
 - Mock external dependencies when appropriate
 - Create ephemeral test resources that clean up after tests complete 
+- Use the `/types` directory for test-specific type definitions and helpers for type-safety 

@@ -1,5 +1,5 @@
-import { NostrEvent } from "../src/types/nostr";
-import * as nip07 from "../src/nip07";
+import { NostrEvent } from "../../src/types/nostr";
+import * as nip07 from "../../src/nip07";
 
 // Mock window.nostr object for testing
 const mockEvent: Omit<NostrEvent, "id" | "pubkey" | "sig"> = {

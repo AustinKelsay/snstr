@@ -5,6 +5,7 @@ import {
   startEphemeralRelay,
   stopEphemeralRelay,
 } from "../src/utils/test-helpers";
+import { getNostrInternals } from "./types";
 
 describe("Nostr Client Integration", () => {
   let nostr: Nostr;
@@ -60,7 +61,7 @@ describe("Nostr Client Integration", () => {
 
       // Set a very short timeout to make test fast
       // Access the relay directly to set the timeout
-      const relays = (timeoutClient as any).relays;
+      const relays = getNostrInternals(timeoutClient).relays;
       for (const relay of relays.values()) {
         relay.setConnectionTimeout(500);
       }
