@@ -93,22 +93,6 @@ When the `authorizedClients` option is provided, any requests from clients whose
 
 If `authorizedClients` is not provided or is an empty array, all clients will be authorized to use the service (not recommended for production environments).
 
-### Periodic INFO Event Republishing
-
-While the NIP-47 specification requires publishing an info event when the service starts, this implementation extends that behavior by periodically republishing the info event:
-
-```typescript
-const service = new NostrWalletService(
-  {
-    // ... other options ...
-    infoPublishInterval: 3600000, // 1 hour in milliseconds (default)
-  },
-  new MyWalletImplementation()
-);
-```
-
-This periodic republishing makes service discovery more reliable, especially for clients that connect after the service has been running for a while.
-
 ### Extended Error Codes
 
 In addition to the standard NIP-47 error codes, this implementation provides additional error codes for more specific error handling:
@@ -380,6 +364,114 @@ const balance = await client.getBalanceWithRetry({
 - All communication between client and service is E2E encrypted using NIP-04
 - The user's identity key is not used, avoiding linking payment activity to the user's identity
 - Request expiration helps prevent replay attacks by limiting the time window in which a request is valid 
+
+## Feature Implementation Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| **Standard Methods** | | |
+| get_info | ✅ Implemented | Returns service information and capabilities |
+| get_balance | ✅ Implemented | Returns wallet balance in msats |
+| pay_invoice | ✅ Implemented | Pays a Lightning invoice |
+| make_invoice | ✅ Implemented | Creates a Lightning invoice |
+| lookup_invoice | ✅ Implemented | Looks up invoice by payment hash or invoice string |
+| list_transactions | ✅ Implemented | Lists transaction history with filtering options |
+| sign_message | ✅ Implemented | Signs a message with the wallet's private key |
+| **Event Kinds** | | |
+| INFO (13194) | ✅ Implemented | Advertises wallet capabilities |
+| REQUEST (23194) | ✅ Implemented | Request from client to service |
+| RESPONSE (23195) | ✅ Implemented | Response from service to client |
+| NOTIFICATION (23196) | ✅ Implemented | Asynchronous notifications from service |
+| **Notification Types** | | |
+| payment_received | ✅ Implemented | Notification when payment is received |
+| payment_sent | ✅ Implemented | Notification when payment is sent |
+| **Standard Error Codes** | | |
+| UNAUTHORIZED | ✅ Implemented | Authentication or permission error |
+| INVALID_REQUEST | ✅ Implemented | Malformed or invalid request |
+| INSUFFICIENT_BALANCE | ✅ Implemented | Not enough funds to complete payment |
+| PAYMENT_FAILED | ✅ Implemented | Payment failed for another reason |
+| INVOICE_EXPIRED | ✅ Implemented | Invoice has expired |
+| NOT_FOUND | ✅ Implemented | Resource not found in wallet database |
+| INTERNAL_ERROR | ✅ Implemented | Internal server error |
+| REQUEST_EXPIRED | ✅ Implemented | Request expired before processing |
+| **Extended Features** | | |
+| pay_keysend | ❌ Not Implemented | Extension: Non-standard keysend payments |
+| multi_pay_invoice | ❌ Not Implemented | Extension: Batch invoice payments |
+| multi_pay_keysend | ❌ Not Implemented | Extension: Batch keysend payments |
+| Automatic retries | ✅ Implemented | Built-in retry mechanism for transient errors |
+| Client authorization | ✅ Implemented | Optional whitelist of authorized client pubkeys |
+| Error categorization | ✅ Implemented | Enhanced error handling with categories |
+| Recovery hints | ✅ Implemented | User-friendly recovery suggestions for errors |
+
+**Note:** While the codebase contains type definitions for extended methods like `pay_keysend`, `multi_pay_invoice`, and `multi_pay_keysend`, these are not yet fully implemented in the current version.
+
+## Version Compatibility
+
+This implementation is designed to be compatible with:
+
+- **Node.js**: v14.x and newer
+- **Browser**: Modern browsers with support for ES2020+ features
+- **Dependencies**:
+  - Uses standard Nostr relay connections
+  - Compatible with NIP-01 (Basic protocol) implementations
+  - Compatible with NIP-04 (Encrypted Direct Messages) implementations
+
+For compatibility with other NIP-47 implementations:
+- Strictly follows the NIP-47 message format
+- Extension methods are clearly marked and optional
+- Response validation ensures spec compliance
+- Error codes match the specification
+
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### Connection Problems
+- **Issue**: Client cannot connect to service
+- **Solution**: Ensure relays are online and accessible to both client and service. Try multiple relays for redundancy.
+
+#### Authentication Errors
+- **Issue**: `UNAUTHORIZED` or `UNAUTHORIZED_CLIENT` errors
+- **Solution**: Verify the connection secret is correct and that the client pubkey is in the service's authorized list (if enabled).
+
+#### Request Timeouts
+- **Issue**: Requests time out without response
+- **Solution**: 
+  - Check network connectivity
+  - Ensure service is online and subscribed to the relays
+  - Try increasing request timeout value
+  - Use the built-in retry mechanism: `client.getBalanceWithRetry()`
+
+#### Invoice Payment Issues
+- **Issue**: `PAYMENT_FAILED` when paying invoices
+- **Solution**: 
+  - Check if invoice has expired (`INVOICE_EXPIRED`)
+  - Verify sufficient balance (`INSUFFICIENT_BALANCE`)
+  - Check if route exists to destination (`PAYMENT_ROUTE_NOT_FOUND`)
+  - Try with a lower amount or different invoice
+
+#### Invoice Lookup Failures
+- **Issue**: `NOT_FOUND` when looking up invoices
+- **Solution**: Verify the payment hash or invoice string is correct. Note that invoices may be purged from the database after a certain time.
+
+#### Error Handling Best Practices
+- Use error categories for general error handling
+- Check specific error codes for precise handling of known issues
+- Use the `isRetriable()` method to determine if errors can be retried
+- Leverage the built-in retry mechanism for transient errors
+
+#### Debug Logging
+To enable debug logging for troubleshooting:
+
+```typescript
+// In client initialization:
+const client = new NostrWalletConnectClient({
+  // connection options
+});
+
+// Set debug level on the underlying Nostr client
+client.getNostrClient().setLogLevel('debug');
+```
 
 ## NIP-47 Compliance Statement
 

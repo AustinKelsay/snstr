@@ -63,10 +63,12 @@ const noteId = decodeNoteId(note);
 console.log(noteId); // 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d
 ```
 
-### Working with Profiles
+### Working with Complex Entities (TLV)
+
+#### Profiles (nprofile)
 
 ```typescript
-import { encodeProfile, decodeProfile } from 'snstr';
+import { encodeProfile, decodeProfile, filterProfile } from 'snstr';
 
 // Create a profile with relays
 const profileData = {
@@ -86,35 +88,14 @@ console.log(decodedProfile);
 //   relays: ['wss://relay.example.com', 'wss://relay2.example.com']
 // }
 
-// ⚠️ Security Note: Filter out invalid relay URLs after decoding
-function filterInvalidRelays(profile) {
-  if (!profile.relays || profile.relays.length === 0) return profile;
-  
-  function isValidRelayUrl(url) {
-    try {
-      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
-      const parsedUrl = new URL(url);
-      if (parsedUrl.username || parsedUrl.password) return false;
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-  
-  return {
-    ...profile,
-    relays: profile.relays.filter(url => isValidRelayUrl(url))
-  };
-}
-
-// Safe usage with filtering
-const safeProfile = filterInvalidRelays(decodedProfile);
+// ⚠️ Security Note: Filter invalid relay URLs after decoding
+const safeProfile = filterProfile(decodedProfile);
 ```
 
-### Working with Events
+#### Events (nevent)
 
 ```typescript
-import { encodeEvent, decodeEvent } from 'snstr';
+import { encodeEvent, decodeEvent, filterEvent } from 'snstr';
 
 // Create an event reference with relays and author
 const eventData = {
@@ -130,22 +111,15 @@ console.log(nevent); // nevent1...
 
 // Decode the nevent back to event data
 const decodedEvent = decodeEvent(nevent);
-console.log(decodedEvent);
-// {
-//   id: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-//   relays: ['wss://relay.example.com'],
-//   author: 'pubkey_here',
-//   kind: 1
-// }
 
-// Don't forget to filter relays here too!
-const safeEvent = filterInvalidRelays(decodedEvent);
+// Apply security filtering
+const safeEvent = filterEvent(decodedEvent);
 ```
 
-### Working with Addresses
+#### Addresses (naddr)
 
 ```typescript
-import { encodeAddress, decodeAddress } from 'snstr';
+import { encodeAddress, decodeAddress, filterAddress } from 'snstr';
 
 // Create an address for a parameterized replaceable event
 const addressData = {
@@ -161,47 +135,29 @@ console.log(naddr); // naddr1...
 
 // Decode the naddr back to address data
 const decodedAddress = decodeAddress(naddr);
-console.log(decodedAddress);
-// {
-//   identifier: 'profile',
-//   pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-//   kind: 30023,
-//   relays: ['wss://relay.example.com']
-// }
 
-// Apply the same relay filtering here
-const safeAddress = filterInvalidRelays(decodedAddress);
+// Apply security filtering
+const safeAddress = filterAddress(decodedAddress);
 ```
 
 ### Universal Decoder
 
 ```typescript
-import { decode } from 'snstr';
+import { decode, filterEntity } from 'snstr';
 
 // Decode any NIP-19 entity
 const result = decode('npub1xxxxxx...');
-
 console.log(result);
 // {
 //   type: 'npub',
 //   data: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d'
 // }
 
-// Or for more complex types:
-const profileResult = decode('nprofile1...');
-console.log(profileResult);
-// {
-//   type: 'nprofile',
-//   data: {
-//     pubkey: '...',
-//     relays: [...]
-//   }
-// }
-
-// Remember to filter invalid relay URLs when dealing with complex types
-if (profileResult.type === 'nprofile') {
-  const safeProfileData = filterInvalidRelays(profileResult.data);
-  // Use safeProfileData...
+// For complex types, apply security filtering
+const complexResult = decode('nprofile1...');
+if (['nprofile', 'nevent', 'naddr'].includes(complexResult.type)) {
+  const safeData = filterEntity(complexResult.data);
+  // Use safeData...
 }
 ```
 
@@ -215,127 +171,74 @@ if (profileResult.type === 'nprofile') {
 
 ## Security Considerations
 
-- **🧪 Input Validation**: Always validate entities before encoding them to ensure they meet the NIP-19 specifications.
-- **🛡️ Relay URL Filtering**: When decoding `nprofile`, `nevent`, or `naddr` entities, be aware that the decoder will include all relay URLs even if they're invalid. You MUST implement filtering after decoding.
+When working with NIP-19 entities, keep these security considerations in mind:
 
-### Recent Security Improvements
+### Decoding Security
 
-The SNSTR implementation of NIP-19 has been hardened with several security enhancements:
+The NIP-19 specification requires decoders to be permissive, which means our decoder will include potentially invalid URLs in the output. Always filter decoded entities to prevent security risks.
 
-1. **Reduced TLV Entry Limits**: The maximum number of TLV entries (e.g., relay URLs in a profile) has been reduced from 100 to 20 to prevent potential denial of service attacks.
+### Security Features
 
-2. **Strict URL Validation During Encoding**: 
+The SNSTR implementation includes several security enhancements:
+
+1. **Size Constraints**:
+   - Maximum of 20 TLV entries (reduced from the typical 100)
+   - Maximum relay URL length: 512 characters
+   - Maximum identifier length: 1024 characters
+   - Default bech32 data limit: 5000 bytes
+
+2. **URL Validation During Encoding**: 
    - Enforces `wss://` or `ws://` protocol
    - Rejects URLs with credentials (username/password)
    - Validates URL structure
-   - Maximum URL length of 512 characters
 
-3. **Size Constraints**:
-   - Maximum identifier length: 1024 characters
-   - Maximum relay URL length: 512 characters
-   - Maximum TLV entries: 20
+### Security Utilities
 
-### Best Practices for Secure Usage
-
-**⚠️ Important**: The NIP-19 specification requires decoders to be permissive. This means our decoder will include invalid URLs in the output, which creates a security risk if not handled properly.
-
-#### New Secure Filtering Utilities
-
-SNSTR now includes built-in utility functions to make filtering invalid relay URLs easier and safer:
+The library provides built-in functions to help filter potentially malicious data:
 
 ```typescript
 import { 
-  decodeProfile, 
-  decodeEvent,
-  decodeAddress,
-  // Import the new secure filtering utilities
-  filterProfile,
-  filterEvent,
-  filterAddress,
-  filterEntity,
-  isValidRelayUrl
+  isValidRelayUrl,   // Check a single URL
+  filterProfile,     // Filter nprofile entities
+  filterEvent,       // Filter nevent entities
+  filterAddress,     // Filter naddr entities
+  filterEntity       // Generic filter for any entity type
 } from 'snstr';
 
-// INSECURE: Decoding without filtering
-const profile = decodeProfile(nprofileString);
-// profile.relays might contain malicious URLs!
-
-// SECURE: Filtering after decoding
-const safeProfile = filterProfile(profile);
-// safeProfile.relays contains only valid wss:// or ws:// URLs
-
-// Generic filtering for any entity type
-const safeEntity = filterEntity(profile);
-// Works with profile, event, or address entities
-
-// Check individual URLs
-const url = 'wss://relay.example.com';
-if (isValidRelayUrl(url)) {
-  // URL is safe to use
-}
-```
-
-These utilities provide:
-
-1. **Strict URL Validation**:
-   - Only allow `wss://` or `ws://` protocols
-   - Reject URLs with credentials (username/password)
-   - Validate URL structure
-   
-2. **Type-specific Filters**:
-   - `filterProfile`: For nprofile entities
-   - `filterEvent`: For nevent entities
-   - `filterAddress`: For naddr entities
-   
-3. **Universal Filter**:
-   - `filterEntity`: Detects the entity type and applies the appropriate filter
-
-4. **URL Validator**:
-   - `isValidRelayUrl`: Check if a single URL is valid
-
-#### Simplified Safe Decoding Pattern
-
-```typescript
-import { decodeProfile, filterProfile } from 'snstr';
-
-// Step 1: Decode the entity (this follows NIP-19 spec - includes ALL relays)
+// Step 1: Decode the entity
 const profile = decodeProfile(nprofileString);
 
 // Step 2: Filter invalid/malicious relay URLs
 const safeProfile = filterProfile(profile);
 
-// Now use safeProfile in your application
+// Check individual URLs
+if (isValidRelayUrl('wss://relay.example.com')) {
+  // URL is safe to use
+}
 ```
 
-#### Example: Integrated Secure Decoder
+### Safe Decoding Pattern
 
-You can create a helper function that combines decoding and filtering:
+Always follow this pattern when working with complex NIP-19 entities:
 
 ```typescript
-import { 
-  decodeProfile, 
-  decodeEvent, 
-  decodeAddress,
-  filterProfile,
-  filterEvent,
-  filterAddress
-} from 'snstr';
+import { decode, filterEntity } from 'snstr';
 
-function safelyDecodeEntity(bech32Str: string) {
+function safelyDecodeEntity(bech32Str) {
   try {
-    if (bech32Str.startsWith('nprofile1')) {
-      const profile = decodeProfile(bech32Str);
-      return filterProfile(profile);
-    } else if (bech32Str.startsWith('nevent1')) {
-      const event = decodeEvent(bech32Str);
-      return filterEvent(event);
-    } else if (bech32Str.startsWith('naddr1')) {
-      const address = decodeAddress(bech32Str);
-      return filterAddress(address);
-    } else {
-      // Handle other types...
-      throw new Error('Unsupported NIP-19 entity type');
+    const result = decode(bech32Str);
+    
+    // Simple types don't need filtering
+    if (['npub', 'nsec', 'note'].includes(result.type)) {
+      return result.data;
     }
+    
+    // Complex types need filtering
+    if (['nprofile', 'nevent', 'naddr'].includes(result.type)) {
+      return filterEntity(result.data);
+    }
+    
+    return null;
   } catch (error) {
     console.error('Error decoding entity:', error);
     return null;
@@ -344,113 +247,6 @@ function safelyDecodeEntity(bech32Str: string) {
 
 // Usage
 const safeEntity = safelyDecodeEntity(bech32String);
-// safeEntity is now filtered and safe to use
 ```
 
-For a complete example, see [security-example.ts](../../examples/nip19/security-example.ts).
-
-# NIP-19 Implementation
-
-This directory contains the implementation of NIP-19, which defines encoding formats used to represent Nostr entities as strings. These entity encodings are known as Bech32 entities and are represented using Bech32 encoding.
-
-## Supported NIP-19 Entities
-
-The implementation supports the following NIP-19 entities:
-
-- `npub`: Public key
-- `nsec`: Private key
-- `note`: Note ID (event ID)
-- `nprofile`: Profile with pubkey and optional relays
-- `nevent`: Event with ID and optional relays, author, and kind
-- `naddr`: Address for a replaceable event with identifier (d tag), pubkey, kind, and optional relays
-
-## Security Features
-
-This implementation includes several important security measures:
-
-1. **Relay URL Validation**: All relay URLs are validated during encoding to ensure they use the correct websocket protocol (`ws://` or `wss://`) and have a valid URL format. This prevents injection attacks through malformed relay URLs.
-
-2. **Size Limits**: To prevent denial of service attacks, the implementation enforces reasonable size limits on various components:
-   - Maximum of 20 TLV entries (reduced from 100 for better security)
-   - Maximum relay URL length of 512 characters
-   - Maximum identifier length of 1024 characters  
-   - Default bech32 data limit of 5000 bytes
-
-3. **Error Handling**: Comprehensive error handling ensures that invalid inputs are rejected with clear error messages.
-
-## Decoding Behavior
-
-The implementation follows the Nostr specification by being somewhat permissive during decoding:
-
-- Invalid relay URLs are accepted during decoding but generate warnings in the console
-- ⚠️ **Security Note**: You should always filter out invalid relay URLs after decoding
-- All required fields are strictly validated
-- Unknown TLV types are ignored, as specified by NIP-19
-
-## Usage Examples
-
-```typescript
-import { 
-  encodePublicKey, decodePublicKey,
-  encodeProfile, decodeProfile,
-  encodeEvent, decodeEvent,
-  encodeAddress, decodeAddress
-} from './index';
-
-// Basic npub encoding/decoding
-const pubkey = '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d';
-const npub = encodePublicKey(pubkey);
-console.log(npub); // npub1xtscya34g58tk0z605fvr788k263gsu6cy9x0mhnm87echrgufzsevkk5s
-const decodedPubkey = decodePublicKey(npub);
-
-// Profile with relays
-const profile = {
-  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-  relays: ['wss://relay.example.com', 'wss://another.relay.com']
-};
-const nprofile = encodeProfile(profile);
-const decodedProfile = decodeProfile(nprofile);
-
-// Filter invalid relay URLs after decoding to ensure security
-function filterInvalidRelays(data) {
-  if (!data.relays || data.relays.length === 0) return data;
-  
-  const isValidRelayUrl = (url) => {
-    try {
-      if (!url.startsWith('wss://') && !url.startsWith('ws://')) return false;
-      const parsedUrl = new URL(url);
-      if (parsedUrl.username || parsedUrl.password) return false;
-      return true;
-    } catch (error) {
-      return false;
-    }
-  };
-  
-  return { ...data, relays: data.relays.filter(isValidRelayUrl) };
-}
-
-// Apply the filtering to get a safe profile
-const safeProfile = filterInvalidRelays(decodedProfile);
-
-// Event with relays and author
-const event = {
-  id: '5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d',
-  relays: ['wss://relay.example.com'],
-  author: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-  kind: 1
-};
-const nevent = encodeEvent(event);
-const decodedEvent = decodeEvent(nevent);
-const safeEvent = filterInvalidRelays(decodedEvent);
-
-// Address for a replaceable event
-const address = {
-  identifier: 'test',
-  pubkey: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
-  kind: 1,
-  relays: ['wss://relay.example.com']
-};
-const naddr = encodeAddress(address);
-const decodedAddress = decodeAddress(naddr);
-const safeAddress = filterInvalidRelays(decodedAddress);
-``` 
+For a complete example, see [security-example.ts](../../examples/nip19/security-example.ts). 

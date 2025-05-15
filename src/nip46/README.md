@@ -11,6 +11,17 @@ NIP-46 defines a protocol for remote signing of Nostr events, allowing applicati
 3. Supporting fine-grained permissions
 4. Allowing the same keys to be used across multiple devices
 
+## Key Features
+
+- **Secure Key Separation**: Private keys remain isolated in a secure "bunker"
+- **Two Implementation Options**: Full-featured and simplified versions for different use cases
+- **Flexible Permissions**: Fine-grained control over what events can be signed
+- **Multiple Encryption Options**: Support for both NIP-04 (AES-CBC) and NIP-44 (ChaCha20+HMAC)
+- **Authentication Challenges**: Optional challenge-response authentication for enhanced security
+- **Dual-Key Architecture**: Separate user and signer keys for improved security and flexibility
+- **Connection Metadata**: Support for app name, icon, and URL for better user experience
+- **Comprehensive Logging**: Detailed logging for debugging and monitoring
+
 ## Available Implementations
 
 SNSTR provides two separate implementations with different levels of complexity:

@@ -37,11 +37,11 @@ if (hasNip07Support()) {
 ### Get Public Key
 
 ```typescript
-import { getNip07PublicKey } from 'snstr';
+import { getPublicKey } from 'snstr';
 
 // Get the user's public key from the extension
 try {
-  const pubkey = await getNip07PublicKey();
+  const pubkey = await getPublicKey();
   console.log('Your public key:', pubkey);
 } catch (error) {
   console.error('Failed to get public key:', error);
@@ -51,7 +51,7 @@ try {
 ### Sign Events
 
 ```typescript
-import { signEventWithNip07 } from 'snstr';
+import { signEvent } from 'snstr';
 
 // Create an event to be signed
 const eventToSign = {
@@ -63,7 +63,7 @@ const eventToSign = {
 
 // Sign the event with the browser extension
 try {
-  const signedEvent = await signEventWithNip07(eventToSign);
+  const signedEvent = await signEvent(eventToSign);
   console.log('Signed event:', signedEvent);
 } catch (error) {
   console.error('Failed to sign event:', error);
@@ -73,21 +73,83 @@ try {
 ### Encryption (NIP-04)
 
 ```typescript
-import { encryptNip04WithExtension, decryptNip04WithExtension } from 'snstr';
+import { encryptNip04, decryptNip04 } from 'snstr';
 
 // Encrypt a message
-const encrypted = await encryptNip04WithExtension(
-  'recipient_pubkey_here',
-  'Hello, this is a secret message!'
-);
-console.log('Encrypted message:', encrypted);
+try {
+  const encrypted = await encryptNip04(
+    'recipient_pubkey_here',
+    'Hello, this is a secret message!'
+  );
+  console.log('Encrypted message:', encrypted);
+} catch (error) {
+  console.error('NIP-04 encryption not supported:', error);
+}
 
 // Decrypt a message
-const decrypted = await decryptNip04WithExtension(
-  'sender_pubkey_here',
-  'encrypted_content_here?iv=initialization_vector'
-);
-console.log('Decrypted message:', decrypted);
+try {
+  const decrypted = await decryptNip04(
+    'sender_pubkey_here',
+    'encrypted_content_here?iv=initialization_vector'
+  );
+  console.log('Decrypted message:', decrypted);
+} catch (error) {
+  console.error('NIP-04 decryption not supported:', error);
+}
+```
+
+### Encryption (NIP-44)
+
+```typescript
+import { encryptNip44, decryptNip44 } from 'snstr';
+
+// Encrypt a message using NIP-44
+try {
+  const encrypted = await encryptNip44(
+    'recipient_pubkey_here',
+    'Hello, this is a secret message!'
+  );
+  console.log('NIP-44 encrypted message:', encrypted);
+} catch (error) {
+  console.error('NIP-44 encryption not supported:', error);
+}
+
+// Decrypt a message using NIP-44
+try {
+  const decrypted = await decryptNip44(
+    'sender_pubkey_here',
+    'encrypted_content_here'
+  );
+  console.log('NIP-44 decrypted message:', decrypted);
+} catch (error) {
+  console.error('NIP-44 decryption not supported:', error);
+}
+```
+
+### Feature Availability Check
+
+```typescript
+import { hasNip07Support } from 'snstr';
+
+// Check if NIP-07 extension exists
+if (hasNip07Support()) {
+  // Check if extension implements specific features
+  const nostr = (window as any).nostr;
+  
+  // Check for NIP-04 support
+  if (nostr.nip04?.encrypt && nostr.nip04?.decrypt) {
+    console.log('NIP-04 encryption is supported');
+  } else {
+    console.log('NIP-04 encryption is NOT supported');
+  }
+  
+  // Check for NIP-44 support
+  if (nostr.nip44?.encrypt && nostr.nip44?.decrypt) {
+    console.log('NIP-44 encryption is supported');
+  } else {
+    console.log('NIP-44 encryption is NOT supported');
+  }
+}
 ```
 
 ### Using the Adapter
@@ -102,7 +164,7 @@ const nostr = new Nip07Nostr(['wss://relay.example.com']);
 await nostr.connectToRelays();
 
 // Publish a note - signs using the extension
-const event = await nostr.publishNote('Hello, Nostr via extension!');
+const event = await nostr.publishTextNote('Hello, Nostr via extension!');
 console.log('Published event:', event);
 
 // Subscribe to events
@@ -110,6 +172,15 @@ nostr.subscribe(
   [{ kinds: [1], limit: 10 }],
   (event) => console.log('Received event:', event)
 );
+
+// Send an encrypted direct message
+const dmEvent = await nostr.publishDirectMessage(
+  'Hello, this is a private message!',
+  'recipient_pubkey_here'
+);
+
+// Decrypt a received direct message (must use async version)
+const decryptedContent = await nostr.decryptDirectMessageAsync(receivedEvent);
 ```
 
 ## Implementation Details
@@ -124,4 +195,38 @@ nostr.subscribe(
 - The private key never leaves the browser extension, enhancing security
 - All cryptographic operations are performed inside the extension
 - Validate that the returned public key matches expectations in multi-user environments
-- Extensions might implement different signing UIs or confirmation dialogs 
+- Extensions might implement different signing UIs or confirmation dialogs
+
+## API Reference
+
+### Core Functions
+
+| Function | Parameters | Return Type | Description |
+|----------|------------|-------------|-------------|
+| `hasNip07Support()` | none | `boolean` | Checks if a NIP-07 extension is available in the browser |
+| `getPublicKey()` | none | `Promise<string>` | Gets the user's public key from the extension |
+| `signEvent(event)` | `event: Omit<NostrEvent, "id" \| "pubkey" \| "sig">` | `Promise<NostrEvent>` | Signs an event using the extension |
+
+### Encryption Functions (NIP-04)
+
+| Function | Parameters | Return Type | Description |
+|----------|------------|-------------|-------------|
+| `encryptNip04(pubkey, plaintext)` | `pubkey: string, plaintext: string` | `Promise<string>` | Encrypts a message using NIP-04 |
+| `decryptNip04(pubkey, ciphertext)` | `pubkey: string, ciphertext: string` | `Promise<string>` | Decrypts a message using NIP-04 |
+
+### Encryption Functions (NIP-44)
+
+| Function | Parameters | Return Type | Description |
+|----------|------------|-------------|-------------|
+| `encryptNip44(pubkey, plaintext)` | `pubkey: string, plaintext: string` | `Promise<string>` | Encrypts a message using NIP-44 |
+| `decryptNip44(pubkey, ciphertext)` | `pubkey: string, ciphertext: string` | `Promise<string>` | Decrypts a message using NIP-44 |
+
+### Nip07Nostr Class
+
+| Method | Parameters | Return Type | Description |
+|--------|------------|-------------|-------------|
+| `constructor(relayUrls)` | `relayUrls: string[]` | `Nip07Nostr` | Creates a new NIP-07 enabled Nostr client |
+| `initializeWithNip07()` | none | `Promise<string>` | Initializes the client with the extension's public key |
+| `publishTextNote(content, tags)` | `content: string, tags?: string[][]` | `Promise<NostrEvent \| null>` | Publishes a text note using the extension for signing |
+| `publishDirectMessage(content, recipientPubkey, tags)` | `content: string, recipientPubkey: string, tags?: string[][]` | `Promise<NostrEvent \| null>` | Publishes an encrypted direct message |
+| `decryptDirectMessageAsync(event)` | `event: NostrEvent` | `Promise<string>` | Asynchronously decrypts a direct message | 

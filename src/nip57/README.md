@@ -8,6 +8,8 @@ NIP-57 defines two event types:
 1. **Zap Request (kind 9734)**: Created by a sender to request a Lightning invoice from a recipient's LNURL server
 2. **Zap Receipt (kind 9735)**: Created by a recipient's LNURL server after a successful payment
 
+The protocol supports both standard zaps (signed by the sender) and anonymous zaps (where the sender's identity is not revealed in the zap receipt but still included as a `P` tag). This allows users to choose whether to make their zap payments public or private.
+
 ## Key Features
 
 - 🔄 **Full Protocol Flow**: Complete implementation of the NIP-57 protocol flow
@@ -18,6 +20,7 @@ NIP-57 defines two event types:
 - 🔒 **Description Hash Verification**: Validates the bolt11 invoice description hash against the zap request
 - 🔍 **Easy Querying**: Simple fetch/query methods for zap-related data
 - 📊 **Stats**: Calculate total zap amounts and other statistics
+- 🕶️ **Anonymous Zaps**: Support for private zaps where sender identity is protected
 
 ## Ephemeral Relay
 
@@ -135,7 +138,8 @@ const result = await zapClient.sendZap({
   lnurl: 'recipient_lnurl',
   amount: 1000000, // 1000 sats in millisats
   comment: 'Great post!',
-  eventId: 'event_id_to_zap' // optional
+  eventId: 'event_id_to_zap', // optional
+  anonymousZap: false // Set to true for anonymous zaps
 }, 'your_private_key');
 
 if (result.success) {
@@ -167,7 +171,8 @@ const zapRequestTemplate = createZapRequest({
   eventId: 'event_being_zapped_here', // optional
   amount: 1000000, // 1000 sats in millisats
   relays: ['wss://relay.example.com'],
-  content: 'Great post!' // Optional comment
+  content: 'Great post!', // Optional comment
+  senderPubkey: 'your_pubkey' // For anonymous zaps
 }, 'sender_pubkey_here');
 
 // Sign the request
@@ -240,16 +245,69 @@ This implementation adheres strictly to the NIP-57 specification, including:
 - Detailed error reporting for validation failures
 - Proper LNURL bech32 encoding/decoding
 
+## Compatibility with Other Implementations
+
+This library is designed to be fully compatible with other NIP-57 implementations including:
+
+- Popular Nostr clients like Damus, Amethyst, and Iris
+- Lightning wallets that support NIP-57 like Alby and Zeus
+- LNURL servers including LNBits, LND-LNURL, and Core Lightning plugins
+
+The code follows the specification exactly, particularly with:
+- Correct format for relay tags that many implementations are strict about
+- Proper handling of anonymous zaps with the `P` tag
+- Full validation of the invoice description hash for security
+- Support for both direct profile zaps and event-specific zaps
+
+If you encounter compatibility issues with specific implementations, please file an issue in the repository.
+
 ## Security Considerations
 
 - Zap receipts include verification of the invoice description hash for added security
 - The library verifies that the bolt11 invoice actually commits to the zap request
 - Clients should validate that zap receipts come from the expected LNURL server 
 
+## Troubleshooting
+
+### Common Issues
+
+1. **LNURL Server Not Supporting Nostr Zaps**
+   - Ensure the LNURL server includes `allowsNostr: true` and `nostrPubkey` in its response
+   - Use `supportsNostrZaps()` to check before attempting to send a zap
+
+2. **Invalid Zap Receipts**
+   - The most common cause is a missing or invalid description hash in the bolt11 invoice
+   - Verify that the LNURL server is creating invoices with the correct description hash
+   - Use `validateZapReceipt()` with detailed error reporting to diagnose issues
+
+3. **Relay Tag Format Problems**
+   - Make sure relays are specified as `["relays", "url1", "url2", ...]` not nested arrays
+   - Use the `createZapRequest()` function to ensure correct formatting
+
+4. **Anonymous Zaps Not Working**
+   - Ensure the `P` tag is used in the zap request (not lowercase `p`)
+   - Verify that recipient servers are correctly handling the `P` tag
+
+5. **Missing Zap Receipts**
+   - Some LNURL servers don't reliably publish zap receipts to the specified relays
+   - Try specifying well-known public relays in the zap request
+
+If you encounter persistent issues, check the code examples for working implementations or file an issue in the repository with a detailed description of the problem.
+
 ## Examples
 
 Check out the examples in the repository:
 
-- `basic-example.ts`: Simple demonstration of zap requests and receipts
-- `zap-client-example.ts`: Using the NostrZapClient for common zap operations
-- `lnurl-server-simulation.ts`: Full simulation of LNURL server handling zap requests 
+- [`basic-example.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/basic-example.ts): Simple demonstration of zap requests and receipts
+- [`zap-client-example.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/zap-client-example.ts): Using the NostrZapClient for common zap operations
+- [`lnurl-server-simulation.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/lnurl-server-simulation.ts): Full simulation of LNURL server handling zap requests
+- [`invoice-validation-example.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/invoice-validation-example.ts): Invoice validation example for zap verification
+
+You can run these examples using the npm scripts:
+
+```bash
+npm run example:nip57          # Basic NIP-57 example
+npm run example:nip57:client   # Zap client example
+npm run example:nip57:lnurl    # LNURL server simulation
+npm run example:nip57:validation # Invoice validation example
+``` 

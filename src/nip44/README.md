@@ -250,6 +250,68 @@ This implementation has been thoroughly validated against the official [NIP-44 t
 
 The official test vectors provide cryptographic certainty that our implementation correctly follows the NIP-44 specification and will interoperate with other compliant implementations.
 
+## Security Considerations
+
+NIP-44 encryption provides several important security properties that developers should be aware of:
+
+1. **Authenticated Encryption**: The HMAC-SHA256 authentication ensures that messages cannot be tampered with without detection.
+
+2. **Forward Secrecy**: While NIP-44 itself doesn't provide forward secrecy, it can be used with proper key rotation practices to improve security over time.
+
+3. **Side-Channel Resistance**: This implementation uses constant-time comparison for MAC verification to prevent timing attacks.
+
+4. **Message Length Privacy**: The padding scheme partially hides the original message length, providing some protection against traffic analysis.
+
+5. **Nonce Handling**: The 32-byte nonces provide sufficient randomness to prevent collisions, but care should be taken:
+   - Never reuse the same nonce with the same key
+   - If manually providing nonces, ensure they come from a cryptographically secure random number generator
+   - Let the library generate nonces automatically when possible
+
+6. **Error Messages**: Consider wrapping decryption errors in generic messages in production to avoid leaking information about specific failure modes.
+
+### Error Handling Examples
+
+Proper error handling is essential for secure applications. Here's how to handle decryption errors:
+
+```typescript
+import { decryptNIP44 } from 'snstr';
+
+try {
+  const decrypted = decryptNIP44(
+    encryptedMessage,
+    recipientPrivateKey,
+    senderPublicKey
+  );
+  // Process decrypted message
+} catch (error) {
+  if (error.message.includes('Authentication failed')) {
+    console.error('Message may have been tampered with or keys are incorrect');
+    // Handle authentication failure
+  } else if (error.message.includes('Invalid payload format')) {
+    console.error('Message is not in a valid NIP-44 format');
+    // Handle format error
+  } else if (error.message.includes('Unsupported version')) {
+    console.error(`Unsupported NIP-44 version: ${error.message}`);
+    // Handle version compatibility issue
+  } else {
+    console.error('Decryption failed:', error);
+    // Handle other errors
+  }
+  
+  // In production, consider using a generic error message:
+  // displayToUser('Message could not be decrypted');
+}
+```
+
+## Cross-Implementation Compatibility
+
+This implementation has been validated against the [official NIP-44 test vectors](https://github.com/paulmillr/nip44/blob/main/nip44.vectors.json) maintained in [Paul Miller's reference repository](https://github.com/paulmillr/nip44).
+
+Passing these test vectors ensures that this implementation correctly handles:
+- Key derivation according to the NIP-44 specification
+- Encryption and decryption across all supported versions (v0, v1, v2)
+- Message authentication and padding as specified
+
 ## Implementation Details
 
 The NIP-44 implementation follows the [NIP-44 specification](https://github.com/nostr-protocol/nips/blob/master/44.md) and uses the following libraries:
