@@ -20,7 +20,8 @@ import {
   NIP47Error,
 } from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
-import { signEvent, sha256Hex, getPublicKey } from "../../src/utils/crypto";
+import { signEvent, getPublicKey } from "../../src/utils/crypto";
+import { getEventHash } from "../../src/nip01/event";
 
 // Custom error classes for type-safe error handling
 class InsufficientBalanceError extends Error {
@@ -295,8 +296,7 @@ class DemoWallet implements WalletImplementation {
 
   async signMessage(message: string): Promise<SignMessageResponseResult> {
     // Create a Nostr event for signing 
-    const event = {
-      id: sha256Hex(message),
+    const unsignedEvent = {
       pubkey: getPublicKey(this.walletPrivateKey),
       created_at: Math.floor(Date.now() / 1000),
       kind: 4,          // arbitrary kind for "signed message"
@@ -304,8 +304,8 @@ class DemoWallet implements WalletImplementation {
       content: message,
     };
     
-    // Generate event ID (which is what signEvent expects)
-    const eventId = event.id;
+    // Calculate the event ID according to the Nostr protocol
+    const eventId = await getEventHash(unsignedEvent);
     
     // Sign the event ID with the wallet's private key
     const signature = await signEvent(eventId, this.walletPrivateKey);

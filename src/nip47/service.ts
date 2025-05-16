@@ -398,7 +398,16 @@ export class NostrWalletService {
     method: NIP47Method,
     params: NIP47RequestParams,
   ): params is PayInvoiceParams {
-    return method === NIP47Method.PAY_INVOICE;
+    return (
+      method === NIP47Method.PAY_INVOICE &&
+      typeof params === 'object' && 
+      params !== null &&
+      typeof (params as PayInvoiceParams).invoice === 'string' &&
+      ((params as PayInvoiceParams).amount === undefined || 
+       typeof (params as PayInvoiceParams).amount === 'number') &&
+      ((params as PayInvoiceParams).maxfee === undefined || 
+       typeof (params as PayInvoiceParams).maxfee === 'number')
+    );
   }
 
   /**
@@ -408,7 +417,18 @@ export class NostrWalletService {
     method: NIP47Method,
     params: NIP47RequestParams,
   ): params is MakeInvoiceParams {
-    return method === NIP47Method.MAKE_INVOICE;
+    return (
+      method === NIP47Method.MAKE_INVOICE &&
+      typeof params === 'object' && 
+      params !== null &&
+      typeof (params as MakeInvoiceParams).amount === 'number' &&
+      ((params as MakeInvoiceParams).description === undefined || 
+       typeof (params as MakeInvoiceParams).description === 'string') &&
+      ((params as MakeInvoiceParams).description_hash === undefined || 
+       typeof (params as MakeInvoiceParams).description_hash === 'string') &&
+      ((params as MakeInvoiceParams).expiry === undefined || 
+       typeof (params as MakeInvoiceParams).expiry === 'number')
+    );
   }
 
   /**
@@ -418,7 +438,14 @@ export class NostrWalletService {
     method: NIP47Method,
     params: NIP47RequestParams,
   ): params is LookupInvoiceParams {
-    return method === NIP47Method.LOOKUP_INVOICE;
+    return (
+      method === NIP47Method.LOOKUP_INVOICE &&
+      typeof params === 'object' && 
+      params !== null &&
+      // Must have at least one of payment_hash or invoice
+      (typeof (params as LookupInvoiceParams).payment_hash === 'string' ||
+       typeof (params as LookupInvoiceParams).invoice === 'string')
+    );
   }
 
   /**
@@ -428,7 +455,23 @@ export class NostrWalletService {
     method: NIP47Method,
     params: NIP47RequestParams,
   ): params is ListTransactionsParams {
-    return method === NIP47Method.LIST_TRANSACTIONS;
+    return (
+      method === NIP47Method.LIST_TRANSACTIONS &&
+      typeof params === 'object' && 
+      params !== null &&
+      ((params as ListTransactionsParams).from === undefined || 
+       typeof (params as ListTransactionsParams).from === 'number') &&
+      ((params as ListTransactionsParams).until === undefined || 
+       typeof (params as ListTransactionsParams).until === 'number') &&
+      ((params as ListTransactionsParams).limit === undefined || 
+       typeof (params as ListTransactionsParams).limit === 'number') &&
+      ((params as ListTransactionsParams).offset === undefined || 
+       typeof (params as ListTransactionsParams).offset === 'number') &&
+      ((params as ListTransactionsParams).unpaid === undefined || 
+       typeof (params as ListTransactionsParams).unpaid === 'boolean') &&
+      ((params as ListTransactionsParams).type === undefined || 
+       typeof (params as ListTransactionsParams).type === 'string')
+    );
   }
 
   /**
@@ -438,7 +481,12 @@ export class NostrWalletService {
     method: NIP47Method,
     params: NIP47RequestParams,
   ): params is SignMessageParams {
-    return method === NIP47Method.SIGN_MESSAGE;
+    return (
+      method === NIP47Method.SIGN_MESSAGE &&
+      typeof params === 'object' && 
+      params !== null &&
+      typeof (params as SignMessageParams).message === 'string'
+    );
   }
 
   /**
