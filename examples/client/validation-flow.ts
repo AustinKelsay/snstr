@@ -127,7 +127,9 @@ async function main() {
   // 1. Basic validation (manually demonstrate)
   let validationPassed;
   try {
-    validationPassed = (relay as unknown as RelayInternal).performBasicValidation(invalidEvent);
+    validationPassed = (
+      relay as unknown as RelayInternal
+    ).performBasicValidation(invalidEvent);
     console.log(
       `  1. Basic Validation: ${validationPassed ? "✅ Passed" : "❌ Failed"}`,
     );
@@ -144,9 +146,9 @@ async function main() {
 
     // This would normally be handled by the relay
     try {
-      const asyncResult = await (relay as unknown as RelayInternal).validateEventAsync(
-        invalidEvent as NostrEvent,
-      );
+      const asyncResult = await (
+        relay as unknown as RelayInternal
+      ).validateEventAsync(invalidEvent as NostrEvent);
       console.log(
         `  3. Async Validation: ${asyncResult ? "✅ Passed" : "❌ Failed"}`,
       );
@@ -163,7 +165,11 @@ async function main() {
   if (debug) {
     // Only in debug mode - this will show what happens inside the relay
     try {
-      (relay as unknown as RelayInternal).handleMessage(["EVENT", subscriptionId[0], invalidEvent]);
+      (relay as unknown as RelayInternal).handleMessage([
+        "EVENT",
+        subscriptionId[0],
+        invalidEvent,
+      ]);
       console.log("→ Event sent to validation pipeline");
       console.log("→ Check your debug logs to see full validation flow");
     } catch (error) {

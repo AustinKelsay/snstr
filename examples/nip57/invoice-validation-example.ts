@@ -35,7 +35,8 @@ const INVALID_HASH =
   "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 // Store original functions to restore later
-const originalParseBolt11Invoice = utils.parseBolt11Invoice as ParseBolt11InvoiceFunction;
+const originalParseBolt11Invoice =
+  utils.parseBolt11Invoice as ParseBolt11InvoiceFunction;
 const originalSha256Hex = crypto.sha256Hex as Sha256HexFunction;
 
 // Mock the bolt11 parser
@@ -90,7 +91,9 @@ async function main() {
   try {
     // Override the functions with our mocks using proper typings
     // Use type assertions to match the module structure
-    (utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }).parseBolt11Invoice = mockParseBolt11Invoice;
+    (
+      utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }
+    ).parseBolt11Invoice = mockParseBolt11Invoice;
     (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = mockSha256HexValid;
 
     // Example 1: Valid case - Hash matches
@@ -161,7 +164,8 @@ async function main() {
     console.log("--------------------------------------------------");
 
     // Override the sha256 function with our invalid mock
-    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = mockSha256HexInvalid;
+    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex =
+      mockSha256HexInvalid;
 
     // Create an invalid zap request
     const invalidZapRequestTemplate = createZapRequest(
@@ -270,7 +274,9 @@ async function main() {
     }
   } finally {
     // Restore original functions with proper typings
-    (utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }).parseBolt11Invoice = originalParseBolt11Invoice;
+    (
+      utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }
+    ).parseBolt11Invoice = originalParseBolt11Invoice;
     (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = originalSha256Hex;
   }
 

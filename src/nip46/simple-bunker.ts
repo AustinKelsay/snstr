@@ -301,11 +301,11 @@ export class SimpleNIP46Bunker {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to process request:`, errorMessage);
-        
+
         // Send error response to client even when we couldn't parse the request
         const response = createErrorResponse(
           "unknown", // cannot recover id - using convention for failed parse
-          `Failed to process request: ${errorMessage}`
+          `Failed to process request: ${errorMessage}`,
         );
         await this.sendResponse(response, event.pubkey);
       }
@@ -313,12 +313,12 @@ export class SimpleNIP46Bunker {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Error handling request:`, errorMessage);
-      
+
       try {
         // Attempt to send a generic error response for the outer handler as well
         const response = createErrorResponse(
           "unknown", // cannot recover id
-          `Failed to handle request: ${errorMessage}`
+          `Failed to handle request: ${errorMessage}`,
         );
         await this.sendResponse(response, event.pubkey);
       } catch (err) {

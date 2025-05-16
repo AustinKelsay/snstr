@@ -29,7 +29,7 @@ import { signEvent, sha256Hex } from "../../src/utils/crypto";
  * - Setting up a NIP-47 wallet service
  * - Connecting a client to the service
  * - Basic wallet operations (get info, balance, create/lookup invoices)
- * 
+ *
  * SECURITY NOTES:
  * - This example generates fresh keypairs at runtime to avoid hard-coded private keys
  * - In a production environment, private keys should be stored securely, never in code
@@ -43,19 +43,18 @@ class SimpleWallet implements WalletImplementation {
   // Generate a wallet private key at runtime instead of using a hard-coded value
   // SECURITY BEST PRACTICE: Never use hard-coded private keys, even in examples.
   // Always generate keys at runtime or read from secure environment variables.
-  private walletPrivateKey: string = ''; // Initialize with empty string
+  private walletPrivateKey: string = ""; // Initialize with empty string
   private keypairReady: Promise<void>;
 
   constructor() {
     // Generate a fresh keypair for this wallet instance and store the promise
-    this.keypairReady = generateKeypair()
-      .then(keypair => {
-        this.walletPrivateKey = keypair.privateKey;
-        console.log("Generated wallet signing keypair");
-        // No explicit resolve() needed here.
-        // The promise returned by .then() will resolve with `undefined` (effectively `void`)
-        // if the callback doesn't return a value.
-      });
+    this.keypairReady = generateKeypair().then((keypair) => {
+      this.walletPrivateKey = keypair.privateKey;
+      console.log("Generated wallet signing keypair");
+      // No explicit resolve() needed here.
+      // The promise returned by .then() will resolve with `undefined` (effectively `void`)
+      // if the callback doesn't return a value.
+    });
   }
 
   async getInfo(): Promise<GetInfoResponseResult> {
@@ -240,7 +239,7 @@ class SimpleWallet implements WalletImplementation {
   async signMessage(message: string): Promise<SignMessageResponseResult> {
     // Ensure keypair is ready before signing
     await this.keypairReady;
-    
+
     // Use proper cryptographic signing instead of random values
     // Hash the message first to get a 32-byte value to sign
     const messageHash = sha256Hex(message);

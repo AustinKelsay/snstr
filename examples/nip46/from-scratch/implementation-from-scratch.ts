@@ -102,7 +102,10 @@ class MinimalNIP46Client {
   private socket: WebSocket;
   private clientKeys: Keypair;
   private signerPubkey: string;
-  private pendingRequests: Map<string, { resolve: (result: string) => void, reject: (error: Error) => void }> = new Map();
+  private pendingRequests: Map<
+    string,
+    { resolve: (result: string) => void; reject: (error: Error) => void }
+  > = new Map();
 
   constructor(relayUrl: string) {
     this.socket = new WebSocket(relayUrl);
@@ -175,7 +178,7 @@ class MinimalNIP46Client {
         reject: (errorValue: Error) => {
           clearTimeout(timeout);
           reject(errorValue);
-        }
+        },
       });
 
       // Encrypt and send request
@@ -266,7 +269,9 @@ class MinimalNIP46Client {
             promiseControls.resolve(response.result);
           } else {
             // If response has neither result nor error, but has an ID we know, reject.
-            promiseControls.reject(new Error("Invalid response: missing result and error."));
+            promiseControls.reject(
+              new Error("Invalid response: missing result and error."),
+            );
           }
         }
       } catch (error) {
@@ -545,7 +550,7 @@ async function main() {
 
     const signedEvent = await client.signEvent(event);
     const parsedSignedEvent = JSON.parse(signedEvent) as NostrEvent;
-    
+
     console.log("Successfully signed event:");
     console.log(`- ID: ${parsedSignedEvent.id}`);
     console.log(`- Pubkey: ${parsedSignedEvent.pubkey}`);
@@ -553,13 +558,16 @@ async function main() {
 
     // Verify signature
     const valid = await verifySignature(
-      parsedSignedEvent.id, 
-      parsedSignedEvent.sig, 
-      parsedSignedEvent.pubkey
+      parsedSignedEvent.id,
+      parsedSignedEvent.sig,
+      parsedSignedEvent.pubkey,
     );
     console.log(`Signature valid: ${valid}`);
   } catch (error) {
-    console.error("ERROR:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "ERROR:",
+      error instanceof Error ? error.message : String(error),
+    );
   } finally {
     // Clean up
     console.log("\nCleaning up...");

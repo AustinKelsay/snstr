@@ -13,7 +13,9 @@ export type NostrClientToServerEventMessage = ["EVENT", NostrEvent];
 export type NostrServerToClientEventMessage = ["EVENT", string, NostrEvent];
 
 /** Union type for EVENT messages */
-export type NostrEventMessage = NostrClientToServerEventMessage | NostrServerToClientEventMessage;
+export type NostrEventMessage =
+  | NostrClientToServerEventMessage
+  | NostrServerToClientEventMessage;
 
 /** REQ message: A client subscribing to a set of events from a relay */
 export type NostrReqMessage = ["REQ", string, ...NostrFilter[]];
@@ -32,8 +34,8 @@ export type NostrNoticeMessage = ["NOTICE", string];
 
 /** AUTH message: A relay requesting client authentication (NIP-42) */
 export type NostrAuthMessage =
-  | ["AUTH", string]        // relay ➜ client (challenge)
-  | ["AUTH", NostrEvent];   // client ➜ relay   (response)
+  | ["AUTH", string] // relay ➜ client (challenge)
+  | ["AUTH", NostrEvent]; // client ➜ relay   (response)
 
 /** Union type of all possible message types */
 export type NostrMessage =
@@ -51,10 +53,10 @@ export type NostrMessage =
 export class NostrMessageParseError extends Error {
   /** The original data that caused the error */
   public readonly data: unknown;
-  
+
   constructor(message: string, data: unknown) {
     super(message);
-    this.name = 'NostrMessageParseError';
+    this.name = "NostrMessageParseError";
     this.data = data;
   }
 }
@@ -77,41 +79,58 @@ export function parseMessage(data: string): NostrMessage | null {
       case "EVENT":
         // Client to Relay: ["EVENT", <NostrEvent>] (length 2)
         if (parsed.length === 2) {
-          if (typeof parsed[1] !== 'object' || parsed[1] === null) {
-            throw new NostrMessageParseError("EVENT message from client expects an event object as the second element", parsed);
+          if (typeof parsed[1] !== "object" || parsed[1] === null) {
+            throw new NostrMessageParseError(
+              "EVENT message from client expects an event object as the second element",
+              parsed,
+            );
           }
           return ["EVENT", parsed[1] as NostrEvent];
         }
         // Relay to Client: ["EVENT", <subscription_id>, <NostrEvent>] (length 3)
         else if (parsed.length === 3) {
-          if (typeof parsed[1] !== 'string') {
-            throw new NostrMessageParseError("EVENT message from relay expects a subscription ID (string) as the second element", parsed);
+          if (typeof parsed[1] !== "string") {
+            throw new NostrMessageParseError(
+              "EVENT message from relay expects a subscription ID (string) as the second element",
+              parsed,
+            );
           }
-          if (typeof parsed[2] !== 'object' || parsed[2] === null) {
-            throw new NostrMessageParseError("EVENT message from relay expects an event object as the third element", parsed);
+          if (typeof parsed[2] !== "object" || parsed[2] === null) {
+            throw new NostrMessageParseError(
+              "EVENT message from relay expects an event object as the third element",
+              parsed,
+            );
           }
           return ["EVENT", parsed[1] as string, parsed[2] as NostrEvent];
         }
-        throw new NostrMessageParseError("Invalid EVENT message: expected 2 or 3 elements matching client or relay structure", parsed);
+        throw new NostrMessageParseError(
+          "Invalid EVENT message: expected 2 or 3 elements matching client or relay structure",
+          parsed,
+        );
       case "REQ": {
-        if (parsed.length < 3) throw new NostrMessageParseError("Invalid REQ message", parsed);
+        if (parsed.length < 3)
+          throw new NostrMessageParseError("Invalid REQ message", parsed);
         const [, subId, ...filters] = parsed;
         return ["REQ", subId, ...filters];
       }
       case "CLOSE":
-        if (parsed.length !== 2) throw new NostrMessageParseError("Invalid CLOSE message", parsed);
+        if (parsed.length !== 2)
+          throw new NostrMessageParseError("Invalid CLOSE message", parsed);
         return ["CLOSE", parsed[1]];
       case "OK":
-        if (parsed.length !== 4) throw new NostrMessageParseError("Invalid OK message", parsed);
+        if (parsed.length !== 4)
+          throw new NostrMessageParseError("Invalid OK message", parsed);
         return ["OK", parsed[1], parsed[2], parsed[3]];
       case "EOSE":
-        if (parsed.length !== 2) throw new NostrMessageParseError("Invalid EOSE message", parsed);
+        if (parsed.length !== 2)
+          throw new NostrMessageParseError("Invalid EOSE message", parsed);
         return ["EOSE", parsed[1]];
       case "NOTICE":
         // More flexible parsing for NOTICE messages
         return ["NOTICE", parsed[1] || ""];
       case "AUTH":
-        if (parsed.length !== 2) throw new NostrMessageParseError("Invalid AUTH message", parsed);
+        if (parsed.length !== 2)
+          throw new NostrMessageParseError("Invalid AUTH message", parsed);
         return ["AUTH", parsed[1]];
       default:
         console.warn(`Unknown message type: ${messageType}`, parsed);

@@ -85,12 +85,17 @@ async function main() {
       console.log("\nTesting event validation with various invalid events...");
 
       // Direct access to basic validation for testing purposes
-      const testValidation = (event: Partial<NostrEvent>, description: string) => {
+      const testValidation = (
+        event: Partial<NostrEvent>,
+        description: string,
+      ) => {
         // Get access to private validation method for demonstration purposes
         // Using index signature to access private method for demo purposes
-        const validationResult = (relay as unknown as { 
-          performBasicValidation(event: Partial<NostrEvent>): boolean 
-        }).performBasicValidation(event);
+        const validationResult = (
+          relay as unknown as {
+            performBasicValidation(event: Partial<NostrEvent>): boolean;
+          }
+        ).performBasicValidation(event);
         console.log(
           `${validationResult ? "✅" : "❌"} ${description}: ${validationResult ? "PASSED basic validation" : "REJECTED in basic validation"}`,
         );
@@ -238,7 +243,9 @@ async function main() {
       client.unsubscribeAll();
 
       // Check if the relay is still connected (it should be)
-      console.log(`Relay is still connected: ${(relay as unknown as { connected: boolean }).connected}`);
+      console.log(
+        `Relay is still connected: ${(relay as unknown as { connected: boolean }).connected}`,
+      );
 
       // Check if all client subscriptions were correctly closed
       console.log(

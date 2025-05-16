@@ -298,22 +298,42 @@ export class Nostr {
   }
 
   // Define overloads for each event type with proper parameter typing
-  public on(event: RelayEvent.Connect | RelayEvent.Disconnect, callback: (relay: string) => void): void;
-  public on(event: RelayEvent.Error, callback: (relay: string, error: unknown) => void): void;
-  public on(event: RelayEvent.Notice, callback: (relay: string, notice: string) => void): void;
-  public on(event: RelayEvent.OK, callback: (relay: string, eventId: string, success: boolean, message?: string) => void): void;
-  public on(event: RelayEvent.Closed, callback: (relay: string, subscriptionId: string, message: string) => void): void;
-  public on(event: RelayEvent.Auth, callback: (relay: string, challengeEvent: NostrEvent) => void): void;
   public on(
-    event: RelayEvent,
-    callback: unknown
-  ): void {
-    if (typeof callback !== 'function') {
-      throw new Error('Callback must be a function');
+    event: RelayEvent.Connect | RelayEvent.Disconnect,
+    callback: (relay: string) => void,
+  ): void;
+  public on(
+    event: RelayEvent.Error,
+    callback: (relay: string, error: unknown) => void,
+  ): void;
+  public on(
+    event: RelayEvent.Notice,
+    callback: (relay: string, notice: string) => void,
+  ): void;
+  public on(
+    event: RelayEvent.OK,
+    callback: (
+      relay: string,
+      eventId: string,
+      success: boolean,
+      message?: string,
+    ) => void,
+  ): void;
+  public on(
+    event: RelayEvent.Closed,
+    callback: (relay: string, subscriptionId: string, message: string) => void,
+  ): void;
+  public on(
+    event: RelayEvent.Auth,
+    callback: (relay: string, challengeEvent: NostrEvent) => void,
+  ): void;
+  public on(event: RelayEvent, callback: unknown): void {
+    if (typeof callback !== "function") {
+      throw new Error("Callback must be a function");
     }
-    
+
     this.relays.forEach((relay, url) => {
-      switch(event) {
+      switch (event) {
         case RelayEvent.Connect:
         case RelayEvent.Disconnect:
           relay.on(event, () => {
@@ -331,22 +351,37 @@ export class Nostr {
           });
           break;
         case RelayEvent.OK:
-          relay.on(event, (eventId: string, success: boolean, message?: string) => {
-            (callback as (relay: string, eventId: string, success: boolean, message?: string) => void)(
-              url, eventId, success, message
-            );
-          });
+          relay.on(
+            event,
+            (eventId: string, success: boolean, message?: string) => {
+              (
+                callback as (
+                  relay: string,
+                  eventId: string,
+                  success: boolean,
+                  message?: string,
+                ) => void
+              )(url, eventId, success, message);
+            },
+          );
           break;
         case RelayEvent.Closed:
           relay.on(event, (subscriptionId: string, message: string) => {
-            (callback as (relay: string, subscriptionId: string, message: string) => void)(
-              url, subscriptionId, message
-            );
+            (
+              callback as (
+                relay: string,
+                subscriptionId: string,
+                message: string,
+              ) => void
+            )(url, subscriptionId, message);
           });
           break;
         case RelayEvent.Auth:
           relay.on(event, (challengeEvent: NostrEvent) => {
-            (callback as (relay: string, challengeEvent: NostrEvent) => void)(url, challengeEvent);
+            (callback as (relay: string, challengeEvent: NostrEvent) => void)(
+              url,
+              challengeEvent,
+            );
           });
           break;
       }

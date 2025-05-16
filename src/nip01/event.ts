@@ -1,4 +1,13 @@
-import { EventTemplate, NostrEvent, ProfileMetadata, NostrKind, ValidationOptions, TaggedEvent, TagValues, EventTags } from "../types/nostr";
+import {
+  EventTemplate,
+  NostrEvent,
+  ProfileMetadata,
+  NostrKind,
+  ValidationOptions,
+  TaggedEvent,
+  TagValues,
+  EventTags,
+} from "../types/nostr";
 import { getPublicKey, verifySignature } from "../utils/crypto";
 import { encrypt as encryptNIP04 } from "../nip04";
 import { sha256Hex } from "../utils/crypto";
@@ -17,7 +26,7 @@ export class NostrValidationError extends Error {
 
   constructor(message: string, field?: string, event?: Partial<NostrEvent>) {
     super(message);
-    this.name = 'NostrValidationError';
+    this.name = "NostrValidationError";
     this.field = field;
     this.event = event;
   }
@@ -32,26 +41,56 @@ export async function getEventHash(
   event: UnsignedEvent | NostrEvent,
 ): Promise<string> {
   // Validate event structure first - these fields are required by the Nostr protocol
-  if (!event.pubkey) throw new NostrValidationError("Invalid event: missing pubkey", "pubkey", event);
+  if (!event.pubkey)
+    throw new NostrValidationError(
+      "Invalid event: missing pubkey",
+      "pubkey",
+      event,
+    );
   if (event.created_at === undefined || event.created_at === null)
-  throw new NostrValidationError("Invalid event: missing created_at", "created_at", event);
-  if (event.kind === undefined) throw new NostrValidationError("Invalid event: missing kind", "kind", event);
+    throw new NostrValidationError(
+      "Invalid event: missing created_at",
+      "created_at",
+      event,
+    );
+  if (event.kind === undefined)
+    throw new NostrValidationError(
+      "Invalid event: missing kind",
+      "kind",
+      event,
+    );
   if (!Array.isArray(event.tags))
-    throw new NostrValidationError("Invalid event: tags must be an array", "tags", event);
+    throw new NostrValidationError(
+      "Invalid event: tags must be an array",
+      "tags",
+      event,
+    );
 
   // Ensure the tags are valid arrays of strings
   for (const tag of event.tags) {
     if (!Array.isArray(tag))
-      throw new NostrValidationError("Invalid event: each tag must be an array", "tags", event);
+      throw new NostrValidationError(
+        "Invalid event: each tag must be an array",
+        "tags",
+        event,
+      );
     for (const item of tag) {
       if (typeof item !== "string")
-        throw new NostrValidationError("Invalid event: tag items must be strings", "tags", event);
+        throw new NostrValidationError(
+          "Invalid event: tag items must be strings",
+          "tags",
+          event,
+        );
     }
   }
 
   // Check that content is a string
   if (typeof event.content !== "string")
-    throw new NostrValidationError("Invalid event: content must be a string", "content", event);
+    throw new NostrValidationError(
+      "Invalid event: content must be a string",
+      "content",
+      event,
+    );
 
   // NIP-01 specifies the serialization format as:
   // [0, pubkey, created_at, kind, tags, content]
@@ -88,12 +127,16 @@ export function createEvent(
   template: EventTemplate,
   pubkey: string,
 ): UnsignedEvent {
-  if (!pubkey || typeof pubkey !== 'string') {
+  if (!pubkey || typeof pubkey !== "string") {
     throw new NostrValidationError("Invalid pubkey", "pubkey");
   }
-  
+
   if (template.kind === undefined) {
-    throw new NostrValidationError("Event template must include a kind", "kind", template);
+    throw new NostrValidationError(
+      "Event template must include a kind",
+      "kind",
+      template,
+    );
   }
 
   return {
@@ -115,13 +158,13 @@ export async function createSignedEvent(
 ): Promise<NostrEvent> {
   if (
     !privateKey ||
-    typeof privateKey !== 'string' ||
+    typeof privateKey !== "string" ||
     privateKey.length !== 64 ||
     !/^[0-9a-fA-F]+$/.test(privateKey)
   ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
-  
+
   try {
     const id = await getEventHash(event);
     const sig = await signEventCrypto(id, privateKey);
@@ -138,7 +181,7 @@ export async function createSignedEvent(
     throw new NostrValidationError(
       `Failed to create signed event: ${error instanceof Error ? error.message : String(error)}`,
       undefined,
-      event
+      event,
     );
   }
 }
@@ -157,13 +200,16 @@ export function createTextNote(
   privateKey: string,
   tags: string[][] = [],
 ): UnsignedEvent {
-  if (!content || typeof content !== 'string') {
-    throw new NostrValidationError("Content must be a non-empty string", "content");
+  if (!content || typeof content !== "string") {
+    throw new NostrValidationError(
+      "Content must be a non-empty string",
+      "content",
+    );
   }
-  
+
   if (
     !privateKey ||
-    typeof privateKey !== 'string' ||
+    typeof privateKey !== "string" ||
     privateKey.length !== 64 ||
     !/^[0-9a-fA-F]+$/.test(privateKey)
   ) {
@@ -198,17 +244,23 @@ export async function createDirectMessage(
   privateKey: string,
   tags: string[][] = [],
 ): Promise<UnsignedEvent> {
-  if (!content || typeof content !== 'string') {
-    throw new NostrValidationError("Content must be a non-empty string", "content");
+  if (!content || typeof content !== "string") {
+    throw new NostrValidationError(
+      "Content must be a non-empty string",
+      "content",
+    );
   }
-  
-  if (!recipientPubkey || typeof recipientPubkey !== 'string') {
-    throw new NostrValidationError("Invalid recipient public key", "recipientPubkey");
+
+  if (!recipientPubkey || typeof recipientPubkey !== "string") {
+    throw new NostrValidationError(
+      "Invalid recipient public key",
+      "recipientPubkey",
+    );
   }
-  
+
   if (
     !privateKey ||
-    typeof privateKey !== 'string' ||
+    typeof privateKey !== "string" ||
     privateKey.length !== 64 ||
     !/^[0-9a-fA-F]+$/.test(privateKey)
   ) {
@@ -235,7 +287,7 @@ export async function createDirectMessage(
   } catch (error) {
     throw new NostrValidationError(
       `Failed to encrypt message: ${error instanceof Error ? error.message : String(error)}`,
-      "encryption"
+      "encryption",
     );
   }
 }
@@ -251,13 +303,16 @@ export function createMetadataEvent(
   metadata: ProfileMetadata,
   privateKey: string,
 ): UnsignedEvent {
-  if (!metadata || typeof metadata !== 'object') {
-    throw new NostrValidationError("Metadata must be a valid object", "metadata");
+  if (!metadata || typeof metadata !== "object") {
+    throw new NostrValidationError(
+      "Metadata must be a valid object",
+      "metadata",
+    );
   }
-  
+
   if (
     !privateKey ||
-    typeof privateKey !== 'string' ||
+    typeof privateKey !== "string" ||
     privateKey.length !== 64 ||
     !/^[0-9a-fA-F]+$/.test(privateKey)
   ) {
@@ -299,21 +354,24 @@ export function createAddressableEvent(
     throw new NostrValidationError(
       "Addressable events must have kind between 30000-39999",
       "kind",
-      { kind }
+      { kind },
     );
   }
 
-  if (typeof dTagValue !== 'string') {
+  if (typeof dTagValue !== "string") {
     throw new NostrValidationError("D-tag value must be a string", "dTagValue");
   }
-  
-  if (!content || typeof content !== 'string') {
-    throw new NostrValidationError("Content must be a non-empty string", "content");
+
+  if (!content || typeof content !== "string") {
+    throw new NostrValidationError(
+      "Content must be a non-empty string",
+      "content",
+    );
   }
-  
+
   if (
     !privateKey ||
-    typeof privateKey !== 'string' ||
+    typeof privateKey !== "string" ||
     privateKey.length !== 64 ||
     !/^[0-9a-fA-F]+$/.test(privateKey)
   ) {
@@ -337,7 +395,7 @@ export function createAddressableEvent(
 
 /**
  * Validate a Nostr event according to NIP-01 and optional custom rules
- * 
+ *
  * @param event The event to validate
  * @param options Validation options
  * @returns True if the event is valid
@@ -345,7 +403,7 @@ export function createAddressableEvent(
  */
 export async function validateEvent(
   event: NostrEvent,
-  options: ValidationOptions = {}
+  options: ValidationOptions = {},
 ): Promise<boolean> {
   const {
     validateSignatures = true,
@@ -360,54 +418,94 @@ export async function validateEvent(
   // 1. Validate basic required fields
   if (validateFields) {
     // Check ID exists
-    if (!event.id || typeof event.id !== 'string' || event.id.length !== 64) {
-      throw new NostrValidationError('Invalid or missing event ID', 'id', event);
+    if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
+      throw new NostrValidationError(
+        "Invalid or missing event ID",
+        "id",
+        event,
+      );
     }
 
     // Check pubkey exists and is valid hex
-    if (!event.pubkey || typeof event.pubkey !== 'string' || event.pubkey.length !== 64) {
-      throw new NostrValidationError('Invalid or missing pubkey', 'pubkey', event);
+    if (
+      !event.pubkey ||
+      typeof event.pubkey !== "string" ||
+      event.pubkey.length !== 64
+    ) {
+      throw new NostrValidationError(
+        "Invalid or missing pubkey",
+        "pubkey",
+        event,
+      );
     }
 
     // Check signature exists
-    if (!event.sig || typeof event.sig !== 'string' || event.sig.length !== 128) {
-      throw new NostrValidationError('Invalid or missing signature', 'sig', event);
+    if (
+      !event.sig ||
+      typeof event.sig !== "string" ||
+      event.sig.length !== 128
+    ) {
+      throw new NostrValidationError(
+        "Invalid or missing signature",
+        "sig",
+        event,
+      );
     }
 
     // Check kind is a number
-    if (typeof event.kind !== 'number') {
-      throw new NostrValidationError('Kind must be a number', 'kind', event);
+    if (typeof event.kind !== "number") {
+      throw new NostrValidationError("Kind must be a number", "kind", event);
     }
 
     // Check created_at is a valid timestamp
-    if (typeof event.created_at !== 'number' || event.created_at < 0) {
-      throw new NostrValidationError('Invalid created_at timestamp', 'created_at', event);
+    if (typeof event.created_at !== "number" || event.created_at < 0) {
+      throw new NostrValidationError(
+        "Invalid created_at timestamp",
+        "created_at",
+        event,
+      );
     }
-    
+
     // Check content is a string
-    if (typeof event.content !== 'string') {
-      throw new NostrValidationError('Content must be a string', 'content', event);
+    if (typeof event.content !== "string") {
+      throw new NostrValidationError(
+        "Content must be a string",
+        "content",
+        event,
+      );
     }
   }
 
   // 2. Validate tags format
   if (validateTags) {
     if (!Array.isArray(event.tags)) {
-      throw new NostrValidationError('Tags must be an array', 'tags', event);
+      throw new NostrValidationError("Tags must be an array", "tags", event);
     }
 
     for (const tag of event.tags) {
       if (!Array.isArray(tag)) {
-        throw new NostrValidationError('Each tag must be an array', 'tags', event);
+        throw new NostrValidationError(
+          "Each tag must be an array",
+          "tags",
+          event,
+        );
       }
-      
+
       if (tag.length === 0) {
-        throw new NostrValidationError('Tags cannot be empty arrays', 'tags', event);
+        throw new NostrValidationError(
+          "Tags cannot be empty arrays",
+          "tags",
+          event,
+        );
       }
-      
+
       for (const item of tag) {
-        if (typeof item !== 'string') {
-          throw new NostrValidationError('Tag items must be strings', 'tags', event);
+        if (typeof item !== "string") {
+          throw new NostrValidationError(
+            "Tag items must be strings",
+            "tags",
+            event,
+          );
         }
       }
     }
@@ -417,12 +515,12 @@ export async function validateEvent(
   if (maxTimestampDrift > 0) {
     const now = Math.floor(Date.now() / 1000);
     const drift = Math.abs(now - event.created_at);
-    
+
     if (drift > maxTimestampDrift) {
       throw new NostrValidationError(
         `Event timestamp is too far from current time (drift: ${drift}s, max allowed: ${maxTimestampDrift}s)`,
-        'created_at',
-        event
+        "created_at",
+        event,
       );
     }
   }
@@ -436,14 +534,14 @@ export async function validateEvent(
       tags: event.tags,
       content: event.content,
     };
-    
+
     const calculatedId = await getEventHash(unsignedEvent);
-    
+
     if (calculatedId !== event.id) {
       throw new NostrValidationError(
-        'Event ID does not match content hash',
-        'id',
-        event
+        "Event ID does not match content hash",
+        "id",
+        event,
       );
     }
   }
@@ -451,13 +549,9 @@ export async function validateEvent(
   // 5. Validate signature
   if (validateSignatures) {
     const isValid = await verifySignature(event.id, event.pubkey, event.sig);
-    
+
     if (!isValid) {
-      throw new NostrValidationError(
-        'Invalid signature',
-        'sig',
-        event
-      );
+      throw new NostrValidationError("Invalid signature", "sig", event);
     }
   }
 
@@ -467,29 +561,29 @@ export async function validateEvent(
       case NostrKind.Metadata:
         try {
           const metadata = JSON.parse(event.content);
-          if (typeof metadata !== 'object' || metadata === null) {
+          if (typeof metadata !== "object" || metadata === null) {
             throw new NostrValidationError(
-              'Metadata event content must be a valid JSON object',
-              'content',
-              event
+              "Metadata event content must be a valid JSON object",
+              "content",
+              event,
             );
           }
         } catch (error) {
           throw new NostrValidationError(
-            'Metadata event has invalid JSON content',
-            'content',
-            event
+            "Metadata event has invalid JSON content",
+            "content",
+            event,
           );
         }
         break;
 
       case NostrKind.Contacts:
         // Contact lists must have p tags for each contact
-        if (!event.tags.some(tag => tag[0] === 'p')) {
+        if (!event.tags.some((tag) => tag[0] === "p")) {
           throw new NostrValidationError(
-            'Contact list event should have at least one p tag',
-            'tags',
-            event
+            "Contact list event should have at least one p tag",
+            "tags",
+            event,
           );
         }
         break;
@@ -497,12 +591,12 @@ export async function validateEvent(
       case NostrKind.DirectMessage:
         // Direct messages must have exactly one p tag
         {
-          const pTags = event.tags.filter(tag => tag[0] === 'p');
+          const pTags = event.tags.filter((tag) => tag[0] === "p");
           if (pTags.length !== 1) {
             throw new NostrValidationError(
-              'Direct message event must have exactly one p tag',
-              'tags',
-              event
+              "Direct message event must have exactly one p tag",
+              "tags",
+              event,
             );
           }
         }
@@ -516,7 +610,11 @@ export async function validateEvent(
   if (customValidator) {
     const customValid = await Promise.resolve(customValidator(event));
     if (!customValid) {
-      throw new NostrValidationError('Event failed custom validation', undefined, event);
+      throw new NostrValidationError(
+        "Event failed custom validation",
+        undefined,
+        event,
+      );
     }
   }
 
@@ -525,23 +623,23 @@ export async function validateEvent(
 
 /**
  * Extract all tags of a specific type from an event
- * 
+ *
  * @param event The Nostr event to extract tags from
  * @param tagName The tag name to extract (e.g., 'e', 'p', etc.)
  * @returns Array of tag values (without the tag name)
  */
 export function getTagValues<T extends keyof TagValues>(
-  event: NostrEvent, 
-  tagName: T
+  event: NostrEvent,
+  tagName: T,
 ): string[] {
   return event.tags
-    .filter(tag => tag[0] === tagName)
-    .flatMap(tag => tag.slice(1));
+    .filter((tag) => tag[0] === tagName)
+    .flatMap((tag) => tag.slice(1));
 }
 
 /**
  * Get a specific tag value from an event (first occurrence)
- * 
+ *
  * @param event The Nostr event to extract tag from
  * @param tagName The tag name to extract (e.g., 'e', 'p', etc.)
  * @param index The index of the tag value (default: 0, which is the first element after the tag name)
@@ -550,52 +648,55 @@ export function getTagValues<T extends keyof TagValues>(
 export function getTagValue<T extends keyof TagValues>(
   event: NostrEvent,
   tagName: T,
-  index: number = 0
+  index: number = 0,
 ): string | undefined {
-  const tag = event.tags.find(tag => tag[0] === tagName);
+  const tag = event.tags.find((tag) => tag[0] === tagName);
   return tag && tag.length > index + 1 ? tag[index + 1] : undefined;
 }
 
 /**
  * Extract all tags from an event, organized by tag name
- * 
+ *
  * @param event The Nostr event to extract tags from
  * @returns Object with tag names as keys and arrays of values as values
  */
 export function extractTags(event: NostrEvent): EventTags {
   const result: Partial<EventTags> = {};
-  
+
   for (const tag of event.tags) {
     if (tag.length < 1) continue;
-    
+
     const tagName = tag[0];
     const tagValues = tag.slice(1);
-    
+
     if (!result[tagName]) {
       result[tagName] = [];
     }
-    
+
     result[tagName]!.push(...tagValues);
   }
-  
+
   return result as EventTags;
 }
 
 /**
  * Create a tagged event with helper methods for tag extraction
- * 
+ *
  * @param event The Nostr event to wrap
  * @returns Enhanced event with tag extraction methods
  */
-export function createTaggedEvent<T extends string>(event: NostrEvent): TaggedEvent<T> {
+export function createTaggedEvent<T extends string>(
+  event: NostrEvent,
+): TaggedEvent<T> {
   return {
     ...event,
-    tagValues: (name: T) => event.tags
-      .filter(tag => tag[0] === name)
-      .flatMap(tag => tag.slice(1)),
+    tagValues: (name: T) =>
+      event.tags
+        .filter((tag) => tag[0] === name)
+        .flatMap((tag) => tag.slice(1)),
     getTag: (name: T, index = 0) => {
-      const tag = event.tags.find(tag => tag[0] === name);
+      const tag = event.tags.find((tag) => tag[0] === name);
       return tag && tag.length > index + 1 ? tag[index + 1] : undefined;
-    }
+    },
   };
 }

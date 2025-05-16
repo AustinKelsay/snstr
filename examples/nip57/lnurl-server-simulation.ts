@@ -89,10 +89,7 @@ declare global {
 class MockLightningWallet {
   private invoices: Map<string, Invoice> = new Map();
 
-  generateInvoice(
-    amountMsat: number,
-    description: string,
-  ): InvoiceResponse {
+  generateInvoice(amountMsat: number, description: string): InvoiceResponse {
     // In reality, this would call a Lightning node API
     const paymentHash = Math.random().toString(36).substring(2, 15);
     const preimage = Math.random().toString(36).substring(2, 15);
@@ -204,7 +201,10 @@ class MockLnurlServer {
   }
 
   // Handler for LNURL pay metadata endpoint
-  private handleLnurlPayMetadata(req: IncomingMessage, res: ServerResponse): void {
+  private handleLnurlPayMetadata(
+    req: IncomingMessage,
+    res: ServerResponse,
+  ): void {
     // This emulates what a real LNURL server would return
     const response: LnurlPayMetadataResponse = {
       callback: `http://localhost:${LNURL_SERVER_PORT}/lnurlp/callback`,
@@ -225,9 +225,9 @@ class MockLnurlServer {
 
   // Handler for callback endpoint
   private async handleCallback(
-    req: IncomingMessage, 
-    res: ServerResponse, 
-    queryString: string
+    req: IncomingMessage,
+    res: ServerResponse,
+    queryString: string,
   ): Promise<void> {
     // Parse query parameters
     const query = parseQuery(queryString);
@@ -250,7 +250,9 @@ class MockLnurlServer {
       // Check if this is a zap request
       if (nostrParam) {
         // Parse the zap request
-        const zapRequest = JSON.parse(decodeURIComponent(nostrParam)) as NostrEvent;
+        const zapRequest = JSON.parse(
+          decodeURIComponent(nostrParam),
+        ) as NostrEvent;
 
         // Validate the kind
         if (zapRequest.kind !== 9734) {
@@ -491,7 +493,7 @@ async function main() {
   // Simulation of a client fetching LNURL metadata
   console.log("Fetching LNURL metadata...");
   const response = await fetch(lnurlPayUrl);
-  const lnurlData = await response.json() as LnurlPayMetadataResponse;
+  const lnurlData = (await response.json()) as LnurlPayMetadataResponse;
   console.log("✅ Received LNURL metadata\n");
 
   // Parse the response
@@ -556,10 +558,12 @@ async function main() {
 
   // Send the request
   const invoiceResponse = await fetch(callbackUrl.toString());
-  const invoiceData = await invoiceResponse.json() as LnurlInvoiceResponse;
+  const invoiceData = (await invoiceResponse.json()) as LnurlInvoiceResponse;
 
-  if ('status' in invoiceData && invoiceData.status === "ERROR") {
-    console.error(`❌ Error from LNURL server: ${(invoiceData as unknown as LnurlErrorResponse).reason}`);
+  if ("status" in invoiceData && invoiceData.status === "ERROR") {
+    console.error(
+      `❌ Error from LNURL server: ${(invoiceData as unknown as LnurlErrorResponse).reason}`,
+    );
     return;
   }
 

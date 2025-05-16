@@ -20,9 +20,9 @@ export enum NIP47Method {
   PAY_KEYSEND = "pay_keysend",
   MULTI_PAY_INVOICE = "multi_pay_invoice",
   MULTI_PAY_KEYSEND = "multi_pay_keysend",
-  
+
   // Used for early-reject errors where actual method is unknown
-  UNKNOWN = "unknown"
+  UNKNOWN = "unknown",
 }
 
 // NIP-47 notification types
@@ -80,7 +80,7 @@ export enum NIP47ErrorCode {
 
   // Method-specific error codes
   LOOKUP_INVOICE_FAILED = "LOOKUP_INVOICE_FAILED",
-  
+
   // Client lifecycle error codes
   NOT_INITIALIZED = "NOT_INITIALIZED",
 }

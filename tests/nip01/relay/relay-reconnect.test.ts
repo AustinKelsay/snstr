@@ -33,7 +33,10 @@ describe("Relay: Reconnection Configuration", () => {
   });
 
   // Helper to create a relay and track it for cleanup
-  function createRelay(url: string, options: RelayConnectionOptions = {}): Relay {
+  function createRelay(
+    url: string,
+    options: RelayConnectionOptions = {},
+  ): Relay {
     const relay = new Relay(url, options);
     relays.push(relay);
     return relay;
@@ -56,7 +59,7 @@ describe("Relay: Reconnection Configuration", () => {
       maxReconnectAttempts: 5,
       maxReconnectDelay: 15000,
     };
-    
+
     const relay = createRelay("wss://test.relay", options);
     const testRelay = asTestRelay(relay);
 
@@ -119,12 +122,12 @@ describe("Relay: Reconnection Configuration", () => {
       relay.setMaxReconnectDelay(500);
     }).toThrow(/at least 1000ms/);
   });
-  
+
   // Additional test for ReconnectionStrategy interface
   test("should be configurable with a full ReconnectionStrategy", () => {
     // This test serves as a type-check for future implementation
     // that uses the ReconnectionStrategy interface directly
-    
+
     // Define a strategy that could be used in the future
     const strategy: ReconnectionStrategy = {
       enabled: true,
@@ -133,18 +136,18 @@ describe("Relay: Reconnection Configuration", () => {
       maxDelay: 45000,
       backoffFactor: 1.5,
       useJitter: true,
-      jitterFactor: 0.2
+      jitterFactor: 0.2,
     };
-    
+
     // Current implementation uses individual properties, but
     // we can test that we can extract these properties correctly
     const relay = createRelay("wss://test.relay", {
       autoReconnect: strategy.enabled,
       maxReconnectAttempts: strategy.maxAttempts,
-      maxReconnectDelay: strategy.maxDelay
+      maxReconnectDelay: strategy.maxDelay,
     });
     const testRelay = asTestRelay(relay);
-    
+
     // Verify basic properties were applied
     expect(testRelay.autoReconnect).toBe(strategy.enabled);
     expect(testRelay.maxReconnectAttempts).toBe(strategy.maxAttempts);

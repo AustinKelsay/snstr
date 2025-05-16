@@ -102,8 +102,8 @@ export function encodeBech32(prefix: string, data: HexString): Bech32String {
 export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
   // First, check if the prefix is valid without full decoding
   // This ensures 'Invalid prefix' errors take precedence over other errors
-  const hrp = bech32Str.slice(0, bech32Str.indexOf('1'));
-  
+  const hrp = bech32Str.slice(0, bech32Str.indexOf("1"));
+
   try {
     const { prefix, words } = bech32.decode(bech32Str);
     const bytes = bech32.fromWords(words);
@@ -112,8 +112,11 @@ export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
   } catch (error) {
     // If the error is about invalid length but we got a valid hrp,
     // we want to prioritize prefix validation errors for consistency
-    if (error instanceof Error && error.message.includes('invalid string length') && 
-        !Object.values(Prefix).includes(hrp as Prefix)) {
+    if (
+      error instanceof Error &&
+      error.message.includes("invalid string length") &&
+      !Object.values(Prefix).includes(hrp as Prefix)
+    ) {
       throw new Error(`Invalid prefix: expected valid prefix, got '${hrp}'`);
     }
     throw error;
@@ -135,22 +138,26 @@ function handleDecodingError(error: unknown, entityType: string): never {
   // Only pass through specific error types we want to preserve
   if (error instanceof Error) {
     // Special case: handle string length errors for bech32 strings with wrong prefixes
-    if (error.message.includes("invalid string length") && 
-        error.message.includes("Expected") && 
-        error.message.includes(")")) {
+    if (
+      error.message.includes("invalid string length") &&
+      error.message.includes("Expected") &&
+      error.message.includes(")")
+    ) {
       // Extract the actual string from the error message
       const match = error.message.match(/\(([^)]+)\)/);
       if (match && match[1]) {
         const bech32Str = match[1];
         const actualPrefix = bech32Str.split("1")[0];
         const expectedPrefix = getExpectedPrefixForEntityType(entityType);
-        
+
         if (actualPrefix && expectedPrefix && actualPrefix !== expectedPrefix) {
-          throw new Error(`Invalid prefix: expected '${expectedPrefix}', got '${actualPrefix}'`);
+          throw new Error(
+            `Invalid prefix: expected '${expectedPrefix}', got '${actualPrefix}'`,
+          );
         }
       }
     }
-    
+
     // Pass through these error types directly as they have specific context
     if (
       error.message.startsWith("Invalid prefix") ||

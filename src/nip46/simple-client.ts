@@ -311,7 +311,7 @@ export class SimpleNIP46Client {
         this.pendingRequests.delete(request.id);
         reject(new NIP46TimeoutError(`Request timed out: ${method}`));
       }, this.timeout);
-      
+
       // Store the promise handlers with timeout cleanup
       this.pendingRequests.set(request.id, (response: NIP46Response) => {
         clearTimeout(timeoutId);
@@ -347,17 +347,17 @@ export class SimpleNIP46Client {
           })
           .then((publishResult) => {
             if (!publishResult.success) {
-              let reasonMessage = 'unknown reason';
+              let reasonMessage = "unknown reason";
               if (publishResult.relayResults) {
                 for (const relayResult of publishResult.relayResults.values()) {
                   if (!relayResult.success && relayResult.reason) {
                     reasonMessage = relayResult.reason;
-                    break; 
+                    break;
                   }
                 }
               }
               throw new NIP46ConnectionError(
-                `Relay rejected event: ${reasonMessage}`
+                `Relay rejected event: ${reasonMessage}`,
               );
             }
           })

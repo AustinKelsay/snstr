@@ -44,7 +44,7 @@ export type NostrFilter = {
   authors?: string[];
   /** List of event kinds to match */
   kinds?: number[];
-  
+
   // Standard tag filters from NIP-01
   /** Filter by e tags (event references) */
   "#e"?: string[];
@@ -62,7 +62,7 @@ export type NostrFilter = {
   "#g"?: string[];
   /** Filter by u tags (URLs) */
   "#u"?: string[];
-  
+
   // Common extended tag filters
   /** Filter by c tags (content warning) */
   "#c"?: string[];
@@ -72,7 +72,7 @@ export type NostrFilter = {
   "#m"?: string[];
   /** Filter by s tags (subject) */
   "#s"?: string[];
-  
+
   // Time filters
   /** UNIX timestamp (seconds), events must be newer than this to match */
   since?: number;
@@ -136,7 +136,11 @@ export type RelayEventCallbacks = {
   [RelayEvent.Disconnect]: (relay: string) => void;
   [RelayEvent.Error]: (relay: string, error: unknown) => void;
   [RelayEvent.Notice]: (relay: string, notice: string) => void;
-  [RelayEvent.OK]: (eventId: string, success: boolean, message?: string) => void;
+  [RelayEvent.OK]: (
+    eventId: string,
+    success: boolean,
+    message?: string,
+  ) => void;
   [RelayEvent.Closed]: (subscriptionId: string, message: string) => void;
   [RelayEvent.Auth]: (challengeEvent: NostrEvent) => void;
 };
@@ -201,15 +205,15 @@ export interface SubscriptionResponse {
  */
 export enum RelayStatus {
   /** Not connected or disconnected */
-  DISCONNECTED = 'disconnected',
+  DISCONNECTED = "disconnected",
   /** Connection in progress */
-  CONNECTING = 'connecting',
+  CONNECTING = "connecting",
   /** Successfully connected */
-  CONNECTED = 'connected',
+  CONNECTED = "connected",
   /** Waiting to reconnect after a disconnection */
-  RECONNECTING = 'reconnecting',
+  RECONNECTING = "reconnecting",
   /** Permanently closed (e.g., after calling disconnect) */
-  CLOSED = 'closed',
+  CLOSED = "closed",
 }
 
 /**
@@ -360,7 +364,7 @@ export enum WebSocketReadyState {
   /** Connection is going through the closing handshake */
   CLOSING = 2,
   /** Connection has been closed or could not be opened */
-  CLOSED = 3
+  CLOSED = 3,
 }
 
 /**
@@ -382,7 +386,11 @@ export interface ReconnectionStrategy {
   /** Maximum jitter percentage (0-1) */
   jitterFactor: number;
   /** Custom function to calculate next delay */
-  calculateDelay?: (attempt: number, initialDelay: number, maxDelay: number) => number;
+  calculateDelay?: (
+    attempt: number,
+    initialDelay: number,
+    maxDelay: number,
+  ) => number;
 }
 
 /**
@@ -557,9 +565,15 @@ export interface RelayTestContext {
     /** Original WebSocket instance */
     ws?: WebSocket | null;
     /** Original on method for event handlers */
-    on?: <E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]) => void;
+    on?: <E extends RelayEvent>(
+      event: E,
+      callback: RelayEventCallbacks[E],
+    ) => void;
     /** Original off method for event handlers */
-    off?: <E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]) => void;
+    off?: <E extends RelayEvent>(
+      event: E,
+      callback: RelayEventCallbacks[E],
+    ) => void;
   };
   /** Mock functions used during testing */
   mocks: {
@@ -601,33 +615,33 @@ export interface RelayTestContext {
  */
 export enum RelayErrorType {
   /** Connection error when attempting to connect to relay */
-  CONNECTION_ERROR = 'connection_error',
+  CONNECTION_ERROR = "connection_error",
   /** Timeout occurred during a relay operation */
-  TIMEOUT = 'timeout',
+  TIMEOUT = "timeout",
   /** Connection was lost or closed during an operation */
-  DISCONNECTED = 'disconnected',
+  DISCONNECTED = "disconnected",
   /** Failed to validate an event (signature, id, etc.) */
-  VALIDATION_ERROR = 'validation_error',
+  VALIDATION_ERROR = "validation_error",
   /** Event was rejected by the relay */
-  EVENT_REJECTED = 'event_rejected',
+  EVENT_REJECTED = "event_rejected",
   /** Rate limit exceeded on the relay */
-  RATE_LIMITED = 'rate_limited',
+  RATE_LIMITED = "rate_limited",
   /** Authentication required but not provided */
-  AUTH_REQUIRED = 'auth_required',
+  AUTH_REQUIRED = "auth_required",
   /** Authentication attempt failed */
-  AUTH_FAILED = 'auth_failed',
+  AUTH_FAILED = "auth_failed",
   /** IP address is blocked or restricted */
-  IP_BLOCKED = 'ip_blocked',
+  IP_BLOCKED = "ip_blocked",
   /** Relay is in read-only mode */
-  READ_ONLY = 'read_only',
+  READ_ONLY = "read_only",
   /** Event payload is too large */
-  PAYLOAD_TOO_LARGE = 'payload_too_large',
+  PAYLOAD_TOO_LARGE = "payload_too_large",
   /** Relay could not process the message */
-  INVALID_MESSAGE = 'invalid_message',
+  INVALID_MESSAGE = "invalid_message",
   /** Maximum subscriptions reached */
-  MAX_SUBSCRIPTIONS = 'max_subscriptions',
+  MAX_SUBSCRIPTIONS = "max_subscriptions",
   /** Unknown error */
-  UNKNOWN = 'unknown'
+  UNKNOWN = "unknown",
 }
 
 /**
@@ -672,7 +686,11 @@ export interface RelayInterface {
   send(message: string): void;
   on<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void;
   off<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void;
-  subscribe(filters: NostrFilter[], onEvent: (event: NostrEvent) => void, onEose?: () => void): string;
+  subscribe(
+    filters: NostrFilter[],
+    onEvent: (event: NostrEvent) => void,
+    onEose?: () => void,
+  ): string;
   unsubscribe(subscriptionId: string): void;
   publish(event: NostrEvent): Promise<PublishResponse>;
 }
@@ -700,7 +718,9 @@ export interface ValidationOptions {
 /**
  * Type for extracting events by specific kind
  */
-export type EventOfKind<K extends number> = Omit<NostrEvent, 'kind'> & { kind: K };
+export type EventOfKind<K extends number> = Omit<NostrEvent, "kind"> & {
+  kind: K;
+};
 
 /** Metadata event (kind 0) */
 export type MetadataEvent = EventOfKind<NostrKind.Metadata>;

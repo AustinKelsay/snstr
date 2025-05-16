@@ -3,7 +3,12 @@
  * Tests that verify the functionality of the expanded filter types from NIP-01
  */
 
-import { NostrFilter, Filter, NostrEvent, NostrKind } from "../../../src/types/nostr";
+import {
+  NostrFilter,
+  Filter,
+  NostrEvent,
+  NostrKind,
+} from "../../../src/types/nostr";
 import { Relay } from "../../../src/nip01/relay";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { createSignedEvent } from "../../../src/nip01/event";
@@ -62,18 +67,18 @@ describe("Enhanced NostrFilter Types", () => {
       // Create a filter with all the standard tag types
       const filter: NostrFilter = {
         kinds: [NostrKind.ShortNote],
-        "#e": ["event1", "event2"],            // event references
-        "#p": ["pubkey1", "pubkey2"],          // pubkey references
-        "#a": ["address1", "address2"],        // address references (NIP-33)
-        "#d": ["d-tag1", "d-tag2"],            // d-tag for replaceable events
-        "#t": ["topic1", "topic2"],            // topics/hashtags
-        "#r": ["reference1", "reference2"],    // references/URLs
-        "#g": ["geohash1", "geohash2"],        // geohash locations
-        "#u": ["url1", "url2"],                // URLs
-        "#c": ["nsfw", "violence"],            // content warnings
-        "#l": ["en", "es"],                    // languages
-        "#m": ["text/plain", "image/png"],     // MIME types
-        "#s": ["subject1", "subject2"],        // subjects
+        "#e": ["event1", "event2"], // event references
+        "#p": ["pubkey1", "pubkey2"], // pubkey references
+        "#a": ["address1", "address2"], // address references (NIP-33)
+        "#d": ["d-tag1", "d-tag2"], // d-tag for replaceable events
+        "#t": ["topic1", "topic2"], // topics/hashtags
+        "#r": ["reference1", "reference2"], // references/URLs
+        "#g": ["geohash1", "geohash2"], // geohash locations
+        "#u": ["url1", "url2"], // URLs
+        "#c": ["nsfw", "violence"], // content warnings
+        "#l": ["en", "es"], // languages
+        "#m": ["text/plain", "image/png"], // MIME types
+        "#s": ["subject1", "subject2"], // subjects
         since: Math.floor(Date.now() / 1000) - 86400,
         until: Math.floor(Date.now() / 1000),
         limit: 10,
@@ -336,9 +341,9 @@ describe("Enhanced NostrFilter Types", () => {
           content: "Event with standard and extended tags",
           tags: [
             ["t", "tag-topic"],
-            ["l", "en"],       // language tag
-            ["c", "nsfw"],     // content warning
-            ["s", "testing"],  // subject
+            ["l", "en"], // language tag
+            ["c", "nsfw"], // content warning
+            ["s", "testing"], // subject
           ],
           created_at: Math.floor(Date.now() / 1000),
         },

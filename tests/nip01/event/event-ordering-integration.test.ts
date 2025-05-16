@@ -32,13 +32,14 @@ describe("Relay Event Ordering Integration", () => {
   let relay: Relay;
   let onEventCallback: jest.Mock;
   let onEOSECallback: jest.Mock;
-  
+
   // Type assertion function to access private members for testing
-  const asTestable = (r: Relay) => r as unknown as {
-    sortEvents: (events: NostrEvent[]) => NostrEvent[];
-    flushSubscriptionBuffer: (subscriptionId: string) => void;
-    eventBuffers: Map<string, NostrEvent[]>;
-  };
+  const asTestable = (r: Relay) =>
+    r as unknown as {
+      sortEvents: (events: NostrEvent[]) => NostrEvent[];
+      flushSubscriptionBuffer: (subscriptionId: string) => void;
+      eventBuffers: Map<string, NostrEvent[]>;
+    };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -59,7 +60,9 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Mock the WebSocket constructor
-    global.WebSocket = jest.fn(() => mockSocketInstance) as unknown as typeof WebSocket;
+    global.WebSocket = jest.fn(
+      () => mockSocketInstance,
+    ) as unknown as typeof WebSocket;
 
     // Create a relay with a 50ms buffer flush delay
     relay = new Relay("wss://test-relay.com", { bufferFlushDelay: 50 });
@@ -67,7 +70,8 @@ describe("Relay Event Ordering Integration", () => {
     // Expose private methods for testing
     const testable = asTestable(relay);
     testable.sortEvents = testable.sortEvents.bind(relay);
-    testable.flushSubscriptionBuffer = testable.flushSubscriptionBuffer.bind(relay);
+    testable.flushSubscriptionBuffer =
+      testable.flushSubscriptionBuffer.bind(relay);
   });
 
   afterEach(() => {

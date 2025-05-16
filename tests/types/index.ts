@@ -68,7 +68,7 @@ export interface RelayTestAccess {
   getSubscriptionIds(): Set<string>;
   setConnectionTimeout(timeout: number): void;
   getConnectionTimeout(): number;
-  
+
   // Private connection related properties
   ws: WebSocket | null;
   connectionPromise: Promise<boolean> | null;
@@ -77,12 +77,12 @@ export interface RelayTestAccess {
   maxReconnectDelay: number;
   reconnectAttempts: number;
   connected: boolean;
-  
+
   // Private internal state
   subscriptions: Map<string, Subscription>;
   eventBuffers: Map<string, NostrEvent[]>;
   status: string;
-  
+
   // Private internal methods
   handleMessage(message: string[] | unknown[]): void;
   processValidatedEvent(event: NostrEvent, subscriptionId: string): void;
@@ -109,8 +109,15 @@ export type RelayConnectCallback = (relay: string) => void;
 export type RelayDisconnectCallback = (relay: string) => void;
 export type RelayErrorCallback = (relay: string, error: unknown) => void;
 export type RelayNoticeCallback = (relay: string, notice: string) => void;
-export type RelayOkCallback = (eventId: string, success: boolean, message?: string) => void;
-export type RelayClosedCallback = (subscriptionId: string, message: string) => void;
+export type RelayOkCallback = (
+  eventId: string,
+  success: boolean,
+  message?: string,
+) => void;
+export type RelayClosedCallback = (
+  subscriptionId: string,
+  message: string,
+) => void;
 export type RelayAuthCallback = (challengeEvent: NostrEvent) => void;
 export type RelayEventCallback = (event: NostrEvent) => void;
 export type RelayEoseCallback = () => void;
@@ -163,8 +170,8 @@ export const testUtils = {
    */
   clearRelayCache: (relay: NostrRelay): void => {
     // Access the internal cache with a more explicit casting approach
-    ((relay as unknown) as { _cache: NostrEvent[] })._cache = [];
-  }
+    (relay as unknown as { _cache: NostrEvent[] })._cache = [];
+  },
 };
 
 /**

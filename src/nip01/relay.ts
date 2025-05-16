@@ -33,10 +33,7 @@ export class Relay {
   private replaceableEvents: Map<string, Map<number, NostrEvent>> = new Map();
   private addressableEvents: Map<string, NostrEvent> = new Map();
 
-  constructor(
-    url: string,
-    options: RelayConnectionOptions = {},
-  ) {
+  constructor(url: string, options: RelayConnectionOptions = {}) {
     this.url = url;
     if (options.connectionTimeout !== undefined) {
       this.connectionTimeout = options.connectionTimeout;
@@ -317,11 +314,17 @@ export class Relay {
     this.maxReconnectDelay = maxDelayMs;
   }
 
-  public on<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void {
+  public on<E extends RelayEvent>(
+    event: E,
+    callback: RelayEventCallbacks[E],
+  ): void {
     this.eventHandlers[event] = callback;
   }
 
-  public off<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void {
+  public off<E extends RelayEvent>(
+    event: E,
+    callback: RelayEventCallbacks[E],
+  ): void {
     // Only remove if the current handler is the same callback
     if (this.eventHandlers[event] === callback) {
       delete this.eventHandlers[event];
@@ -336,12 +339,20 @@ export class Relay {
       try {
         const connected = await this.connect();
         if (!connected) {
-          return { success: false, reason: "connection_failed", relay: this.url };
+          return {
+            success: false,
+            reason: "connection_failed",
+            relay: this.url,
+          };
         }
       } catch (error) {
         const errorMsg =
           error instanceof Error ? error.message : "unknown error";
-        return { success: false, reason: `connection_error: ${errorMsg}`, relay: this.url };
+        return {
+          success: false,
+          reason: `connection_error: ${errorMsg}`,
+          relay: this.url,
+        };
       }
     }
 
@@ -384,7 +395,11 @@ export class Relay {
           cleanup();
           const errorMsg =
             error instanceof Error ? error.message : "unknown error";
-          resolve({ success: false, reason: `error: ${errorMsg}`, relay: this.url });
+          resolve({
+            success: false,
+            reason: `error: ${errorMsg}`,
+            relay: this.url,
+          });
         };
 
         // Setup disconnect handler in case connection drops during wait
@@ -416,7 +431,11 @@ export class Relay {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
       console.error(`Error publishing event to ${this.url}:`, errorMessage);
-      return { success: false, reason: `error: ${errorMessage}`, relay: this.url };
+      return {
+        success: false,
+        reason: `error: ${errorMessage}`,
+        relay: this.url,
+      };
     }
   }
 
@@ -472,17 +491,17 @@ export class Relay {
     switch (type) {
       case "EVENT": {
         const [subscriptionId, event] = rest;
-        
+
         // Type guard to ensure event is a NostrEvent
         if (!this.isNostrEvent(event)) {
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
-            new Error(`Invalid event structure: ${JSON.stringify(event)}`)
+            new Error(`Invalid event structure: ${JSON.stringify(event)}`),
           );
           break;
         }
-        
+
         if (debug) {
           console.log(
             `Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event.kind}, id: ${event.id.slice(0, 8)}...`,
@@ -532,7 +551,9 @@ export class Relay {
             this.triggerEvent(
               RelayEvent.Error,
               this.url,
-              new Error(`Validation error: ${error instanceof Error ? error.message : 'unknown error'}`),
+              new Error(
+                `Validation error: ${error instanceof Error ? error.message : "unknown error"}`,
+              ),
             );
           });
 
@@ -546,7 +567,7 @@ export class Relay {
           );
 
         // Flush the buffer for this subscription immediately on EOSE
-        if (typeof subscriptionId === 'string') {
+        if (typeof subscriptionId === "string") {
           this.flushSubscriptionBuffer(subscriptionId);
 
           const subscription = this.subscriptions.get(subscriptionId);
@@ -560,7 +581,8 @@ export class Relay {
         const [notice] = rest;
         if (debug) console.log(`Relay(${this.url}): Notice: ${notice}`);
         // Ensure notice is a string
-        const noticeStr = typeof notice === 'string' ? notice : String(notice || '');
+        const noticeStr =
+          typeof notice === "string" ? notice : String(notice || "");
         this.triggerEvent(RelayEvent.Notice, this.url, noticeStr);
         break;
       }
@@ -570,13 +592,15 @@ export class Relay {
           console.log(
             `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessage}`,
           );
-        
+
         // Ensure all params are of the correct type
-        const eventIdStr = typeof eventId === 'string' ? eventId : String(eventId || '');
+        const eventIdStr =
+          typeof eventId === "string" ? eventId : String(eventId || "");
         const successBool = Boolean(success);
         // message can be undefined, or a string. If it's not a string, treat as undefined for the event.
-        const messageStr = typeof rawMessage === 'string' ? rawMessage : undefined;
-        
+        const messageStr =
+          typeof rawMessage === "string" ? rawMessage : undefined;
+
         this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, messageStr);
         break;
       }
@@ -586,31 +610,41 @@ export class Relay {
           console.log(
             `Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`,
           );
-        
+
         // Ensure both params are strings
-        const subIdStr = typeof subscriptionId === 'string' ? subscriptionId : String(subscriptionId || '');
-        const messageStr = typeof message === 'string' ? message : String(message || '');
-        
+        const subIdStr =
+          typeof subscriptionId === "string"
+            ? subscriptionId
+            : String(subscriptionId || "");
+        const messageStr =
+          typeof message === "string" ? message : String(message || "");
+
         this.triggerEvent(RelayEvent.Closed, subIdStr, messageStr);
         // Remove the subscription from our map since the relay closed it
-        if (typeof subscriptionId === 'string') {
+        if (typeof subscriptionId === "string") {
           this.subscriptions.delete(subscriptionId);
         }
         break;
       }
       case "AUTH": {
         const [challengeEvent] = rest;
-        if (debug) console.log(`Relay(${this.url}): Auth challenge received:`, challengeEvent);
-        
+        if (debug)
+          console.log(
+            `Relay(${this.url}): Auth challenge received:`,
+            challengeEvent,
+          );
+
         // Check if the challenge is a proper NostrEvent
         if (this.isNostrEvent(challengeEvent)) {
           this.triggerEvent(RelayEvent.Auth, challengeEvent);
         } else {
           // If it's not a proper event, log an error
           this.triggerEvent(
-            RelayEvent.Error, 
-            this.url, 
-            new Error(`Invalid AUTH challenge: ${JSON.stringify(challengeEvent)}`)
+            RelayEvent.Error,
+            this.url,
+            new Error(
+              `Invalid AUTH challenge: ${JSON.stringify(challengeEvent)}`,
+            ),
           );
         }
         break;
@@ -766,7 +800,7 @@ export class Relay {
     if (!this.isNostrEvent(event)) {
       return false;
     }
-    
+
     if (!this.performBasicValidation(event)) {
       return false;
     }
@@ -833,12 +867,35 @@ export class Relay {
   }
 
   // Use a type-safe approach with overloads for each event type
-  private triggerEvent(event: RelayEvent.Connect | RelayEvent.Disconnect, url: string): void;
-  private triggerEvent(event: RelayEvent.Error, url: string, error: unknown): void;
-  private triggerEvent(event: RelayEvent.Notice, url: string, notice: string): void;
-  private triggerEvent(event: RelayEvent.OK, eventId: string, success: boolean, message?: string): void;
-  private triggerEvent(event: RelayEvent.Closed, subscriptionId: string, message: string): void;
-  private triggerEvent(event: RelayEvent.Auth, challengeEvent: NostrEvent): void;
+  private triggerEvent(
+    event: RelayEvent.Connect | RelayEvent.Disconnect,
+    url: string,
+  ): void;
+  private triggerEvent(
+    event: RelayEvent.Error,
+    url: string,
+    error: unknown,
+  ): void;
+  private triggerEvent(
+    event: RelayEvent.Notice,
+    url: string,
+    notice: string,
+  ): void;
+  private triggerEvent(
+    event: RelayEvent.OK,
+    eventId: string,
+    success: boolean,
+    message?: string,
+  ): void;
+  private triggerEvent(
+    event: RelayEvent.Closed,
+    subscriptionId: string,
+    message: string,
+  ): void;
+  private triggerEvent(
+    event: RelayEvent.Auth,
+    challengeEvent: NostrEvent,
+  ): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
     const handler = this.eventHandlers[event];
     if (handler) {
@@ -851,23 +908,28 @@ export class Relay {
           (handler as RelayEventCallbacks[RelayEvent.Error])(this.url, args[0]);
           break;
         case RelayEvent.Notice:
-          (handler as RelayEventCallbacks[RelayEvent.Notice])(this.url, args[0] as string);
+          (handler as RelayEventCallbacks[RelayEvent.Notice])(
+            this.url,
+            args[0] as string,
+          );
           break;
         case RelayEvent.OK:
           (handler as RelayEventCallbacks[RelayEvent.OK])(
             args[0] as string,
             args[1] as boolean,
-            args[2] as string | undefined
+            args[2] as string | undefined,
           );
           break;
         case RelayEvent.Closed:
           (handler as RelayEventCallbacks[RelayEvent.Closed])(
             args[0] as string,
-            args[1] as string
+            args[1] as string,
           );
           break;
         case RelayEvent.Auth:
-          (handler as RelayEventCallbacks[RelayEvent.Auth])(args[0] as NostrEvent);
+          (handler as RelayEventCallbacks[RelayEvent.Auth])(
+            args[0] as NostrEvent,
+          );
           break;
       }
     }
@@ -1088,18 +1150,18 @@ export class Relay {
 
   // Add this helper method to type guard for NostrEvent
   private isNostrEvent(event: unknown): event is NostrEvent {
-    if (!event || typeof event !== 'object') return false;
-    
+    if (!event || typeof event !== "object") return false;
+
     const e = event as Record<string, unknown>;
-    
+
     return (
-      typeof e.id === 'string' &&
-      typeof e.pubkey === 'string' &&
-      typeof e.created_at === 'number' &&
-      typeof e.kind === 'number' &&
+      typeof e.id === "string" &&
+      typeof e.pubkey === "string" &&
+      typeof e.created_at === "number" &&
+      typeof e.kind === "number" &&
       Array.isArray(e.tags) &&
-      typeof e.content === 'string' &&
-      typeof e.sig === 'string'
+      typeof e.content === "string" &&
+      typeof e.sig === "string"
     );
   }
 }

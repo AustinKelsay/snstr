@@ -1,11 +1,11 @@
-import { 
-  Nostr, 
-  NostrEvent, 
-  RelayEvent, 
-  RelayEventCallbacks, 
+import {
+  Nostr,
+  NostrEvent,
+  RelayEvent,
+  RelayEventCallbacks,
   PublishResponse,
   RelayStatus,
-  NostrFilter
+  NostrFilter,
 } from "../../../src";
 
 // Simulated relay for testing
@@ -47,12 +47,22 @@ class MockRelay {
     this.connected = false;
   }
 
-  on<E extends RelayEvent>(_event: E, _callback: RelayEventCallbacks[E]): void {}
-  off<E extends RelayEvent>(_event: E, _callback: RelayEventCallbacks[E]): void {}
+  on<E extends RelayEvent>(
+    _event: E,
+    _callback: RelayEventCallbacks[E],
+  ): void {}
+  off<E extends RelayEvent>(
+    _event: E,
+    _callback: RelayEventCallbacks[E],
+  ): void {}
 
   // These methods are needed to satisfy the interface but aren't used in tests
   send(_message: string): void {}
-  subscribe(_filters: NostrFilter[], _onEvent: (event: NostrEvent) => void, _onEose?: () => void): string {
+  subscribe(
+    _filters: NostrFilter[],
+    _onEvent: (event: NostrEvent) => void,
+    _onEose?: () => void,
+  ): string {
     return "";
   }
   unsubscribe(_subscriptionId: string): void {}

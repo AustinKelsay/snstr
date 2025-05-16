@@ -1,20 +1,20 @@
-import { 
-  Relay, 
-  RelayEvent, 
-  NostrEvent, 
-  PublishOptions, 
+import {
+  Relay,
+  RelayEvent,
+  NostrEvent,
+  PublishOptions,
   PublishResponse,
 } from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
-import { 
-  asTestRelay, 
-  RelayConnectCallback, 
-  RelayDisconnectCallback, 
-  RelayErrorCallback, 
-  RelayNoticeCallback, 
-  RelayOkCallback, 
-  RelayClosedCallback, 
-  RelayAuthCallback 
+import {
+  asTestRelay,
+  RelayConnectCallback,
+  RelayDisconnectCallback,
+  RelayErrorCallback,
+  RelayNoticeCallback,
+  RelayOkCallback,
+  RelayClosedCallback,
+  RelayAuthCallback,
 } from "../../types";
 
 // Ephemeral relay port for tests
@@ -197,15 +197,15 @@ describe("Relay", () => {
       };
 
       // Define a type for all possible relay callbacks
-      type RelayCallbackType = 
-        | RelayConnectCallback 
-        | RelayDisconnectCallback 
-        | RelayErrorCallback 
-        | RelayNoticeCallback 
-        | RelayOkCallback 
-        | RelayClosedCallback 
+      type RelayCallbackType =
+        | RelayConnectCallback
+        | RelayDisconnectCallback
+        | RelayErrorCallback
+        | RelayNoticeCallback
+        | RelayOkCallback
+        | RelayClosedCallback
         | RelayAuthCallback;
-        
+
       const callbacks = new Map<RelayEvent, RelayCallbackType>();
       const originalOn = relay.on;
       relay.on = jest.fn((event: RelayEvent, callback: RelayCallbackType) => {
@@ -219,7 +219,7 @@ describe("Relay", () => {
       // The publish method should have registered a callback for OK events
       expect(relay.on).toHaveBeenCalledWith(
         RelayEvent.OK,
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(callbacks.has(RelayEvent.OK)).toBe(true);
 
@@ -250,15 +250,15 @@ describe("Relay", () => {
       };
 
       // Define a type for all possible relay callbacks
-      type RelayCallbackType = 
-        | RelayConnectCallback 
-        | RelayDisconnectCallback 
-        | RelayErrorCallback 
-        | RelayNoticeCallback 
-        | RelayOkCallback 
-        | RelayClosedCallback 
+      type RelayCallbackType =
+        | RelayConnectCallback
+        | RelayDisconnectCallback
+        | RelayErrorCallback
+        | RelayNoticeCallback
+        | RelayOkCallback
+        | RelayClosedCallback
         | RelayAuthCallback;
-        
+
       const callbacks = new Map<RelayEvent, RelayCallbackType>();
       const originalOn = relay.on;
       relay.on = jest.fn((event: RelayEvent, callback: RelayCallbackType) => {
@@ -272,7 +272,7 @@ describe("Relay", () => {
       // The publish method should have registered a callback for OK events
       expect(relay.on).toHaveBeenCalledWith(
         RelayEvent.OK,
-        expect.any(Function)
+        expect.any(Function),
       );
       expect(callbacks.has(RelayEvent.OK)).toBe(true);
 
@@ -393,9 +393,9 @@ describe("Relay", () => {
       const testRelay = asTestRelay(relay);
       const origWs = testRelay.ws;
       const mockSend = jest.fn();
-      testRelay.ws = { 
+      testRelay.ws = {
         readyState: WebSocket.OPEN,
-        send: mockSend
+        send: mockSend,
       } as unknown as WebSocket;
 
       // Publish with waitForAck: false
@@ -723,8 +723,14 @@ describe("Relay", () => {
         content: "Missing pubkey",
         sig: "d".repeat(128),
       };
-      expect(internalRelay.performBasicValidation(missingFields as unknown as NostrEvent)).toBe(false);
-      expect(internalRelay.validateEvent(missingFields as unknown as NostrEvent)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          missingFields as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(missingFields as unknown as NostrEvent),
+      ).toBe(false);
 
       // Invalid id length
       const invalidId = {
@@ -736,8 +742,14 @@ describe("Relay", () => {
         content: "Invalid ID",
         sig: "d".repeat(128),
       };
-      expect(internalRelay.performBasicValidation(invalidId as unknown as NostrEvent)).toBe(false);
-      expect(internalRelay.validateEvent(invalidId as unknown as NostrEvent)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          invalidId as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(invalidId as unknown as NostrEvent),
+      ).toBe(false);
 
       // Invalid kind (outside range)
       const invalidKind = {
@@ -749,8 +761,14 @@ describe("Relay", () => {
         content: "Invalid kind",
         sig: "d".repeat(128),
       };
-      expect(internalRelay.performBasicValidation(invalidKind as unknown as NostrEvent)).toBe(false);
-      expect(internalRelay.validateEvent(invalidKind as unknown as NostrEvent)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          invalidKind as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(invalidKind as unknown as NostrEvent),
+      ).toBe(false);
 
       // Invalid tag structure
       const invalidTags = {
@@ -762,8 +780,14 @@ describe("Relay", () => {
         content: "Invalid tags",
         sig: "d".repeat(128),
       };
-      expect(internalRelay.performBasicValidation(invalidTags as unknown as NostrEvent)).toBe(false);
-      expect(internalRelay.validateEvent(invalidTags as unknown as NostrEvent)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          invalidTags as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(invalidTags as unknown as NostrEvent),
+      ).toBe(false);
     });
 
     test("should properly handle async validation workflow", async () => {
@@ -858,8 +882,7 @@ describe("Relay", () => {
       testRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
 
       // Also override processValidatedEvent to track calls
-      const originalProcessValidatedEvent = testRelay
-        .processValidatedEvent;
+      const originalProcessValidatedEvent = testRelay.processValidatedEvent;
       const processValidatedEventMock = jest.fn((event, subId) => {
         return originalProcessValidatedEvent.call(relay, event, subId);
       });
@@ -869,9 +892,7 @@ describe("Relay", () => {
       testRelay.handleMessage(["EVENT", subscriptionId, validEvent]);
 
       // Verify validateEventAsync was called
-      expect(testRelay.validateEventAsync).toHaveBeenCalledWith(
-        validEvent,
-      );
+      expect(testRelay.validateEventAsync).toHaveBeenCalledWith(validEvent);
 
       // Wait for promises to resolve
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -938,9 +959,7 @@ describe("Relay", () => {
         ...event,
         id: "invalid-id",
       };
-      const invalidResult = await testRelay.validateEventAsync(
-        invalidEvent,
-      );
+      const invalidResult = await testRelay.validateEventAsync(invalidEvent);
       expect(invalidResult).toBe(false);
     });
   });

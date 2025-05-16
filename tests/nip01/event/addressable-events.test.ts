@@ -17,7 +17,7 @@ interface RelayPrivateMethods {
   getLatestAddressableEvent(
     kind: number,
     pubkey: string,
-    dTagValue?: string
+    dTagValue?: string,
   ): NostrEvent | undefined;
 }
 

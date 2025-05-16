@@ -470,7 +470,7 @@ export class NostrWalletConnectClient {
         NIP47ErrorCode.INVALID_REQUEST,
       );
     }
-    
+
     // Verify result_type is a known NIP47Method
     if (!Object.values(NIP47Method).includes(resp.result_type as NIP47Method)) {
       throw new NIP47ClientError(
@@ -868,11 +868,11 @@ export class NostrWalletConnectClient {
       throw lastError;
     }
 
-      // This should never happen, but TypeScript requires it
-  throw new NIP47ClientError(
-    "Retry operation failed for an unknown reason",
-    NIP47ErrorCode.INTERNAL_ERROR,
-  );
+    // This should never happen, but TypeScript requires it
+    throw new NIP47ClientError(
+      "Retry operation failed for an unknown reason",
+      NIP47ErrorCode.INTERNAL_ERROR,
+    );
   }
 
   // Example use of retry with existing method

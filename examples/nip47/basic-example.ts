@@ -95,14 +95,14 @@ class DemoWallet implements WalletImplementation {
       pubkey: "00000000000000000000000000000000000000000000000000000000000000",
       network: "regtest",
       methods: [
-         NIP47Method.GET_INFO,
-         NIP47Method.GET_BALANCE,
-         NIP47Method.PAY_INVOICE,
-         NIP47Method.MAKE_INVOICE,
-         NIP47Method.LOOKUP_INVOICE,
-         NIP47Method.LIST_TRANSACTIONS,
+        NIP47Method.GET_INFO,
+        NIP47Method.GET_BALANCE,
+        NIP47Method.PAY_INVOICE,
+        NIP47Method.MAKE_INVOICE,
+        NIP47Method.LOOKUP_INVOICE,
+        NIP47Method.LIST_TRANSACTIONS,
         NIP47Method.SIGN_MESSAGE,
-       ],
+      ],
       notifications: [
         NIP47NotificationType.PAYMENT_RECEIVED,
         NIP47NotificationType.PAYMENT_SENT,
@@ -295,21 +295,21 @@ class DemoWallet implements WalletImplementation {
   }
 
   async signMessage(message: string): Promise<SignMessageResponseResult> {
-    // Create a Nostr event for signing 
+    // Create a Nostr event for signing
     const unsignedEvent = {
       pubkey: getPublicKey(this.walletPrivateKey),
       created_at: Math.floor(Date.now() / 1000),
-      kind: 4,          // arbitrary kind for "signed message"
+      kind: 4, // arbitrary kind for "signed message"
       tags: [],
       content: message,
     };
-    
+
     // Calculate the event ID according to the Nostr protocol
     const eventId = await getEventHash(unsignedEvent);
-    
+
     // Sign the event ID with the wallet's private key
     const signature = await signEvent(eventId, this.walletPrivateKey);
-    
+
     return {
       signature,
       message,
