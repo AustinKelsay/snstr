@@ -3,12 +3,12 @@
  * Tests that verify the functionality of the expanded filter types from NIP-01
  */
 
-import { NostrFilter, Filter } from "../../../src/types/nostr";
+import { NostrFilter, Filter, NostrEvent, NostrKind } from "../../../src/types/nostr";
 import { Relay } from "../../../src/nip01/relay";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
-import { NostrEvent } from "../../../src/types/nostr";
 import { createSignedEvent } from "../../../src/nip01/event";
 import { generateKeypair } from "../../../src/utils/crypto";
+import { testUtils } from "../../types";
 
 // Helper function to wait for events
 const waitForEvents = (
@@ -57,42 +57,51 @@ describe("Enhanced NostrFilter Types", () => {
 
   // Test 1: Type validation for filters with new tag types
   describe("Filter Type Validation", () => {
-    test("should accept filters with new tag types", () => {
+    test("should accept filters with all defined tag types", () => {
       // This test verifies TypeScript accepts the expanded type definition
-      // Create a filter with new tag types
+      // Create a filter with all the standard tag types
       const filter: NostrFilter = {
-        kinds: [1],
-        "#a": ["test-address"],
-        "#d": ["test-d-tag"],
-        "#t": ["test-topic"],
-        "#r": ["test-reference"],
-        "#g": ["test-geohash"],
-        "#u": ["test-url"],
-        "#c": ["content-warning"],
-        "#l": ["en"],
-        "#m": ["text/plain"],
-        "#s": ["test-subject"],
+        kinds: [NostrKind.ShortNote],
+        "#e": ["event1", "event2"],            // event references
+        "#p": ["pubkey1", "pubkey2"],          // pubkey references
+        "#a": ["address1", "address2"],        // address references (NIP-33)
+        "#d": ["d-tag1", "d-tag2"],            // d-tag for replaceable events
+        "#t": ["topic1", "topic2"],            // topics/hashtags
+        "#r": ["reference1", "reference2"],    // references/URLs
+        "#g": ["geohash1", "geohash2"],        // geohash locations
+        "#u": ["url1", "url2"],                // URLs
+        "#c": ["nsfw", "violence"],            // content warnings
+        "#l": ["en", "es"],                    // languages
+        "#m": ["text/plain", "image/png"],     // MIME types
+        "#s": ["subject1", "subject2"],        // subjects
+        since: Math.floor(Date.now() / 1000) - 86400,
+        until: Math.floor(Date.now() / 1000),
         limit: 10,
       };
 
       // TypeScript verification happens at compile time
       // At runtime, we just check the properties exist
-      expect(filter["#a"]).toEqual(["test-address"]);
-      expect(filter["#d"]).toEqual(["test-d-tag"]);
-      expect(filter["#t"]).toEqual(["test-topic"]);
-      expect(filter["#r"]).toEqual(["test-reference"]);
-      expect(filter["#g"]).toEqual(["test-geohash"]);
-      expect(filter["#u"]).toEqual(["test-url"]);
-      expect(filter["#c"]).toEqual(["content-warning"]);
-      expect(filter["#l"]).toEqual(["en"]);
-      expect(filter["#m"]).toEqual(["text/plain"]);
-      expect(filter["#s"]).toEqual(["test-subject"]);
+      expect(filter["#e"]).toHaveLength(2);
+      expect(filter["#p"]).toHaveLength(2);
+      expect(filter["#a"]).toHaveLength(2);
+      expect(filter["#d"]).toHaveLength(2);
+      expect(filter["#t"]).toHaveLength(2);
+      expect(filter["#r"]).toHaveLength(2);
+      expect(filter["#g"]).toHaveLength(2);
+      expect(filter["#u"]).toHaveLength(2);
+      expect(filter["#c"]).toHaveLength(2);
+      expect(filter["#l"]).toHaveLength(2);
+      expect(filter["#m"]).toHaveLength(2);
+      expect(filter["#s"]).toHaveLength(2);
+      expect(filter.since).toBeDefined();
+      expect(filter.until).toBeDefined();
+      expect(filter.limit).toBe(10);
     });
 
     test("should allow combining multiple tag filters", () => {
       // Create a filter with multiple tag filters
       const filter: NostrFilter = {
-        kinds: [1, 30023],
+        kinds: [NostrKind.ShortNote, 30023],
         "#t": ["topic1", "topic2", "topic3"],
         "#p": ["pubkey1", "pubkey2"],
         limit: 5,
@@ -101,7 +110,7 @@ describe("Enhanced NostrFilter Types", () => {
       // Verify type checking and value access
       expect(filter["#t"]).toHaveLength(3);
       expect(filter["#p"]).toHaveLength(2);
-      expect(filter.kinds).toContain(1);
+      expect(filter.kinds).toContain(NostrKind.ShortNote);
       expect(filter.kinds).toContain(30023);
     });
   });
@@ -111,7 +120,7 @@ describe("Enhanced NostrFilter Types", () => {
     test("should work with existing filter objects using only #e and #p", () => {
       // Create a traditional filter with only #e and #p
       const filter: NostrFilter = {
-        kinds: [1],
+        kinds: [NostrKind.ShortNote],
         "#e": ["event1", "event2"],
         "#p": ["pubkey1", "pubkey2"],
         limit: 10,
@@ -120,14 +129,14 @@ describe("Enhanced NostrFilter Types", () => {
       // Verify access to the traditional fields
       expect(filter["#e"]).toHaveLength(2);
       expect(filter["#p"]).toHaveLength(2);
-      expect(filter.kinds).toContain(1);
+      expect(filter.kinds).toContain(NostrKind.ShortNote);
       expect(filter.limit).toBe(10);
     });
 
     test("should allow accessing filters with index notation", () => {
       // Create a filter
       const filter: Filter = {
-        kinds: [1],
+        kinds: [NostrKind.ShortNote],
         "#t": ["topic1", "topic2"],
       };
 
@@ -140,7 +149,7 @@ describe("Enhanced NostrFilter Types", () => {
 
       // Create with index notation
       const dynamicFilter: Filter = {
-        kinds: [1],
+        kinds: [NostrKind.ShortNote],
       };
 
       // Add tags dynamically
@@ -152,7 +161,7 @@ describe("Enhanced NostrFilter Types", () => {
     test("should work with custom filter properties via indexed access", () => {
       // Create a filter with a non-standard tag filter
       const filter: Filter = {
-        kinds: [1],
+        kinds: [NostrKind.ShortNote],
         "#custom-tag": ["custom-value"],
       };
 
@@ -164,8 +173,8 @@ describe("Enhanced NostrFilter Types", () => {
   // Test 3: Test event filtering with new tag types
   describe("Event Filtering with New Tag Types", () => {
     beforeEach(async () => {
-      // Access the internal cache - using type assertion since it might be private
-      (ephemeralRelay as any)._cache = [];
+      // Clear the internal cache using the test utility function
+      testUtils.clearRelayCache(ephemeralRelay);
     });
 
     test("should filter events by #t tag", async () => {
@@ -314,6 +323,44 @@ describe("Enhanced NostrFilter Types", () => {
       const receivedEvents = await waitForEvents(relay, filter, 1);
 
       // Verify only the fully matching event was received
+      expect(receivedEvents.length).toBe(1);
+      expect(receivedEvents[0].id).toBe(event.id);
+    });
+
+    test("should filter by a combination of standard and extended tag types", async () => {
+      // Create an event with various tag types
+      const event = await createSignedEvent(
+        {
+          pubkey: keypair.publicKey,
+          kind: 1,
+          content: "Event with standard and extended tags",
+          tags: [
+            ["t", "tag-topic"],
+            ["l", "en"],       // language tag
+            ["c", "nsfw"],     // content warning
+            ["s", "testing"],  // subject
+          ],
+          created_at: Math.floor(Date.now() / 1000),
+        },
+        keypair.privateKey,
+      );
+
+      // Publish the event
+      await relay.publish(event);
+
+      // Filter by multiple tag types
+      const filter: Filter = {
+        kinds: [1],
+        "#t": ["tag-topic"],
+        "#l": ["en"],
+        "#c": ["nsfw"],
+        "#s": ["testing"],
+      };
+
+      // Subscribe and collect events
+      const receivedEvents = await waitForEvents(relay, filter, 1);
+
+      // Verify the event was matched
       expect(receivedEvents.length).toBe(1);
       expect(receivedEvents[0].id).toBe(event.id);
     });

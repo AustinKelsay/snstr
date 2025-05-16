@@ -2,7 +2,9 @@
  * Tests for Relay Reconnection functionality
  */
 
-import { Relay } from "../../../src/nip01/relay";
+import { Relay, ReconnectionStrategy } from "../../../src";
+import { RelayConnectionOptions } from "../../../src/types/protocol";
+import { asTestRelay } from "../../types";
 
 // Mock WebSocket
 jest.mock("websocket-polyfill", () => ({}));
@@ -31,7 +33,7 @@ describe("Relay: Reconnection Configuration", () => {
   });
 
   // Helper to create a relay and track it for cleanup
-  function createRelay(url: string, options = {}): Relay {
+  function createRelay(url: string, options: RelayConnectionOptions = {}): Relay {
     const relay = new Relay(url, options);
     relays.push(relay);
     return relay;
@@ -39,59 +41,65 @@ describe("Relay: Reconnection Configuration", () => {
 
   test("should initialize with default reconnection options", () => {
     const relay = createRelay("wss://test.relay");
+    const testRelay = asTestRelay(relay);
 
     // Verify the relay has the expected default values
-    // We need to use 'as any' to access private properties for testing only
-    expect((relay as any).autoReconnect).toBe(true);
-    expect((relay as any).maxReconnectAttempts).toBe(10);
-    expect((relay as any).maxReconnectDelay).toBe(30000);
-    expect((relay as any).reconnectAttempts).toBe(0);
+    expect(testRelay.autoReconnect).toBe(true);
+    expect(testRelay.maxReconnectAttempts).toBe(10);
+    expect(testRelay.maxReconnectDelay).toBe(30000);
+    expect(testRelay.reconnectAttempts).toBe(0);
   });
 
   test("should allow custom reconnection options", () => {
-    const relay = createRelay("wss://test.relay", {
+    const options: RelayConnectionOptions = {
       autoReconnect: false,
       maxReconnectAttempts: 5,
       maxReconnectDelay: 15000,
-    });
+    };
+    
+    const relay = createRelay("wss://test.relay", options);
+    const testRelay = asTestRelay(relay);
 
     // Verify the custom options were applied
-    expect((relay as any).autoReconnect).toBe(false);
-    expect((relay as any).maxReconnectAttempts).toBe(5);
-    expect((relay as any).maxReconnectDelay).toBe(15000);
+    expect(testRelay.autoReconnect).toBe(false);
+    expect(testRelay.maxReconnectAttempts).toBe(5);
+    expect(testRelay.maxReconnectDelay).toBe(15000);
   });
 
   test("should allow changing auto-reconnect setting", () => {
     const relay = createRelay("wss://test.relay", { autoReconnect: false });
+    const testRelay = asTestRelay(relay);
 
     // Verify initial state
-    expect((relay as any).autoReconnect).toBe(false);
+    expect(testRelay.autoReconnect).toBe(false);
 
     // Change the setting
     relay.setAutoReconnect(true);
 
     // Verify the setting was updated
-    expect((relay as any).autoReconnect).toBe(true);
+    expect(testRelay.autoReconnect).toBe(true);
   });
 
   test("should allow changing max reconnect attempts", () => {
     const relay = createRelay("wss://test.relay");
+    const testRelay = asTestRelay(relay);
 
     // Change the setting
     relay.setMaxReconnectAttempts(20);
 
     // Verify the setting was updated
-    expect((relay as any).maxReconnectAttempts).toBe(20);
+    expect(testRelay.maxReconnectAttempts).toBe(20);
   });
 
   test("should allow changing max reconnect delay", () => {
     const relay = createRelay("wss://test.relay");
+    const testRelay = asTestRelay(relay);
 
     // Change the setting
     relay.setMaxReconnectDelay(60000);
 
     // Verify the setting was updated
-    expect((relay as any).maxReconnectDelay).toBe(60000);
+    expect(testRelay.maxReconnectDelay).toBe(60000);
   });
 
   test("should validate max reconnect attempts (non-negative)", () => {
@@ -110,5 +118,36 @@ describe("Relay: Reconnection Configuration", () => {
     expect(() => {
       relay.setMaxReconnectDelay(500);
     }).toThrow(/at least 1000ms/);
+  });
+  
+  // Additional test for ReconnectionStrategy interface
+  test("should be configurable with a full ReconnectionStrategy", () => {
+    // This test serves as a type-check for future implementation
+    // that uses the ReconnectionStrategy interface directly
+    
+    // Define a strategy that could be used in the future
+    const strategy: ReconnectionStrategy = {
+      enabled: true,
+      maxAttempts: 15,
+      initialDelay: 1000,
+      maxDelay: 45000,
+      backoffFactor: 1.5,
+      useJitter: true,
+      jitterFactor: 0.2
+    };
+    
+    // Current implementation uses individual properties, but
+    // we can test that we can extract these properties correctly
+    const relay = createRelay("wss://test.relay", {
+      autoReconnect: strategy.enabled,
+      maxReconnectAttempts: strategy.maxAttempts,
+      maxReconnectDelay: strategy.maxDelay
+    });
+    const testRelay = asTestRelay(relay);
+    
+    // Verify basic properties were applied
+    expect(testRelay.autoReconnect).toBe(strategy.enabled);
+    expect(testRelay.maxReconnectAttempts).toBe(strategy.maxAttempts);
+    expect(testRelay.maxReconnectDelay).toBe(strategy.maxDelay);
   });
 });

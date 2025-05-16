@@ -5,7 +5,10 @@ import {
   Subscription,
   RelayEvent,
   RelayEventHandler,
+  PublishOptions,
+  PublishResponse,
 } from "../types/nostr";
+import { RelayConnectionOptions } from "../types/protocol";
 
 export class Relay {
   private url: string;
@@ -31,13 +34,7 @@ export class Relay {
 
   constructor(
     url: string,
-    options: {
-      connectionTimeout?: number;
-      bufferFlushDelay?: number;
-      autoReconnect?: boolean;
-      maxReconnectAttempts?: number;
-      maxReconnectDelay?: number;
-    } = {},
+    options: RelayConnectionOptions = {},
   ) {
     this.url = url;
     if (options.connectionTimeout !== undefined) {
@@ -332,23 +329,23 @@ export class Relay {
 
   public async publish(
     event: NostrEvent,
-    options: { timeout?: number } = {},
-  ): Promise<{ success: boolean; reason?: string }> {
+    options: PublishOptions = {},
+  ): Promise<PublishResponse> {
     if (!this.connected) {
       try {
         const connected = await this.connect();
         if (!connected) {
-          return { success: false, reason: "connection_failed" };
+          return { success: false, reason: "connection_failed", relay: this.url };
         }
       } catch (error) {
         const errorMsg =
           error instanceof Error ? error.message : "unknown error";
-        return { success: false, reason: `connection_error: ${errorMsg}` };
+        return { success: false, reason: `connection_error: ${errorMsg}`, relay: this.url };
       }
     }
 
     if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      return { success: false, reason: "not_connected" };
+      return { success: false, reason: "not_connected", relay: this.url };
     }
 
     try {
@@ -356,12 +353,17 @@ export class Relay {
       const message = JSON.stringify(["EVENT", event]);
       this.ws.send(message);
 
+      // If we don't need to wait for acknowledgment, return immediately
+      if (options.waitForAck === false) {
+        return { success: true, relay: this.url };
+      }
+
       // Return a Promise that will resolve when we get the OK response for this event
-      return new Promise<{ success: boolean; reason?: string }>((resolve) => {
+      return new Promise<PublishResponse>((resolve) => {
         const timeout = options.timeout ?? 10000;
         let timeoutId: NodeJS.Timeout = setTimeout(() => {
           cleanup();
-          resolve({ success: false, reason: "timeout" });
+          resolve({ success: false, reason: "timeout", relay: this.url });
         }, timeout);
 
         // Create unique handler function for this specific publish operation
@@ -372,7 +374,7 @@ export class Relay {
         ) => {
           if (eventId === event.id) {
             cleanup();
-            resolve({ success, reason: message || undefined });
+            resolve({ success, reason: message || undefined, relay: this.url });
           }
         };
 
@@ -381,13 +383,13 @@ export class Relay {
           cleanup();
           const errorMsg =
             error instanceof Error ? error.message : "unknown error";
-          resolve({ success: false, reason: `error: ${errorMsg}` });
+          resolve({ success: false, reason: `error: ${errorMsg}`, relay: this.url });
         };
 
         // Setup disconnect handler in case connection drops during wait
         const handleDisconnect = () => {
           cleanup();
-          resolve({ success: false, reason: "disconnected" });
+          resolve({ success: false, reason: "disconnected", relay: this.url });
         };
 
         // Helper to clean up all handlers and timeout
@@ -406,14 +408,14 @@ export class Relay {
         // Set timeout to avoid hanging indefinitely
         timeoutId = setTimeout(() => {
           cleanup();
-          resolve({ success: false, reason: "timeout" });
+          resolve({ success: false, reason: "timeout", relay: this.url });
         }, timeout);
       });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
       console.error(`Error publishing event to ${this.url}:`, errorMessage);
-      return { success: false, reason: `error: ${errorMessage}` };
+      return { success: false, reason: `error: ${errorMessage}`, relay: this.url };
     }
   }
 
@@ -564,6 +566,12 @@ export class Relay {
         this.triggerEvent(RelayEvent.Closed, subscriptionId, message);
         // Remove the subscription from our map since the relay closed it
         this.subscriptions.delete(subscriptionId);
+        break;
+      }
+      case "AUTH": {
+        const [challengeEvent] = rest;
+        if (debug) console.log(`Relay(${this.url}): Auth challenge received:`, challengeEvent);
+        this.triggerEvent(RelayEvent.Auth, challengeEvent);
         break;
       }
       default:
@@ -834,6 +842,9 @@ export class Relay {
             args[0],
             args[1],
           );
+          break;
+        case RelayEvent.Auth:
+          (handler as (challengeEvent: NostrEvent) => void)(args[0]);
           break;
       }
     }

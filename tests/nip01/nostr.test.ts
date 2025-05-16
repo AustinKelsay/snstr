@@ -3,7 +3,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { createMetadataEvent } from "../../src/nip01/event";
-import { getNostrInternals } from "../types";
+import { getNostrInternals, asTestRelay } from "../types";
 
 // Use ephemeral relay for all tests
 const RELAY_TEST_PORT = 3555;
@@ -311,7 +311,7 @@ describe("Nostr Client", () => {
       expect(relay.getSubscriptionIds().size).toBe(0);
 
       // Verify relay is still connected (not disconnected)
-      expect((relay as any).connected).toBe(true);
+      expect(asTestRelay(relay).connected).toBe(true);
 
       // Cleanup
       client.disconnectFromRelays();
@@ -538,7 +538,12 @@ describe("Nostr client", () => {
 
 describe("Addressable events functionality", () => {
   let nostr: Nostr;
-  let mockRelays: any[]; // Using any for mocks
+  // Define with specific structure for the test
+  let mockRelays: {
+    getLatestAddressableEvent: jest.Mock;
+    getAddressableEventsByPubkey: jest.Mock;
+    getAddressableEventsByKind: jest.Mock;
+  }[];
 
   beforeEach(() => {
     // Create mock relay objects instead of actual Relay instances
@@ -559,14 +564,9 @@ describe("Addressable events functionality", () => {
     nostr = new Nostr();
 
     // Add the mocked relays to the nostr instance
-    getNostrInternals(nostr).relays.set(
-      "wss://relay1.example.com",
-      mockRelays[0],
-    );
-    getNostrInternals(nostr).relays.set(
-      "wss://relay2.example.com",
-      mockRelays[1],
-    );
+    const relays = getNostrInternals(nostr).relays;
+    relays.set("wss://relay1.example.com", mockRelays[0] as unknown as Relay);
+    relays.set("wss://relay2.example.com", mockRelays[1] as unknown as Relay);
   });
 
   test("getLatestAddressableEvent should return the latest event from all relays", () => {

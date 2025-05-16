@@ -68,14 +68,14 @@ describe("NIP-07 Core Functions", () => {
       },
     };
 
-    // Set global.window using type assertion
-    (global as any).window = mockWindow;
+    // Set global.window using proper typing for Jest environment
+    (global as {window?: MockWindow}).window = mockWindow;
   });
 
   afterEach(() => {
     // Clean up the mock
     mockWindow = undefined;
-    (global as any).window = undefined;
+    (global as {window?: MockWindow}).window = undefined;
   });
 
   describe("hasNip07Support", () => {
@@ -91,7 +91,7 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should return false when window is not defined", () => {
-      (global as any).window = undefined;
+      (global as {window?: MockWindow}).window = undefined;
       expect(nip07.hasNip07Support()).toBe(false);
     });
   });
