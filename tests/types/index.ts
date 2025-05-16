@@ -146,11 +146,11 @@ export interface CapturedCallbacks {
  * Reduces 'any' usage and ensures type safety when invoking the callback
  */
 export function captureCallback<T extends keyof RelayCallbacks>(
-  relay: Relay, 
-  eventType: T, 
-  callback: (...args: Parameters<RelayCallbacks[T]>) => void
+  eventType: T,
+  callback: (...args: Parameters<RelayCallbacks[T]>) => void,
 ): RelayCallbacks[T] {
-  return callback as unknown as RelayCallbacks[T];
+  // wrapper can later be extended to push calls into a test buffer
+  return callback as RelayCallbacks[T];
 }
 
 /**
