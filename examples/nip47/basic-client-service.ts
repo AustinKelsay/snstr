@@ -95,9 +95,11 @@ class SimpleWallet implements WalletImplementation {
     // Deduct from balance
     const total = paymentAmount + fee;
     if (this.balance < total) {
-      throw new Error(
+      const err = new Error(
         `Insufficient balance: wanted ${total}, have ${this.balance}`,
-      );
+      ) as Error & { code: NIP47ErrorCode };
+      err.code = NIP47ErrorCode.INSUFFICIENT_BALANCE;
+      throw err;
     }
     this.balance -= total;
 
