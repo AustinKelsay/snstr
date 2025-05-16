@@ -9,6 +9,51 @@ import {
   createMetadataEvent,
 } from "./event";
 
+// Types for Nostr.on() callbacks (user-provided)
+type NostrConnectCallback = (relay: string) => void;
+type NostrErrorCallback = (relay: string, error: unknown) => void;
+type NostrNoticeCallback = (relay: string, notice: string) => void;
+type NostrOkCallback = (
+  relay: string,
+  eventId: string,
+  success: boolean,
+  message?: string,
+) => void;
+type NostrClosedCallback = (
+  relay: string,
+  subscriptionId: string,
+  message: string,
+) => void;
+type NostrAuthCallback = (relay: string, challengeEvent: NostrEvent) => void;
+
+type NostrEventCallback =
+  | NostrConnectCallback
+  | NostrErrorCallback
+  | NostrNoticeCallback
+  | NostrOkCallback
+  | NostrClosedCallback
+  | NostrAuthCallback;
+
+// Types for handlers passed to Relay.on() (internal)
+type RelayConnectHandler = () => void;
+type RelayErrorHandler = (error: unknown) => void;
+type RelayNoticeHandler = (notice: string) => void;
+type RelayOkHandler = (
+  eventId: string,
+  success: boolean,
+  message?: string,
+) => void;
+type RelayClosedHandler = (subscriptionId: string, message: string) => void;
+type RelayAuthHandler = (challengeEvent: NostrEvent) => void;
+
+type RelayEventHandler =
+  | RelayConnectHandler
+  | RelayErrorHandler
+  | RelayNoticeHandler
+  | RelayOkHandler
+  | RelayClosedHandler
+  | RelayAuthHandler;
+
 export class Nostr {
   private relays: Map<string, Relay> = new Map();
   private privateKey?: string;
@@ -17,6 +62,7 @@ export class Nostr {
     connectionTimeout?: number;
     bufferFlushDelay?: number;
   };
+  private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
 
   /**
    * Create a new Nostr client
@@ -37,6 +83,58 @@ export class Nostr {
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
+  // Helper function to create the event handler wrapper
+  private _createRelayEventHandler(
+    relayUrl: string,
+    originalCallback: NostrEventCallback, // This is the callback provided by the user to Nostr.on()
+    event: RelayEvent,
+  ): RelayEventHandler {
+    switch (event) {
+      case RelayEvent.Connect:
+      case RelayEvent.Disconnect:
+        return () => {
+          (originalCallback as NostrConnectCallback)(relayUrl);
+        };
+      case RelayEvent.Error:
+        return (error: unknown) => {
+          (originalCallback as NostrErrorCallback)(relayUrl, error);
+        };
+      case RelayEvent.Notice:
+        return (notice: string) => {
+          (originalCallback as NostrNoticeCallback)(relayUrl, notice);
+        };
+      case RelayEvent.OK:
+        return (eventId: string, success: boolean, message?: string) => {
+          (originalCallback as NostrOkCallback)(
+            relayUrl,
+            eventId,
+            success,
+            message,
+          );
+        };
+      case RelayEvent.Closed:
+        return (subscriptionId: string, message: string) => {
+          (originalCallback as NostrClosedCallback)(
+            relayUrl,
+            subscriptionId,
+            message,
+          );
+        };
+      case RelayEvent.Auth:
+        return (challengeEvent: NostrEvent) => {
+          (originalCallback as NostrAuthCallback)(relayUrl, challengeEvent);
+        };
+      default:
+        // Should not happen if RelayEvent enum is comprehensive
+        console.warn(
+          `Unhandled RelayEvent type for handler creation: ${event}`,
+        );
+        // This case should ideally be impossible if RelayEvent is exhaustive
+        // and all cases are handled. Return a no-op that matches a common handler signature.
+        return () => {};
+    }
+  }
+
   public addRelay(url: string): Relay {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
@@ -48,6 +146,40 @@ export class Nostr {
 
     const relay = new Relay(url, this.relayOptions);
     this.relays.set(url, relay);
+
+    // Attach stored callbacks to the new relay
+    this.eventCallbacks.forEach((callbacksSet, eventType) => {
+      callbacksSet.forEach((originalCallback: NostrEventCallback) => {
+        const handler = this._createRelayEventHandler(
+          url,
+          originalCallback,
+          eventType,
+        );
+        // Attach handler to the new relay, using the appropriate signature
+        switch (eventType) {
+          case RelayEvent.Connect:
+          case RelayEvent.Disconnect:
+            relay.on(eventType, handler as RelayConnectHandler);
+            break;
+          case RelayEvent.Error:
+            relay.on(eventType, handler as RelayErrorHandler);
+            break;
+          case RelayEvent.Notice:
+            relay.on(eventType, handler as RelayNoticeHandler);
+            break;
+          case RelayEvent.OK:
+            relay.on(eventType, handler as RelayOkHandler);
+            break;
+          case RelayEvent.Closed:
+            relay.on(eventType, handler as RelayClosedHandler);
+            break;
+          case RelayEvent.Auth:
+            relay.on(eventType, handler as RelayAuthHandler);
+            break;
+        }
+      });
+    });
+
     return relay;
   }
 
@@ -332,57 +464,41 @@ export class Nostr {
       throw new Error("Callback must be a function");
     }
 
+    // Store the callback in the registry
+    let callbacksForEvent = this.eventCallbacks.get(event);
+    if (!callbacksForEvent) {
+      callbacksForEvent = new Set();
+      this.eventCallbacks.set(event, callbacksForEvent);
+    }
+    callbacksForEvent.add(callback as NostrEventCallback);
+
+    // Attach the callback to all currently existing relays
     this.relays.forEach((relay, url) => {
+      const handler = this._createRelayEventHandler(
+        url,
+        callback as NostrEventCallback,
+        event,
+      );
+      // Attach handler to the existing relay, using the appropriate signature
       switch (event) {
         case RelayEvent.Connect:
         case RelayEvent.Disconnect:
-          relay.on(event, () => {
-            (callback as (relay: string) => void)(url);
-          });
+          relay.on(event, handler as RelayConnectHandler);
           break;
         case RelayEvent.Error:
-          relay.on(event, (error: unknown) => {
-            (callback as (relay: string, error: unknown) => void)(url, error);
-          });
+          relay.on(event, handler as RelayErrorHandler);
           break;
         case RelayEvent.Notice:
-          relay.on(event, (notice: string) => {
-            (callback as (relay: string, notice: string) => void)(url, notice);
-          });
+          relay.on(event, handler as RelayNoticeHandler);
           break;
         case RelayEvent.OK:
-          relay.on(
-            event,
-            (eventId: string, success: boolean, message?: string) => {
-              (
-                callback as (
-                  relay: string,
-                  eventId: string,
-                  success: boolean,
-                  message?: string,
-                ) => void
-              )(url, eventId, success, message);
-            },
-          );
+          relay.on(event, handler as RelayOkHandler);
           break;
         case RelayEvent.Closed:
-          relay.on(event, (subscriptionId: string, message: string) => {
-            (
-              callback as (
-                relay: string,
-                subscriptionId: string,
-                message: string,
-              ) => void
-            )(url, subscriptionId, message);
-          });
+          relay.on(event, handler as RelayClosedHandler);
           break;
         case RelayEvent.Auth:
-          relay.on(event, (challengeEvent: NostrEvent) => {
-            (callback as (relay: string, challengeEvent: NostrEvent) => void)(
-              url,
-              challengeEvent,
-            );
-          });
+          relay.on(event, handler as RelayAuthHandler);
           break;
       }
     });
