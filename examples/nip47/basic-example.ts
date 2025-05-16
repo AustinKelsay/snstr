@@ -283,11 +283,10 @@ class DemoWallet implements WalletImplementation {
     transactions.sort((a, b) => b.created_at - a.created_at);
 
     // Apply pagination
-    if (offset) {
+    if (offset !== undefined) {
       transactions = transactions.slice(offset);
     }
-
-    if (limit) {
+    if (limit !== undefined) {
       transactions = transactions.slice(0, limit);
     }
 

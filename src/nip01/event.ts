@@ -33,7 +33,8 @@ export async function getEventHash(
 ): Promise<string> {
   // Validate event structure first - these fields are required by the Nostr protocol
   if (!event.pubkey) throw new NostrValidationError("Invalid event: missing pubkey", "pubkey", event);
-  if (!event.created_at) throw new NostrValidationError("Invalid event: missing created_at", "created_at", event);
+  if (event.created_at === undefined || event.created_at === null)
+  throw new NostrValidationError("Invalid event: missing created_at", "created_at", event);
   if (event.kind === undefined) throw new NostrValidationError("Invalid event: missing kind", "kind", event);
   if (!Array.isArray(event.tags))
     throw new NostrValidationError("Invalid event: tags must be an array", "tags", event);

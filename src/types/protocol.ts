@@ -25,7 +25,9 @@ export type NostrEoseMessage = ["EOSE", string];
 export type NostrNoticeMessage = ["NOTICE", string];
 
 /** AUTH message: A relay requesting client authentication (NIP-42) */
-export type NostrAuthMessage = ["AUTH", NostrEvent];
+export type NostrAuthMessage =
+  | ["AUTH", string]        // relay ➜ client (challenge)
+  | ["AUTH", NostrEvent];   // client ➜ relay   (response)
 
 /** Union type of all possible message types */
 export type NostrMessage =

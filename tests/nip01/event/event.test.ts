@@ -76,7 +76,7 @@ describe("Event Creation and Signing", () => {
         pubkey: publicKey,
         created_at: 1652347275,
         kind: 1,
-        tags: "not an array" as any,
+        tags: "not an array" as string,
         content: "Hello, world!",
       } as unknown as UnsignedEvent;
 
@@ -90,7 +90,7 @@ describe("Event Creation and Signing", () => {
         pubkey: publicKey,
         created_at: 1652347275,
         kind: 1,
-        tags: ["not an array" as any],
+        tags: ["not an array" as string],
         content: "Hello, world!",
       } as unknown as UnsignedEvent;
 
@@ -104,7 +104,7 @@ describe("Event Creation and Signing", () => {
         pubkey: publicKey,
         created_at: 1652347275,
         kind: 1,
-        tags: [["t", 123 as any]],
+        tags: [["t", 123 as number]],
         content: "Hello, world!",
       } as unknown as UnsignedEvent;
 
@@ -119,7 +119,7 @@ describe("Event Creation and Signing", () => {
         created_at: 1652347275,
         kind: 1,
         tags: [],
-        content: 123 as any,
+        content: 123 as number,
       } as unknown as UnsignedEvent;
 
       await expect(getEventHash(event)).rejects.toThrow(
