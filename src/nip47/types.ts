@@ -336,6 +336,7 @@ export interface MakeInvoiceResponseResult {
   amount: number;
   created_at: number;
   expires_at?: number;
+  description_hash?: string;
 }
 
 export interface ListTransactionsResponseResult {

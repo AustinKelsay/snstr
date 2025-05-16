@@ -11,7 +11,16 @@ import {
   NIP47NotificationType,
   NIP47ErrorCode,
 } from "../../src";
+import { NIP47ClientError } from "../../src/nip47/client";
+import { 
+  GetInfoResponseResult, 
+  PaymentResponseResult, 
+  MakeInvoiceResponseResult, 
+  SignMessageResponseResult,
+  NIP47Error
+} from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { signEvent, sha256Hex } from "../../src/utils/crypto";
 
 /**
  * Basic Client-Service Example for NIP-47
@@ -26,8 +35,10 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 class SimpleWallet implements WalletImplementation {
   private balance: number = 10000000; // 10,000,000 msats (10,000 sats)
   private invoices: Map<string, NIP47Transaction> = new Map();
+  // Add a wallet private key for proper signatures
+  private walletPrivateKey: string = "0000000000000000000000000000000000000000000000000000000000000001";
 
-  async getInfo(): Promise<any> {
+  async getInfo(): Promise<GetInfoResponseResult> {
     return {
       alias: "SimpleWallet",
       color: "#ff9900",
@@ -56,13 +67,19 @@ class SimpleWallet implements WalletImplementation {
     _invoice: string,
     amount?: number,
     _maxfee?: number,
-  ): Promise<any> {
+  ): Promise<PaymentResponseResult> {
     // Simplified payment logic
     const paymentAmount = amount || 1000; // Default 1000 msats
     const fee = Math.floor(paymentAmount * 0.01); // 1% fee
 
     // Deduct from balance
-    this.balance -= paymentAmount + fee;
+    const total = paymentAmount + fee;
+    if (this.balance < total) {
+      throw new Error(
+        `Insufficient balance: wanted ${total}, have ${this.balance}`,
+      );
+    }
+    this.balance -= total;
 
     // Generate payment hash and preimage
     const paymentHash = randomHex(32);
@@ -71,7 +88,7 @@ class SimpleWallet implements WalletImplementation {
     // Create transaction record
     const txn: NIP47Transaction = {
       type: TransactionType.OUTGOING,
-      invoice,
+      invoice: _invoice,
       payment_hash: paymentHash,
       preimage,
       amount: paymentAmount,
@@ -95,7 +112,7 @@ class SimpleWallet implements WalletImplementation {
     description: string,
     description_hash?: string,
     expiry?: number,
-  ): Promise<any> {
+  ): Promise<MakeInvoiceResponseResult> {
     // Generate fake invoice
     const paymentHash = randomHex(32);
     const expiryTime = Math.floor(Date.now() / 1000) + (expiry || 3600);
@@ -105,7 +122,7 @@ class SimpleWallet implements WalletImplementation {
       type: TransactionType.INCOMING,
       invoice: `lnbc${amount}n1demo${randomHex(10)}`,
       description,
-      description_hash: description_hash,
+      description_hash,
       payment_hash: paymentHash,
       amount,
       fees_paid: 0,
@@ -115,13 +132,19 @@ class SimpleWallet implements WalletImplementation {
 
     this.invoices.set(paymentHash, txn);
 
-    return {
-      invoice: txn.invoice,
+    const result: MakeInvoiceResponseResult = {
+      invoice: txn.invoice!,
       payment_hash: paymentHash,
       amount,
       created_at: txn.created_at,
       expires_at: expiryTime,
     };
+    
+    if (description_hash) {
+      result.description_hash = description_hash;
+    }
+
+    return result;
   }
 
   async lookupInvoice(params: {
@@ -130,8 +153,11 @@ class SimpleWallet implements WalletImplementation {
   }): Promise<NIP47Transaction> {
     // Check that at least one required parameter is provided
     if (!params.payment_hash && !params.invoice) {
-      const error: any = new Error("Payment hash or invoice is required");
-      error.code = "INVALID_REQUEST";
+      const error = new Error("Payment hash or invoice is required") as Error & {
+        code: string;
+        message: string;
+      };
+      error.code = NIP47ErrorCode.INVALID_REQUEST;
       throw error;
     }
 
@@ -150,7 +176,14 @@ class SimpleWallet implements WalletImplementation {
     }
 
     // If we get here, no invoice was found
-    const error: any = new Error("Invoice not found");
+    const error = new Error("Invoice not found") as Error & {
+      code: NIP47ErrorCode;
+      message: string;
+      context: {
+        payment_hash?: string;
+        invoice?: string;
+      };
+    };
     error.code = NIP47ErrorCode.NOT_FOUND;
     error.context = {
       payment_hash: params.payment_hash,
@@ -182,15 +215,23 @@ class SimpleWallet implements WalletImplementation {
 
   async signMessage(
     message: string,
-  ): Promise<{ signature: string; message: string }> {
+  ): Promise<SignMessageResponseResult> {
+    // Use proper cryptographic signing instead of random values
+    // Hash the message first to get a 32-byte value to sign
+    const messageHash = sha256Hex(message);
+    
+    // Sign the hash with the wallet's private key
+    const signature = await signEvent(messageHash, this.walletPrivateKey);
+    
     return {
-      signature: `${randomHex(32)}${randomHex(32)}`,
+      signature,
       message,
     };
   }
 }
 
 // Helper function to generate random hex strings
+// Note: Not cryptographically secure - for demo purposes only
 function randomHex(length: number): string {
   return [...Array(length)]
     .map(() => Math.floor(Math.random() * 16).toString(16))
@@ -290,33 +331,49 @@ async function main() {
         console.log("\n4b. Looking up a non-existent invoice...");
         try {
           await client.lookupInvoice({ payment_hash: "non_existent_hash" });
-        } catch (error: any) {
-          if (error.code === NIP47ErrorCode.NOT_FOUND) {
-            console.log(
-              "As expected, invoice was not found. Error:",
-              error.message,
-            );
-            console.log("Recovery hint:", error.recoveryHint);
-            console.log("Error category:", error.category);
-            console.log("Error context:", JSON.stringify(error.context || {}));
-            console.log(
-              "User-friendly message:",
-              error.getUserMessage ? error.getUserMessage() : error.message,
-            );
-            console.log("Recommended UI handling:");
-            console.log("- Display a message that the invoice was not found");
-            console.log(
-              "- Offer to create a new invoice or search with different criteria",
-            );
-            console.log("- Provide a way to view recent transactions");
+        } catch (error: unknown) {
+          if (error instanceof NIP47ClientError) {
+            if (error.code === NIP47ErrorCode.NOT_FOUND) {
+              console.log("As expected, invoice was not found. NIP47ClientError:", error.message);
+              console.log("Recovery hint:", error.recoveryHint);
+              console.log("Error category:", error.category);
+              console.log("Error context:", JSON.stringify(error.data || {}));
+              console.log("User-friendly message:", error.getUserMessage());
+              console.log("Recommended UI handling:");
+              console.log("- Display a message that the invoice was not found");
+              console.log("- Offer to create a new invoice or search with different criteria");
+              console.log("- Provide a way to view recent transactions");
+            } else {
+              console.error("Unexpected NIP47ClientError:", error.message, error.code);
+            }
+          } else if (typeof error === 'object' && error !== null && 'code' in error && 'message' in error && 
+                     Object.values(NIP47ErrorCode).includes((error as { code: NIP47ErrorCode | string }).code as NIP47ErrorCode) && 
+                     (error as { code: NIP47ErrorCode | string }).code === NIP47ErrorCode.NOT_FOUND) {
+            const nip47Error = error as NIP47Error; // Safe to cast to NIP47Error now
+            console.log("As expected, invoice was not found. NIP47Error object:", nip47Error.message);
+            console.log("Recovery hint:", nip47Error.recoveryHint);
+            console.log("Error category:", nip47Error.category);
+            console.log("Error context:", JSON.stringify(nip47Error.data || {}));
+            console.log("User-friendly message:", nip47Error.message);
+          } else if (error instanceof Error) {
+            console.error("Unexpected standard error:", error.message);
           } else {
-            console.error("Unexpected error:", error);
+            console.error("Unknown error looking up non-existent invoice:", String(error));
           }
         }
-      } catch (error: any) {
-        console.error("Error looking up invoice:", error.message);
-        if (error.recoveryHint) {
-          console.log("Recovery hint:", error.recoveryHint);
+      } catch (error: unknown) {
+        // Outer catch block
+        if (error instanceof NIP47ClientError) {
+          console.error("Error looking up invoice (NIP47ClientError):", error.message);
+          if (error.recoveryHint) console.log("Recovery hint:", error.recoveryHint);
+        } else if (typeof error === 'object' && error !== null && 'message' in error) {
+          const plainError = error as { message: string; recoveryHint?: string };
+          console.error("Error looking up invoice (Plain Object):", plainError.message);
+          if (plainError.recoveryHint) console.log("Recovery hint:", plainError.recoveryHint);
+        } else if (error instanceof Error) {
+          console.error("Error looking up invoice (Standard Error):", error.message);
+        } else {
+          console.error("Unknown error looking up invoice:", String(error));
         }
       }
     }
