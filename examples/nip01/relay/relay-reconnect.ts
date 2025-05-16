@@ -37,7 +37,7 @@ relay.on(RelayEvent.Disconnect, (url: string) => {
   );
 });
 
-relay.on(RelayEvent.Error, (url: string, error: Error) => {
+relay.on(RelayEvent.Error, (url: string, error: unknown) => {
   console.error(`⚠️ Error with ${url}:`, error);
 });
 

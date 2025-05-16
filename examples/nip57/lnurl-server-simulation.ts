@@ -24,7 +24,7 @@ import { parseLnurlPayResponse } from "../../src/nip57";
 
 import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
-import { createServer } from "http";
+import { createServer, Server, IncomingMessage, ServerResponse } from "http";
 import { parse as parseUrl } from "url";
 import { parse as parseQuery } from "querystring";
 
@@ -33,25 +33,65 @@ const RELAY_PORT = 3000;
 const LNURL_SERVER_PORT = 3001;
 const DEFAULT_RELAY_URL = `ws://localhost:${RELAY_PORT}`;
 
+// Define interfaces for our mock systems
+
+interface Invoice {
+  amount: number;
+  description: string;
+  paid: boolean;
+  preimage: string;
+}
+
+interface InvoiceResponse {
+  bolt11: string;
+  paymentHash: string;
+}
+
+interface PaymentResult {
+  success: boolean;
+  preimage?: string;
+}
+
+interface PendingZapRequest {
+  zapRequest: NostrEvent;
+  paymentHash: string;
+}
+
+interface LnurlPayMetadataResponse {
+  callback: string;
+  maxSendable: number;
+  minSendable: number;
+  metadata: string;
+  tag: string;
+  allowsNostr: boolean;
+  nostrPubkey: string;
+  [key: string]: unknown; // Index signature for additional properties
+}
+
+interface LnurlErrorResponse {
+  status: "ERROR";
+  reason: string;
+}
+
+interface LnurlInvoiceResponse {
+  pr: string;
+  payment_hash: string;
+}
+
+// Define a type for the global relay instance
+declare global {
+  // eslint-disable-next-line no-var
+  var __NOSTR_RELAY_INSTANCE__: NostrRelay | undefined;
+}
+
 // Mock of LN infrastructure
 class MockLightningWallet {
-  private invoices: Map<
-    string,
-    {
-      amount: number;
-      description: string;
-      paid: boolean;
-      preimage: string;
-    }
-  > = new Map();
+  private invoices: Map<string, Invoice> = new Map();
 
   generateInvoice(
     amountMsat: number,
     description: string,
-  ): {
-    bolt11: string;
-    paymentHash: string;
-  } {
+  ): InvoiceResponse {
     // In reality, this would call a Lightning node API
     const paymentHash = Math.random().toString(36).substring(2, 15);
     const preimage = Math.random().toString(36).substring(2, 15);
@@ -68,10 +108,7 @@ class MockLightningWallet {
   }
 
   // Simulate payment
-  payInvoice(paymentHash: string): {
-    success: boolean;
-    preimage?: string;
-  } {
+  payInvoice(paymentHash: string): PaymentResult {
     const invoice = this.invoices.get(paymentHash);
     if (!invoice) {
       return { success: false };
@@ -93,24 +130,18 @@ class MockLightningWallet {
   }
 
   // Get invoice details
-  getInvoiceDetails(paymentHash: string) {
+  getInvoiceDetails(paymentHash: string): Invoice | undefined {
     return this.invoices.get(paymentHash);
   }
 }
 
 // Mock LNURL server
 class MockLnurlServer {
-  private server: any;
+  private server: Server;
   private wallet: MockLightningWallet;
   private nostrClient: Nostr;
   private keypair: { privateKey: string; publicKey: string };
-  private pendingZapRequests: Map<
-    string,
-    {
-      zapRequest: NostrEvent;
-      paymentHash: string;
-    }
-  > = new Map();
+  private pendingZapRequests: Map<string, PendingZapRequest> = new Map();
 
   constructor(
     port: number,
@@ -171,9 +202,9 @@ class MockLnurlServer {
   }
 
   // Handler for LNURL pay metadata endpoint
-  private handleLnurlPayMetadata(req: any, res: any) {
+  private handleLnurlPayMetadata(req: IncomingMessage, res: ServerResponse): void {
     // This emulates what a real LNURL server would return
-    const response = {
+    const response: LnurlPayMetadataResponse = {
       callback: `http://localhost:${LNURL_SERVER_PORT}/lnurlp/callback`,
       maxSendable: 10000000, // 10,000 sats in millisats
       minSendable: 1000, // 1 sat in millisats
@@ -191,7 +222,11 @@ class MockLnurlServer {
   }
 
   // Handler for callback endpoint
-  private async handleCallback(req: any, res: any, queryString: string) {
+  private async handleCallback(
+    req: IncomingMessage, 
+    res: ServerResponse, 
+    queryString: string
+  ): Promise<void> {
     // Parse query parameters
     const query = parseQuery(queryString);
     const amount = parseInt(query.amount as string, 10);
@@ -204,7 +239,7 @@ class MockLnurlServer {
         JSON.stringify({
           status: "ERROR",
           reason: "Invalid amount",
-        }),
+        } as LnurlErrorResponse),
       );
       return;
     }
@@ -213,7 +248,7 @@ class MockLnurlServer {
       // Check if this is a zap request
       if (nostrParam) {
         // Parse the zap request
-        const zapRequest = JSON.parse(decodeURIComponent(nostrParam));
+        const zapRequest = JSON.parse(decodeURIComponent(nostrParam)) as NostrEvent;
 
         // Validate the kind
         if (zapRequest.kind !== 9734) {
@@ -241,7 +276,7 @@ class MockLnurlServer {
           JSON.stringify({
             pr: bolt11,
             payment_hash: paymentHash,
-          }),
+          } as LnurlInvoiceResponse),
         );
       } else {
         // Regular LNURL pay request (non-zap)
@@ -255,7 +290,7 @@ class MockLnurlServer {
           JSON.stringify({
             pr: bolt11,
             payment_hash: paymentHash,
-          }),
+          } as LnurlInvoiceResponse),
         );
       }
     } catch (error) {
@@ -265,13 +300,13 @@ class MockLnurlServer {
         JSON.stringify({
           status: "ERROR",
           reason: `Invalid request: ${error instanceof Error ? error.message : String(error)}`,
-        }),
+        } as LnurlErrorResponse),
       );
     }
   }
 
   // Handle an invoice payment
-  private async handlePayment(paymentHash: string) {
+  private async handlePayment(paymentHash: string): Promise<void> {
     try {
       // In a real implementation, we would be notified by the LN node
       // Here we simulate a payment
@@ -295,7 +330,8 @@ class MockLnurlServer {
       const pTag = zapRequest.tags.find((tag) => tag[0] === "p");
       const eTag = zapRequest.tags.find((tag) => tag[0] === "e");
       const aTag = zapRequest.tags.find((tag) => tag[0] === "a");
-      zapRequest.tags.find((tag) => tag[0] === "relays");
+      // Find relays tag if needed for future use
+      // const relaysTag = zapRequest.tags.find((tag) => tag[0] === "relays");
       const pSenderTag = zapRequest.tags.find((tag) => tag[0] === "P");
 
       if (!pTag) {
@@ -330,7 +366,7 @@ class MockLnurlServer {
       try {
         // Use the ephemeral relay directly
         // Our example is using a fixed port that we know about
-        const ephemeralRelay = (global as any).__NOSTR_RELAY_INSTANCE__;
+        const ephemeralRelay = global.__NOSTR_RELAY_INSTANCE__;
         if (ephemeralRelay) {
           ephemeralRelay.store(signedZapReceipt);
           console.log(`Published zap receipt to ephemeral relay`);
@@ -361,7 +397,7 @@ async function main() {
   const relay = new NostrRelay(RELAY_PORT);
 
   // Store relay reference for later use
-  (global as any).__NOSTR_RELAY_INSTANCE__ = relay;
+  global.__NOSTR_RELAY_INSTANCE__ = relay;
 
   await relay.start();
   console.log(`🔌 Ephemeral relay started at ${DEFAULT_RELAY_URL}\n`);
@@ -453,7 +489,7 @@ async function main() {
   // Simulation of a client fetching LNURL metadata
   console.log("Fetching LNURL metadata...");
   const response = await fetch(lnurlPayUrl);
-  const lnurlData = await response.json();
+  const lnurlData = await response.json() as LnurlPayMetadataResponse;
   console.log("✅ Received LNURL metadata\n");
 
   // Parse the response
@@ -518,10 +554,10 @@ async function main() {
 
   // Send the request
   const invoiceResponse = await fetch(callbackUrl.toString());
-  const invoiceData = await invoiceResponse.json();
+  const invoiceData = await invoiceResponse.json() as LnurlInvoiceResponse;
 
-  if (invoiceData.status === "ERROR") {
-    console.error(`❌ Error from LNURL server: ${invoiceData.reason}`);
+  if ('status' in invoiceData && invoiceData.status === "ERROR") {
+    console.error(`❌ Error from LNURL server: ${(invoiceData as unknown as LnurlErrorResponse).reason}`);
     return;
   }
 

@@ -1,26 +1,25 @@
-import { Nostr, NostrEvent } from "../../../src";
-
-// Relay interface to match what Nostr expects
-interface RelayInterface {
-  url: string;
-  connected: boolean;
-  connect(): Promise<boolean>;
-  publish(event: NostrEvent): Promise<{ success: boolean; reason?: string }>;
-  disconnect(): void;
-  on(event: string, callback: (...args: any[]) => void): void;
-  off(event: string, callback: (...args: any[]) => void): void;
-}
+import { 
+  Nostr, 
+  NostrEvent, 
+  RelayEvent, 
+  RelayEventCallbacks, 
+  PublishResponse,
+  RelayStatus,
+  NostrFilter
+} from "../../../src";
 
 // Simulated relay for testing
-class MockRelay implements RelayInterface {
-  public publishResults: { success: boolean; reason?: string }[] = [];
+class MockRelay {
+  public publishResults: PublishResponse[] = [];
   public readonly url: string;
   public connected = true;
   private connectionTimeout = 10000;
+  // Add status property required by the real interface
+  public readonly status: RelayStatus = RelayStatus.CONNECTED;
 
   constructor(
     url: string,
-    publishResults: { success: boolean; reason?: string }[] = [],
+    publishResults: PublishResponse[] = [],
     options: { connectionTimeout?: number } = {},
   ) {
     this.url = url;
@@ -37,7 +36,7 @@ class MockRelay implements RelayInterface {
     return true;
   }
 
-  async publish(_event: NostrEvent): Promise<{ success: boolean; reason?: string }> {
+  async publish(_event: NostrEvent): Promise<PublishResponse> {
     // Return and remove the first result from the array, or the last one if only one remains
     return this.publishResults.length > 1
       ? this.publishResults.shift()!
@@ -48,8 +47,15 @@ class MockRelay implements RelayInterface {
     this.connected = false;
   }
 
-  on(_event: string, _callback: (...args: any[]) => void): void {}
-  off(_event: string, _callback: (...args: any[]) => void): void {}
+  on<E extends RelayEvent>(_event: E, _callback: RelayEventCallbacks[E]): void {}
+  off<E extends RelayEvent>(_event: E, _callback: RelayEventCallbacks[E]): void {}
+
+  // These methods are needed to satisfy the interface but aren't used in tests
+  send(_message: string): void {}
+  subscribe(_filters: NostrFilter[], _onEvent: (event: NostrEvent) => void, _onEose?: () => void): string {
+    return "";
+  }
+  unsubscribe(_subscriptionId: string): void {}
 
   setConnectionTimeout(timeout: number): void {
     if (timeout < 0) {
@@ -63,25 +69,29 @@ class MockRelay implements RelayInterface {
   }
 }
 
-// Internal properties type for the Nostr class
-interface NostrInternals {
+// Interface for Nostr private members we need to access in tests
+interface NostrPrivateMembers {
   privateKey: string;
   publicKey: string;
-  relays: Map<string, RelayInterface>;
+  relays: Map<string, MockRelay>; // Properly typed for our test context
 }
 
 // Extended Nostr class for testing that exposes private members
 class TestNostr extends Nostr {
+  getPrivateMembers(): NostrPrivateMembers {
+    return this as unknown as NostrPrivateMembers;
+  }
+
   setPrivateKey(key: string): void {
-    (this as unknown as NostrInternals).privateKey = key;
+    this.getPrivateMembers().privateKey = key;
   }
 
   setPublicKey(key: string): void {
-    (this as unknown as NostrInternals).publicKey = key;
+    this.getPrivateMembers().publicKey = key;
   }
 
   setRelays(relays: Map<string, MockRelay>): void {
-    (this as unknown as NostrInternals).relays = relays as unknown as Map<string, RelayInterface>;
+    this.getPrivateMembers().relays = relays;
   }
 }
 

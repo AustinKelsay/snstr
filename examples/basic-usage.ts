@@ -6,6 +6,7 @@ import {
   getEventHash,
   createTextNote,
   createDirectMessage,
+  UnsignedEvent,
 } from "../src/nip01/event";
 import { signEvent } from "../src/utils/crypto";
 
@@ -241,7 +242,7 @@ async function main() {
       };
 
       // This should throw an error
-      await getEventHash(invalidEvent as any);
+      await getEventHash(invalidEvent as unknown as UnsignedEvent);
       console.log("❌ Validation failed - should have rejected missing pubkey");
     } catch (error) {
       // This is expected
@@ -261,7 +262,7 @@ async function main() {
       };
 
       // This should throw an error
-      await getEventHash(invalidTagsEvent as any);
+      await getEventHash(invalidTagsEvent as unknown as UnsignedEvent);
       console.log("❌ Validation failed - should have rejected invalid tags");
     } catch (error) {
       // This is expected

@@ -30,7 +30,7 @@ const RELAY_PORT = 3334;
 
 // Use the environment variable to determine verbosity
 const VERBOSE = process.env.VERBOSE === "true";
-const log = (...args: any[]) => VERBOSE && console.log(...args);
+const log = (...args: unknown[]) => VERBOSE && console.log(...args);
 
 // Map to track created events (so we can reference them later)
 const createdEvents: Map<string, NostrEvent> = new Map();

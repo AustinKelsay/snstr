@@ -5,6 +5,7 @@ import {
   Subscription,
   RelayEvent,
   RelayEventHandler,
+  RelayEventCallbacks,
   PublishOptions,
   PublishResponse,
 } from "../types/nostr";
@@ -316,11 +317,11 @@ export class Relay {
     this.maxReconnectDelay = maxDelayMs;
   }
 
-  public on(event: RelayEvent, callback: (...args: any[]) => void): void {
+  public on<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void {
     this.eventHandlers[event] = callback;
   }
 
-  public off(event: RelayEvent, callback: (...args: any[]) => void): void {
+  public off<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void {
     // Only remove if the current handler is the same callback
     if (this.eventHandlers[event] === callback) {
       delete this.eventHandlers[event];
@@ -379,7 +380,7 @@ export class Relay {
         };
 
         // Setup error handler in case of WebSocket errors during publishing
-        const handleError = (_: string, error: any) => {
+        const handleError = (_: string, error: unknown) => {
           cleanup();
           const errorMsg =
             error instanceof Error ? error.message : "unknown error";
@@ -454,7 +455,7 @@ export class Relay {
     }
   }
 
-  private handleMessage(data: any[]): void {
+  private handleMessage(data: unknown[]): void {
     if (!Array.isArray(data)) return;
 
     const [type, ...rest] = data;
@@ -471,9 +472,20 @@ export class Relay {
     switch (type) {
       case "EVENT": {
         const [subscriptionId, event] = rest;
+        
+        // Type guard to ensure event is a NostrEvent
+        if (!this.isNostrEvent(event)) {
+          this.triggerEvent(
+            RelayEvent.Error,
+            this.url,
+            new Error(`Invalid event structure: ${JSON.stringify(event)}`)
+          );
+          break;
+        }
+        
         if (debug) {
           console.log(
-            `Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event?.kind}, id: ${event?.id?.slice(0, 8)}...`,
+            `Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event.kind}, id: ${event.id.slice(0, 8)}...`,
           );
         }
 
@@ -481,13 +493,13 @@ export class Relay {
         if (!this.performBasicValidation(event)) {
           if (debug) {
             console.log(
-              `Relay(${this.url}): Rejected invalid event: ${event?.id}`,
+              `Relay(${this.url}): Rejected invalid event: ${event.id}`,
             );
           }
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
-            new Error(`Invalid event: ${event?.id}`),
+            new Error(`Invalid event: ${event.id}`),
           );
           break;
         }
@@ -496,31 +508,31 @@ export class Relay {
         this.validateEventAsync(event)
           .then((isValid) => {
             if (isValid) {
-              this.processValidatedEvent(event, subscriptionId);
+              this.processValidatedEvent(event, subscriptionId as string);
             } else {
               if (debug) {
                 console.log(
-                  `Relay(${this.url}): Rejected event after async validation: ${event?.id}`,
+                  `Relay(${this.url}): Rejected event after async validation: ${event.id}`,
                 );
               }
               this.triggerEvent(
                 RelayEvent.Error,
                 this.url,
-                new Error(`Invalid event signature or ID: ${event?.id}`),
+                new Error(`Invalid event signature or ID: ${event.id}`),
               );
             }
           })
           .catch((error) => {
             if (debug) {
               console.error(
-                `Relay(${this.url}): Error during async validation for event ${event?.id}:`,
+                `Relay(${this.url}): Error during async validation for event ${event.id}:`,
                 error,
               );
             }
             this.triggerEvent(
               RelayEvent.Error,
               this.url,
-              new Error(`Validation error: ${error.message}`),
+              new Error(`Validation error: ${error instanceof Error ? error.message : 'unknown error'}`),
             );
           });
 
@@ -534,18 +546,22 @@ export class Relay {
           );
 
         // Flush the buffer for this subscription immediately on EOSE
-        this.flushSubscriptionBuffer(subscriptionId);
+        if (typeof subscriptionId === 'string') {
+          this.flushSubscriptionBuffer(subscriptionId);
 
-        const subscription = this.subscriptions.get(subscriptionId);
-        if (subscription && subscription.onEOSE) {
-          subscription.onEOSE();
+          const subscription = this.subscriptions.get(subscriptionId);
+          if (subscription && subscription.onEOSE) {
+            subscription.onEOSE();
+          }
         }
         break;
       }
       case "NOTICE": {
         const [notice] = rest;
         if (debug) console.log(`Relay(${this.url}): Notice: ${notice}`);
-        this.triggerEvent(RelayEvent.Notice, this.url, notice);
+        // Ensure notice is a string
+        const noticeStr = typeof notice === 'string' ? notice : String(notice || '');
+        this.triggerEvent(RelayEvent.Notice, this.url, noticeStr);
         break;
       }
       case "OK": {
@@ -554,7 +570,13 @@ export class Relay {
           console.log(
             `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${message}`,
           );
-        this.triggerEvent(RelayEvent.OK, eventId, success, message);
+        
+        // Ensure all params are of the correct type
+        const eventIdStr = typeof eventId === 'string' ? eventId : String(eventId || '');
+        const successBool = Boolean(success);
+        const messageStr = typeof message === 'string' ? message : String(message || '');
+        
+        this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, messageStr);
         break;
       }
       case "CLOSED": {
@@ -563,15 +585,33 @@ export class Relay {
           console.log(
             `Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`,
           );
-        this.triggerEvent(RelayEvent.Closed, subscriptionId, message);
+        
+        // Ensure both params are strings
+        const subIdStr = typeof subscriptionId === 'string' ? subscriptionId : String(subscriptionId || '');
+        const messageStr = typeof message === 'string' ? message : String(message || '');
+        
+        this.triggerEvent(RelayEvent.Closed, subIdStr, messageStr);
         // Remove the subscription from our map since the relay closed it
-        this.subscriptions.delete(subscriptionId);
+        if (typeof subscriptionId === 'string') {
+          this.subscriptions.delete(subscriptionId);
+        }
         break;
       }
       case "AUTH": {
         const [challengeEvent] = rest;
         if (debug) console.log(`Relay(${this.url}): Auth challenge received:`, challengeEvent);
-        this.triggerEvent(RelayEvent.Auth, this.url, challengeEvent);
+        
+        // Check if the challenge is a proper NostrEvent
+        if (this.isNostrEvent(challengeEvent)) {
+          this.triggerEvent(RelayEvent.Auth, challengeEvent);
+        } else {
+          // If it's not a proper event, log an error
+          this.triggerEvent(
+            RelayEvent.Error, 
+            this.url, 
+            new Error(`Invalid AUTH challenge: ${JSON.stringify(challengeEvent)}`)
+          );
+        }
         break;
       }
       default:
@@ -630,40 +670,24 @@ export class Relay {
    * 2. Fields have valid formats (lengths, structure)
    * 3. Timestamps are reasonable
    */
-  private performBasicValidation(event: any): boolean {
-    // Skip validation if event is not an object or is null
-    if (!event || typeof event !== "object") {
+  private performBasicValidation(event: unknown): boolean {
+    // Skip validation if event is not a NostrEvent
+    if (!this.isNostrEvent(event)) {
       return false;
     }
 
     try {
+      // Now we can safely access event properties
       // Check that all required fields are present and have the correct types
-      if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
+      if (event.id.length !== 64) {
         return false;
       }
 
-      if (
-        !event.pubkey ||
-        typeof event.pubkey !== "string" ||
-        event.pubkey.length !== 64
-      ) {
+      if (event.pubkey.length !== 64) {
         return false;
       }
 
-      if (!event.created_at || typeof event.created_at !== "number") {
-        return false;
-      }
-
-      if (
-        event.kind === undefined ||
-        typeof event.kind !== "number" ||
-        event.kind < 0 ||
-        event.kind > 65535
-      ) {
-        return false;
-      }
-
-      if (!Array.isArray(event.tags)) {
+      if (event.kind < 0 || event.kind > 65535) {
         return false;
       }
 
@@ -681,15 +705,7 @@ export class Relay {
         }
       }
 
-      if (typeof event.content !== "string") {
-        return false;
-      }
-
-      if (
-        !event.sig ||
-        typeof event.sig !== "string" ||
-        event.sig.length !== 128
-      ) {
+      if (event.sig.length !== 128) {
         return false;
       }
 
@@ -745,7 +761,11 @@ export class Relay {
    * Validate an event (deprecated - use async validation directly)
    * Maintained for backward compatibility with existing code
    */
-  private validateEvent(event: any): boolean {
+  private validateEvent(event: unknown): boolean {
+    if (!this.isNostrEvent(event)) {
+      return false;
+    }
+    
     if (!this.performBasicValidation(event)) {
       return false;
     }
@@ -811,43 +831,42 @@ export class Relay {
     }
   }
 
-  private triggerEvent(event: RelayEvent, ...args: any[]): void {
+  // Use a type-safe approach with overloads for each event type
+  private triggerEvent(event: RelayEvent.Connect | RelayEvent.Disconnect, url: string): void;
+  private triggerEvent(event: RelayEvent.Error, url: string, error: unknown): void;
+  private triggerEvent(event: RelayEvent.Notice, url: string, notice: string): void;
+  private triggerEvent(event: RelayEvent.OK, eventId: string, success: boolean, message: string): void;
+  private triggerEvent(event: RelayEvent.Closed, subscriptionId: string, message: string): void;
+  private triggerEvent(event: RelayEvent.Auth, challengeEvent: NostrEvent): void;
+  private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
     const handler = this.eventHandlers[event];
     if (handler) {
       switch (event) {
         case RelayEvent.Connect:
         case RelayEvent.Disconnect:
-          (handler as (relay: string) => void)(this.url);
+          (handler as RelayEventCallbacks[typeof event])(this.url);
           break;
         case RelayEvent.Error:
-          (handler as (relay: string, error: any) => void)(this.url, args[0]);
+          (handler as RelayEventCallbacks[RelayEvent.Error])(this.url, args[0]);
           break;
         case RelayEvent.Notice:
-          (handler as (relay: string, notice: string) => void)(
-            this.url,
-            args[0],
-          );
+          (handler as RelayEventCallbacks[RelayEvent.Notice])(this.url, args[0] as string);
           break;
         case RelayEvent.OK:
-          (
-            handler as (
-              eventId: string,
-              success: boolean,
-              message: string,
-            ) => void
-          )(args[0], args[1], args[2]);
+          (handler as RelayEventCallbacks[RelayEvent.OK])(
+            args[0] as string,
+            args[1] as boolean,
+            args[2] as string
+          );
           break;
         case RelayEvent.Closed:
-          (handler as (subscriptionId: string, message: string) => void)(
-            args[0],
-            args[1],
+          (handler as RelayEventCallbacks[RelayEvent.Closed])(
+            args[0] as string,
+            args[1] as string
           );
           break;
         case RelayEvent.Auth:
-          (handler as (relay: string, challengeEvent: NostrEvent) => void)(
-            args[0],
-            args[1]
-          );
+          (handler as RelayEventCallbacks[RelayEvent.Auth])(args[0] as NostrEvent);
           break;
       }
     }
@@ -1063,6 +1082,23 @@ export class Relay {
   public getAddressableEventsByKind(kind: number): NostrEvent[] {
     return Array.from(this.addressableEvents.values()).filter(
       (event) => event.kind === kind,
+    );
+  }
+
+  // Add this helper method to type guard for NostrEvent
+  private isNostrEvent(event: unknown): event is NostrEvent {
+    if (!event || typeof event !== 'object') return false;
+    
+    const e = event as Record<string, unknown>;
+    
+    return (
+      typeof e.id === 'string' &&
+      typeof e.pubkey === 'string' &&
+      typeof e.created_at === 'number' &&
+      typeof e.kind === 'number' &&
+      Array.isArray(e.tags) &&
+      typeof e.content === 'string' &&
+      typeof e.sig === 'string'
     );
   }
 }

@@ -61,16 +61,20 @@ export class RelayConnection extends EventEmitter {
     this.ws.close();
   }
 
+  public on(event: "open" | "close", listener: () => void): this;
+  public on(event: "error", listener: (error: Error) => void): this;
   public on(
     event: "open" | "error" | "close",
-    listener: (...args: any[]) => void,
+    listener: (() => void) | ((error: Error) => void),
   ): this {
     return super.on(event, listener);
   }
 
+  public removeListener(event: "open" | "close", listener: () => void): this;
+  public removeListener(event: "error", listener: (error: Error) => void): this;
   public removeListener(
     event: "open" | "error" | "close",
-    listener: (...args: any[]) => void,
+    listener: (() => void) | ((error: Error) => void),
   ): this {
     return super.removeListener(event, listener);
   }

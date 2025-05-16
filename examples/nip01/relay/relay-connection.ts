@@ -85,9 +85,12 @@ async function main() {
       console.log("\nTesting event validation with various invalid events...");
 
       // Direct access to basic validation for testing purposes
-      const testValidation = (event: any, description: string) => {
+      const testValidation = (event: Partial<NostrEvent>, description: string) => {
         // Get access to private validation method for demonstration purposes
-        const validationResult = (relay as any).performBasicValidation(event);
+        // Using index signature to access private method for demo purposes
+        const validationResult = (relay as unknown as { 
+          performBasicValidation(event: Partial<NostrEvent>): boolean 
+        }).performBasicValidation(event);
         console.log(
           `${validationResult ? "✅" : "❌"} ${description}: ${validationResult ? "PASSED basic validation" : "REJECTED in basic validation"}`,
         );
@@ -129,7 +132,7 @@ async function main() {
       const invalidFieldTypeEvent = {
         id: "a".repeat(64),
         pubkey: "b".repeat(64),
-        created_at: "not a number", // wrong type
+        created_at: "not a number" as unknown as number, // wrong type
         kind: 1,
         tags: [],
         content: "Invalid created_at type",
@@ -143,7 +146,7 @@ async function main() {
         pubkey: "b".repeat(64),
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
-        tags: ["not an array of arrays"], // invalid tag structure
+        tags: ["not an array of arrays"] as unknown as string[][], // invalid tag structure
         content: "Invalid tags",
         sig: "c".repeat(128),
       };
@@ -235,7 +238,7 @@ async function main() {
       client.unsubscribeAll();
 
       // Check if the relay is still connected (it should be)
-      console.log(`Relay is still connected: ${(relay as any).connected}`);
+      console.log(`Relay is still connected: ${(relay as unknown as { connected: boolean }).connected}`);
 
       // Check if all client subscriptions were correctly closed
       console.log(
