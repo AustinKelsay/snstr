@@ -315,7 +315,11 @@ export class SimpleNIP46Client {
       // Store the promise handlers with timeout cleanup
       this.pendingRequests.set(request.id, (response: NIP46Response) => {
         clearTimeout(timeoutId);
-        resolve(response);
+        if (response.error) {
+          reject(new NIP46Error(response.error));
+        } else {
+          resolve(response);
+        }
       });
 
       // Encrypt and send the request
@@ -340,6 +344,22 @@ export class SimpleNIP46Client {
           .then((signedEvent: NostrEvent) => {
             // Then publish the signed event
             return this.nostr.publishEvent(signedEvent);
+          })
+          .then((publishResult) => {
+            if (!publishResult.success) {
+              let reasonMessage = 'unknown reason';
+              if (publishResult.relayResults) {
+                for (const relayResult of publishResult.relayResults.values()) {
+                  if (!relayResult.success && relayResult.reason) {
+                    reasonMessage = relayResult.reason;
+                    break; 
+                  }
+                }
+              }
+              throw new NIP46ConnectionError(
+                `Relay rejected event: ${reasonMessage}`
+              );
+            }
           })
           .catch((err) => {
             clearTimeout(timeoutId);

@@ -6,8 +6,14 @@ import { NostrEvent, NostrFilter } from "./nostr";
  * https://github.com/nostr-protocol/nips/blob/master/01.md
  */
 
-/** EVENT message: A relay sending an event to a client, or a client publishing an event to a relay */
-export type NostrEventMessage = ["EVENT", string | undefined, NostrEvent];
+/** EVENT message: A client publishing an event to a relay */
+export type NostrClientToServerEventMessage = ["EVENT", NostrEvent];
+
+/** EVENT message: A relay sending an event to a client */
+export type NostrServerToClientEventMessage = ["EVENT", string, NostrEvent];
+
+/** Union type for EVENT messages */
+export type NostrEventMessage = NostrClientToServerEventMessage | NostrServerToClientEventMessage;
 
 /** REQ message: A client subscribing to a set of events from a relay */
 export type NostrReqMessage = ["REQ", string, ...NostrFilter[]];
@@ -69,11 +75,24 @@ export function parseMessage(data: string): NostrMessage | null {
     const [messageType] = parsed;
     switch (messageType) {
       case "EVENT":
-        if (parsed.length < 2) throw new NostrMessageParseError("Invalid EVENT message", parsed);
-        // Handle both client->relay (2 elements) and relay->client (3 elements) format
-        return parsed.length === 2 
-          ? ["EVENT", undefined, parsed[1]] 
-          : ["EVENT", parsed[1], parsed[2]];
+        // Client to Relay: ["EVENT", <NostrEvent>] (length 2)
+        if (parsed.length === 2) {
+          if (typeof parsed[1] !== 'object' || parsed[1] === null) {
+            throw new NostrMessageParseError("EVENT message from client expects an event object as the second element", parsed);
+          }
+          return ["EVENT", parsed[1] as NostrEvent];
+        }
+        // Relay to Client: ["EVENT", <subscription_id>, <NostrEvent>] (length 3)
+        else if (parsed.length === 3) {
+          if (typeof parsed[1] !== 'string') {
+            throw new NostrMessageParseError("EVENT message from relay expects a subscription ID (string) as the second element", parsed);
+          }
+          if (typeof parsed[2] !== 'object' || parsed[2] === null) {
+            throw new NostrMessageParseError("EVENT message from relay expects an event object as the third element", parsed);
+          }
+          return ["EVENT", parsed[1] as string, parsed[2] as NostrEvent];
+        }
+        throw new NostrMessageParseError("Invalid EVENT message: expected 2 or 3 elements matching client or relay structure", parsed);
       case "REQ": {
         if (parsed.length < 3) throw new NostrMessageParseError("Invalid REQ message", parsed);
         const [, subId, ...filters] = parsed;
