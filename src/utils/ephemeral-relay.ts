@@ -1,9 +1,14 @@
-import { z } from "zod";
 import { schnorr } from "@noble/curves/secp256k1";
 import { sha256 } from "@noble/hashes/sha2";
 import { bytesToHex } from "@noble/hashes/utils";
 import EventEmitter from "events";
 import { WebSocket, WebSocketServer } from "ws";
+import { NostrEvent, NostrFilter } from "../types/nostr";
+import {
+  NostrMessage,
+  NostrOkMessage,
+  NostrEoseMessage,
+} from "../types/protocol";
 
 /* ================ [ Configuration ] ================ */
 
@@ -15,64 +20,20 @@ console.log("output mode:", DEBUG ? "debug" : VERBOSE ? "verbose" : "silent");
 
 /* ================ [ Interfaces ] ================ */
 
-interface EventFilter {
-  ids?: string[];
-  authors?: string[];
-  kinds?: number[];
-  since?: number;
-  until?: number;
-  limit?: number;
-  [key: string]: any | undefined;
-}
+// Using NostrFilter from types/nostr.ts
+type EventFilter = NostrFilter;
 
-interface SignedEvent {
-  content: string;
-  created_at: number;
-  id: string;
-  kind: number;
-  pubkey: string;
-  sig: string;
-  tags: string[][];
-}
+// Using NostrEvent from types/nostr.ts
+type SignedEvent = NostrEvent;
+
+// Extended type for relay events that adds a subscription id in the middle
+type NostrRelayEventMessage = ["EVENT", string, NostrEvent];
 
 interface Subscription {
   filters: EventFilter[];
   instance: ClientSession;
   sub_id: string;
 }
-
-/* ================ [ Schema ] ================ */
-
-const num = z.number().max(Number.MAX_SAFE_INTEGER),
-  str = z.string(),
-  stamp = num.min(500_000_000),
-  hex = str.regex(/^[0-9a-fA-F]*$/).refine((e) => e.length % 2 === 0),
-  hash = hex.refine((e) => e.length === 64),
-  sig = hex.refine((e) => e.length === 128),
-  tags = str.array();
-
-const event_schema = z.object({
-  content: str,
-  created_at: stamp,
-  id: hash,
-  kind: num,
-  pubkey: hash,
-  sig: sig,
-  tags: tags.array(),
-});
-
-const filter_schema = z
-  .object({
-    ids: hash.array().optional(),
-    authors: hash.array().optional(),
-    kinds: num.array().optional(),
-    since: stamp.optional(),
-    until: stamp.optional(),
-    limit: num.optional(),
-  })
-  .catchall(tags);
-
-const sub_schema = z.tuple([str]).rest(filter_schema);
 
 /* ================ [ Server Class ] ================ */
 
@@ -133,7 +94,7 @@ export class NostrRelay {
       this.conn += 1;
     });
 
-    return new Promise((res) => {
+    return new Promise<NostrRelay>((res) => {
       this.wss.on("listening", () => {
         if (this._purge !== null) {
           DEBUG &&
@@ -167,14 +128,32 @@ export class NostrRelay {
 
       this._isClosing = true;
 
+      // Clear any listeners on the emitter
+      this._emitter.removeAllListeners();
+
       if (this._wss) {
         // Clean up clients first
         if (this._wss.clients && this._wss.clients.size > 0) {
+          // Keep track of clients to make sure they all close
+          const clientsToClose = this._wss.clients.size;
+          let closedClients = 0;
+
           this._wss.clients.forEach((client) => {
             try {
+              // Add close handler to track when clients are closed
+              client.once("close", () => {
+                closedClients++;
+                DEBUG &&
+                  console.log(
+                    `[ relay ] client closed (${closedClients}/${clientsToClose})`,
+                  );
+              });
+
               client.close(1000, "Server shutting down");
             } catch (e) {
-              // Ignore errors
+              // Count error closures as closed
+              closedClients++;
+              DEBUG && console.log(`[ relay ] error closing client: ${e}`);
             }
           });
         }
@@ -183,21 +162,38 @@ export class NostrRelay {
         this._subs.clear();
         this._cache = [];
 
-        // Close server with timeout
+        // Close server with timeout that self-cancels (unref)
         const timeout = setTimeout(() => {
           DEBUG &&
             console.log("[ relay ] server close timed out, forcing cleanup");
           this._wss = null;
           resolve();
-        }, 500);
+        }, 1000).unref(); // Use unref to avoid keeping the process alive
 
         const wss = this._wss;
         this._wss = null;
 
-        wss.close(() => {
+        try {
+          wss.close(() => {
+            clearTimeout(timeout);
+
+            // Final cleanup
+            process.nextTick(() => {
+              // Ensure everything is fully cleaned up before resolving
+              try {
+                wss.removeAllListeners();
+              } catch (e) {
+                // Ignore errors during cleanup
+              }
+              resolve();
+            });
+          });
+        } catch (e) {
+          // Handle errors during close
+          DEBUG && console.log(`[ relay ] error during server close: ${e}`);
           clearTimeout(timeout);
           resolve();
-        });
+        }
       } else {
         resolve();
       }
@@ -274,8 +270,6 @@ class ClientSession {
   }
 
   _handler(message: string) {
-    let verb: string, payload: any;
-
     try {
       // Try to parse as JSON
       const parsed = JSON.parse(message);
@@ -284,8 +278,7 @@ class ClientSession {
       if (parsed && Array.isArray(parsed) && parsed.length > 0) {
         // Check if it's a standard Nostr message
         if (["EVENT", "REQ", "CLOSE"].includes(parsed[0])) {
-          // Handle standard Nostr messages
-          [verb, ...payload] = parsed;
+          const verb = parsed[0];
 
           switch (verb) {
             case "EVENT":
@@ -301,7 +294,7 @@ class ClientSession {
                   "invalid: EVENT message missing params",
                 ]);
               }
-              return this._onevent(parsed[1]);
+              return this._onevent(parsed[1] as SignedEvent);
 
             case "REQ":
               if (parsed.length < 2) {
@@ -316,9 +309,11 @@ class ClientSession {
                   "invalid: REQ message missing params",
                 ]);
               }
-              const sub_id = parsed[1];
-              const filters = parsed.slice(2);
-              return this._onreq(sub_id, filters);
+              {
+                const sub_id = parsed[1] as string;
+                const filters = parsed.slice(2) as EventFilter[];
+                return this._onreq(sub_id, filters);
+              }
 
             case "CLOSE":
               if (parsed.length !== 2) {
@@ -333,7 +328,7 @@ class ClientSession {
                   "invalid: CLOSE message missing params",
                 ]);
               }
-              return this._onclose(parsed[1]);
+              return this._onclose(parsed[1] as string);
           }
         } else {
           // This could be a direct NIP-46 message, broadcast it to other clients
@@ -355,10 +350,10 @@ class ClientSession {
       }
 
       this.log.debug("unhandled message format:", message);
-      return this.send(["NOTICE", "", "Unable to handle message"]);
+      return this.send(["NOTICE", "Unable to handle message"]);
     } catch (e) {
       this.log.debug("failed to parse message:\n\n", message);
-      return this.send(["NOTICE", "", "Unable to parse message"]);
+      return this.send(["NOTICE", "Unable to parse message"]);
     }
   }
 
@@ -378,7 +373,12 @@ class ClientSession {
         // Validate basic structure but with NIP-46 specific validation
         if (!this.validateNIP46Event(event)) {
           this.log.debug("NIP-46 event failed validation:", event);
-          this.send(["OK", event.id, false, "NIP-46 event failed validation"]);
+          this.send([
+            "OK",
+            event.id,
+            false,
+            "NIP-46 event failed validation",
+          ] as NostrOkMessage);
           return;
         }
 
@@ -392,10 +392,7 @@ class ClientSession {
               const pTags = event.tags
                 .filter((tag) => tag[0] === "p")
                 .map((tag) => tag[1]);
-              const pFilters = Object.entries(filter)
-                .filter(([key]) => key === "#p")
-                .map(([_, value]) => value as string[])
-                .flat();
+              const pFilters = filter["#p"] || [];
 
               // If there's a #p filter, make sure the event matches it
               if (
@@ -406,15 +403,19 @@ class ClientSession {
               }
 
               // Send to matching subscription
-              const [clientId, subId] = uid.split("/");
-              sub.instance.send(["EVENT", subId, event]);
+              const [_clientId, subId] = uid.split("/");
+              sub.instance.send([
+                "EVENT",
+                subId,
+                event,
+              ] as NostrRelayEventMessage);
               break;
             }
           }
         }
 
         // Send OK message
-        this.send(["OK", event.id, true, ""]);
+        this.send(["OK", event.id, true, ""] as NostrOkMessage);
         return;
       }
 
@@ -424,18 +425,23 @@ class ClientSession {
 
       if (!verify_event(event)) {
         this.log.debug("event failed validation:", event);
-        this.send(["OK", event.id, false, "event failed validation"]);
+        this.send([
+          "OK",
+          event.id,
+          false,
+          "event failed validation",
+        ] as NostrOkMessage);
         return;
       }
 
-      this.send(["OK", event.id, true, ""]);
+      this.send(["OK", event.id, true, ""] as NostrOkMessage);
       this.relay.store(event);
 
       for (const { filters, instance, sub_id } of this.relay.subs.values()) {
         for (const filter of filters) {
           if (match_filter(event, filter)) {
             instance.log.client(`event matched subscription: ${sub_id}`);
-            instance.send(["EVENT", sub_id, event]);
+            instance.send(["EVENT", sub_id, event] as NostrRelayEventMessage);
           }
         }
       }
@@ -456,9 +462,6 @@ class ClientSession {
     // Add subscription
     this.addSub(sub_id, ...filters);
 
-    // Check for NIP-46 subscription
-    const hasNip46Filter = filters.some((f) => f.kinds?.includes(24133));
-
     // For each filter
     let count = 0;
     for (const filter of filters) {
@@ -471,7 +474,7 @@ class ClientSession {
 
         // Check if event matches filter
         if (match_filter(event, filter)) {
-          this.send(["EVENT", sub_id, event]);
+          this.send(["EVENT", sub_id, event] as NostrRelayEventMessage);
           count++;
           this.log.client(`event matched in cache: ${event.id}`);
           this.log.client(`event matched subscription: ${sub_id}`);
@@ -485,16 +488,16 @@ class ClientSession {
     DEBUG && this.log.debug(`sent ${count} matching events from cache`);
 
     // Send EOSE
-    this.send(["EOSE", sub_id]);
+    this.send(["EOSE", sub_id] as NostrEoseMessage);
   }
 
   get log() {
     return {
-      client: (...msg: any[]) =>
+      client: (...msg: unknown[]) =>
         VERBOSE && console.log(`[ client ][ ${this._sid} ]`, ...msg),
-      debug: (...msg: any[]) =>
+      debug: (...msg: unknown[]) =>
         DEBUG && console.log(`[ debug  ][ ${this._sid} ]`, ...msg),
-      info: (...msg: any[]) =>
+      info: (...msg: unknown[]) =>
         VERBOSE && console.log(`[ info   ][ ${this._sid} ]`, ...msg),
     };
   }
@@ -515,7 +518,7 @@ class ClientSession {
     }
   }
 
-  send(message: any[]) {
+  send(message: NostrMessage | NostrRelayEventMessage) {
     try {
       if (this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(JSON.stringify(message));
@@ -615,16 +618,13 @@ class ClientSession {
 
 /* ================ [ Methods ] ================ */
 
-function assert(value: unknown): asserts value {
-  if (value === false) throw new Error("assertion failed!");
-}
-
 function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
-  const { authors, ids, kinds, since, until, limit, ...rest } = filter;
+  const { authors, ids, kinds, since, until, ...rest } = filter;
 
+  // Extract all tag filters from rest
   const tag_filters: string[][] = Object.entries(rest)
     .filter((e) => e[0].startsWith("#"))
-    .map((e) => [e[0].slice(1, 2), ...e[1]]);
+    .map((e) => [e[0].slice(1), ...(e[1] as string[])]);
 
   if (ids !== undefined && !ids.includes(event.id)) {
     return false;

@@ -2,26 +2,17 @@ import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { encrypt, decrypt } from "../nip04";
 import {
-  NIP46Method,
   NIP46Request,
   NIP46Response,
-  NIP46ClientSession,
+  SimpleNIP46BunkerOptions,
+  NIP46KeyPair,
+  NIP46UnsignedEventData,
+  NIP46Error,
+  NIP46ConnectionError,
+  NIP46Method,
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
-import { generateKeypair } from "../utils/crypto";
-
-// Additional constants for NIP-46
-export const NIP46_METHODS = {
-  CONNECT: "connect",
-  GET_PUBLIC_KEY: "get_public_key",
-  SIGN_EVENT: "sign_event",
-  PING: "ping",
-  NIP04_ENCRYPT: "nip04_encrypt",
-  NIP04_DECRYPT: "nip04_decrypt",
-  NIP44_ENCRYPT: "nip44_encrypt",
-  NIP44_DECRYPT: "nip44_decrypt",
-};
 
 // Helper functions for response creation
 export function createSuccessResponse(
@@ -41,15 +32,6 @@ interface ClientSession {
   lastSeen: number;
 }
 
-// Bunker options
-export interface SimpleNIP46BunkerOptions {
-  timeout?: number;
-  logLevel?: LogLevel;
-  defaultPermissions?: string[];
-  secret?: string;
-  debug?: boolean;
-}
-
 /**
  * Simple implementation of a NIP-46 bunker (remote signer)
  *
@@ -59,8 +41,8 @@ export interface SimpleNIP46BunkerOptions {
 export class SimpleNIP46Bunker {
   private nostr: Nostr;
   private relays: string[];
-  private userKeys: { publicKey: string; privateKey: string };
-  private signerKeys: { publicKey: string; privateKey: string };
+  private userKeys: NIP46KeyPair;
+  private signerKeys: NIP46KeyPair;
   private clients: Map<string, ClientSession>;
   private defaultPermissions: Set<string>;
   private subId: string | null;
@@ -108,11 +90,16 @@ export class SimpleNIP46Bunker {
   async start(): Promise<void> {
     // Validate keys
     if (!this.userKeys.publicKey) {
-      throw new Error("User public key not set");
+      throw new NIP46ConnectionError("User public key not set");
     }
 
     if (!this.signerKeys.publicKey) {
-      throw new Error("Signer public key not set");
+      throw new NIP46ConnectionError("Signer public key not set");
+    }
+
+    // Also require the signer's _private_ key to be available up-front
+    if (!this.signerKeys.privateKey) {
+      throw new NIP46ConnectionError("Signer private key not set");
     }
 
     try {
@@ -134,9 +121,13 @@ export class SimpleNIP46Bunker {
         `Bunker started for ${this.signerKeys.publicKey} on ${this.relays.length} relay(s)`,
       );
       return;
-    } catch (error: any) {
-      this.logger.error(`Failed to start bunker:`, error.message);
-      throw error;
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to start bunker:`, errorMessage);
+      throw error instanceof NIP46Error
+        ? error
+        : new NIP46ConnectionError(`Failed to start bunker: ${errorMessage}`);
     }
   }
 
@@ -156,8 +147,10 @@ export class SimpleNIP46Bunker {
     try {
       await this.nostr.disconnectFromRelays();
       this.logger.info(`Bunker stopped`);
-    } catch (error: any) {
-      this.logger.warn(`Error disconnecting from relays:`, error.message);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.warn(`Error disconnecting from relays:`, errorMessage);
       // Continue despite errors
     }
 
@@ -258,11 +251,11 @@ export class SimpleNIP46Bunker {
         let response: NIP46Response;
 
         switch (request.method) {
-          case "connect":
+          case NIP46Method.CONNECT:
             response = await this.handleConnect(request, clientPubkey);
             break;
 
-          case "get_public_key":
+          case NIP46Method.GET_PUBLIC_KEY:
             if (!this.isClientAuthorized(clientPubkey)) {
               response = createErrorResponse(request.id, "Unauthorized");
             } else {
@@ -274,7 +267,7 @@ export class SimpleNIP46Bunker {
             }
             break;
 
-          case "ping":
+          case NIP46Method.PING:
             if (!this.isClientAuthorized(clientPubkey)) {
               response = createErrorResponse(request.id, "Unauthorized");
             } else {
@@ -283,15 +276,15 @@ export class SimpleNIP46Bunker {
             }
             break;
 
-          case "sign_event":
+          case NIP46Method.SIGN_EVENT:
             response = await this.handleSignEvent(request, clientPubkey);
             break;
 
-          case "nip04_encrypt":
+          case NIP46Method.NIP04_ENCRYPT:
             response = await this.handleNIP04Encrypt(request, clientPubkey);
             break;
 
-          case "nip04_decrypt":
+          case NIP46Method.NIP04_DECRYPT:
             response = await this.handleNIP04Decrypt(request, clientPubkey);
             break;
 
@@ -304,11 +297,35 @@ export class SimpleNIP46Bunker {
 
         // Send the response
         await this.sendResponse(response, clientPubkey);
-      } catch (error: any) {
-        this.logger.error(`Failed to process request:`, error.message);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to process request:`, errorMessage);
+
+        // Send error response to client even when we couldn't parse the request
+        const response = createErrorResponse(
+          "unknown", // cannot recover id - using convention for failed parse
+          `Failed to process request: ${errorMessage}`,
+        );
+        await this.sendResponse(response, event.pubkey);
       }
-    } catch (error: any) {
-      this.logger.error(`Error handling request:`, error.message);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error handling request:`, errorMessage);
+
+      try {
+        // Attempt to send a generic error response for the outer handler as well
+        const response = createErrorResponse(
+          "unknown", // cannot recover id
+          `Failed to handle request: ${errorMessage}`,
+        );
+        await this.sendResponse(response, event.pubkey);
+      } catch (err) {
+        // Just log if we can't send the response in this case
+        const errMessage = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Could not send error response: ${errMessage}`);
+      }
     }
   }
 
@@ -397,7 +414,7 @@ export class SimpleNIP46Bunker {
 
     try {
       // Parse the event data
-      const eventData = JSON.parse(request.params[0]);
+      const eventData: NIP46UnsignedEventData = JSON.parse(request.params[0]);
 
       // Check if the client has permission to sign this kind of event
       const kindPermission = `sign_event:${eventData.kind}`;
@@ -417,11 +434,11 @@ export class SimpleNIP46Bunker {
       this.logger.debug(`Signing event kind: ${eventData.kind}`);
 
       // Create the unsigned event
-      const unsignedEvent = {
+      const unsignedEvent: UnsignedEvent = {
         kind: eventData.kind,
         content: eventData.content,
         created_at: eventData.created_at,
-        tags: eventData.tags || [],
+        tags: eventData.tags ?? [],
         pubkey: this.userKeys.publicKey,
       };
 
@@ -438,10 +455,12 @@ export class SimpleNIP46Bunker {
 
       // Return the signed event
       return createSuccessResponse(request.id, JSON.stringify(signedEvent));
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
-        `Failed to sign event: ${error.message}`,
+        `Failed to sign event: ${errorMessage}`,
       );
     }
   }
@@ -486,10 +505,12 @@ export class SimpleNIP46Bunker {
       this.logger.debug(`NIP-04 encryption successful`);
 
       return createSuccessResponse(request.id, encrypted);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
-        `NIP-04 encryption failed: ${error.message}`,
+        `NIP-04 encryption failed: ${errorMessage}`,
       );
     }
   }
@@ -529,10 +550,12 @@ export class SimpleNIP46Bunker {
       this.logger.debug(`NIP-04 decryption successful`);
 
       return createSuccessResponse(request.id, decrypted);
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
-        `NIP-04 decryption failed: ${error.message}`,
+        `NIP-04 decryption failed: ${errorMessage}`,
       );
     }
   }
@@ -576,8 +599,10 @@ export class SimpleNIP46Bunker {
       await this.nostr.publishEvent(signedEvent);
 
       this.logger.debug(`Response sent for request: ${response.id}`);
-    } catch (error: any) {
-      this.logger.error(`Failed to send response: ${error.message}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to send response: ${errorMessage}`);
     }
   }
 

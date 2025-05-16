@@ -8,6 +8,19 @@ import { NostrEvent } from "../../../src/types/nostr";
 import { jest } from "@jest/globals";
 
 /**
+ * Mock WebSocket interface for testing
+ */
+interface MockWebSocket {
+  send: jest.Mock;
+  close: jest.Mock;
+  readyState: number;
+  onopen: (() => void) | null;
+  onclose: ((event: CloseEvent) => void) | null;
+  onerror: ((event: Event) => void) | null;
+  onmessage: ((event: MessageEvent) => void) | null;
+}
+
+/**
  * This integration test validates that the relay properly orders events
  * according to NIP-01 specification:
  * 1. By created_at timestamp (newest first)
@@ -15,10 +28,18 @@ import { jest } from "@jest/globals";
  */
 describe("Relay Event Ordering Integration", () => {
   // Mock the WebSocket module at a higher level
-  let mockSocketInstance: any;
+  let mockSocketInstance: MockWebSocket;
   let relay: Relay;
   let onEventCallback: jest.Mock;
   let onEOSECallback: jest.Mock;
+
+  // Type assertion function to access private members for testing
+  const asTestable = (r: Relay) =>
+    r as unknown as {
+      sortEvents: (events: NostrEvent[]) => NostrEvent[];
+      flushSubscriptionBuffer: (subscriptionId: string) => void;
+      eventBuffers: Map<string, NostrEvent[]>;
+    };
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -39,16 +60,18 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Mock the WebSocket constructor
-    global.WebSocket = jest.fn(() => mockSocketInstance) as any;
+    global.WebSocket = jest.fn(
+      () => mockSocketInstance,
+    ) as unknown as typeof WebSocket;
 
     // Create a relay with a 50ms buffer flush delay
     relay = new Relay("wss://test-relay.com", { bufferFlushDelay: 50 });
 
     // Expose private methods for testing
-    (relay as any).sortEvents = (relay as any).sortEvents.bind(relay);
-    (relay as any).flushSubscriptionBuffer = (
-      relay as any
-    ).flushSubscriptionBuffer.bind(relay);
+    const testable = asTestable(relay);
+    testable.sortEvents = testable.sortEvents.bind(relay);
+    testable.flushSubscriptionBuffer =
+      testable.flushSubscriptionBuffer.bind(relay);
   });
 
   afterEach(() => {
@@ -64,7 +87,7 @@ describe("Relay Event Ordering Integration", () => {
     const connectionPromise = relay.connect();
 
     // Trigger onopen callback
-    mockSocketInstance.onopen();
+    mockSocketInstance.onopen?.();
 
     await connectionPromise;
 
@@ -118,7 +141,7 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Manually add events to the buffer
-    (relay as any).eventBuffers.set(subscriptionId, [
+    asTestable(relay).eventBuffers.set(subscriptionId, [
       event1,
       event3,
       event4,
@@ -126,7 +149,7 @@ describe("Relay Event Ordering Integration", () => {
     ]);
 
     // Directly call flushSubscriptionBuffer
-    (relay as any).flushSubscriptionBuffer(subscriptionId);
+    asTestable(relay).flushSubscriptionBuffer(subscriptionId);
 
     // Now events should be delivered in the correct order
     expect(onEventCallback).toHaveBeenCalledTimes(4);
@@ -154,7 +177,7 @@ describe("Relay Event Ordering Integration", () => {
     const connectionPromise = relay.connect();
 
     // Trigger onopen callback
-    mockSocketInstance.onopen();
+    mockSocketInstance.onopen?.();
 
     await connectionPromise;
 
@@ -187,12 +210,12 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Manually add events to the buffer
-    (relay as any).eventBuffers.set(subscriptionId, [event1, event2]);
+    asTestable(relay).eventBuffers.set(subscriptionId, [event1, event2]);
 
     // Simulate receiving EOSE
-    mockSocketInstance.onmessage({
+    mockSocketInstance.onmessage?.({
       data: JSON.stringify(["EOSE", subscriptionId]),
-    });
+    } as MessageEvent);
 
     // EOSE should trigger immediate buffer flush
     expect(onEventCallback).toHaveBeenCalledTimes(2);
@@ -211,7 +234,7 @@ describe("Relay Event Ordering Integration", () => {
     const connectionPromise = relay.connect();
 
     // Trigger onopen callback
-    mockSocketInstance.onopen();
+    mockSocketInstance.onopen?.();
 
     await connectionPromise;
 
@@ -233,10 +256,10 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Manually add events to the buffer
-    (relay as any).eventBuffers.set(subscriptionId, [event]);
+    asTestable(relay).eventBuffers.set(subscriptionId, [event]);
 
     // Directly call flushSubscriptionBuffer
-    (relay as any).flushSubscriptionBuffer(subscriptionId);
+    asTestable(relay).flushSubscriptionBuffer(subscriptionId);
 
     // No events should be delivered
     expect(onEventCallback).not.toHaveBeenCalled();

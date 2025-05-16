@@ -6,13 +6,17 @@ import {
   NIP47Method,
   TransactionType,
   generateKeypair,
-  generateNWCURL,
   NIP47ConnectionOptions,
-  NIP47NotificationType,
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
+import {
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
+} from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { signEvent, sha256Hex } from "../../src/utils/crypto";
 
 /**
  * Request Expiration Example for NIP-47
@@ -23,11 +27,29 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
  * - Best practices for expiration times
  */
 
+// Custom error class for NOT_FOUND errors
+class NotFoundError extends Error {
+  code = NIP47ErrorCode.NOT_FOUND as const;
+  context?: { payment_hash?: string; invoice?: string };
+
+  constructor(message = "Invoice not found", ctx?: NotFoundError["context"]) {
+    super(message);
+    this.name = "NotFoundError";
+    this.context = ctx;
+  }
+}
+
 // Simple wallet implementation
 class ExpirationDemoWallet implements WalletImplementation {
   private balance: number = 10000000; // 10,000,000 msats
+  // Generate a wallet private key at runtime instead of using a hard-coded value
+  private walletPrivateKey: string;
 
-  async getInfo(): Promise<any> {
+  constructor(privateKey: string) {
+    this.walletPrivateKey = privateKey;
+  }
+
+  async getInfo(): Promise<GetInfoResponseResult> {
     return {
       alias: "ExpirationDemoWallet",
       color: "#ff9900",
@@ -49,10 +71,10 @@ class ExpirationDemoWallet implements WalletImplementation {
   }
 
   async payInvoice(
-    invoice: string,
+    _invoice: string,
     amount?: number,
-    maxfee?: number,
-  ): Promise<any> {
+    _maxfee?: number,
+  ): Promise<PaymentResponseResult> {
     // Simulate a long-running operation that might exceed expiration
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
@@ -67,14 +89,28 @@ class ExpirationDemoWallet implements WalletImplementation {
     };
   }
 
-  async makeInvoice(amount: number, description: string): Promise<any> {
-    return {
+  async makeInvoice(
+    amount: number,
+    _description: string, // unused in demo
+    description_hash?: string,
+    expiry?: number,
+  ): Promise<MakeInvoiceResponseResult> {
+    const now = Math.floor(Date.now() / 1000);
+    const result: MakeInvoiceResponseResult = {
       invoice: `lnbc${amount}n1demo${randomHex(10)}`,
       payment_hash: randomHex(32),
       amount,
-      created_at: Math.floor(Date.now() / 1000),
-      expires_at: Math.floor(Date.now() / 1000) + 3600,
+      created_at: now,
+      // honour caller‐provided expiry or fall back to one hour
+      expires_at: expiry ? now + expiry : now + 3600,
     };
+
+    // propagate description hash when provided
+    if (description_hash) {
+      result.description_hash = description_hash;
+    }
+
+    return result;
   }
 
   // Implement other required methods
@@ -84,13 +120,10 @@ class ExpirationDemoWallet implements WalletImplementation {
   }): Promise<NIP47Transaction> {
     // Implement NOT_FOUND error correctly
     if (Math.random() < 0.3) {
-      const error: any = new Error("Invoice not found");
-      error.code = NIP47ErrorCode.NOT_FOUND;
-      error.context = {
+      throw new NotFoundError("Invoice not found", {
         payment_hash: params.payment_hash,
         invoice: params.invoice,
-      };
-      throw error;
+      });
     }
 
     // Return a transaction for demonstration
@@ -105,21 +138,36 @@ class ExpirationDemoWallet implements WalletImplementation {
     };
   }
 
-  async listTransactions(): Promise<NIP47Transaction[]> {
+  async listTransactions(
+    _from?: number,
+    _until?: number,
+    _limit?: number,
+    _offset?: number,
+    _unpaid?: boolean,
+    _type?: string,
+  ): Promise<NIP47Transaction[]> {
     return [];
   }
 
   async signMessage(
     message: string,
   ): Promise<{ signature: string; message: string }> {
+    // Use proper cryptographic signing instead of random values
+    // Hash the message first to get a 32-byte value to sign
+    const messageHash = sha256Hex(message);
+
+    // Sign the hash with the wallet's private key
+    const signature = await signEvent(messageHash, this.walletPrivateKey);
+
     return {
-      signature: randomHex(64),
+      signature,
       message,
     };
   }
 }
 
 // Helper function to generate random hex strings
+// Note: Not cryptographically secure - for demo purposes only
 function randomHex(length: number): string {
   return [...Array(length)]
     .map(() => Math.floor(Math.random() * 16).toString(16))
@@ -141,9 +189,10 @@ async function main() {
 
   const serviceKeypair = await generateKeypair();
   const clientKeypair = await generateKeypair();
+  const walletKeypair = await generateKeypair();
 
-  // Create wallet
-  const expirationWallet = new ExpirationDemoWallet();
+  // Create wallet with generated private key
+  const expirationWallet = new ExpirationDemoWallet(walletKeypair.privateKey);
 
   // Set up connection options
   const connectionOptions: NIP47ConnectionOptions = {
@@ -220,7 +269,7 @@ async function main() {
     try {
       await client.getBalance({ expiration: pastExpiration });
       console.log("Request should have failed, but succeeded unexpectedly");
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof NIP47ClientError &&
         error.code === NIP47ErrorCode.REQUEST_EXPIRED
@@ -251,7 +300,7 @@ async function main() {
         expiration: shortExpiration,
       });
       console.log("Request should have expired, but succeeded unexpectedly");
-    } catch (error) {
+    } catch (error: unknown) {
       if (
         error instanceof NIP47ClientError &&
         error.code === NIP47ErrorCode.REQUEST_EXPIRED
@@ -273,15 +322,15 @@ async function main() {
     try {
       const balance = await client.getBalance({ expiration: quickExpiration });
       console.log(`Balance query succeeded: ${balance} msats`);
-    } catch (error) {
-      console.error("Unexpected error:", error);
+    } catch (error: unknown) {
+      console.error("Unexpected error in getBalance for quick op:", error);
     }
 
     console.log("\nFor operations that may take longer (payments):");
     // Use a longer expiration (5 minutes)
     const longExpiration = now + 300;
     try {
-      const invoice = await client.makeInvoice(
+      await client.makeInvoice(
         5000,
         "Long-lived invoice",
         undefined,
@@ -289,8 +338,8 @@ async function main() {
         { expiration: longExpiration },
       );
       console.log("Invoice creation succeeded with 5-minute expiration window");
-    } catch (error) {
-      console.error("Unexpected error:", error);
+    } catch (error: unknown) {
+      console.error("Unexpected error in makeInvoice for long op:", error);
     }
 
     console.log("\n==== 6. Security Considerations ====");
@@ -308,7 +357,7 @@ async function main() {
     await relay.close();
 
     console.log("\nRequest expiration demo completed successfully!");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Unexpected error during demo:", error);
     client.disconnect();
     service.disconnect();

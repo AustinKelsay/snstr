@@ -1,5 +1,28 @@
-import { NostrEvent } from "../src/types/nostr";
-import * as nip07 from "../src/nip07";
+import { NostrEvent } from "../../src/types/nostr";
+import * as nip07 from "../../src/nip07";
+
+// Create interface for our test environment
+interface NostrMock {
+  getPublicKey: jest.Mock;
+  signEvent: jest.Mock;
+  nip04?: {
+    encrypt: jest.Mock;
+    decrypt: jest.Mock;
+  };
+  nip44?: {
+    encrypt: jest.Mock;
+    decrypt: jest.Mock;
+  };
+}
+
+// Define test window interface
+interface MockWindow {
+  nostr?: NostrMock;
+}
+
+// Instead of augmenting the global, we'll use the correct approach for jest tests
+// using explicit casting where necessary
+let mockWindow: MockWindow | undefined;
 
 // Mock window.nostr object for testing
 const mockEvent: Omit<NostrEvent, "id" | "pubkey" | "sig"> = {
@@ -29,8 +52,8 @@ describe("NIP-07 Core Functions", () => {
     // Reset mocks between tests
     jest.clearAllMocks();
 
-    // Setup the global window object with mock nostr implementation
-    (global as any).window = {
+    // Setup the mock window object
+    mockWindow = {
       nostr: {
         getPublicKey: mockGetPublicKey,
         signEvent: mockSignEvent,
@@ -44,11 +67,15 @@ describe("NIP-07 Core Functions", () => {
         },
       },
     };
+
+    // Set global.window using proper typing for Jest environment
+    (global as { window?: MockWindow }).window = mockWindow;
   });
 
   afterEach(() => {
     // Clean up the mock
-    delete (global as any).window;
+    mockWindow = undefined;
+    (global as { window?: MockWindow }).window = undefined;
   });
 
   describe("hasNip07Support", () => {
@@ -57,12 +84,14 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should return false when window.nostr is not available", () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       expect(nip07.hasNip07Support()).toBe(false);
     });
 
     it("should return false when window is not defined", () => {
-      delete (global as any).window;
+      (global as { window?: MockWindow }).window = undefined;
       expect(nip07.hasNip07Support()).toBe(false);
     });
   });
@@ -75,7 +104,9 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should throw an error if NIP-07 is not supported", async () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       await expect(nip07.getPublicKey()).rejects.toThrow(
         "NIP-07 extension not available",
       );
@@ -98,7 +129,9 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should throw an error if NIP-07 is not supported", async () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       await expect(nip07.signEvent(mockEvent)).rejects.toThrow(
         "NIP-07 extension not available",
       );
@@ -124,14 +157,18 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should throw an error if NIP-07 is not supported", async () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       await expect(nip07.encryptNip04("pubkey", "plaintext")).rejects.toThrow(
         "NIP-07 extension not available",
       );
     });
 
     it("should throw an error if nip04 encryption is not supported", async () => {
-      delete (global as any).window.nostr.nip04;
+      if (mockWindow?.nostr) {
+        mockWindow.nostr.nip04 = undefined;
+      }
       await expect(nip07.encryptNip04("pubkey", "plaintext")).rejects.toThrow(
         "NIP-04 encryption not supported",
       );
@@ -157,14 +194,18 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should throw an error if NIP-07 is not supported", async () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       await expect(nip07.decryptNip04("pubkey", "ciphertext")).rejects.toThrow(
         "NIP-07 extension not available",
       );
     });
 
     it("should throw an error if nip04 decryption is not supported", async () => {
-      delete (global as any).window.nostr.nip04;
+      if (mockWindow?.nostr) {
+        mockWindow.nostr.nip04 = undefined;
+      }
       await expect(nip07.decryptNip04("pubkey", "ciphertext")).rejects.toThrow(
         "NIP-04 decryption not supported",
       );
@@ -190,14 +231,18 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should throw an error if NIP-07 is not supported", async () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       await expect(nip07.encryptNip44("pubkey", "plaintext")).rejects.toThrow(
         "NIP-07 extension not available",
       );
     });
 
     it("should throw an error if nip44 encryption is not supported", async () => {
-      delete (global as any).window.nostr.nip44;
+      if (mockWindow?.nostr) {
+        mockWindow.nostr.nip44 = undefined;
+      }
       await expect(nip07.encryptNip44("pubkey", "plaintext")).rejects.toThrow(
         "NIP-44 encryption not supported",
       );
@@ -223,14 +268,18 @@ describe("NIP-07 Core Functions", () => {
     });
 
     it("should throw an error if NIP-07 is not supported", async () => {
-      delete (global as any).window.nostr;
+      if (mockWindow) {
+        mockWindow.nostr = undefined;
+      }
       await expect(nip07.decryptNip44("pubkey", "ciphertext")).rejects.toThrow(
         "NIP-07 extension not available",
       );
     });
 
     it("should throw an error if nip44 decryption is not supported", async () => {
-      delete (global as any).window.nostr.nip44;
+      if (mockWindow?.nostr) {
+        mockWindow.nostr.nip44 = undefined;
+      }
       await expect(nip07.decryptNip44("pubkey", "ciphertext")).rejects.toThrow(
         "NIP-44 decryption not supported",
       );

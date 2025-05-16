@@ -30,7 +30,7 @@ const RELAY_PORT = 3334;
 
 // Use the environment variable to determine verbosity
 const VERBOSE = process.env.VERBOSE === "true";
-const log = (...args: any[]) => VERBOSE && console.log(...args);
+const log = (...args: unknown[]) => VERBOSE && console.log(...args);
 
 // Map to track created events (so we can reference them later)
 const createdEvents: Map<string, NostrEvent> = new Map();
@@ -312,6 +312,7 @@ async function main() {
 
     try {
       // Try to create an addressable event with an invalid kind
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const invalidEvent = createAddressableEvent(
         20000, // Invalid kind for addressable events (must be 30000-39999)
         "invalid-id",

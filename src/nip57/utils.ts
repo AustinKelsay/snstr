@@ -7,6 +7,23 @@ import { bech32 } from "@scure/base";
 import { decode } from "light-bolt11-decoder";
 
 /**
+ * Type definition for bolt11 invoice decoding
+ * Simplified to match what we actually need from the library
+ */
+interface DecodedInvoice {
+  sections: Array<{
+    name: string;
+    value?: string | number;
+    tag?: string;
+  }>;
+  paymentHash?: string;
+  satoshis?: string | number;
+  millisatoshis?: string | number;
+  description?: string;
+  descriptionHash?: string;
+}
+
+/**
  * Converts a Lightning Address (user@domain.com) to a well-known LNURL endpoint URL
  * @param lightningAddress Lightning Address in format user@domain.com
  * @returns URL string or null if invalid address format
@@ -118,7 +135,10 @@ export function decodeLnurl(lnurl: string): string | null {
     // Use the bech32 library to decode
     // The bech32 library expects the input in specific format (string with '1' separator)
     // Since LNURL is a bech32 string that starts with 'lnurl', we need to ensure it's valid
-    const decoded = bech32.decode(lnurl as `lnurl1${string}`, 1023);
+    const decoded = bech32.decode(
+      lnurl.toLowerCase() as `lnurl1${string}`,
+      1023,
+    );
     const words = decoded.words;
     const bytes = bech32.fromWords(words);
 
@@ -131,69 +151,91 @@ export function decodeLnurl(lnurl: string): string | null {
 }
 
 /**
- * Parses a bolt11 invoice and extracts relevant data
- * @param bolt11 The bolt11 invoice string
- * @returns Object with parsed data or null if parsing failed
+ * Invoice data extracted from a bolt11 invoice
  */
-export function parseBolt11Invoice(bolt11: string): {
+export interface ParsedBolt11Invoice {
   paymentHash?: string;
   descriptionHash?: string;
   amount?: string;
   timestamp?: number;
   description?: string;
-} | null {
+}
+
+/**
+ * Parses a bolt11 invoice and extracts relevant data
+ * @param bolt11 The bolt11 invoice string
+ * @returns Object with parsed data or null if parsing failed
+ */
+export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
   try {
-    // Use any to bypass type issues
-    const decoded = decode(bolt11) as any;
+    // Cast to our interface that matches the parts we need
+    const decoded = decode(bolt11) as DecodedInvoice;
 
     // Extract fields from the decoded invoice
-    const result: {
-      paymentHash?: string;
-      descriptionHash?: string;
-      amount?: string;
-      timestamp?: number;
-      description?: string;
-    } = {};
+    const result: ParsedBolt11Invoice = {};
 
-    // Find timestamp
+    // Find timestamp section
     const timestampSection = decoded.sections.find(
-      (s: any) => s.name === "timestamp",
+      (s) => s.name === "timestamp",
     );
-    if (timestampSection) {
-      result.timestamp = timestampSection.value;
+    if (timestampSection?.value !== undefined) {
+      result.timestamp = Number(timestampSection.value);
     }
 
-    // Find amount
-    const amountSection = decoded.sections.find(
-      (s: any) => s.name === "amount",
-    );
-    if (amountSection && amountSection.value) {
-      result.amount = amountSection.value.toString();
+    // Find amount - directly use the top-level properties if available
+    if (decoded.millisatoshis) {
+      result.amount = String(decoded.millisatoshis);
+    } else if (decoded.satoshis) {
+      // Convert sats to msats (1 sat = 1000 msats)
+      const sats =
+        typeof decoded.satoshis === "number"
+          ? decoded.satoshis
+          : parseInt(decoded.satoshis, 10);
+      result.amount = String(sats * 1000);
     }
 
-    // Find payment hash
-    const paymentHashSection = decoded.sections.find(
-      (s: any) => s.name === "payment_hash",
-    );
-    if (paymentHashSection && paymentHashSection.value) {
-      result.paymentHash = paymentHashSection.value;
+    // Check for payment hash (may be in sections or directly in the object)
+    if (decoded.paymentHash) {
+      result.paymentHash = decoded.paymentHash;
+    } else {
+      // Fallback to sections
+      const paymentHashSection = decoded.sections.find(
+        (s) => s.name === "payment_hash",
+      );
+      if (paymentHashSection?.value !== undefined) {
+        result.paymentHash = String(paymentHashSection.value);
+      }
     }
 
-    // Find description
-    const descriptionSection = decoded.sections.find(
-      (s: any) => s.name === "description",
-    );
-    if (descriptionSection && descriptionSection.value) {
-      result.description = descriptionSection.value;
+    // Check for description
+    if (decoded.description) {
+      result.description = decoded.description;
+    } else {
+      // Fallback to sections
+      const descriptionSection = decoded.sections.find(
+        (s) => s.name === "description",
+      );
+      if (descriptionSection?.value !== undefined) {
+        result.description = String(descriptionSection.value);
+      }
     }
 
-    // Find description hash (tag 'h')
-    const descriptionHashSection = decoded.sections.find(
-      (s: any) =>
-        s.name === "description_hash" || s.name === "purpose_commit_hash",
-    );
-    if (descriptionHashSection && descriptionHashSection.value) {
-      result.descriptionHash = descriptionHashSection.value;
+    // Check for description hash
+    if (decoded.descriptionHash) {
+      result.descriptionHash = decoded.descriptionHash;
+    } else {
+      // Fallback to sections - use custom tag check to avoid type errors
+      for (const section of decoded.sections) {
+        if (
+          section.name === "description_hash" ||
+          section.name === "purpose_commit_hash"
+        ) {
+          if (section.value !== undefined) {
+            result.descriptionHash = String(section.value);
+            break;
+          }
+        }
+      }
     }
 
     return result;
@@ -226,6 +268,11 @@ export function buildZapCallbackUrl(
 }
 
 /**
+ * LNURL metadata item
+ */
+export type LnurlMetadataItem = [string, string];
+
+/**
  * Extract metadata from LNURL JSON metadata string
  * @param metadataString JSON metadata string from LNURL response
  * @returns Object with extracted metadata or null if invalid
@@ -234,7 +281,7 @@ export function extractLnurlMetadata(
   metadataString: string,
 ): Record<string, string> | null {
   try {
-    const metadata = JSON.parse(metadataString);
+    const metadata = JSON.parse(metadataString) as LnurlMetadataItem[];
 
     if (!Array.isArray(metadata)) {
       return null;
@@ -248,7 +295,7 @@ export function extractLnurlMetadata(
         item.length === 2 &&
         typeof item[0] === "string"
       ) {
-        result[item[0]] = item[1].toString();
+        result[item[0]] = String(item[1]);
       }
     }
 

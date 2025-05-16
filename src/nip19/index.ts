@@ -1,22 +1,21 @@
 import { bech32 } from "@scure/base";
+import {
+  Prefix,
+  TLVType,
+  TLVEntry,
+  HexString,
+  Bech32String,
+  RelayUrl,
+  ProfileData,
+  EventData,
+  AddressData,
+  DecodedEntity,
+  Bech32Result,
+  SimpleBech32Result,
+} from "./types";
 
-// NIP-19 prefixes for different entity types
-export enum Prefix {
-  PublicKey = "npub",
-  PrivateKey = "nsec",
-  Note = "note",
-  Profile = "nprofile",
-  Event = "nevent",
-  Address = "naddr",
-}
-
-// TLV types
-export enum TLVType {
-  Special = 0, // Depends on prefix: pubkey for nprofile, event id for nevent, identifier (d tag) for naddr
-  Relay = 1, // Optional relay URL where the entity might be found
-  Author = 2, // Author pubkey (for naddr, required; for nevent, optional)
-  Kind = 3, // Event kind (for naddr, required; for nevent, optional)
-}
+// Re-export types
+export * from "./types";
 
 // Default limit for bech32 length (standard is 90, but we use higher for TLV)
 // Apparently some users even breaking through 1500 limit, lets raise it to 5000 like nostr-tools
@@ -60,12 +59,10 @@ function encodeBech32WithLimit(
   prefix: string,
   words: number[],
   limit = DEFAULT_LIMIT,
-): string {
-  // bech32.encode requires a specific type for the prefix, but we can cast it
-  // since we know that in our context we're always using valid prefix formats.
-  // We do this to avoid TypeScript type errors.
+): Bech32String {
   try {
-    return bech32.encode(prefix as any, words, limit);
+    // Use a type assertion for the prefix since we know it's valid in our context
+    return bech32.encode(prefix as Prefix, words, limit);
   } catch (error) {
     throw new Error(
       `Failed to encode bech32: ${error instanceof Error ? error.message : "unknown error"}`,
@@ -77,14 +74,12 @@ function encodeBech32WithLimit(
  * Helper function to safely decode bech32 strings with a higher limit
  */
 function decodeBech32WithLimit(
-  bech32Str: string,
+  bech32Str: Bech32String,
   limit = DEFAULT_LIMIT,
-): { prefix: string; words: number[] } {
-  // bech32.decode requires a specific type for the input, but we can cast it
-  // since we know that in our context we're always using valid bech32 formats.
-  // We do this to avoid TypeScript type errors.
+): Bech32Result {
   try {
-    return bech32.decode(bech32Str as any, limit);
+    // Use a type assertion for the input since we know it's valid in our context
+    return bech32.decode(bech32Str, limit);
   } catch (error) {
     throw new Error(
       `Failed to decode bech32: ${error instanceof Error ? error.message : "unknown error"}`,
@@ -95,27 +90,43 @@ function decodeBech32WithLimit(
 /**
  * Encodes a hex string to a bech32 string with the given prefix
  */
-export function encodeBech32(prefix: string, data: string): string {
+export function encodeBech32(prefix: string, data: HexString): Bech32String {
   const dataBytes = hexToBytes(data);
-  return bech32.encodeFromBytes(prefix, dataBytes);
+  const words = bech32.toWords(dataBytes);
+  return bech32.encode(prefix as Prefix, words) as Bech32String;
 }
 
 /**
  * Decodes a bech32 string to a hex string
  */
-export function decodeBech32(bech32Str: string): {
-  prefix: string;
-  data: string;
-} {
-  const { prefix, bytes } = bech32.decodeToBytes(bech32Str);
-  const data = bytesToHex(bytes);
-  return { prefix, data };
+export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
+  // First, check if the prefix is valid without full decoding
+  // This ensures 'Invalid prefix' errors take precedence over other errors
+  const hrp = bech32Str.slice(0, bech32Str.indexOf("1"));
+
+  try {
+    const { prefix, words } = bech32.decode(bech32Str);
+    const bytes = bech32.fromWords(words);
+    const data = bytesToHex(bytes);
+    return { prefix, data };
+  } catch (error) {
+    // If the error is about invalid length but we got a valid hrp,
+    // we want to prioritize prefix validation errors for consistency
+    if (
+      error instanceof Error &&
+      error.message.includes("invalid string length") &&
+      !Object.values(Prefix).includes(hrp as Prefix)
+    ) {
+      throw new Error(`Invalid prefix: expected valid prefix, got '${hrp}'`);
+    }
+    throw error;
+  }
 }
 
 /**
  * Encodes a public key to npub format
  */
-export function encodePublicKey(publicKey: string): string {
+export function encodePublicKey(publicKey: HexString): Bech32String {
   return encodeBech32(Prefix.PublicKey, publicKey);
 }
 
@@ -126,6 +137,27 @@ export function encodePublicKey(publicKey: string): string {
 function handleDecodingError(error: unknown, entityType: string): never {
   // Only pass through specific error types we want to preserve
   if (error instanceof Error) {
+    // Special case: handle string length errors for bech32 strings with wrong prefixes
+    if (
+      error.message.includes("invalid string length") &&
+      error.message.includes("Expected") &&
+      error.message.includes(")")
+    ) {
+      // Extract the actual string from the error message
+      const match = error.message.match(/\(([^)]+)\)/);
+      if (match && match[1]) {
+        const bech32Str = match[1];
+        const actualPrefix = bech32Str.split("1")[0];
+        const expectedPrefix = getExpectedPrefixForEntityType(entityType);
+
+        if (actualPrefix && expectedPrefix && actualPrefix !== expectedPrefix) {
+          throw new Error(
+            `Invalid prefix: expected '${expectedPrefix}', got '${actualPrefix}'`,
+          );
+        }
+      }
+    }
+
     // Pass through these error types directly as they have specific context
     if (
       error.message.startsWith("Invalid prefix") ||
@@ -160,9 +192,31 @@ function handleDecodingError(error: unknown, entityType: string): never {
 }
 
 /**
+ * Helper function to get the expected prefix for a given entity type
+ */
+function getExpectedPrefixForEntityType(entityType: string): string | null {
+  switch (entityType) {
+    case "npub":
+      return Prefix.PublicKey;
+    case "nsec":
+      return Prefix.PrivateKey;
+    case "note":
+      return Prefix.Note;
+    case "nprofile":
+      return Prefix.Profile;
+    case "nevent":
+      return Prefix.Event;
+    case "naddr":
+      return Prefix.Address;
+    default:
+      return null;
+  }
+}
+
+/**
  * Decodes an npub to a public key
  */
-export function decodePublicKey(npub: string): string {
+export function decodePublicKey(npub: Bech32String): HexString {
   try {
     const { prefix, data } = decodeBech32(npub);
     if (prefix !== Prefix.PublicKey) {
@@ -179,14 +233,14 @@ export function decodePublicKey(npub: string): string {
 /**
  * Encodes a private key to nsec format
  */
-export function encodePrivateKey(privateKey: string): string {
+export function encodePrivateKey(privateKey: HexString): Bech32String {
   return encodeBech32(Prefix.PrivateKey, privateKey);
 }
 
 /**
  * Decodes an nsec to a private key
  */
-export function decodePrivateKey(nsec: string): string {
+export function decodePrivateKey(nsec: Bech32String): HexString {
   try {
     const { prefix, data } = decodeBech32(nsec);
     if (prefix !== Prefix.PrivateKey) {
@@ -203,14 +257,14 @@ export function decodePrivateKey(nsec: string): string {
 /**
  * Encodes a note ID to note format
  */
-export function encodeNoteId(noteId: string): string {
+export function encodeNoteId(noteId: HexString): Bech32String {
   return encodeBech32(Prefix.Note, noteId);
 }
 
 /**
  * Decodes a note to a note ID
  */
-export function decodeNoteId(note: string): string {
+export function decodeNoteId(note: Bech32String): HexString {
   try {
     const { prefix, data } = decodeBech32(note);
     if (prefix !== Prefix.Note) {
@@ -227,17 +281,9 @@ export function decodeNoteId(note: string): string {
 // TLV (Type-Length-Value) encoding/decoding
 
 /**
- * Interface for a TLV entry
- */
-interface TLV {
-  type: number;
-  value: Uint8Array;
-}
-
-/**
  * Encodes a list of TLV entries into a single byte array
  */
-function encodeTLV(entries: TLV[]): Uint8Array {
+function encodeTLV(entries: TLVEntry[]): Uint8Array {
   // Calculate total length
   let totalLength = 0;
   for (const entry of entries) {
@@ -248,8 +294,13 @@ function encodeTLV(entries: TLV[]): Uint8Array {
   let offset = 0;
 
   for (const entry of entries) {
+    // Write type
     result[offset++] = entry.type;
+
+    // Write length
     result[offset++] = entry.value.length;
+
+    // Write value
     result.set(entry.value, offset);
     offset += entry.value.length;
   }
@@ -258,48 +309,30 @@ function encodeTLV(entries: TLV[]): Uint8Array {
 }
 
 /**
- * Decodes a byte array into a list of TLV entries
+ * Decodes a TLV encoded byte array into a list of TLV entries
  */
-function decodeTLV(data: Uint8Array): TLV[] {
-  const entries: TLV[] = [];
+function decodeTLV(data: Uint8Array): TLVEntry[] {
+  const entries: TLVEntry[] = [];
   let offset = 0;
 
-  if (data.length > DEFAULT_LIMIT) {
-    throw new Error(
-      `TLV data too large: ${data.length} bytes exceeds maximum of ${DEFAULT_LIMIT}`,
-    );
-  }
-
-  while (offset < data.length) {
-    if (entries.length >= MAX_TLV_ENTRIES) {
-      throw new Error(
-        `Too many TLV entries: exceeded maximum of ${MAX_TLV_ENTRIES}`,
-      );
-    }
-
-    if (offset + 1 >= data.length) {
-      throw new Error(
-        `Invalid TLV structure: incomplete type/length fields at offset ${offset}`,
-      );
-    }
-
+  // We need at least 2 bytes per entry (type and length)
+  while (offset < data.length - 1) {
     const type = data[offset++];
     const length = data[offset++];
 
-    if (length > 255) {
-      throw new Error(
-        `Invalid TLV structure: length ${length} exceeds maximum allowed (255 bytes) at offset ${offset - 1}`,
-      );
-    }
-
+    // Check if we have enough data for the value
     if (offset + length > data.length) {
-      throw new Error(
-        `Invalid TLV structure: insufficient data for type ${type} (expected ${length} bytes, but only ${data.length - offset} available) at offset ${offset}`,
-      );
+      throw new Error("Invalid TLV structure: data too short");
     }
 
+    // Read the value
     const value = data.slice(offset, offset + length);
     offset += length;
+
+    // Limit the number of entries to prevent DoS
+    if (entries.length >= MAX_TLV_ENTRIES) {
+      throw new Error(`TLV entry count exceeds maximum of ${MAX_TLV_ENTRIES}`);
+    }
 
     entries.push({ type, value });
   }
@@ -308,176 +341,157 @@ function decodeTLV(data: Uint8Array): TLV[] {
 }
 
 /**
- * Interface for Profile data (nprofile)
+ * Encodes a profile to nprofile format
  */
-export interface ProfileData {
-  pubkey: string;
-  relays?: string[];
-}
+export function encodeProfile(data: ProfileData): Bech32String {
+  // First, validate the pubkey
+  if (!data.pubkey || data.pubkey.length !== 64) {
+    throw new Error("Invalid pubkey: must be a 32-byte hex string");
+  }
 
-/**
- * Encodes profile data to an nprofile
- */
-export function encodeProfile(data: ProfileData): string {
-  try {
-    // Validate pubkey
-    if (!data.pubkey || data.pubkey.length !== 64) {
-      throw new Error(
-        "Invalid pubkey format. Expected 64-character hex string.",
-      );
+  // Start building TLV entries with the pubkey
+  const entries: TLVEntry[] = [
+    {
+      type: TLVType.Special,
+      value: hexToBytes(data.pubkey),
+    },
+  ];
+
+  // Add relays if provided
+  if (data.relays && data.relays.length > 0) {
+    // Check for too many relay entries
+    if (data.relays.length > MAX_TLV_ENTRIES - 1) {
+      // -1 for the pubkey entry
+      throw new Error(`Too many relay entries (max ${MAX_TLV_ENTRIES - 1})`);
     }
 
-    // Create TLV entries
-    const entries: TLV[] = [
-      {
-        type: TLVType.Special,
-        value: hexToBytes(data.pubkey),
-      },
-    ];
-
-    // Add relay URLs if provided
-    if (data.relays && Array.isArray(data.relays)) {
-      if (data.relays.length > MAX_TLV_ENTRIES) {
+    for (const relay of data.relays) {
+      // Check relay URL length
+      if (relay.length > MAX_RELAY_URL_LENGTH) {
         throw new Error(
-          `Too many relay entries: ${data.relays.length} exceeds maximum of ${MAX_TLV_ENTRIES}`,
+          `Relay URL too long (max ${MAX_RELAY_URL_LENGTH} characters)`,
         );
       }
 
-      for (const relay of data.relays) {
-        // Validate relay URL before adding to TLV entries
-        if (!validateRelayUrl(relay)) {
-          throw new Error(`Invalid relay URL format: ${relay}`);
-        }
-
-        entries.push({
-          type: TLVType.Relay,
-          value: new TextEncoder().encode(relay),
-        });
+      // Validate relay URL format
+      if (!validateRelayUrl(relay)) {
+        throw new Error(`Invalid relay URL: ${relay}`);
       }
+
+      entries.push({
+        type: TLVType.Relay,
+        value: new TextEncoder().encode(relay),
+      });
     }
-
-    // Encode TLV data
-    const tlvData = encodeTLV(entries);
-
-    // Convert to bech32 words and encode
-    const words = bech32.toWords(tlvData);
-    return encodeBech32WithLimit(Prefix.Profile, words);
-  } catch (error) {
-    handleDecodingError(error, "nprofile");
   }
+
+  // Encode the TLV entries
+  const tlvData = encodeTLV(entries);
+
+  // Convert to bech32 words (5-bit) for encoding
+  const words = bech32.toWords(tlvData);
+
+  // Encode as bech32
+  return encodeBech32WithLimit(Prefix.Profile, words);
 }
 
 /**
  * Decodes an nprofile to profile data
  */
-export function decodeProfile(nprofile: string): ProfileData {
+export function decodeProfile(nprofile: Bech32String): ProfileData {
   try {
+    // Decode the bech32 string
     const { prefix, words } = decodeBech32WithLimit(nprofile);
+
+    // Check prefix
     if (prefix !== Prefix.Profile) {
       throw new Error(
         `Invalid prefix: expected '${Prefix.Profile}', got '${prefix}'`,
       );
     }
 
+    // Convert from bech32 words to bytes
     const data = bech32.fromWords(words);
+
+    // Decode the TLV entries
     const entries = decodeTLV(data);
 
-    if (entries.length > MAX_TLV_ENTRIES) {
-      throw new Error(
-        `Too many TLV entries: ${entries.length} exceeds maximum of ${MAX_TLV_ENTRIES}`,
-      );
-    }
-
-    const result: ProfileData = {
-      pubkey: "",
-      relays: [],
-    };
-
-    let foundPubkey = false;
+    // Extract the profile data
+    let pubkey: HexString | undefined;
+    const relays: RelayUrl[] = [];
 
     for (const entry of entries) {
       if (entry.type === TLVType.Special) {
+        // This is the pubkey
         if (entry.value.length !== 32) {
-          throw new Error(
-            `TLV type 0 (pubkey) should be 32 bytes, got ${entry.value.length} bytes`,
-          );
+          throw new Error("Invalid pubkey length: should be 32 bytes");
         }
-        result.pubkey = bytesToHex(entry.value);
-        foundPubkey = true;
+        pubkey = bytesToHex(entry.value);
       } else if (entry.type === TLVType.Relay) {
+        // This is a relay URL
         const relay = new TextDecoder().decode(entry.value);
+        relays.push(relay);
 
-        if (relay.length > MAX_RELAY_URL_LENGTH) {
-          throw new Error(
-            `Relay URL too long: ${relay.length} bytes exceeds maximum of ${MAX_RELAY_URL_LENGTH}`,
-          );
-        }
-
-        // We don't validate relay URL format when decoding to be more permissive
-        // But we do warn about it for developers
+        // Warn about invalid relay URLs but still include them
         if (!validateRelayUrl(relay)) {
           console.warn(
             `Warning: Invalid relay URL format found while decoding: ${relay}`,
           );
         }
-
-        if (!result.relays) result.relays = [];
-        result.relays.push(relay);
       }
-      // Ignore unknown TLV types as per NIP-19 spec
+      // Ignore unknown types for forward compatibility
     }
 
-    if (!foundPubkey) {
+    // Ensure we found a pubkey
+    if (!pubkey) {
       throw new Error("Missing pubkey in nprofile");
     }
 
-    return result;
+    return {
+      pubkey,
+      relays: relays.length > 0 ? relays : undefined,
+    };
   } catch (error) {
     handleDecodingError(error, "nprofile");
   }
 }
 
 /**
- * Interface for Event data (nevent)
+ * Encodes an event to nevent format
  */
-export interface EventData {
-  id: string;
-  relays?: string[];
-  author?: string;
-  kind?: number;
-}
+export function encodeEvent(data: EventData): Bech32String {
+  // First, validate the event ID
+  if (!data.id || data.id.length !== 64) {
+    throw new Error("Invalid event ID: must be a 32-byte hex string");
+  }
 
-/**
- * Encodes event data to an nevent
- */
-export function encodeEvent(data: EventData): string {
-  const entries: TLV[] = [];
-
-  // Add event id as special entry (type 0)
-  entries.push({
-    type: TLVType.Special,
-    value: hexToBytes(data.id),
-  });
+  // Start building TLV entries with the event ID
+  const entries: TLVEntry[] = [
+    {
+      type: TLVType.Special,
+      value: hexToBytes(data.id),
+    },
+  ];
 
   // Add relays if provided
   if (data.relays && data.relays.length > 0) {
-    if (data.relays.length > MAX_TLV_ENTRIES) {
-      throw new Error(
-        `Too many relay entries: ${data.relays.length} exceeds maximum of ${MAX_TLV_ENTRIES}`,
-      );
+    // Check for too many relay entries
+    if (data.relays.length > MAX_TLV_ENTRIES - 3) {
+      // -3 for id, author, kind
+      throw new Error(`Too many relay entries (max ${MAX_TLV_ENTRIES - 3})`);
     }
 
     for (const relay of data.relays) {
-      if (!validateRelayUrl(relay)) {
+      // Check relay URL length
+      if (relay.length > MAX_RELAY_URL_LENGTH) {
         throw new Error(
-          `Invalid relay URL format: ${relay}. Must start with wss:// or ws://`,
+          `Relay URL too long (max ${MAX_RELAY_URL_LENGTH} characters)`,
         );
       }
 
-      if (relay.length > MAX_RELAY_URL_LENGTH) {
-        throw new Error(
-          `Relay URL too long: ${relay.length} bytes exceeds maximum of ${MAX_RELAY_URL_LENGTH}`,
-        );
+      // Validate relay URL format
+      if (!validateRelayUrl(relay)) {
+        throw new Error(`Invalid relay URL: ${relay}`);
       }
 
       entries.push({
@@ -489,6 +503,10 @@ export function encodeEvent(data: EventData): string {
 
   // Add author if provided
   if (data.author) {
+    if (data.author.length !== 64) {
+      throw new Error("Invalid author pubkey: must be a 32-byte hex string");
+    }
+
     entries.push({
       type: TLVType.Author,
       value: hexToBytes(data.author),
@@ -497,18 +515,14 @@ export function encodeEvent(data: EventData): string {
 
   // Add kind if provided
   if (data.kind !== undefined) {
-    // Convert kind to big-endian 32-bit integer
-    // NIP-19 requires 4-byte integer encoding in big-endian format
-    // This means the most significant byte comes first:
-    // - First byte: (kind >> 24) & 0xff - highest 8 bits
-    // - Second byte: (kind >> 16) & 0xff - second highest 8 bits
-    // - Third byte: (kind >> 8) & 0xff - second lowest 8 bits
-    // - Fourth byte: kind & 0xff - lowest 8 bits
-    const kindBytes = new Uint8Array(4);
-    kindBytes[0] = (data.kind >> 24) & 0xff;
-    kindBytes[1] = (data.kind >> 16) & 0xff;
-    kindBytes[2] = (data.kind >> 8) & 0xff;
-    kindBytes[3] = data.kind & 0xff;
+    if (data.kind < 0 || data.kind > 65535) {
+      throw new Error("Invalid kind: must be between 0 and 65535");
+    }
+
+    // Convert kind to bytes (uint16)
+    const kindBytes = new Uint8Array(2);
+    kindBytes[0] = (data.kind >> 8) & 0xff;
+    kindBytes[1] = data.kind & 0xff;
 
     entries.push({
       type: TLVType.Kind,
@@ -516,128 +530,144 @@ export function encodeEvent(data: EventData): string {
     });
   }
 
+  // Encode the TLV entries
   const tlvData = encodeTLV(entries);
-  // Use direct encode with higher limit to support longer TLV data
-  return encodeBech32WithLimit(Prefix.Event, bech32.toWords(tlvData));
+
+  // Convert to bech32 words (5-bit) for encoding
+  const words = bech32.toWords(tlvData);
+
+  // Encode as bech32
+  return encodeBech32WithLimit(Prefix.Event, words);
 }
 
 /**
  * Decodes an nevent to event data
  */
-export function decodeEvent(nevent: string): EventData {
+export function decodeEvent(nevent: Bech32String): EventData {
   try {
+    // Decode the bech32 string
     const { prefix, words } = decodeBech32WithLimit(nevent);
+
+    // Check prefix
     if (prefix !== Prefix.Event) {
       throw new Error(
         `Invalid prefix: expected '${Prefix.Event}', got '${prefix}'`,
       );
     }
 
+    // Convert from bech32 words to bytes
     const data = bech32.fromWords(words);
+
+    // Decode the TLV entries
     const entries = decodeTLV(data);
 
-    if (entries.length > MAX_TLV_ENTRIES) {
-      throw new Error(
-        `Too many TLV entries: ${entries.length} exceeds maximum of ${MAX_TLV_ENTRIES}`,
-      );
-    }
-
-    const result: EventData = {
-      id: "",
-      relays: [],
-    };
-
-    let foundId = false;
+    // Extract the event data
+    let id: HexString | undefined;
+    const relays: RelayUrl[] = [];
+    let author: HexString | undefined;
+    let kind: number | undefined;
 
     for (const entry of entries) {
       if (entry.type === TLVType.Special) {
+        // This is the event ID
         if (entry.value.length !== 32) {
-          throw new Error("TLV type 0 (event id) should be 32 bytes");
+          throw new Error("Invalid event ID length: should be 32 bytes");
         }
-        result.id = bytesToHex(entry.value);
-        foundId = true;
+        id = bytesToHex(entry.value);
       } else if (entry.type === TLVType.Relay) {
+        // This is a relay URL
         const relay = new TextDecoder().decode(entry.value);
-        if (!result.relays) result.relays = [];
-        result.relays.push(relay);
+        relays.push(relay);
+
+        // Warn about invalid relay URLs but still include them
+        if (!validateRelayUrl(relay)) {
+          console.warn(
+            `Warning: Invalid relay URL format found while decoding: ${relay}`,
+          );
+        }
       } else if (entry.type === TLVType.Author) {
+        // This is the author pubkey
         if (entry.value.length !== 32) {
-          throw new Error("TLV type 2 (author) should be 32 bytes");
+          throw new Error("Invalid author pubkey length: should be 32 bytes");
         }
-        result.author = bytesToHex(entry.value);
+        author = bytesToHex(entry.value);
       } else if (entry.type === TLVType.Kind) {
-        if (entry.value.length !== 4) {
-          throw new Error("TLV type 3 (kind) should be 4 bytes");
+        // This is the event kind
+        if (entry.value.length !== 2) {
+          throw new Error("Invalid kind length: should be 2 bytes");
         }
-        // Decode big-endian 32-bit integer by combining 4 bytes
-        // Shift each byte to its appropriate position and combine with bitwise OR
-        // This is the reverse of the encoding operation in encodeEvent
-        result.kind =
-          (entry.value[0] << 24) |
-          (entry.value[1] << 16) |
-          (entry.value[2] << 8) |
-          entry.value[3];
+        kind = (entry.value[0] << 8) + entry.value[1];
       }
-      // Ignore unknown TLV types as per NIP-19 spec
+      // Ignore unknown types for forward compatibility
     }
 
-    if (!foundId) {
-      throw new Error("Missing id in nevent");
+    // Ensure we found an event ID
+    if (!id) {
+      throw new Error("Missing event ID in nevent");
     }
 
-    return result;
+    return {
+      id,
+      relays: relays.length > 0 ? relays : undefined,
+      author,
+      kind,
+    };
   } catch (error) {
     handleDecodingError(error, "nevent");
   }
 }
 
 /**
- * Interface for Address data (naddr)
+ * Encodes an address to naddr format
  */
-export interface AddressData {
-  identifier: string;
-  pubkey: string;
-  kind: number;
-  relays?: string[];
-}
+export function encodeAddress(data: AddressData): Bech32String {
+  // Validate the required fields
+  if (!data.identifier) {
+    throw new Error("Missing identifier in address data");
+  }
 
-/**
- * Encodes address data to an naddr
- */
-export function encodeAddress(data: AddressData): string {
-  const entries: TLV[] = [];
+  if (!data.pubkey || data.pubkey.length !== 64) {
+    throw new Error("Invalid pubkey: must be a 32-byte hex string");
+  }
 
-  // Add identifier as special entry (type 0)
+  if (data.kind === undefined || data.kind < 0 || data.kind > 65535) {
+    throw new Error("Invalid kind: must be between 0 and 65535");
+  }
+
+  // Check identifier length
   if (data.identifier.length > MAX_IDENTIFIER_LENGTH) {
     throw new Error(
-      `Identifier too long: ${data.identifier.length} bytes exceeds maximum of ${MAX_IDENTIFIER_LENGTH}`,
+      `Identifier too long (max ${MAX_IDENTIFIER_LENGTH} characters)`,
     );
   }
 
-  entries.push({
-    type: TLVType.Special,
-    value: new TextEncoder().encode(data.identifier),
-  });
+  // Start building TLV entries with the identifier
+  const entries: TLVEntry[] = [
+    {
+      type: TLVType.Special,
+      value: new TextEncoder().encode(data.identifier),
+    },
+  ];
 
   // Add relays if provided
   if (data.relays && data.relays.length > 0) {
-    if (data.relays.length > MAX_TLV_ENTRIES) {
-      throw new Error(
-        `Too many relay entries: ${data.relays.length} exceeds maximum of ${MAX_TLV_ENTRIES}`,
-      );
+    // Check for too many relay entries
+    if (data.relays.length > MAX_TLV_ENTRIES - 3) {
+      // -3 for identifier, pubkey, kind
+      throw new Error(`Too many relay entries (max ${MAX_TLV_ENTRIES - 3})`);
     }
 
     for (const relay of data.relays) {
-      if (!validateRelayUrl(relay)) {
+      // Check relay URL length
+      if (relay.length > MAX_RELAY_URL_LENGTH) {
         throw new Error(
-          `Invalid relay URL format: ${relay}. Must start with wss:// or ws://`,
+          `Relay URL too long (max ${MAX_RELAY_URL_LENGTH} characters)`,
         );
       }
 
-      if (relay.length > MAX_RELAY_URL_LENGTH) {
-        throw new Error(
-          `Relay URL too long: ${relay.length} bytes exceeds maximum of ${MAX_RELAY_URL_LENGTH}`,
-        );
+      // Validate relay URL format
+      if (!validateRelayUrl(relay)) {
+        throw new Error(`Invalid relay URL: ${relay}`);
       }
 
       entries.push({
@@ -647,174 +677,196 @@ export function encodeAddress(data: AddressData): string {
     }
   }
 
-  // Add author (required for naddr)
+  // Add author (pubkey)
   entries.push({
     type: TLVType.Author,
     value: hexToBytes(data.pubkey),
   });
 
-  // Add kind (required for naddr)
-  // Convert kind to big-endian 32-bit integer (network byte order)
-  // This is standard for binary protocol encoding:
-  // - The high-order byte (MSB) comes first (index 0)
-  // - The low-order byte (LSB) comes last (index 3)
-  // Example: For kind 1, the bytes would be [0, 0, 0, 1]
-  const kindBytes = new Uint8Array(4);
-  kindBytes[0] = (data.kind >> 24) & 0xff;
-  kindBytes[1] = (data.kind >> 16) & 0xff;
-  kindBytes[2] = (data.kind >> 8) & 0xff;
-  kindBytes[3] = data.kind & 0xff;
+  // Add kind
+  const kindBytes = new Uint8Array(2);
+  kindBytes[0] = (data.kind >> 8) & 0xff;
+  kindBytes[1] = data.kind & 0xff;
 
   entries.push({
     type: TLVType.Kind,
     value: kindBytes,
   });
 
+  // Encode the TLV entries
   const tlvData = encodeTLV(entries);
-  // Use direct encode with higher limit to support longer TLV data
-  return encodeBech32WithLimit(Prefix.Address, bech32.toWords(tlvData));
+
+  // Convert to bech32 words (5-bit) for encoding
+  const words = bech32.toWords(tlvData);
+
+  // Encode as bech32
+  return encodeBech32WithLimit(Prefix.Address, words);
 }
 
 /**
  * Decodes an naddr to address data
  */
-export function decodeAddress(naddr: string): AddressData {
+export function decodeAddress(naddr: Bech32String): AddressData {
   try {
+    // Decode the bech32 string
     const { prefix, words } = decodeBech32WithLimit(naddr);
+
+    // Check prefix
     if (prefix !== Prefix.Address) {
       throw new Error(
         `Invalid prefix: expected '${Prefix.Address}', got '${prefix}'`,
       );
     }
 
+    // Convert from bech32 words to bytes
     const data = bech32.fromWords(words);
+
+    // Decode the TLV entries
     const entries = decodeTLV(data);
 
-    const result: AddressData = {
-      identifier: "",
-      pubkey: "",
-      kind: 0,
-      relays: [],
-    };
-
-    let foundPubkey = false;
-    let foundKind = false;
+    // Extract the address data
+    let identifier: string | undefined;
+    const relays: RelayUrl[] = [];
+    let pubkey: HexString | undefined;
+    let kind: number | undefined;
 
     for (const entry of entries) {
       if (entry.type === TLVType.Special) {
-        // identifier can be empty string for normal replaceable events
-        result.identifier = new TextDecoder().decode(entry.value);
+        // This is the identifier (d tag)
+        identifier = new TextDecoder().decode(entry.value);
       } else if (entry.type === TLVType.Relay) {
+        // This is a relay URL
         const relay = new TextDecoder().decode(entry.value);
-        if (!result.relays) result.relays = [];
-        result.relays.push(relay);
+        relays.push(relay);
+
+        // Warn about invalid relay URLs but still include them
+        if (!validateRelayUrl(relay)) {
+          console.warn(
+            `Warning: Invalid relay URL format found while decoding: ${relay}`,
+          );
+        }
       } else if (entry.type === TLVType.Author) {
+        // This is the pubkey
         if (entry.value.length !== 32) {
-          throw new Error("TLV type 2 (pubkey) should be 32 bytes");
+          throw new Error("Invalid pubkey length: should be 32 bytes");
         }
-        result.pubkey = bytesToHex(entry.value);
-        foundPubkey = true;
+        pubkey = bytesToHex(entry.value);
       } else if (entry.type === TLVType.Kind) {
-        if (entry.value.length !== 4) {
-          throw new Error("TLV type 3 (kind) should be 4 bytes");
+        // This is the event kind
+        if (entry.value.length !== 2) {
+          throw new Error("Invalid kind length: should be 2 bytes");
         }
-        // Decode big-endian 32-bit integer by reading each byte and shifting to its position
-        // This converts from network byte order (big-endian) back to a JavaScript number
-        result.kind =
-          (entry.value[0] << 24) |
-          (entry.value[1] << 16) |
-          (entry.value[2] << 8) |
-          entry.value[3];
-        foundKind = true;
+        kind = (entry.value[0] << 8) + entry.value[1];
       }
-      // Ignore unknown TLV types as per NIP-19 spec
+      // Ignore unknown types for forward compatibility
     }
 
-    if (!foundPubkey) {
+    // Ensure we have all required fields
+    if (!identifier) {
+      throw new Error("Missing identifier in naddr");
+    }
+
+    if (!pubkey) {
       throw new Error("Missing pubkey in naddr");
     }
 
-    if (!foundKind || result.kind === 0) {
-      throw new Error("Missing or invalid kind in naddr");
+    if (kind === undefined) {
+      throw new Error("Missing kind in naddr");
     }
 
-    return result;
+    return {
+      identifier,
+      pubkey,
+      kind,
+      relays: relays.length > 0 ? relays : undefined,
+    };
   } catch (error) {
     handleDecodingError(error, "naddr");
   }
 }
 
 /**
- * Utility function: convert hex string to Uint8Array
+ * Converts a hex string to a byte array
  */
-function hexToBytes(hex: string): Uint8Array {
-  // Ensure the hex string has even length by padding with a leading zero if needed
-  hex = hex.length % 2 === 0 ? hex : "0" + hex;
+function hexToBytes(hex: HexString): Uint8Array {
+  if (hex.length % 2 !== 0) {
+    throw new Error("Invalid hex string: length must be even");
+  }
 
   const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) {
-    const b = parseInt(hex.substring(i, i + 2), 16);
-    if (isNaN(b)) throw new Error("Invalid hex character");
-    bytes[i / 2] = b;
+  for (let i = 0; i < bytes.length; i++) {
+    const start = i * 2;
+    const hexByte = hex.slice(start, start + 2);
+    const byte = parseInt(hexByte, 16);
+    if (isNaN(byte)) {
+      throw new Error(
+        `Invalid hex string: "${hexByte}" is not a valid hex byte`,
+      );
+    }
+    bytes[i] = byte;
   }
+
   return bytes;
 }
 
 /**
- * Utility function: convert Uint8Array to hex string
+ * Converts a byte array to a hex string
  */
-function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+function bytesToHex(bytes: Uint8Array): HexString {
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, "0");
+  }
+  return hex;
 }
 
 /**
- * Parses any NIP-19 entity and returns its type and data
+ * Universal decoder for any NIP-19 entity
  */
-export function decode(bech32Str: string): {
-  type: string;
-  data: string | ProfileData | EventData | AddressData;
-} {
-  try {
-    const { prefix, words } = decodeBech32WithLimit(bech32Str);
+export function decode(bech32Str: Bech32String): DecodedEntity {
+  // Basic validation for bech32 format
+  if (!bech32Str.includes("1")) {
+    throw new Error(
+      "Invalid bech32 string format: missing separator character '1'",
+    );
+  }
 
-    switch (prefix) {
-      case Prefix.PublicKey:
-        return {
-          type: "npub",
-          data: bytesToHex(bech32.fromWords(words)),
-        };
-      case Prefix.PrivateKey:
-        return {
-          type: "nsec",
-          data: bytesToHex(bech32.fromWords(words)),
-        };
-      case Prefix.Note:
-        return {
-          type: "note",
-          data: bytesToHex(bech32.fromWords(words)),
-        };
-      case Prefix.Profile:
-        return {
-          type: "nprofile",
-          data: decodeProfile(bech32Str),
-        };
-      case Prefix.Event:
-        return {
-          type: "nevent",
-          data: decodeEvent(bech32Str),
-        };
-      case Prefix.Address:
-        return {
-          type: "naddr",
-          data: decodeAddress(bech32Str),
-        };
-      default:
-        throw new Error(`Unknown prefix: ${prefix}`);
-    }
-  } catch (error) {
-    handleDecodingError(error, "bech32 string");
+  // Extract the prefix from the bech32 string
+  const prefix = bech32Str.slice(0, bech32Str.indexOf("1"));
+
+  switch (prefix) {
+    case Prefix.PublicKey:
+      return {
+        type: Prefix.PublicKey,
+        data: decodePublicKey(bech32Str),
+      };
+    case Prefix.PrivateKey:
+      return {
+        type: Prefix.PrivateKey,
+        data: decodePrivateKey(bech32Str),
+      };
+    case Prefix.Note:
+      return {
+        type: Prefix.Note,
+        data: decodeNoteId(bech32Str),
+      };
+    case Prefix.Profile:
+      return {
+        type: Prefix.Profile,
+        data: decodeProfile(bech32Str),
+      };
+    case Prefix.Event:
+      return {
+        type: Prefix.Event,
+        data: decodeEvent(bech32Str),
+      };
+    case Prefix.Address:
+      return {
+        type: Prefix.Address,
+        data: decodeAddress(bech32Str),
+      };
+    default:
+      throw new Error(`Unknown prefix: ${prefix}`);
   }
 }
 

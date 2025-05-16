@@ -130,3 +130,94 @@ export interface NIP46ClientSession {
   lastSeen: number;
   preferredEncryption?: "nip04" | "nip44";
 }
+
+/**
+ * Data for an unsigned event to be signed
+ */
+export interface NIP46UnsignedEventData {
+  kind: number;
+  content: string;
+  created_at: number;
+  tags?: string[][];
+  pubkey?: string;
+}
+
+/**
+ * Error types for NIP-46 operations
+ */
+export class NIP46Error extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46Error";
+  }
+}
+
+export class NIP46ConnectionError extends NIP46Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46ConnectionError";
+  }
+}
+
+export class NIP46TimeoutError extends NIP46Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46TimeoutError";
+  }
+}
+
+export class NIP46AuthorizationError extends NIP46Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46AuthorizationError";
+  }
+}
+
+export class NIP46EncryptionError extends NIP46Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46EncryptionError";
+  }
+}
+
+export class NIP46DecryptionError extends NIP46Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46DecryptionError";
+  }
+}
+
+export class NIP46SigningError extends NIP46Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP46SigningError";
+  }
+}
+
+/**
+ * Key pair for client or bunker
+ */
+export interface NIP46KeyPair {
+  publicKey: string;
+  privateKey: string;
+}
+
+/**
+ * Simplified bunker options
+ */
+export interface SimpleNIP46BunkerOptions {
+  timeout?: number;
+  logLevel?: number; // Using LogLevel enum
+  defaultPermissions?: string[];
+  secret?: string;
+  debug?: boolean;
+}
+
+/**
+ * Simplified client options
+ */
+export interface SimpleNIP46ClientOptions {
+  timeout?: number;
+  logLevel?: number; // Using LogLevel enum
+  debug?: boolean;
+}

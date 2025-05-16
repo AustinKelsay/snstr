@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { hexToBytes } from "@noble/hashes/utils";
+import { secp256k1 } from "@noble/curves/secp256k1";
 
 // Import the functions we want to test
 import {
@@ -99,9 +100,7 @@ describe("NIP-44 HMAC Implementation", () => {
 
       try {
         // Get the public key from private key
-        const pub1 = require("@noble/curves/secp256k1")
-          .secp256k1.getPublicKey(sec1, false)
-          .slice(1, 33);
+        const pub1 = secp256k1.getPublicKey(sec1, false).slice(1, 33);
         const pub1Hex = Buffer.from(pub1).toString("hex");
 
         // Get the conversation key
@@ -109,10 +108,7 @@ describe("NIP-44 HMAC Implementation", () => {
 
         // Get message keys
         const nonce = hexToBytes(nonceHex);
-        const { chacha_key, chacha_nonce, hmac_key } = getMessageKeys(
-          conversationKey,
-          nonce,
-        );
+        const { hmac_key } = getMessageKeys(conversationKey, nonce);
 
         // Extract the ciphertext and MAC from the payload
         const { ciphertext, mac: payloadMac } = decodePayload(payload);
@@ -144,9 +140,7 @@ describe("NIP-44 Comprehensive Test Vector Compatibility", () => {
 
       try {
         // Get the public key from private key
-        const pub1 = require("@noble/curves/secp256k1")
-          .secp256k1.getPublicKey(sec1, false)
-          .slice(1, 33);
+        const pub1 = secp256k1.getPublicKey(sec1, false).slice(1, 33);
         const pub1Hex = Buffer.from(pub1).toString("hex");
 
         // Decrypt the test vector payload

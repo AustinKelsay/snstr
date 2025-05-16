@@ -1,12 +1,8 @@
 import {
-  decodeProfile,
-  decodeEvent,
-  decodeAddress,
   filterProfile,
   filterEvent,
-  filterAddress,
-  filterEntity,
   isValidRelayUrl,
+  filterEntity,
 } from "../../src/nip19";
 
 console.log("=== NIP-19 Security Examples ===");

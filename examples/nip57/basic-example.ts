@@ -11,10 +11,8 @@
 
 import {
   Nostr,
-  NostrEvent,
   generateKeypair,
   createZapRequest,
-  validateZapReceipt,
   parseZapSplit,
   calculateZapSplitAmounts,
 } from "../../src";
@@ -249,7 +247,7 @@ async function main() {
   );
 
   // First, create a different zap request (we'll pretend this is the original one)
-  const originalZapRequestTemplate = createZapRequest(
+  createZapRequest(
     {
       recipientPubkey: recipientKeypair.publicKey,
       eventId: noteEvent?.id,
@@ -258,15 +256,6 @@ async function main() {
       content: "Original zap that was much larger!",
     },
     senderKeypair.publicKey,
-  );
-
-  const originalZapRequest = await createSignedEvent(
-    {
-      ...originalZapRequestTemplate,
-      pubkey: senderKeypair.publicKey,
-      created_at: Math.floor(Date.now() / 1000) - 3600, // Pretend it happened an hour ago
-    } as UnsignedEvent,
-    senderKeypair.privateKey,
   );
 
   // Now create a fake receipt that claims to be for a smaller amount

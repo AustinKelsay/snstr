@@ -15,9 +15,9 @@
  * npm run example:replaceable
  */
 
-import { Nostr, NostrEvent, generateKeypair } from "../../src";
-import { createEvent, createSignedEvent } from "../../src/nip01/event";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { Nostr, NostrEvent, generateKeypair } from "../../../src";
+import { createEvent, createSignedEvent } from "../../../src/nip01/event";
+import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 // Create an ephemeral relay for the example
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
@@ -25,7 +25,7 @@ const RELAY_PORT = 3335;
 
 // Use the environment variable to determine verbosity
 const VERBOSE = process.env.VERBOSE === "true";
-const log = (...args: any[]) => VERBOSE && console.log(...args);
+const log = (...args: unknown[]) => VERBOSE && console.log(...args);
 
 // Map to track created events (so we can reference them later)
 const createdEvents: Map<string, NostrEvent> = new Map();

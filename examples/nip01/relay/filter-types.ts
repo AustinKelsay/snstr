@@ -12,7 +12,7 @@
  */
 
 import { Nostr } from "../../../src/nip01/nostr";
-import { NostrFilter, Filter } from "../../../src/types/nostr";
+import { NostrFilter, Filter, NostrEvent } from "../../../src/types/nostr";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { createSignedEvent } from "../../../src/nip01/event";
@@ -209,7 +209,7 @@ async function runFilterExample(
   description: string,
 ): Promise<void> {
   return new Promise((resolve) => {
-    const events: any[] = [];
+    const events: NostrEvent[] = [];
 
     // Subscribe to the filter
     const subIds = client.subscribe(

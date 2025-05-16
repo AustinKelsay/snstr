@@ -7,7 +7,6 @@
 
 import {
   encodePublicKey,
-  encodePrivateKey,
   encodeNoteId,
   encodeProfile,
   encodeEvent,
@@ -15,6 +14,8 @@ import {
   decode,
   decodeEvent,
   decodeProfile,
+  Bech32String,
+  AddressData,
 } from "../../src/nip19";
 
 /**
@@ -52,17 +53,18 @@ function demonstrateHexValidation() {
 
   // Invalid cases
   console.log("\nInvalid hex cases:");
-  invalidHexCases.forEach(({ name, value }: { name: string; value: any }) => {
-    try {
-      // @ts-ignore - purposely testing invalid input
-      const encoded = encodePublicKey(value);
-      console.error(`❌ Should have failed but passed: ${name}`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.log(`✅ ${name}: ${errorMessage}`);
-    }
-  });
+  invalidHexCases.forEach(
+    ({ name, value }: { name: string; value: string | number }) => {
+      try {
+        encodePublicKey(value as string);
+        console.error(`❌ Should have failed but passed: ${name}`);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.log(`✅ ${name}: ${errorMessage}`);
+      }
+    },
+  );
 }
 
 /**
@@ -104,7 +106,7 @@ function demonstrateRelayValidation() {
   invalidRelays.forEach(
     ({ name, relays }: { name: string; relays: string[] }) => {
       try {
-        const encoded = encodeProfile({
+        encodeProfile({
           pubkey:
             "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
           relays: relays,
@@ -206,17 +208,18 @@ function demonstrateRequiredFields() {
 
   // Invalid cases
   console.log("\nMissing required field cases:");
-  requiredFieldCases.forEach(({ name, data }: { name: string; data: any }) => {
-    try {
-      // @ts-ignore - purposely testing invalid input
-      const encoded = encodeAddress(data);
-      console.error(`❌ Should have failed but passed: ${name}`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.log(`✅ ${name}: ${errorMessage}`);
-    }
-  });
+  requiredFieldCases.forEach(
+    ({ name, data }: { name: string; data: Partial<AddressData> }) => {
+      try {
+        encodeAddress(data as AddressData);
+        console.error(`❌ Should have failed but passed: ${name}`);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.log(`✅ ${name}: ${errorMessage}`);
+      }
+    },
+  );
 }
 
 /**
@@ -274,7 +277,7 @@ function demonstrateSizeLimits() {
   sizeLimitCases.forEach(
     ({ name, test }: { name: string; test: () => string }) => {
       try {
-        const encoded = test();
+        test();
         console.error(`❌ Should have failed but passed: ${name}`);
       } catch (error: unknown) {
         const errorMessage =
@@ -351,10 +354,10 @@ function demonstrateIncorrectPrefix() {
   console.log("Using type-specific decode with wrong type:");
 
   try {
-    // @ts-ignore - purposely using wrong function
-    const result = encodePrivateKey(npub);
+    // decodeProfile expects an nprofile string, but we're giving it an npub string.
+    decodeProfile(npub as Bech32String);
     console.error(
-      "❌ Should have failed but passed: Trying to encode npub as private key",
+      "❌ Should have failed but passed: Trying to decode npub as nprofile",
     );
   } catch (error: unknown) {
     const errorMessage =
@@ -423,10 +426,10 @@ function demonstrateGracefulErrorHandling() {
     "\nExample of safely handling decoded profiles with potentially invalid URLs:",
   );
 
-  function safeDecodeProfile(nprofile: string) {
+  function _safeDecodeProfile(nprofileStr: Bech32String) {
     try {
       // Step 1: Decode the profile
-      const decodedProfile = decodeProfile(nprofile);
+      const decodedProfile = decodeProfile(nprofileStr);
 
       // Step 2: Filter out invalid relay URLs
       const validateRelayUrl = (url: string): boolean => {

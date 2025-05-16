@@ -7,24 +7,7 @@
  * 3. Get recommended relays for a user
  */
 
-import {
-  verifyNIP05,
-  lookupNIP05,
-  getNIP05PubKey,
-  getNIP05Relays,
-} from "../../src/nip05";
-
-// Enable verbose logging if environment variable is set
-const verbose = process.env.VERBOSE === "true";
-
-/**
- * Log function that only prints if verbose mode is enabled
- */
-function log(...args: any[]) {
-  if (verbose) {
-    console.log(...args);
-  }
-}
+import { verifyNIP05, lookupNIP05, getNIP05Relays } from "../../src/nip05";
 
 async function main() {
   // Example NIP-05 identifiers to test with

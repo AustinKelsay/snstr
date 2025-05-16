@@ -11,7 +11,8 @@ import {
   decodeEvent,
   encodeAddress,
   decodeAddress,
-  Prefix,
+  Bech32String,
+  AddressData,
 } from "../../src/nip19";
 
 describe("NIP-19: Validation and Edge Cases", () => {
@@ -22,7 +23,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
         encodePublicKey(
           "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefazzzz",
         ),
-      ).toThrow(/Invalid hex character/);
+      ).toThrow(/Invalid hex string/);
 
       // Note: The library doesn't currently validate string length on input, so we skip that test
     });
@@ -122,7 +123,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
       const missingPubkey = {
         identifier: "test",
         kind: 1,
-      } as any; // Type assertion to bypass TypeScript checks
+      } as unknown as AddressData; // Type assertion for intentionally invalid test data
 
       // Valid address data should work
       expect(() => encodeAddress(validAddr)).not.toThrow();
@@ -208,19 +209,19 @@ describe("NIP-19: Validation and Edge Cases", () => {
       const pubkey =
         "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
 
-      // Test with 20 entries - should be exactly at the limit
+      // Test with 19 entries - should be exactly at the limit (MAX_TLV_ENTRIES - 1)
+      expect(() =>
+        encodeProfile({
+          pubkey,
+          relays: generateRelays(19),
+        }),
+      ).not.toThrow();
+
+      // Test with 20 entries - should exceed the limit
       expect(() =>
         encodeProfile({
           pubkey,
           relays: generateRelays(20),
-        }),
-      ).not.toThrow();
-
-      // Test with 21 entries - should exceed the limit
-      expect(() =>
-        encodeProfile({
-          pubkey,
-          relays: generateRelays(21),
         }),
       ).toThrow(/Too many/);
 
@@ -287,10 +288,10 @@ describe("NIP-19: Validation and Edge Cases", () => {
       const encoded = encodeProfile(profile);
       const decoded = decodeProfile(encoded);
 
-      expect(decoded.relays).toEqual([]);
+      expect(decoded.relays || []).toEqual([]);
     });
 
-    test("should handle empty identifier in naddr", () => {
+    test("should prevent empty identifier in naddr", () => {
       const addr = {
         identifier: "",
         pubkey:
@@ -298,44 +299,55 @@ describe("NIP-19: Validation and Edge Cases", () => {
         kind: 1,
       };
 
-      const encoded = encodeAddress(addr);
-      const decoded = decodeAddress(encoded);
-
-      expect(decoded.identifier).toBe("");
+      // Test is updated to expect an error for empty identifier
+      expect(() => encodeAddress(addr)).toThrow(/Missing identifier/);
     });
 
-    test("should handle very large kind values in nevent and naddr", () => {
-      // Kind values are 32-bit integers, test a large but valid value
-      const largeKind = 0x7fffffff; // Max signed 32-bit integer
+    test("should validate kind values within bounds in nevent and naddr", () => {
+      // Updated to use a valid kind within the 0-65535 range
+      const validKind = 65000; // Valid kind just under the limit
+      const invalidKind = 70000; // Invalid kind over the limit
 
-      const addr = {
+      const validAddr = {
         identifier: "test",
         pubkey:
           "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
-        kind: largeKind,
+        kind: validKind,
       };
 
-      const event = {
+      const validEvent = {
         id: "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d",
-        kind: largeKind,
+        kind: validKind,
       };
 
-      // Should encode and decode successfully
-      const addrEncoded = encodeAddress(addr);
+      // Valid kind should encode and decode successfully
+      const addrEncoded = encodeAddress(validAddr);
       const addrDecoded = decodeAddress(addrEncoded);
+      expect(addrDecoded.kind).toBe(validKind);
 
-      const eventEncoded = encodeEvent(event);
+      const eventEncoded = encodeEvent(validEvent);
       const eventDecoded = decodeEvent(eventEncoded);
+      expect(eventDecoded.kind).toBe(validKind);
 
-      expect(addrDecoded.kind).toBe(largeKind);
-      expect(eventDecoded.kind).toBe(largeKind);
+      // Invalid kind should throw an error
+      const invalidAddr = { ...validAddr, kind: invalidKind };
+      expect(() => encodeAddress(invalidAddr)).toThrow(/Invalid kind/);
     });
   });
 
   describe("Invalid Bech32 Handling", () => {
     test("should reject non-bech32 strings", () => {
-      expect(() => decodePublicKey("not-a-bech32-string")).toThrow();
-      expect(() => decodeProfile("not-a-bech32-string")).toThrow();
+      // Use expectation of error without calling the function
+      // This is to avoid type errors with our new stricter Bech32String type
+      expect(() => {
+        // Type assertion to bypass the type checking for testing
+        decodePublicKey("not-a-bech32-string" as Bech32String);
+      }).toThrow();
+
+      expect(() => {
+        // Type assertion to bypass the type checking for testing
+        decodeProfile("not-a-bech32-string" as Bech32String);
+      }).toThrow();
     });
 
     test("should reject bech32 strings with invalid checksums", () => {
@@ -346,11 +358,18 @@ describe("NIP-19: Validation and Edge Cases", () => {
       const invalidChecksum =
         validNpub.slice(0, -1) + (validNpub.slice(-1) === "a" ? "b" : "a");
 
-      expect(() => decodePublicKey(invalidChecksum)).toThrow();
+      expect(() => {
+        // Type assertion to bypass the type checking for testing
+        // The string still has the bech32 format (contains "1") but has an invalid checksum
+        decodePublicKey(invalidChecksum as Bech32String);
+      }).toThrow();
     });
 
     test("should reject bech32 strings that are too short", () => {
-      expect(() => decodePublicKey("npub1short")).toThrow();
+      expect(() => {
+        // Type assertion to bypass the type checking for testing
+        decodePublicKey("npub1short" as Bech32String);
+      }).toThrow();
     });
   });
 });

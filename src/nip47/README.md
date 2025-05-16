@@ -268,6 +268,16 @@ Errors are organized into the following categories for easier handling:
 - `TIMEOUT`: Timeout-related errors
 - `INTERNAL`: Internal/system errors
 
+### Early Rejection Handling
+
+For early-reject scenarios (like expired requests or unauthorized clients), where the actual method being requested is unknown because the message hasn't been decrypted yet, the implementation uses a special `UNKNOWN` method type for the `result_type` field. This ensures spec compliance by:
+
+1. Never guessing or using an unrelated method for the `result_type`
+2. Providing a consistent way for clients to handle these special error cases
+3. Protecting against potential replay attacks by making it clear this is an authentication/authorization rejection
+
+This approach is superior to using a placeholder method like `GET_INFO`, which could confuse clients or hide replay attacks.
+
 ### Error Handling Example
 
 ```typescript

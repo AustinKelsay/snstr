@@ -3,6 +3,7 @@ import {
   SimpleNIP46Bunker,
   generateKeypair,
 } from "../../../src";
+import { NIP46Error } from "../../../src/nip46/types";
 import { LogLevel } from "../../../src/nip46/utils/logger";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
@@ -116,8 +117,12 @@ async function main() {
       console.log(
         `Original message recovered: ${decrypted === message ? "Yes" : "No"}`,
       );
-    } catch (error) {
-      console.error("Error in NIP-04 demo:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        console.error("Error in NIP-04 demo:", error.message);
+      } else {
+        console.error("Unknown error in NIP-04 demo:", error);
+      }
     }
 
     // Try to sign an event without permission
@@ -133,16 +138,31 @@ async function main() {
       console.log("Attempting to sign unauthorized event kind 30023...");
       await client.signEvent(unauthorizedEvent);
       console.log("WARNING: Unauthorized event was signed (unexpected)");
-    } catch (error: any) {
-      console.log(
-        "Failed to sign unauthorized event (expected):",
-        error.message,
-      );
+    } catch (error: unknown) {
+      if (error instanceof NIP46Error) {
+        console.log(
+          "Failed to sign unauthorized event (expected):",
+          error.message,
+        );
+      } else if (error instanceof Error) {
+        console.log(
+          "Failed to sign unauthorized event (expected):",
+          error.message,
+        );
+      } else {
+        console.log("Unknown error when signing unauthorized event:", error);
+      }
     }
-  } catch (error: any) {
-    console.error("Error in demo:", error.message);
-    if (error.stack) {
-      console.error("Stack trace:", error.stack);
+  } catch (error: unknown) {
+    if (error instanceof NIP46Error) {
+      console.error("NIP46 Error in demo:", error.message);
+    } else if (error instanceof Error) {
+      console.error("Error in demo:", error.message);
+      if (error.stack) {
+        console.error("Stack trace:", error.stack);
+      }
+    } else {
+      console.error("Unknown error in demo:", error);
     }
   } finally {
     // Clean up
@@ -154,4 +174,10 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+main().catch((error: unknown) => {
+  if (error instanceof Error) {
+    console.error("Unhandled error:", error);
+  } else {
+    console.error("Unhandled unknown error:", error);
+  }
+});

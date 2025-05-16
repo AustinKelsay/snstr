@@ -1,6 +1,5 @@
 import {
   generateKeypair,
-  getPublicKey,
   encryptNIP04,
   decryptNIP04,
   getNIP04SharedSecret,

@@ -16,11 +16,9 @@ import {
   encodeProfile,
   decodeProfile,
   encodeEvent,
-  decodeEvent,
   encodeAddress,
-  decodeAddress,
-  decode,
   ProfileData,
+  Bech32String,
 } from "../../src/nip19/index";
 import { isValidRelayUrl, filterProfile } from "../../src/nip19/secure";
 import { bech32 } from "@scure/base";
@@ -273,7 +271,7 @@ describe("NIP-19: Comprehensive Security Tests", () => {
       };
 
       const encoded = encodeProfile(profile);
-      const decoded = decodeProfile(encoded);
+      const decoded = decodeProfile(encoded as Bech32String);
 
       // Check that decoded matches original
       expect(decoded.pubkey).toBe(profile.pubkey);
@@ -324,7 +322,7 @@ describe("NIP-19: Comprehensive Security Tests", () => {
           const encoded = createProfileWithCustomRelays([url]);
 
           // The decoder doesn't throw on invalid URLs, but it should warn about them
-          const decoded = decodeProfile(encoded);
+          const decoded = decodeProfile(encoded as Bech32String);
 
           // The library code doesn't filter URLs, just warns about them
           expect(decoded.relays).toContain(url);
@@ -391,7 +389,7 @@ describe("NIP-19: Comprehensive Security Tests", () => {
             pubkey: validPubkey,
             relays: [url],
           });
-        }).toThrow(/Invalid relay URL format/);
+        }).toThrow(/Invalid relay URL/);
       });
     });
   });

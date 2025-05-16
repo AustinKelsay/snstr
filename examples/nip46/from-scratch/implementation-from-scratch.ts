@@ -1,6 +1,5 @@
 import {
   generateKeypair,
-  getPublicKey,
   signEvent,
   verifySignature,
   encryptNIP04,
@@ -8,7 +7,52 @@ import {
 } from "../../../src";
 import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
-import { SimpleNIP46Client, SimpleNIP46Bunker } from "../../../src";
+
+// Type definitions
+interface NostrEvent {
+  kind: number;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  pubkey: string;
+  id: string;
+  sig: string;
+}
+
+interface UnsignedEvent {
+  kind: number;
+  content: string;
+  created_at: number;
+  tags: string[][];
+  pubkey: string;
+}
+
+interface NostrEventToSign {
+  kind: number;
+  content: string;
+  created_at?: number;
+  tags: string[][];
+  pubkey?: string;
+  id?: string;
+  sig?: string;
+}
+
+interface NIP46Request {
+  id: string;
+  method: string;
+  params: string[];
+}
+
+interface NIP46Response {
+  id: string;
+  result?: string;
+  error?: string;
+}
+
+interface Keypair {
+  publicKey: string;
+  privateKey: string;
+}
 
 // Simple in-memory relay for testing
 class TestRelay {
@@ -56,9 +100,12 @@ class TestRelay {
 // NIP-46 Client
 class MinimalNIP46Client {
   private socket: WebSocket;
-  private clientKeys: { publicKey: string; privateKey: string };
+  private clientKeys: Keypair;
   private signerPubkey: string;
-  private pendingRequests: Map<string, (result: any) => void> = new Map();
+  private pendingRequests: Map<
+    string,
+    { resolve: (result: string) => void; reject: (error: Error) => void }
+  > = new Map();
 
   constructor(relayUrl: string) {
     this.socket = new WebSocket(relayUrl);
@@ -85,13 +132,13 @@ class MinimalNIP46Client {
     });
 
     // Send connect request
-    const userPubkey = await this.sendRequest("connect", [this.signerPubkey]);
+    await this.sendRequest("connect", [this.signerPubkey]);
 
     // Get user public key
     return await this.sendRequest("get_public_key", []);
   }
 
-  async signEvent(eventData: any): Promise<any> {
+  async signEvent(eventData: NostrEventToSign): Promise<string> {
     return await this.sendRequest("sign_event", [JSON.stringify(eventData)]);
   }
 
@@ -108,13 +155,13 @@ class MinimalNIP46Client {
     });
   }
 
-  private async sendRequest(method: string, params: string[]): Promise<any> {
+  private async sendRequest(method: string, params: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
       // Generate request ID
       const id = Math.random().toString(36).substring(2, 10);
 
       // Create request object
-      const request = { id, method, params };
+      const request: NIP46Request = { id, method, params };
 
       // Set up timeout
       const timeout = setTimeout(() => {
@@ -122,10 +169,16 @@ class MinimalNIP46Client {
         reject(new Error(`Request timed out: ${method}`));
       }, 10000);
 
-      // Store resolver
-      this.pendingRequests.set(id, (result) => {
-        clearTimeout(timeout);
-        resolve(result);
+      // Store resolver and rejecter
+      this.pendingRequests.set(id, {
+        resolve: (resultValue: string) => {
+          clearTimeout(timeout);
+          resolve(resultValue);
+        },
+        reject: (errorValue: Error) => {
+          clearTimeout(timeout);
+          reject(errorValue);
+        },
       });
 
       // Encrypt and send request
@@ -143,6 +196,7 @@ class MinimalNIP46Client {
           content: encrypted,
           tags: [["p", this.signerPubkey]],
           pubkey: this.clientKeys.publicKey,
+          created_at: Math.floor(Date.now() / 1000),
         });
       } catch (error) {
         clearTimeout(timeout);
@@ -152,24 +206,27 @@ class MinimalNIP46Client {
     });
   }
 
-  private async sendEvent(event: any): Promise<void> {
+  private async sendEvent(event: UnsignedEvent): Promise<void> {
     // Add created_at if not present
     if (!event.created_at) {
       event.created_at = Math.floor(Date.now() / 1000);
     }
 
-    // Calculate ID if not present
-    if (!event.id) {
-      event.id = await getEventHash(event);
-    }
+    // Calculate ID
+    const id = await getEventHash(event);
 
-    // Sign if not signed
-    if (!event.sig) {
-      event.sig = await signEvent(event.id, this.clientKeys.privateKey);
-    }
+    // Sign the event
+    const sig = await signEvent(id, this.clientKeys.privateKey);
+
+    // Create complete event
+    const completeEvent: NostrEvent = {
+      ...event,
+      id,
+      sig,
+    };
 
     // Send to relay
-    this.socket.send(JSON.stringify(["EVENT", event]));
+    this.socket.send(JSON.stringify(["EVENT", completeEvent]));
   }
 
   private handleMessage(data: string): void {
@@ -179,7 +236,7 @@ class MinimalNIP46Client {
       // Only handle EVENT messages
       if (!Array.isArray(message) || message[0] !== "EVENT") return;
 
-      const event = message[1];
+      const event = message[1] as NostrEvent;
 
       // Only handle events from the signer pubkey
       if (event.pubkey !== this.signerPubkey) return;
@@ -200,13 +257,22 @@ class MinimalNIP46Client {
         );
 
         // Parse response
-        const response = JSON.parse(decrypted);
+        const response = JSON.parse(decrypted) as NIP46Response;
 
         // Find and call handler
-        const handler = this.pendingRequests.get(response.id);
-        if (handler) {
-          this.pendingRequests.delete(response.id);
-          handler(response.result);
+        const promiseControls = this.pendingRequests.get(response.id);
+        if (promiseControls) {
+          this.pendingRequests.delete(response.id); // Remove before calling resolve/reject
+          if (response.error) {
+            promiseControls.reject(new Error(response.error));
+          } else if (response.result !== undefined) {
+            promiseControls.resolve(response.result);
+          } else {
+            // If response has neither result nor error, but has an ID we know, reject.
+            promiseControls.reject(
+              new Error("Invalid response: missing result and error."),
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to decrypt or parse message:", error);
@@ -220,8 +286,8 @@ class MinimalNIP46Client {
 // NIP-46 Bunker
 class MinimalNIP46Bunker {
   private socket: WebSocket;
-  private userKeys: { publicKey: string; privateKey: string };
-  private signerKeys: { publicKey: string; privateKey: string };
+  private userKeys: Keypair;
+  private signerKeys: Keypair;
   private connectedClients: Set<string> = new Set();
 
   constructor(relayUrl: string, userPubkey: string, signerPubkey?: string) {
@@ -273,7 +339,7 @@ class MinimalNIP46Bunker {
       // Only handle EVENT messages
       if (!Array.isArray(message) || message[0] !== "EVENT") return;
 
-      const event = message[1];
+      const event = message[1] as NostrEvent;
 
       // Only handle events to our signer pubkey
       const pTag = event.tags.find(
@@ -291,7 +357,7 @@ class MinimalNIP46Bunker {
         );
 
         // Parse request
-        const request = JSON.parse(decrypted);
+        const request = JSON.parse(decrypted) as NIP46Request;
 
         // Handle request
         const response = await this.handleRequest(request, event.pubkey);
@@ -307,12 +373,12 @@ class MinimalNIP46Bunker {
   }
 
   private async handleRequest(
-    request: any,
+    request: NIP46Request,
     clientPubkey: string,
-  ): Promise<any> {
+  ): Promise<NIP46Response> {
     const { id, method, params } = request;
-    let result;
-    let error;
+    let result: string | undefined;
+    let error: string | undefined;
 
     try {
       switch (method) {
@@ -342,36 +408,41 @@ class MinimalNIP46Bunker {
 
           try {
             // Parse event data
-            const eventData = JSON.parse(params[0]);
+            const eventData = JSON.parse(params[0]) as NostrEventToSign;
 
-            // Add pubkey
-            eventData.pubkey = this.userKeys.publicKey;
-
-            // Complete the event
-            if (!eventData.created_at) {
-              eventData.created_at = Math.floor(Date.now() / 1000);
-            }
+            // Add pubkey and timestamp if needed
+            const completeEventData: UnsignedEvent = {
+              kind: eventData.kind,
+              content: eventData.content,
+              created_at: eventData.created_at || Math.floor(Date.now() / 1000),
+              tags: eventData.tags,
+              pubkey: this.userKeys.publicKey,
+            };
 
             // Calculate ID
-            eventData.id = await getEventHash(eventData);
+            const id = await getEventHash(completeEventData);
 
             // Sign the event
-            eventData.sig = await signEvent(
-              eventData.id,
-              this.userKeys.privateKey,
-            );
+            const sig = await signEvent(id, this.userKeys.privateKey);
 
-            result = JSON.stringify(eventData);
-          } catch (signError: any) {
-            error = `Failed to sign event: ${signError.message}`;
+            // Create complete signed event
+            const signedEvent: NostrEvent = {
+              ...completeEventData,
+              id,
+              sig,
+            };
+
+            result = JSON.stringify(signedEvent);
+          } catch (signError) {
+            error = `Failed to sign event: ${signError instanceof Error ? signError.message : String(signError)}`;
           }
           break;
 
         default:
           error = `Unsupported method: ${method}`;
       }
-    } catch (e: any) {
-      error = e.message;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
     }
 
     return { id, result, error };
@@ -379,7 +450,7 @@ class MinimalNIP46Bunker {
 
   private async sendResponse(
     clientPubkey: string,
-    response: any,
+    response: NIP46Response,
   ): Promise<void> {
     try {
       // Encrypt the response
@@ -396,30 +467,29 @@ class MinimalNIP46Bunker {
         content: encrypted,
         tags: [["p", clientPubkey]],
         pubkey: this.signerKeys.publicKey,
+        created_at: Math.floor(Date.now() / 1000),
       });
     } catch (error) {
       console.error("Failed to send response:", error);
     }
   }
 
-  private async sendEvent(event: any): Promise<void> {
-    // Add created_at if not present
-    if (!event.created_at) {
-      event.created_at = Math.floor(Date.now() / 1000);
-    }
+  private async sendEvent(event: UnsignedEvent): Promise<void> {
+    // Calculate ID
+    const id = await getEventHash(event);
 
-    // Calculate ID if not present
-    if (!event.id) {
-      event.id = await getEventHash(event);
-    }
+    // Sign the event
+    const sig = await signEvent(id, this.signerKeys.privateKey);
 
-    // Sign if not signed
-    if (!event.sig) {
-      event.sig = await signEvent(event.id, this.signerKeys.privateKey);
-    }
+    // Create complete event
+    const completeEvent: NostrEvent = {
+      ...event,
+      id,
+      sig,
+    };
 
     // Send to relay
-    this.socket.send(JSON.stringify(["EVENT", event]));
+    this.socket.send(JSON.stringify(["EVENT", completeEvent]));
   }
 }
 
@@ -471,7 +541,7 @@ async function main() {
 
     // Test signing
     console.log("\nTesting event signing...");
-    const event = {
+    const event: NostrEventToSign = {
       kind: 1,
       content: "Hello from NIP-46 remote signing!",
       created_at: Math.floor(Date.now() / 1000),
@@ -479,19 +549,25 @@ async function main() {
     };
 
     const signedEvent = await client.signEvent(event);
+    const parsedSignedEvent = JSON.parse(signedEvent) as NostrEvent;
+
     console.log("Successfully signed event:");
-    console.log(`- ID: ${JSON.parse(signedEvent).id}`);
-    console.log(`- Pubkey: ${JSON.parse(signedEvent).pubkey}`);
-    console.log(
-      `- Signature: ${JSON.parse(signedEvent).sig.substring(0, 20)}...`,
-    );
+    console.log(`- ID: ${parsedSignedEvent.id}`);
+    console.log(`- Pubkey: ${parsedSignedEvent.pubkey}`);
+    console.log(`- Signature: ${parsedSignedEvent.sig.substring(0, 20)}...`);
 
     // Verify signature
-    const parsed = JSON.parse(signedEvent);
-    const valid = await verifySignature(parsed.id, parsed.sig, parsed.pubkey);
+    const valid = await verifySignature(
+      parsedSignedEvent.id,
+      parsedSignedEvent.sig,
+      parsedSignedEvent.pubkey,
+    );
     console.log(`Signature valid: ${valid}`);
-  } catch (error: any) {
-    console.error("ERROR:", error.message);
+  } catch (error) {
+    console.error(
+      "ERROR:",
+      error instanceof Error ? error.message : String(error),
+    );
   } finally {
     // Clean up
     console.log("\nCleaning up...");

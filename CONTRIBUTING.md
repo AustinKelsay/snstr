@@ -91,29 +91,11 @@ The CI pipeline runs tests for both `main` and `staging` branches, but releases 
 
 ## Release Process
 
-SNSTR uses GitHub Actions for continuous integration and automated releases.
-
-### Automated Release via GitHub Actions
-
-The easiest way to release is using the GitHub Actions workflow:
-
-1. Go to the "Actions" tab in the GitHub repository
-2. Select the "Build, Test, and Release" workflow
-3. Click "Run workflow"
-4. Choose the release type (patch, minor, or major)
-5. Click "Run workflow" to start the process
-
-This will:
-- Run all tests
-- Bump the version in package.json
-- Create a git tag
-- Build the project
-- Create a GitHub Release
-- Publish to npm (if configured with NPM_TOKEN)
+SNSTR uses a manual release process.
 
 ### Manual Release
 
-You can also perform releases manually:
+To perform releases:
 
 1. Make sure you're on the main branch with the latest changes: 
    ```bash
@@ -143,8 +125,6 @@ You can also perform releases manually:
    npm run release
    ```
 
-The GitHub Actions workflow will automatically create a GitHub Release and publish to npm when it detects the new tag.
-
 ### Release Checklist
 
 Before releasing, ensure:
@@ -160,4 +140,5 @@ Before releasing, ensure:
 To publish to npm, you need:
 
 1. An npm account with publish access to the package
-2. To be logged in (`npm login`) or have an `NPM_TOKEN` in GitHub repository secrets 
+2. To be logged in (`npm login`) 
+3. Run `npm publish` to publish the package 

@@ -2,19 +2,23 @@ import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
+import { createSignedEvent } from "../nip01/event";
+import { generateRequestId } from "./utils/request-response";
+import { Logger, LogLevel } from "./utils/logger";
 import {
+  NIP46KeyPair,
+  NIP46UnsignedEventData,
+  SimpleNIP46ClientOptions,
+  NIP46Error,
+  NIP46ConnectionError,
+  NIP46TimeoutError,
+  NIP46EncryptionError,
+  NIP46DecryptionError,
+  NIP46SigningError,
   NIP46Request,
   NIP46Response,
-  generateRequestId,
-} from "./utils/request-response";
-import { Logger, LogLevel } from "./utils/logger";
-
-// Client options interface
-export interface SimpleNIP46ClientOptions {
-  timeout?: number;
-  logLevel?: LogLevel;
-  debug?: boolean;
-}
+  NIP46Method,
+} from "./types";
 
 /**
  * Simple implementation of a NIP-46 client
@@ -24,7 +28,7 @@ export interface SimpleNIP46ClientOptions {
  */
 export class SimpleNIP46Client {
   private nostr: Nostr;
-  private clientKeys: { publicKey: string; privateKey: string };
+  private clientKeys: NIP46KeyPair;
   private signerPubkey: string | null;
   private userPubkey: string | null;
   private pendingRequests: Map<string, (response: NIP46Response) => void>;
@@ -77,7 +81,9 @@ export class SimpleNIP46Client {
         this.signerPubkey.length !== 64 ||
         !/^[0-9a-fA-F]{64}$/.test(this.signerPubkey)
       ) {
-        throw new Error(`Invalid signer pubkey: ${this.signerPubkey}`);
+        throw new NIP46ConnectionError(
+          `Invalid signer pubkey: ${this.signerPubkey}`,
+        );
       }
 
       // Generate client keypair
@@ -108,7 +114,7 @@ export class SimpleNIP46Client {
       );
 
       // Send connect request
-      await this.sendRequest("connect", [this.signerPubkey]);
+      await this.sendRequest(NIP46Method.CONNECT, [this.signerPubkey]);
       this.logger.info(`Connect request sent successfully`);
 
       // Get and store user public key (required after connect per NIP-46 spec)
@@ -116,14 +122,24 @@ export class SimpleNIP46Client {
         this.userPubkey = await this.getPublicKey();
         this.logger.debug(`Got user pubkey: ${this.userPubkey}`);
         return this.userPubkey;
-      } catch (error: any) {
-        this.logger.error(`Failed to get user public key:`, error.message);
-        throw new Error("Failed to get user public key after connect");
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to get user public key:`, errorMessage);
+        throw new NIP46ConnectionError(
+          "Failed to get user public key after connect",
+        );
       }
-    } catch (error: any) {
+    } catch (error) {
       // Clean up on error
       await this.disconnect();
-      throw error;
+      if (error instanceof NIP46Error) {
+        throw error;
+      } else {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        throw new NIP46ConnectionError(`Connection failed: ${errorMessage}`);
+      }
     }
   }
 
@@ -131,7 +147,7 @@ export class SimpleNIP46Client {
    * Get the user's public key
    */
   async getPublicKey(): Promise<string> {
-    const response = await this.sendRequest("get_public_key", []);
+    const response = await this.sendRequest(NIP46Method.GET_PUBLIC_KEY, []);
     return response.result!;
   }
 
@@ -142,10 +158,13 @@ export class SimpleNIP46Client {
     try {
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new Error("Ping timed out")), this.timeout);
+        setTimeout(
+          () => reject(new NIP46TimeoutError("Ping timed out")),
+          this.timeout,
+        );
       });
 
-      const pingPromise = this.sendRequest("ping", []).then(
+      const pingPromise = this.sendRequest(NIP46Method.PING, []).then(
         (response) => response.result === "pong",
       );
 
@@ -162,14 +181,14 @@ export class SimpleNIP46Client {
    * @param eventData - Event data to sign
    * @returns Signed event
    */
-  async signEvent(eventData: any): Promise<NostrEvent> {
-    const response = await this.sendRequest("sign_event", [
+  async signEvent(eventData: NIP46UnsignedEventData): Promise<NostrEvent> {
+    const response = await this.sendRequest(NIP46Method.SIGN_EVENT, [
       JSON.stringify(eventData),
     ]);
 
     // Handle error response
     if (response.error) {
-      throw new Error(response.error);
+      throw new NIP46SigningError(response.error);
     }
 
     // Parse the result
@@ -183,12 +202,12 @@ export class SimpleNIP46Client {
     thirdPartyPubkey: string,
     plaintext: string,
   ): Promise<string> {
-    const response = await this.sendRequest("nip04_encrypt", [
+    const response = await this.sendRequest(NIP46Method.NIP04_ENCRYPT, [
       thirdPartyPubkey,
       plaintext,
     ]);
     if (!response.result) {
-      throw new Error("NIP-04 encryption failed");
+      throw new NIP46EncryptionError("NIP-04 encryption failed");
     }
     return response.result;
   }
@@ -200,12 +219,12 @@ export class SimpleNIP46Client {
     thirdPartyPubkey: string,
     ciphertext: string,
   ): Promise<string> {
-    const response = await this.sendRequest("nip04_decrypt", [
+    const response = await this.sendRequest(NIP46Method.NIP04_DECRYPT, [
       thirdPartyPubkey,
       ciphertext,
     ]);
     if (!response.result) {
-      throw new Error("NIP-04 decryption failed");
+      throw new NIP46DecryptionError("NIP-04 decryption failed");
     }
     return response.result;
   }
@@ -241,7 +260,8 @@ export class SimpleNIP46Client {
       // Disconnect from relays
       await this.nostr.disconnectFromRelays();
     } catch (e) {
-      this.logger.warn("Error disconnecting from relays:", e);
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      this.logger.warn("Error disconnecting from relays:", errorMessage);
       // Continue despite disconnection errors
     }
 
@@ -261,18 +281,18 @@ export class SimpleNIP46Client {
    * @returns A promise that resolves with the response
    */
   private async sendRequest(
-    method: string,
+    method: NIP46Method,
     params: string[],
   ): Promise<NIP46Response> {
     return new Promise((resolve, reject) => {
       // Check if we have valid keys
       if (!this.clientKeys.privateKey) {
-        reject(new Error("Client private key not set"));
+        reject(new NIP46ConnectionError("Client private key not set"));
         return;
       }
 
       if (!this.signerPubkey) {
-        reject(new Error("Signer public key not set"));
+        reject(new NIP46ConnectionError("Signer public key not set"));
         return;
       }
 
@@ -286,14 +306,21 @@ export class SimpleNIP46Client {
       this.logger.debug(`Sending ${method} request: ${request.id}`);
       this.logger.trace(`JSON payload: ${JSON.stringify(request)}`);
 
-      // Store the promise handlers
-      this.pendingRequests.set(request.id, resolve);
-
       // Set up timeout
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(request.id);
-        reject(new Error(`Request timed out: ${method}`));
+        reject(new NIP46TimeoutError(`Request timed out: ${method}`));
       }, this.timeout);
+
+      // Store the promise handlers with timeout cleanup
+      this.pendingRequests.set(request.id, (response: NIP46Response) => {
+        clearTimeout(timeoutId);
+        if (response.error) {
+          reject(new NIP46Error(response.error));
+        } else {
+          resolve(response);
+        }
+      });
 
       // Encrypt and send the request
       try {
@@ -312,27 +339,49 @@ export class SimpleNIP46Client {
           content: encrypted,
         };
 
-        // Use the utilities to sign the event correctly
-        // Import the createSignedEvent function
-        const { createSignedEvent } = require("../utils/event");
-
         // Create a properly signed event using promises
         createSignedEvent(eventData, this.clientKeys.privateKey)
           .then((signedEvent: NostrEvent) => {
             // Then publish the signed event
             return this.nostr.publishEvent(signedEvent);
           })
-          .catch((err: any) => {
+          .then((publishResult) => {
+            if (!publishResult.success) {
+              let reasonMessage = "unknown reason";
+              if (publishResult.relayResults) {
+                for (const relayResult of publishResult.relayResults.values()) {
+                  if (!relayResult.success && relayResult.reason) {
+                    reasonMessage = relayResult.reason;
+                    break;
+                  }
+                }
+              }
+              throw new NIP46ConnectionError(
+                `Relay rejected event: ${reasonMessage}`,
+              );
+            }
+          })
+          .catch((err) => {
             clearTimeout(timeoutId);
             this.pendingRequests.delete(request.id);
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
             reject(
-              new Error(`Failed to sign or publish event: ${err.message}`),
+              new NIP46ConnectionError(
+                `Failed to sign or publish event: ${errorMessage}`,
+              ),
             );
           });
-      } catch (error: any) {
+      } catch (error) {
         clearTimeout(timeoutId);
         this.pendingRequests.delete(request.id);
-        reject(new Error(`Failed to encrypt request: ${error.message}`));
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        reject(
+          new NIP46EncryptionError(
+            `Failed to encrypt request: ${errorMessage}`,
+          ),
+        );
       }
     });
   }
@@ -386,8 +435,10 @@ export class SimpleNIP46Client {
           `Received response for unknown request: ${response.id}`,
         );
       }
-    } catch (error: any) {
-      this.logger.error(`Failed to process response:`, error.message);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to process response:`, errorMessage);
     }
   }
 

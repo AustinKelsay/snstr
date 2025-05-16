@@ -26,6 +26,9 @@ import {
 
   // Generic decoder
   decode,
+
+  // Types
+  Bech32String,
 } from "../../src/nip19";
 
 /**
@@ -254,7 +257,8 @@ function demonstrateErrorHandling() {
     "npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq"; // invalid checksum
 
   try {
-    const decoded = decode(invalidBech32);
+    // Use type assertion to bypass type checking for demonstration purposes
+    const decoded = decode(invalidBech32 as Bech32String);
     console.log(`Decoded: ${JSON.stringify(decoded)}`);
   } catch (error) {
     console.error(`✓ Caught error: ${(error as Error).message}`);
@@ -268,7 +272,7 @@ function demonstrateErrorHandling() {
   };
 
   try {
-    // @ts-ignore - intentionally passing invalid data for demonstration
+    // @ts-expect-error - purposely testing invalid input
     const nprofile = encodeProfile(incompleteProfile);
     console.log(`Encoded: ${nprofile}`);
   } catch (error) {
@@ -311,6 +315,7 @@ function demonstrateRealWorldUsage() {
   // Example 2: Processing user input
   console.log("\n📋 EXAMPLE: PROCESSING USER INPUT");
 
+  // These strings have the correct format for Bech32 (they all contain '1')
   const userInputs = [
     "npub1937dhu0k878h5jyc6wyjtfg97x2ravl3cn9j7cmwhnuefmkygdmqlwm5w6",
     "note1pst25fn4grsmmuvwh9jdueesj4m5m9v4j5ygwj0qfj4ushefucgqd0ztrg",
@@ -321,8 +326,8 @@ function demonstrateRealWorldUsage() {
     console.log(`\nProcessing: ${input}`);
 
     try {
-      // Generic decode handles any type
-      const decoded = decode(input);
+      // Generic decode handles any type - input already has Bech32 format
+      const decoded = decode(input as Bech32String);
 
       console.log(`Decoded type: ${decoded.type}`);
 
@@ -339,7 +344,7 @@ function demonstrateRealWorldUsage() {
           break;
 
         case "nprofile": {
-          const profileData = decoded.data as any;
+          const profileData = decoded.data;
           console.log(`✓ Valid profile: ${JSON.stringify(profileData)}`);
           console.log(`Public key: ${profileData.pubkey}`);
           console.log(

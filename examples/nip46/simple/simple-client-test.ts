@@ -4,6 +4,7 @@ import {
   generateKeypair,
   verifySignature,
 } from "../../../src";
+import { NIP46Error } from "../../../src/nip46/types";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 async function main() {
@@ -87,9 +88,15 @@ async function main() {
       await relay.close();
 
       console.log("Test completed successfully!");
-    } catch (error: any) {
-      console.error("Error:", error.message);
-      console.error(error.stack);
+    } catch (error: unknown) {
+      if (error instanceof NIP46Error) {
+        console.error("NIP46 Error:", error.message);
+      } else if (error instanceof Error) {
+        console.error("Error:", error.message);
+        console.error(error.stack);
+      } else {
+        console.error("Unknown error:", error);
+      }
 
       // Clean up resources even on error
       try {
@@ -100,9 +107,13 @@ async function main() {
         console.error("Error during cleanup:", cleanupError);
       }
     }
-  } catch (error: any) {
-    console.error("Error:", error.message);
-    console.error(error.stack);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Error:", error.message);
+      console.error(error.stack);
+    } else {
+      console.error("Unknown error:", error);
+    }
   }
 }
 

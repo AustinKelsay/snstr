@@ -1,8 +1,8 @@
-import { hexToBytes, bytesToHex, randomBytes } from "@noble/hashes/utils";
+import { hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-import { sha256 } from "@noble/hashes/sha256";
+import { sha256 } from "@noble/hashes/sha2";
 import { hmac } from "@noble/hashes/hmac";
-import { base64 } from "@scure/base";
+import * as crypto from "crypto";
 
 /**
  * NIP-04: Encrypted Direct Message
@@ -75,9 +75,6 @@ export function encrypt(
   publicKey: string,
 ): string {
   try {
-    // Node.js crypto is required for AES-CBC encryption
-    const crypto = require("crypto");
-
     // Get shared secret (X coordinate of the shared point)
     const sharedX = getSharedSecret(privateKey, publicKey);
 
@@ -132,9 +129,6 @@ export function decrypt(
   publicKey: string,
 ): string {
   try {
-    // Node.js crypto is required for AES-CBC decryption
-    const crypto = require("crypto");
-
     // Validate input is a string
     if (typeof encryptedMessage !== "string") {
       throw new NIP04DecryptionError(

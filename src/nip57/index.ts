@@ -10,8 +10,8 @@
  */
 
 import { NostrEvent, EventTemplate } from "../types/nostr";
-import { createEvent, getEventHash } from "../nip01/event";
-import { sha256Hex, signEvent, verifySignature } from "../utils/crypto";
+import { createEvent } from "../nip01/event";
+import { sha256Hex, verifySignature } from "../utils/crypto";
 import { parseBolt11Invoice } from "./utils";
 
 // Export types from client.ts
@@ -213,7 +213,6 @@ export function validateZapReceipt(
   );
   const pTag = zapReceipt.tags.find((tag: string[]) => tag[0] === "p");
   const eTag = zapReceipt.tags.find((tag: string[]) => tag[0] === "e");
-  const pSenderTag = zapReceipt.tags.find((tag: string[]) => tag[0] === "P");
 
   // Check required tags
   if (!bolt11Tag) {
@@ -403,11 +402,28 @@ export function calculateZapSplitAmounts(
 }
 
 /**
+ * Raw LNURL response data before validation
+ */
+interface LnurlPayResponseRaw {
+  callback?: string;
+  maxSendable?: number;
+  minSendable?: number;
+  metadata?: string;
+  commentAllowed?: number;
+  tag?: string;
+  allowsNostr?: boolean;
+  nostrPubkey?: string;
+  [key: string]: unknown;
+}
+
+/**
  * Parse LNURL payload response
  * @param data LNURL response data
  * @returns Parsed LNURL pay response or null if invalid
  */
-export function parseLnurlPayResponse(data: any): LnurlPayResponse | null {
+export function parseLnurlPayResponse(
+  data: LnurlPayResponseRaw,
+): LnurlPayResponse | null {
   if (
     !data ||
     !data.callback ||

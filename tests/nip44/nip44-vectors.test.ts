@@ -1,9 +1,4 @@
-import {
-  getSharedSecret as getNIP44SharedSecret,
-  encrypt,
-  decrypt,
-} from "../../src/nip44";
-import { hexToBytes, bytesToHex } from "@noble/hashes/utils";
+import { encrypt, decrypt } from "../../src/nip44";
 import { generateKeypair } from "../../src/utils/crypto";
 
 describe("NIP-44 Test Vectors", () => {

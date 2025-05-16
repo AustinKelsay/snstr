@@ -43,8 +43,6 @@ export { SimpleNIP46Bunker } from "./simple-bunker";
 // Export utilities
 export { Logger, LogLevel } from "./utils/logger";
 
-// Import utilities but don't re-export conflicting types
-import * as RequestResponse from "./utils/request-response";
 export {
   generateRequestId,
   createRequest,

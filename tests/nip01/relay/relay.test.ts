@@ -1,5 +1,21 @@
-import { Relay, RelayEvent, NostrEvent } from "../../../src";
+import {
+  Relay,
+  RelayEvent,
+  NostrEvent,
+  PublishOptions,
+  PublishResponse,
+} from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import {
+  asTestRelay,
+  RelayConnectCallback,
+  RelayDisconnectCallback,
+  RelayErrorCallback,
+  RelayNoticeCallback,
+  RelayOkCallback,
+  RelayClosedCallback,
+  RelayAuthCallback,
+} from "../../types";
 
 // Ephemeral relay port for tests
 const RELAY_TEST_PORT = 3444;
@@ -111,9 +127,6 @@ describe("Relay", () => {
       expect(result1).toBe(true);
       expect(result2).toBe(true);
 
-      // Instead of checking that the promises are the same object, check that they both succeed
-      // This is a more realistic expectation since the implementation uses promise chaining
-
       // After connection is established, connect() should return true immediately
       const result3 = await relay.connect();
       expect(result3).toBe(true);
@@ -130,7 +143,7 @@ describe("Relay", () => {
       relay.disconnect();
 
       // Verify the connectionPromise is cleared
-      expect((relay as any).connectionPromise).toBeNull();
+      expect(asTestRelay(relay).connectionPromise).toBeNull();
 
       // Second connect attempt should work
       const result = await relay.connect();
@@ -183,18 +196,22 @@ describe("Relay", () => {
         sig: "test-signature",
       };
 
-      // Let's take a simplified approach to directly test the implementation
-      // Mock the Relay.on method to capture the callback that publish registers
-      let capturedCallback: any = null;
+      // Define a type for all possible relay callbacks
+      type RelayCallbackType =
+        | RelayConnectCallback
+        | RelayDisconnectCallback
+        | RelayErrorCallback
+        | RelayNoticeCallback
+        | RelayOkCallback
+        | RelayClosedCallback
+        | RelayAuthCallback;
+
+      const callbacks = new Map<RelayEvent, RelayCallbackType>();
       const originalOn = relay.on;
-      relay.on = jest
-        .fn()
-        .mockImplementation((event: RelayEvent, callback: any) => {
-          if (event === RelayEvent.OK) {
-            capturedCallback = callback;
-          }
-          return originalOn.call(relay, event, callback);
-        });
+      relay.on = jest.fn((event: RelayEvent, callback: RelayCallbackType) => {
+        callbacks.set(event, callback);
+        return originalOn.call(relay, event, callback);
+      });
 
       // Now start the publish
       const publishPromise = relay.publish(event);
@@ -204,17 +221,17 @@ describe("Relay", () => {
         RelayEvent.OK,
         expect.any(Function),
       );
-      expect(capturedCallback).not.toBeNull();
+      expect(callbacks.has(RelayEvent.OK)).toBe(true);
 
       // Now directly call the callback as if an OK message was received
-      if (capturedCallback) {
-        capturedCallback(event.id, true, "accepted: all good");
-      }
+      const okCallback = callbacks.get(RelayEvent.OK) as RelayOkCallback;
+      okCallback(event.id, true, "accepted: all good");
 
       // Now the publish promise should resolve with success=true
-      const result = await publishPromise;
+      const result: PublishResponse = await publishPromise;
       expect(result.success).toBe(true);
       expect(result.reason).toBe("accepted: all good");
+      expect(result.relay).toBe(ephemeralRelay.url);
 
       // Restore the original implementation
       relay.on = originalOn;
@@ -232,17 +249,22 @@ describe("Relay", () => {
         sig: "test-signature",
       };
 
-      // Mock the Relay.on method to capture the callback that publish registers
-      let capturedCallback: any = null;
+      // Define a type for all possible relay callbacks
+      type RelayCallbackType =
+        | RelayConnectCallback
+        | RelayDisconnectCallback
+        | RelayErrorCallback
+        | RelayNoticeCallback
+        | RelayOkCallback
+        | RelayClosedCallback
+        | RelayAuthCallback;
+
+      const callbacks = new Map<RelayEvent, RelayCallbackType>();
       const originalOn = relay.on;
-      relay.on = jest
-        .fn()
-        .mockImplementation((event: RelayEvent, callback: any) => {
-          if (event === RelayEvent.OK) {
-            capturedCallback = callback;
-          }
-          return originalOn.call(relay, event, callback);
-        });
+      relay.on = jest.fn((event: RelayEvent, callback: RelayCallbackType) => {
+        callbacks.set(event, callback);
+        return originalOn.call(relay, event, callback);
+      });
 
       // Start the publish
       const publishPromise = relay.publish(event);
@@ -252,17 +274,17 @@ describe("Relay", () => {
         RelayEvent.OK,
         expect.any(Function),
       );
-      expect(capturedCallback).not.toBeNull();
+      expect(callbacks.has(RelayEvent.OK)).toBe(true);
 
       // Now directly call the callback with a rejection
-      if (capturedCallback) {
-        capturedCallback(event.id, false, "invalid: test rejection");
-      }
+      const okCallback = callbacks.get(RelayEvent.OK) as RelayOkCallback;
+      okCallback(event.id, false, "invalid: test rejection");
 
       // Now the publish promise should resolve with success=false and the reason
-      const result = await publishPromise;
+      const result: PublishResponse = await publishPromise;
       expect(result.success).toBe(false);
       expect(result.reason).toBe("invalid: test rejection");
+      expect(result.relay).toBe(ephemeralRelay.url);
 
       // Restore the original implementation
       relay.on = originalOn;
@@ -284,15 +306,17 @@ describe("Relay", () => {
       };
 
       // Start the publish with a short timeout
-      const publishPromise = relay.publish(event, { timeout: 5000 });
+      const options: PublishOptions = { timeout: 5000 };
+      const publishPromise = relay.publish(event, options);
 
       // Fast forward time to trigger the timeout
       jest.advanceTimersByTime(5000);
 
       // Now the publish should resolve with success=false and reason='timeout'
-      const result = await publishPromise;
+      const result: PublishResponse = await publishPromise;
       expect(result.success).toBe(false);
       expect(result.reason).toBe("timeout");
+      expect(result.relay).toBe(ephemeralRelay.url);
 
       // Restore real timers
       jest.useRealTimers();
@@ -314,13 +338,14 @@ describe("Relay", () => {
       };
 
       // Try to publish without a connection
-      const result = await disconnectedRelay.publish(event);
+      const result: PublishResponse = await disconnectedRelay.publish(event);
 
       // Should fail with a not_connected reason
       expect(result.success).toBe(false);
       // The relay implementation tries to connect automatically, so the failure reason might vary
       // but it should definitely fail with some reason
       expect(result.reason).toBeDefined();
+      expect(result.relay).toBe(ephemeralRelay.url);
     });
 
     test("should handle WebSocket state check correctly", async () => {
@@ -336,18 +361,94 @@ describe("Relay", () => {
       };
 
       // Mock the WebSocket readyState to simulate a non-OPEN state
-      const origWs = (relay as any).ws;
-      (relay as any).ws = { readyState: WebSocket.CLOSING };
+      const testRelay = asTestRelay(relay);
+      const origWs = testRelay.ws;
+      testRelay.ws = { readyState: WebSocket.CLOSING } as WebSocket;
 
       // Try to publish with a socket that's not in OPEN state
-      const result = await relay.publish(event);
+      const result: PublishResponse = await relay.publish(event);
 
       // Should fail with not_connected reason
       expect(result.success).toBe(false);
       expect(result.reason).toBe("not_connected");
+      expect(result.relay).toBe(ephemeralRelay.url);
 
       // Restore the original WebSocket
-      (relay as any).ws = origWs;
+      testRelay.ws = origWs;
+    });
+
+    test("should support waitForAck option", async () => {
+      // Create a test event
+      const event: NostrEvent = {
+        id: "test-event-id-waitforack",
+        pubkey: "test-pubkey",
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: "Test event with waitForAck: false",
+        sig: "test-signature",
+      };
+
+      // Spy on the WebSocket send method
+      const testRelay = asTestRelay(relay);
+      const origWs = testRelay.ws;
+      const mockSend = jest.fn();
+      testRelay.ws = {
+        readyState: WebSocket.OPEN,
+        send: mockSend,
+      } as unknown as WebSocket;
+
+      // Publish with waitForAck: false
+      const options: PublishOptions = { waitForAck: false };
+      const result: PublishResponse = await relay.publish(event, options);
+
+      // Should immediately return success without waiting for OK
+      expect(result.success).toBe(true);
+      expect(result.relay).toBe(ephemeralRelay.url);
+      expect(mockSend).toHaveBeenCalled();
+
+      // Restore the original WebSocket
+      testRelay.ws = origWs;
+    });
+
+    test("should categorize errors according to RelayErrorType", async () => {
+      // Create a test event
+      const event: NostrEvent = {
+        id: "test-event-id-errors",
+        pubkey: "test-pubkey",
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: "Test error handling",
+        sig: "test-signature",
+      };
+
+      // For connection error
+      const nonRoutableRelay = new Relay("ws://10.255.255.255:8080", {
+        connectionTimeout: 500,
+      });
+      const connectionErrorResult = await nonRoutableRelay.publish(event);
+      expect(connectionErrorResult.success).toBe(false);
+      expect(connectionErrorResult.reason).toContain("connection");
+
+      // For timeout error
+      jest.useFakeTimers();
+      const timeoutPromise = relay.publish(event, { timeout: 100 });
+      jest.advanceTimersByTime(100);
+      const timeoutResult = await timeoutPromise;
+      expect(timeoutResult.success).toBe(false);
+      expect(timeoutResult.reason).toBe("timeout");
+      jest.useRealTimers();
+
+      // For disconnected error
+      const testRelay = asTestRelay(relay);
+      const mockWs = { readyState: WebSocket.CLOSED };
+      const origWs = testRelay.ws;
+      testRelay.ws = mockWs as unknown as WebSocket;
+      const disconnectedResult = await relay.publish(event);
+      expect(disconnectedResult.success).toBe(false);
+      expect(disconnectedResult.reason).toBe("not_connected");
+      testRelay.ws = origWs;
     });
   });
 
@@ -481,12 +582,12 @@ describe("Relay", () => {
       let okMessageReceived = false;
       let okEventId = "";
       let okSuccess = false;
-      let okMessage = "";
+      let okMessage: string | undefined = "";
 
       // Mock the event handler to capture OK messages
       relay.on(
         RelayEvent.OK,
-        (eventId: string, success: boolean, message: string) => {
+        (eventId: string, success: boolean, message?: string) => {
           okMessageReceived = true;
           okEventId = eventId;
           okSuccess = success;
@@ -501,7 +602,8 @@ describe("Relay", () => {
       const testMessage = "Event was stored";
 
       // Access the private handleMessage method using type assertion
-      (relay as any).handleMessage([
+      const internalRelay = asTestRelay(relay);
+      internalRelay.handleMessage([
         "OK",
         testEventId,
         testSuccess,
@@ -532,18 +634,19 @@ describe("Relay", () => {
 
       // Create a subscription so we can verify it gets removed
       const subId = "test-subscription-id";
-      (relay as any).subscriptions.set(subId, {
+      const internalRelay = asTestRelay(relay);
+      internalRelay.subscriptions.set(subId, {
         id: subId,
         filters: [{ kinds: [1] }],
         onEvent: () => {},
       });
 
       // Verify the subscription exists before
-      expect((relay as any).subscriptions.has(subId)).toBe(true);
+      expect(internalRelay.subscriptions.has(subId)).toBe(true);
 
       // Manually trigger the CLOSED message handling
       const testMessage = "Subscription closed due to inactivity";
-      (relay as any).handleMessage(["CLOSED", subId, testMessage]);
+      internalRelay.handleMessage(["CLOSED", subId, testMessage]);
 
       // Verify the handler was called with the right parameters
       expect(closedMessageReceived).toBe(true);
@@ -551,7 +654,7 @@ describe("Relay", () => {
       expect(closedMessage).toBe(testMessage);
 
       // Verify the subscription was removed
-      expect((relay as any).subscriptions.has(subId)).toBe(false);
+      expect(internalRelay.subscriptions.has(subId)).toBe(false);
     });
   });
 
@@ -575,11 +678,12 @@ describe("Relay", () => {
       };
 
       // Test basic validation
-      const basicResult = (relay as any).performBasicValidation(validEvent);
+      const internalRelay = asTestRelay(relay);
+      const basicResult = internalRelay.performBasicValidation(validEvent);
       expect(basicResult).toBe(true);
 
       // Test backward compatibility through validateEvent
-      const result = (relay as any).validateEvent(validEvent);
+      const result = internalRelay.validateEvent(validEvent);
       expect(result).toBe(true);
     });
 
@@ -596,16 +700,18 @@ describe("Relay", () => {
       };
 
       // Event should be rejected by basic validation
-      const basicResult = (relay as any).performBasicValidation(futureEvent);
+      const internalRelay = asTestRelay(relay);
+      const basicResult = internalRelay.performBasicValidation(futureEvent);
       expect(basicResult).toBe(false);
 
       // And by the compatibility method
-      const result = (relay as any).validateEvent(futureEvent);
+      const result = internalRelay.validateEvent(futureEvent);
       expect(result).toBe(false);
     });
 
     test("should reject events with invalid structure", () => {
       // Test various invalid structures
+      const internalRelay = asTestRelay(relay);
 
       // Missing fields
       const missingFields = {
@@ -617,8 +723,14 @@ describe("Relay", () => {
         content: "Missing pubkey",
         sig: "d".repeat(128),
       };
-      expect((relay as any).performBasicValidation(missingFields)).toBe(false);
-      expect((relay as any).validateEvent(missingFields)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          missingFields as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(missingFields as unknown as NostrEvent),
+      ).toBe(false);
 
       // Invalid id length
       const invalidId = {
@@ -630,8 +742,14 @@ describe("Relay", () => {
         content: "Invalid ID",
         sig: "d".repeat(128),
       };
-      expect((relay as any).performBasicValidation(invalidId)).toBe(false);
-      expect((relay as any).validateEvent(invalidId)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          invalidId as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(invalidId as unknown as NostrEvent),
+      ).toBe(false);
 
       // Invalid kind (outside range)
       const invalidKind = {
@@ -643,8 +761,14 @@ describe("Relay", () => {
         content: "Invalid kind",
         sig: "d".repeat(128),
       };
-      expect((relay as any).performBasicValidation(invalidKind)).toBe(false);
-      expect((relay as any).validateEvent(invalidKind)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          invalidKind as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(invalidKind as unknown as NostrEvent),
+      ).toBe(false);
 
       // Invalid tag structure
       const invalidTags = {
@@ -656,8 +780,14 @@ describe("Relay", () => {
         content: "Invalid tags",
         sig: "d".repeat(128),
       };
-      expect((relay as any).performBasicValidation(invalidTags)).toBe(false);
-      expect((relay as any).validateEvent(invalidTags)).toBe(false);
+      expect(
+        internalRelay.performBasicValidation(
+          invalidTags as unknown as NostrEvent,
+        ),
+      ).toBe(false);
+      expect(
+        internalRelay.validateEvent(invalidTags as unknown as NostrEvent),
+      ).toBe(false);
     });
 
     test("should properly handle async validation workflow", async () => {
@@ -672,13 +802,14 @@ describe("Relay", () => {
         sig: "d".repeat(128),
       };
 
+      const internalRelay = asTestRelay(relay);
+
       // Mock processValidatedEvent to track if it gets called
       let eventProcessed = false;
-      const originalProcessValidatedEvent = (relay as any)
-        .processValidatedEvent;
-      (relay as any).processValidatedEvent = jest.fn((event, subId) => {
+      const originalProcessValidatedEvent = internalRelay.processValidatedEvent;
+      internalRelay.processValidatedEvent = jest.fn((event, subId) => {
         eventProcessed = true;
-        return originalProcessValidatedEvent.call(relay, event, subId);
+        return originalProcessValidatedEvent.call(internalRelay, event, subId);
       });
 
       // Mock error tracking
@@ -688,16 +819,16 @@ describe("Relay", () => {
       });
 
       // Test 1: Simulate failed async validation
-      (relay as any).validateEventAsync = jest.fn().mockResolvedValue(false);
+      internalRelay.validateEventAsync = jest.fn().mockResolvedValue(false);
 
       // Trigger the validation via handleMessage
-      (relay as any).handleMessage(["EVENT", "test-sub", event]);
+      internalRelay.handleMessage(["EVENT", "test-sub", event]);
 
       // Wait for promises to resolve
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // The event should not have been processed
-      expect((relay as any).validateEventAsync).toHaveBeenCalledWith(event);
+      expect(internalRelay.validateEventAsync).toHaveBeenCalledWith(event);
       expect(errorTriggered).toBe(true);
       expect(eventProcessed).toBe(false);
 
@@ -707,33 +838,34 @@ describe("Relay", () => {
       jest.clearAllMocks();
 
       // Test 2: Simulate successful async validation
-      (relay as any).validateEventAsync = jest.fn().mockResolvedValue(true);
+      internalRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
 
       // Trigger the validation via handleMessage
-      (relay as any).handleMessage(["EVENT", "test-sub", event]);
+      internalRelay.handleMessage(["EVENT", "test-sub", event]);
 
       // Wait for promises to resolve
       await new Promise((resolve) => setTimeout(resolve, 10));
 
       // The event should have been processed
-      expect((relay as any).validateEventAsync).toHaveBeenCalledWith(event);
+      expect(internalRelay.validateEventAsync).toHaveBeenCalledWith(event);
       expect(errorTriggered).toBe(false);
       expect(eventProcessed).toBe(true);
 
       // Restore original implementation
-      (relay as any).processValidatedEvent = originalProcessValidatedEvent;
+      internalRelay.processValidatedEvent = originalProcessValidatedEvent;
     });
 
     test("should properly verify event through full validation flow", async () => {
       // Mock subscriptions and handlers
       const subscriptionId = "test-sub";
       const onEvent = jest.fn();
-      (relay as any).subscriptions.set(subscriptionId, {
+      const testRelay = asTestRelay(relay);
+      testRelay.subscriptions.set(subscriptionId, {
         id: subscriptionId,
         filters: [],
         onEvent,
       });
-      (relay as any).eventBuffers.set(subscriptionId, []);
+      testRelay.eventBuffers.set(subscriptionId, []);
 
       // Create a valid event
       const validEvent: NostrEvent = {
@@ -747,23 +879,20 @@ describe("Relay", () => {
       };
 
       // Override the async validation to always return true for testing
-      (relay as any).validateEventAsync = jest.fn().mockResolvedValue(true);
+      testRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
 
       // Also override processValidatedEvent to track calls
-      const originalProcessValidatedEvent = (relay as any)
-        .processValidatedEvent;
+      const originalProcessValidatedEvent = testRelay.processValidatedEvent;
       const processValidatedEventMock = jest.fn((event, subId) => {
         return originalProcessValidatedEvent.call(relay, event, subId);
       });
-      (relay as any).processValidatedEvent = processValidatedEventMock;
+      testRelay.processValidatedEvent = processValidatedEventMock;
 
       // Process the valid event through handleMessage
-      (relay as any).handleMessage(["EVENT", subscriptionId, validEvent]);
+      testRelay.handleMessage(["EVENT", subscriptionId, validEvent]);
 
       // Verify validateEventAsync was called
-      expect((relay as any).validateEventAsync).toHaveBeenCalledWith(
-        validEvent,
-      );
+      expect(testRelay.validateEventAsync).toHaveBeenCalledWith(validEvent);
 
       // Wait for promises to resolve
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -775,7 +904,7 @@ describe("Relay", () => {
       );
 
       // Restore original implementation
-      (relay as any).processValidatedEvent = originalProcessValidatedEvent;
+      testRelay.processValidatedEvent = originalProcessValidatedEvent;
     });
 
     test("should properly validate event ID and signature", async () => {
@@ -797,7 +926,7 @@ describe("Relay", () => {
       ): Promise<boolean> => {
         try {
           // Extract the data for ID verification
-          const eventData = {
+          const _eventData = {
             pubkey: event.pubkey,
             created_at: event.created_at,
             kind: event.kind,
@@ -818,10 +947,11 @@ describe("Relay", () => {
       };
 
       // Replace the method in the relay instance
-      (relay as any).validateEventAsync = validateEventAsyncTest;
+      const testRelay = asTestRelay(relay);
+      testRelay.validateEventAsync = validateEventAsyncTest;
 
       // Test with valid ID
-      const result = await (relay as any).validateEventAsync(event);
+      const result = await testRelay.validateEventAsync(event);
       expect(result).toBe(true);
 
       // Test with invalid ID
@@ -829,9 +959,7 @@ describe("Relay", () => {
         ...event,
         id: "invalid-id",
       };
-      const invalidResult = await (relay as any).validateEventAsync(
-        invalidEvent,
-      );
+      const invalidResult = await testRelay.validateEventAsync(invalidEvent);
       expect(invalidResult).toBe(false);
     });
   });
@@ -866,7 +994,8 @@ describe("Relay", () => {
 
     test("should process and store addressable events", () => {
       // Access the private method directly for testing
-      (relay as any).processAddressableEvent(testEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processAddressableEvent(testEvent);
 
       // Get the stored event using the public API
       const storedEvent = relay.getLatestAddressableEvent(
@@ -899,8 +1028,9 @@ describe("Relay", () => {
       };
 
       // Process events out of order (newer first, then older)
-      (relay as any).processAddressableEvent(newerEvent);
-      (relay as any).processAddressableEvent(olderEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processAddressableEvent(newerEvent);
+      testRelay.processAddressableEvent(olderEvent);
 
       // Get the stored event
       const storedEvent = relay.getLatestAddressableEvent(
@@ -928,8 +1058,9 @@ describe("Relay", () => {
       };
 
       // Process both events
-      (relay as any).processAddressableEvent(testEvent);
-      (relay as any).processAddressableEvent(differentDTagEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processAddressableEvent(testEvent);
+      testRelay.processAddressableEvent(differentDTagEvent);
 
       // Get the stored events
       const event1 = relay.getLatestAddressableEvent(
@@ -967,8 +1098,9 @@ describe("Relay", () => {
       };
 
       // Process both events
-      (relay as any).processAddressableEvent(testEvent);
-      (relay as any).processAddressableEvent(anotherEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processAddressableEvent(testEvent);
+      testRelay.processAddressableEvent(anotherEvent);
 
       // Get events by pubkey
       const events = relay.getAddressableEventsByPubkey(testEvent.pubkey);
@@ -994,8 +1126,9 @@ describe("Relay", () => {
       };
 
       // Process both events
-      (relay as any).processAddressableEvent(testEvent);
-      (relay as any).processAddressableEvent(differentPubkeyEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processAddressableEvent(testEvent);
+      testRelay.processAddressableEvent(differentPubkeyEvent);
 
       // Get events by kind
       const events = relay.getAddressableEventsByKind(30001);
@@ -1013,7 +1146,8 @@ describe("Relay", () => {
       relay.subscribe([{}], onEvent);
 
       // Manually set up the buffer for the subscription
-      (relay as any).eventBuffers.set(subscriptionId, []);
+      const testRelay = asTestRelay(relay);
+      testRelay.eventBuffers.set(subscriptionId, []);
 
       // Create a valid addressable event
       const addressableEvent: NostrEvent = {
@@ -1028,19 +1162,19 @@ describe("Relay", () => {
 
       // Override both validation methods to make the test pass
       // 1. Override the basic validation to return true
-      (relay as any).performBasicValidation = jest.fn().mockReturnValue(true);
+      testRelay.performBasicValidation = jest.fn().mockReturnValue(true);
 
       // 2. Override the async validation to always return true for testing
-      (relay as any).validateEventAsync = jest.fn().mockResolvedValue(true);
+      testRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
 
       // Process the event through handleMessage
-      (relay as any).handleMessage(["EVENT", subscriptionId, addressableEvent]);
+      testRelay.handleMessage(["EVENT", subscriptionId, addressableEvent]);
 
       // Wait for async validation promise to resolve
       return new Promise<void>((resolve) => {
         setTimeout(() => {
           // Manually flush the event buffer
-          (relay as any).flushSubscriptionBuffer(subscriptionId);
+          testRelay.flushSubscriptionBuffer(subscriptionId);
 
           // Verify the event was processed as an addressable event
           const storedEvent = relay.getLatestAddressableEvent(
@@ -1086,7 +1220,8 @@ describe("Relay", () => {
 
     test("should process and store replaceable events", () => {
       // Process the event
-      (relay as any).processReplaceableEvent(testEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processReplaceableEvent(testEvent);
 
       // Create a newer version
       const newerEvent = {
@@ -1100,7 +1235,7 @@ describe("Relay", () => {
       };
 
       // Process the newer event
-      (relay as any).processReplaceableEvent(newerEvent);
+      testRelay.processReplaceableEvent(newerEvent);
 
       // Get the latest event
       const retrievedEvent = relay.getLatestReplaceableEvent(
@@ -1116,7 +1251,8 @@ describe("Relay", () => {
 
     test("should keep older event if newer one has older timestamp", () => {
       // Process the event
-      (relay as any).processReplaceableEvent(testEvent);
+      const testRelay = asTestRelay(relay);
+      testRelay.processReplaceableEvent(testEvent);
 
       // Create an event with newer id but older timestamp
       const olderEvent = {
@@ -1130,7 +1266,7 @@ describe("Relay", () => {
       };
 
       // Process the older event
-      (relay as any).processReplaceableEvent(olderEvent);
+      testRelay.processReplaceableEvent(olderEvent);
 
       // Get the latest event
       const retrievedEvent = relay.getLatestReplaceableEvent(
@@ -1146,7 +1282,8 @@ describe("Relay", () => {
 
     test("should retrieve replaceable events by pubkey and kind", () => {
       // Process events of different kinds
-      (relay as any).processReplaceableEvent(testEvent); // kind 0
+      const testRelay = asTestRelay(relay);
+      testRelay.processReplaceableEvent(testEvent); // kind 0
 
       // Create a kind 3 event
       const contactEvent = {
@@ -1167,8 +1304,8 @@ describe("Relay", () => {
       };
 
       // Process these events
-      (relay as any).processReplaceableEvent(contactEvent);
-      (relay as any).processReplaceableEvent(relayEvent);
+      testRelay.processReplaceableEvent(contactEvent);
+      testRelay.processReplaceableEvent(relayEvent);
 
       // Retrieve each kind
       const retrievedKind0 = relay.getLatestReplaceableEvent(

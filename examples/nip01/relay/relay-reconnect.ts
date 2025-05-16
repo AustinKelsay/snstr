@@ -13,7 +13,7 @@
  * npm run example:relay-reconnect
  */
 
-import { Relay, RelayEvent } from "../../src/index";
+import { Relay, RelayEvent } from "../../../src/index";
 
 // Configure logging based on environment variables
 const verbose = process.env.VERBOSE === "1";
@@ -27,17 +27,17 @@ const relay = new Relay("wss://relay.damus.io", {
 });
 
 // Set up event handlers to monitor connection status
-relay.on(RelayEvent.Connect, (url) => {
+relay.on(RelayEvent.Connect, (url: string) => {
   console.log(`✅ Connected to ${url}`);
 });
 
-relay.on(RelayEvent.Disconnect, (url) => {
+relay.on(RelayEvent.Disconnect, (url: string) => {
   console.log(
     `❌ Disconnected from ${url}, will attempt to reconnect automatically`,
   );
 });
 
-relay.on(RelayEvent.Error, (url, error) => {
+relay.on(RelayEvent.Error, (url: string, error: unknown) => {
   console.error(`⚠️ Error with ${url}:`, error);
 });
 

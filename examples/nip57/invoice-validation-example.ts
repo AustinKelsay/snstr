@@ -11,11 +11,22 @@ import {
   createZapRequest,
   createZapReceipt,
   validateZapReceipt,
-  NostrEvent,
 } from "../../src";
 import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 import * as utils from "../../src/nip57/utils";
 import * as crypto from "../../src/utils/crypto";
+
+// Define types for our mocks and utility functions
+interface Bolt11InvoiceData {
+  paymentHash: string;
+  descriptionHash?: string;
+  amount: string;
+  [key: string]: unknown;
+}
+
+// Create a type for the original functions to properly store and restore them
+type ParseBolt11InvoiceFunction = (bolt11: string) => Bolt11InvoiceData | null;
+type Sha256HexFunction = (data: string | Uint8Array) => string;
 
 // Create mocks
 const VALID_HASH =
@@ -24,11 +35,12 @@ const INVALID_HASH =
   "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 // Store original functions to restore later
-const originalParseBolt11Invoice = utils.parseBolt11Invoice;
-const originalSha256Hex = crypto.sha256Hex;
+const originalParseBolt11Invoice =
+  utils.parseBolt11Invoice as ParseBolt11InvoiceFunction;
+const originalSha256Hex = crypto.sha256Hex as Sha256HexFunction;
 
 // Mock the bolt11 parser
-function mockParseBolt11Invoice(bolt11: string) {
+function mockParseBolt11Invoice(bolt11: string): Bolt11InvoiceData | null {
   console.log(`Parsing invoice: ${bolt11}`);
 
   if (bolt11 === "lnbc1000n1_missing_hash_invoice") {
@@ -77,9 +89,12 @@ async function main() {
   console.log(`LNURL Server: ${lnurlServerKeypair.publicKey.slice(0, 8)}...\n`);
 
   try {
-    // Override the functions with our mocks
-    (utils as any).parseBolt11Invoice = mockParseBolt11Invoice;
-    (crypto as any).sha256Hex = mockSha256HexValid;
+    // Override the functions with our mocks using proper typings
+    // Use type assertions to match the module structure
+    (
+      utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }
+    ).parseBolt11Invoice = mockParseBolt11Invoice;
+    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = mockSha256HexValid;
 
     // Example 1: Valid case - Hash matches
     console.log("EXAMPLE 1: VALID ZAP RECEIPT (hashes match)");
@@ -149,7 +164,8 @@ async function main() {
     console.log("--------------------------------------------------");
 
     // Override the sha256 function with our invalid mock
-    (crypto as any).sha256Hex = mockSha256HexInvalid;
+    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex =
+      mockSha256HexInvalid;
 
     // Create an invalid zap request
     const invalidZapRequestTemplate = createZapRequest(
@@ -217,7 +233,7 @@ async function main() {
     console.log("----------------------------------------------------------");
 
     // Reset sha256 to valid function to isolate the description hash issue
-    (crypto as any).sha256Hex = mockSha256HexValid;
+    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = mockSha256HexValid;
 
     // Create a zap receipt with a bolt11 invoice missing a description hash
     const missingHashZapReceiptTemplate = createZapReceipt(
@@ -257,9 +273,11 @@ async function main() {
       console.log(`Error: ${missingHashResult.message}`);
     }
   } finally {
-    // Restore original functions
-    (utils as any).parseBolt11Invoice = originalParseBolt11Invoice;
-    (crypto as any).sha256Hex = originalSha256Hex;
+    // Restore original functions with proper typings
+    (
+      utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }
+    ).parseBolt11Invoice = originalParseBolt11Invoice;
+    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = originalSha256Hex;
   }
 
   console.log("\n✅ Example completed");

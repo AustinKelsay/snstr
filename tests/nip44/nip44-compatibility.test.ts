@@ -3,7 +3,6 @@ import {
   getMessageKeys,
   encrypt,
   decrypt,
-  hmacWithAAD,
 } from "../../src/nip44";
 import { hexToBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
@@ -60,7 +59,7 @@ describe("NIP-44 Official Compatibility Tests", () => {
         // Only test a subset for performance reasons
         if (Math.random() > 0.3) continue;
 
-        const { sec1, conversation_key } = vector;
+        const { sec1 } = vector;
 
         // Calculate public key for sec1
         const pub1 = getPublicKeyHex(sec1);
@@ -255,7 +254,6 @@ describe("NIP-44 Official Compatibility Tests", () => {
       const testVector = testVectors.v2.valid.encrypt_decrypt[0];
       const { sec1, sec2 } = testVector;
       const pub1 = getPublicKeyHex(sec1);
-      const pub2 = getPublicKeyHex(sec2);
 
       // Get a payload from the test vectors
       const { payload } = testVector;

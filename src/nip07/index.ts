@@ -22,12 +22,19 @@ export interface NostrWindow {
   };
 }
 
+// Augment the Window interface
+declare global {
+  interface Window {
+    nostr?: NostrWindow;
+  }
+}
+
 /**
  * Safe access to the browser's nostr object
  */
 function getNostr(): NostrWindow | undefined {
   if (typeof window === "undefined") return undefined;
-  return (window as any).nostr as NostrWindow | undefined;
+  return window.nostr;
 }
 
 /**

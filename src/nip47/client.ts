@@ -9,28 +9,23 @@ import {
   NIP47Response,
   NIP47ConnectionOptions,
   NIP47EventKind,
-  NIP47NotificationType,
   NIP47Notification,
   TransactionType,
   NIP47ErrorCode,
   GetInfoRequest,
-  GetBalanceRequest,
   PayInvoiceRequest,
   MakeInvoiceRequest,
   LookupInvoiceRequest,
-  ListTransactionsRequest,
-  SignMessageRequest,
   GetInfoResponse,
-  GetBalanceResponse,
   PayInvoiceResponse,
   MakeInvoiceResponse,
-  LookupInvoiceResponse,
-  ListTransactionsResponse,
-  SignMessageResponse,
   NIP47Error,
   ERROR_CATEGORIES,
   ERROR_RECOVERY_HINTS,
   NIP47ErrorCategory,
+  NIP47Transaction,
+  ListTransactionsResponseResult,
+  SignMessageResponseResult,
 } from "./types";
 
 /**
@@ -111,12 +106,16 @@ const DEFAULT_RETRY_OPTIONS: RetryOptions = {
 
 // Custom error class for NIP-47 errors
 export class NIP47ClientError extends Error {
-  code: string;
-  category: string;
+  code: NIP47ErrorCode;
+  category: NIP47ErrorCategory;
   recoveryHint?: string;
-  data?: any;
+  data?: Record<string, unknown>;
 
-  constructor(message: string, code: string, data?: any) {
+  constructor(
+    message: string,
+    code: NIP47ErrorCode,
+    data?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "NIP47ClientError";
     this.code = code;
@@ -200,7 +199,7 @@ export class NostrWalletConnectClient {
   private supportedNotifications: string[] = [];
   private notificationHandlers = new Map<
     string,
-    ((notification: NIP47Notification) => void)[]
+    ((notification: NIP47Notification<unknown>) => void)[]
   >();
   private pendingRequests = new Map<
     string,
@@ -291,7 +290,7 @@ export class NostrWalletConnectClient {
    */
   public onNotification(
     type: string,
-    handler: (notification: NIP47Notification) => void,
+    handler: (notification: NIP47Notification<unknown>) => void,
   ): void {
     if (!this.notificationHandlers.has(type)) {
       this.notificationHandlers.set(type, []);
@@ -307,14 +306,62 @@ export class NostrWalletConnectClient {
   }
 
   /**
+   * Get access to the underlying Nostr client for logging configuration
+   */
+  public getNostrClient(): Nostr {
+    return this.client;
+  }
+
+  /**
    * Disconnect from the wallet service
    */
-  public disconnect(): void {
-    if (this.subIds.length > 0) {
-      this.client.unsubscribe(this.subIds);
-      this.subIds = [];
-    }
-    this.initialized = false;
+  public disconnect(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      try {
+        // Clean up any pending subscriptions
+        if (this.subIds.length > 0) {
+          this.client.unsubscribe(this.subIds);
+          this.subIds = [];
+        }
+
+        // Reject any pending requests
+        if (this.pendingRequests.size > 0) {
+          this.pendingRequests.forEach((resolver) => {
+            resolver({
+              result_type: NIP47Method.GET_INFO, // Use a placeholder method
+              result: null,
+              error: {
+                code: NIP47ErrorCode.CONNECTION_ERROR,
+                message: "Client disconnected before receiving response",
+                category: NIP47ErrorCategory.NETWORK,
+              },
+            });
+          });
+
+          this.pendingRequests.clear();
+        }
+
+        // Clear notification handlers
+        this.notificationHandlers.clear();
+
+        // Disconnect from relay (don't wait for it)
+        try {
+          this.client.disconnectFromRelays();
+        } catch (error) {
+          console.error("Error disconnecting from relays:", error);
+        }
+
+        this.initialized = false;
+
+        // Short delay to allow relay disconnection to complete
+        setTimeout(() => {
+          resolve();
+        }, 100).unref();
+      } catch (error) {
+        console.error("Error during client disconnect:", error);
+        resolve();
+      }
+    });
   }
 
   /**
@@ -404,7 +451,7 @@ export class NostrWalletConnectClient {
   /**
    * Validate that a response follows the NIP-47 specification structure
    */
-  private validateResponse(response: any): NIP47Response {
+  private validateResponse(response: unknown): NIP47Response {
     // First check if response is an object
     if (!response || typeof response !== "object") {
       throw new NIP47ClientError(
@@ -413,16 +460,27 @@ export class NostrWalletConnectClient {
       );
     }
 
+    // Cast to a more specific type for property access
+    const resp = response as Record<string, unknown>;
+
     // Check if result_type exists and is a string
-    if (!response.result_type || typeof response.result_type !== "string") {
+    if (!resp.result_type || typeof resp.result_type !== "string") {
       throw new NIP47ClientError(
         "Invalid response: missing or invalid result_type",
         NIP47ErrorCode.INVALID_REQUEST,
       );
     }
 
+    // Verify result_type is a known NIP47Method
+    if (!Object.values(NIP47Method).includes(resp.result_type as NIP47Method)) {
+      throw new NIP47ClientError(
+        `Invalid response: unknown result_type '${resp.result_type}'`,
+        NIP47ErrorCode.INVALID_REQUEST,
+      );
+    }
+
     // Check that error field exists (can be null)
-    if (!("error" in response)) {
+    if (!("error" in resp)) {
       throw new NIP47ClientError(
         "Invalid response: missing error field",
         NIP47ErrorCode.INVALID_REQUEST,
@@ -430,26 +488,25 @@ export class NostrWalletConnectClient {
     }
 
     // If error is not null, validate its structure
-    if (response.error !== null) {
-      if (typeof response.error !== "object") {
+    if (resp.error !== null) {
+      if (typeof resp.error !== "object") {
         throw new NIP47ClientError(
           "Invalid response: error field must be an object or null",
           NIP47ErrorCode.INVALID_REQUEST,
         );
       }
 
+      const error = resp.error as Record<string, unknown>;
+
       // Check error has code and message
-      if (!response.error.code || typeof response.error.code !== "string") {
+      if (!error.code || typeof error.code !== "string") {
         throw new NIP47ClientError(
           "Invalid response: error must have a code field",
           NIP47ErrorCode.INVALID_REQUEST,
         );
       }
 
-      if (
-        !response.error.message ||
-        typeof response.error.message !== "string"
-      ) {
+      if (!error.message || typeof error.message !== "string") {
         throw new NIP47ClientError(
           "Invalid response: error must have a message field",
           NIP47ErrorCode.INVALID_REQUEST,
@@ -457,7 +514,7 @@ export class NostrWalletConnectClient {
       }
 
       // When there's an error, result should be null
-      if (response.result !== null) {
+      if (resp.result !== null) {
         throw new NIP47ClientError(
           "Invalid response: when error is present, result must be null",
           NIP47ErrorCode.INVALID_REQUEST,
@@ -467,8 +524,8 @@ export class NostrWalletConnectClient {
 
     // If no error, result should be defined and not null
     if (
-      response.error === null &&
-      (response.result === null || response.result === undefined)
+      resp.error === null &&
+      (resp.result === null || resp.result === undefined)
     ) {
       throw new NIP47ClientError(
         "Invalid response: when error is null, result must be defined and not null",
@@ -504,7 +561,7 @@ export class NostrWalletConnectClient {
       console.log(`Decrypted response: ${decrypted.substring(0, 100)}...`);
 
       // Parse the content
-      let response: any;
+      let response: unknown;
       try {
         response = JSON.parse(decrypted);
       } catch (error) {
@@ -520,7 +577,9 @@ export class NostrWalletConnectClient {
         return;
       }
 
-      console.log(`Validated response of type: ${response.result_type}`);
+      console.log(
+        `Validated response of type: ${(response as NIP47Response).result_type}`,
+      );
 
       // Find the e-tag which references the request event ID
       const eTags = event.tags.filter((tag) => tag[0] === "e");
@@ -540,7 +599,7 @@ export class NostrWalletConnectClient {
         console.log(`Found pending request with ID: ${requestId}`);
         const resolver = this.pendingRequests.get(requestId);
         if (resolver) {
-          resolver(response);
+          resolver(response as NIP47Response);
           this.pendingRequests.delete(requestId);
           console.log(`Request ${requestId} resolved successfully`);
           return;
@@ -564,7 +623,7 @@ export class NostrWalletConnectClient {
         this.clientPrivkey,
         this.pubkey,
       );
-      const notification: NIP47Notification = JSON.parse(decrypted);
+      const notification: NIP47Notification<unknown> = JSON.parse(decrypted);
 
       // Find and call the notification handlers
       const handlers = this.notificationHandlers.get(
@@ -618,7 +677,10 @@ export class NostrWalletConnectClient {
     expiration?: number,
   ): Promise<NIP47Response> {
     if (!this.initialized) {
-      throw new NIP47ClientError("Client not initialized", "NOT_INITIALIZED");
+      throw new NIP47ClientError(
+        "Client not initialized",
+        NIP47ErrorCode.NOT_INITIALIZED,
+      );
     }
 
     // Create tags for the request
@@ -649,10 +711,12 @@ export class NostrWalletConnectClient {
         this.clientPrivkey,
         this.pubkey,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Failed to encrypt request: ${error?.message || "Unknown error"}`,
-        "ENCRYPTION_FAILED",
+        `Failed to encrypt request: ${err.message || "Unknown error"}`,
+        NIP47ErrorCode.ENCRYPTION_ERROR,
+        { originalError: error },
       );
     }
 
@@ -662,10 +726,12 @@ export class NostrWalletConnectClient {
     let eventId: string;
     try {
       eventId = await getEventHash(event);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Failed to generate event hash: ${error?.message || "Unknown error"}`,
-        "HASH_GENERATION_FAILED",
+        `Failed to generate event hash: ${err.message || "Unknown error"}`,
+        NIP47ErrorCode.INTERNAL_ERROR,
+        { originalError: error },
       );
     }
 
@@ -675,7 +741,9 @@ export class NostrWalletConnectClient {
       const timeoutMs = 30000; // 30 seconds
       const timeout = setTimeout(() => {
         this.pendingRequests.delete(eventId);
-        reject(new NIP47ClientError("Request timed out", "TIMEOUT"));
+        reject(
+          new NIP47ClientError("Request timed out", NIP47ErrorCode.TIMEOUT),
+        );
       }, timeoutMs);
 
       // Store the resolve function for later
@@ -696,13 +764,14 @@ export class NostrWalletConnectClient {
       // Sign and publish the event
       const signedEvent = await createSignedEvent(event, this.clientPrivkey);
       await this.client.publishEvent(signedEvent);
-    } catch (error: any) {
+    } catch (error: unknown) {
       this.pendingRequests.delete(eventId);
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Failed to publish request: ${error?.message || "Unknown error"}`,
+        `Failed to publish request: ${err.message || "Unknown error"}`,
         NIP47ErrorCode.PUBLISH_FAILED,
         { originalError: error },
       );
@@ -738,13 +807,15 @@ export class NostrWalletConnectClient {
       }
 
       return response.result as GetInfoResponse["result"];
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error getting wallet info: ${error?.message || "Unknown error"}`,
-        "GET_INFO_FAILED",
+        `Error getting wallet info: ${err.message || "Unknown error"}`,
+        NIP47ErrorCode.INTERNAL_ERROR,
+        { originalError: error },
       );
     }
   }
@@ -780,7 +851,7 @@ export class NostrWalletConnectClient {
         }
 
         return await operation();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Only retry if it's a retriable error
         if (error instanceof NIP47ClientError && error.isRetriable()) {
           lastError = error;
@@ -857,13 +928,15 @@ export class NostrWalletConnectClient {
 
       const response = await this.sendRequest(request, options?.expiration);
       return response.result as PayInvoiceResponse["result"];
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error paying invoice: ${error?.message || "Unknown error"}`,
-        "PAY_INVOICE_FAILED",
+        `Error paying invoice: ${err.message || "Unknown error"}`,
+        NIP47ErrorCode.PAYMENT_FAILED,
+        { originalError: error },
       );
     }
   }
@@ -906,13 +979,15 @@ export class NostrWalletConnectClient {
 
       const response = await this.sendRequest(request, options?.expiration);
       return response.result as MakeInvoiceResponse["result"];
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         throw error;
       }
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error creating invoice: ${error?.message || "Unknown error"}`,
-        "MAKE_INVOICE_FAILED",
+        `Error creating invoice: ${err.message || "Unknown error"}`,
+        NIP47ErrorCode.INTERNAL_ERROR,
+        { originalError: error },
       );
     }
   }
@@ -934,7 +1009,7 @@ export class NostrWalletConnectClient {
   public async lookupInvoice(
     params: { payment_hash?: string; invoice?: string },
     options?: { expiration?: number },
-  ): Promise<LookupInvoiceResponse["result"]> {
+  ): Promise<NIP47Transaction> {
     // Check that at least one required parameter is provided
     if (!params.payment_hash && !params.invoice) {
       throw new NIP47ClientError(
@@ -955,8 +1030,8 @@ export class NostrWalletConnectClient {
       const response = await this.sendRequest(request, options?.expiration);
 
       // If we get here, the request was successful
-      return response.result as LookupInvoiceResponse["result"];
-    } catch (error: any) {
+      return response.result as NIP47Transaction;
+    } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         // Check specifically for NOT_FOUND errors
         if (error.code === NIP47ErrorCode.NOT_FOUND) {
@@ -975,9 +1050,11 @@ export class NostrWalletConnectClient {
       }
 
       // For other errors, we wrap with a generic LOOKUP_INVOICE_FAILED error
+      const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
-        `Error looking up invoice: ${error?.message || "Unknown error"}`,
+        `Error looking up invoice: ${err.message || "Unknown error"}`,
         NIP47ErrorCode.LOOKUP_INVOICE_FAILED,
+        { originalError: error },
       );
     }
   }
@@ -995,7 +1072,7 @@ export class NostrWalletConnectClient {
       type?: TransactionType | string;
     } = {},
     options?: { expiration?: number },
-  ): Promise<any> {
+  ): Promise<ListTransactionsResponseResult> {
     const response = await this.sendRequest(
       {
         method: NIP47Method.LIST_TRANSACTIONS,
@@ -1008,10 +1085,10 @@ export class NostrWalletConnectClient {
     const result = response.result;
 
     if (Array.isArray(result)) {
-      return { transactions: result };
+      return { transactions: result as NIP47Transaction[] };
     }
 
-    return result;
+    return result as ListTransactionsResponseResult;
   }
 
   /**
@@ -1020,7 +1097,7 @@ export class NostrWalletConnectClient {
   public async signMessage(
     message: string,
     options?: { expiration?: number },
-  ): Promise<any> {
+  ): Promise<SignMessageResponseResult> {
     const response = await this.sendRequest(
       {
         method: NIP47Method.SIGN_MESSAGE,
@@ -1030,6 +1107,6 @@ export class NostrWalletConnectClient {
       },
       options?.expiration,
     );
-    return response.result;
+    return response.result as SignMessageResponseResult;
   }
 }

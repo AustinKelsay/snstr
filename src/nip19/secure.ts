@@ -5,7 +5,7 @@
  * to prevent attacks like XSS through invalid relay URLs.
  */
 
-import type { ProfileData, EventData, AddressData } from "./index";
+import { ProfileData, EventData, AddressData, RelayUrl } from "./types";
 
 /**
  * Validates if a relay URL is safe to use
@@ -17,7 +17,7 @@ import type { ProfileData, EventData, AddressData } from "./index";
  * - No null bytes or dangerous characters in hostname
  * - No null bytes in query parameters
  */
-export function isValidRelayUrl(url: string): boolean {
+export function isValidRelayUrl(url: RelayUrl): boolean {
   try {
     // Basic protocol check
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
@@ -25,7 +25,13 @@ export function isValidRelayUrl(url: string): boolean {
     }
 
     // Check for null bytes and other control characters in the entire URL
-    if (/[\u0000-\u001F\u007F-\u009F]/.test(url)) {
+    // Use a function to check each character code instead of regex with control chars
+    if (
+      [...url].some((char) => {
+        const code = char.charCodeAt(0);
+        return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+      })
+    ) {
       return false;
     }
 
@@ -57,7 +63,7 @@ export function isValidRelayUrl(url: string): boolean {
     const normalized = url.toLowerCase();
 
     // Check for exactly the right protocol pattern
-    if (!normalized.match(/^wss:\/\/[^\/]|^ws:\/\/[^\/]/)) {
+    if (!normalized.match(new RegExp("^wss://[^/]|^ws://[^/]"))) {
       return false;
     }
 

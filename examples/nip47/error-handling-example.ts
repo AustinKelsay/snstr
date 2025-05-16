@@ -6,13 +6,18 @@ import {
   NIP47Method,
   TransactionType,
   generateKeypair,
-  generateNWCURL,
   NIP47ConnectionOptions,
-  NIP47NotificationType,
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
+import {
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
+  SignMessageResponseResult,
+} from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { signEvent, sha256Hex } from "../../src/utils/crypto";
 
 /**
  * Error Handling Example for NIP-47
@@ -23,17 +28,46 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
  * - Using the retry mechanism for transient errors
  */
 
+// Custom error for NOT_FOUND to provide better structure
+class NotFoundError extends Error {
+  code = NIP47ErrorCode.NOT_FOUND as const;
+  context?: { payment_hash?: string; invoice?: string };
+
+  constructor(message = "Invoice not found", ctx?: NotFoundError["context"]) {
+    super(message);
+    this.name = "NotFoundError"; // Good practice for custom errors
+    this.context = ctx;
+  }
+}
+
 // Wallet implementation that generates specific errors for demonstration
 class ErrorDemoWallet implements WalletImplementation {
   private balance: number = 1000; // Only 1000 msats to trigger insufficient balance errors
   private errorMode: string = "none"; // Current error mode to simulate
+  // Generate a wallet private key at runtime instead of using a hard-coded value
+  private walletPrivateKey: string;
+
+  constructor(privateKey: string) {
+    // Validate the private key format
+    if (
+      !privateKey ||
+      typeof privateKey !== "string" ||
+      privateKey.length !== 64 ||
+      !/^[0-9a-fA-F]+$/.test(privateKey)
+    ) {
+      throw new Error(
+        "Invalid private key format. Must be a 64-character hex string.",
+      );
+    }
+    this.walletPrivateKey = privateKey;
+  }
 
   setErrorMode(mode: string) {
     this.errorMode = mode;
     console.log(`Wallet set to error mode: ${mode}`);
   }
 
-  async getInfo(): Promise<any> {
+  async getInfo(): Promise<GetInfoResponseResult> {
     if (this.errorMode === "timeout") {
       await new Promise((resolve) => setTimeout(resolve, 5000)); // Simulate timeout
       throw { code: NIP47ErrorCode.TIMEOUT, message: "Operation timed out" };
@@ -69,19 +103,31 @@ class ErrorDemoWallet implements WalletImplementation {
 
     return this.balance;
   }
-
   async payInvoice(
-    invoice: string,
+    _invoice: string,
     amount?: number,
     maxfee?: number,
-  ): Promise<any> {
-    const paymentAmount = amount || 2000; // Default 2000 msats (intentionally more than balance)
-    const fee = 100; // Fixed fee for simplicity
+  ): Promise<PaymentResponseResult> {
+    const paymentAmount = amount || 2000; // Default 2000 msats
+
+    // Fee calculation logic (can be more sophisticated)
+    // For this example, let's assume a base fee or a simple calculation.
+    // We'll keep it at 100 for now for consistency with the previous version,
+    // but in a real scenario, this would be dynamic.
+    const calculatedFee = 100;
+
+    // Check if maxfee is provided and if calculatedFee exceeds it
+    if (maxfee !== undefined && calculatedFee > maxfee) {
+      throw {
+        code: NIP47ErrorCode.PAYMENT_REJECTED, // Or a more specific error if defined
+        message: `Calculated fee (${calculatedFee} msats) exceeds the maximum specified fee (${maxfee} msats).`,
+      };
+    }
 
     // Check error modes
     if (
       this.errorMode === "insufficient_balance" ||
-      paymentAmount + fee > this.balance
+      paymentAmount + calculatedFee > this.balance
     ) {
       throw {
         code: NIP47ErrorCode.INSUFFICIENT_BALANCE,
@@ -104,9 +150,10 @@ class ErrorDemoWallet implements WalletImplementation {
     }
 
     if (this.errorMode === "payment_rejected") {
+      // This simulates an external rejection, not the maxFee check
       throw {
         code: NIP47ErrorCode.PAYMENT_REJECTED,
-        message: "Payment was rejected by recipient node",
+        message: "Payment was rejected by recipient node (simulated)",
       };
     }
 
@@ -125,17 +172,29 @@ class ErrorDemoWallet implements WalletImplementation {
     }
 
     // Success path - deduct from balance
-    this.balance -= paymentAmount + fee;
+    const totalDebited = paymentAmount + calculatedFee;
+    if (totalDebited > this.balance) {
+      throw {
+        code: NIP47ErrorCode.INSUFFICIENT_BALANCE,
+        message: "Race condition: balance became insufficient",
+      };
+    }
+    this.balance -= totalDebited;
 
     return {
       preimage: randomHex(32),
       payment_hash: randomHex(32),
       amount: paymentAmount,
-      fees_paid: fee,
+      fees_paid: calculatedFee,
     };
   }
 
-  async makeInvoice(amount: number, description: string): Promise<any> {
+  async makeInvoice(
+    amount: number,
+    _description: string,
+    _description_hash?: string,
+    _expiry?: number,
+  ): Promise<MakeInvoiceResponseResult> {
     if (this.errorMode === "internal") {
       throw {
         code: NIP47ErrorCode.INTERNAL_ERROR,
@@ -162,14 +221,10 @@ class ErrorDemoWallet implements WalletImplementation {
 
     // Simulate an invoice not found error when in NOT_FOUND mode
     if (this.errorMode === "not_found" || this.errorMode === "NOT_FOUND") {
-      // For our improved NOT_FOUND error handling, we throw a structured error object
-      const error: any = new Error("Invoice not found");
-      error.code = NIP47ErrorCode.NOT_FOUND;
-      error.context = {
+      throw new NotFoundError("Invoice not found", {
         payment_hash: params.payment_hash,
         invoice: params.invoice,
-      };
-      throw error;
+      });
     }
 
     if (this.errorMode === "internal_error") {
@@ -189,22 +244,35 @@ class ErrorDemoWallet implements WalletImplementation {
     };
   }
 
-  async listTransactions(): Promise<NIP47Transaction[]> {
+  async listTransactions(
+    _from?: number,
+    _until?: number,
+    _limit?: number,
+    _offset?: number,
+    _unpaid?: boolean,
+    _type?: TransactionType,
+  ): Promise<NIP47Transaction[]> {
     // Simply return an empty array
     return [];
   }
 
-  async signMessage(
-    message: string,
-  ): Promise<{ signature: string; message: string }> {
+  async signMessage(message: string): Promise<SignMessageResponseResult> {
+    // Use proper cryptographic signing instead of random values
+    // Hash the message first to get a 32-byte value to sign
+    const messageHash = sha256Hex(message);
+
+    // Sign the hash with the wallet's private key
+    const signature = await signEvent(messageHash, this.walletPrivateKey);
+
     return {
-      signature: randomHex(64),
+      signature,
       message,
     };
   }
 }
 
 // Helper function to generate random hex strings
+// Note: Not cryptographically secure - for demo purposes only
 function randomHex(length: number): string {
   return [...Array(length)]
     .map(() => Math.floor(Math.random() * 16).toString(16))
@@ -212,7 +280,7 @@ function randomHex(length: number): string {
 }
 
 // Helper to format error details
-function formatError(error: any): string {
+function formatError(error: unknown): string {
   if (error instanceof NIP47ClientError) {
     return `
     Error code: ${error.code}
@@ -222,8 +290,16 @@ function formatError(error: any): string {
     User-friendly message: ${error.getUserMessage()}
     Is retriable: ${error.isRetriable() ? "Yes" : "No"}
     `;
+  } else if (error instanceof Error) {
+    return `Unexpected error type: ${error.message}`;
+  } else if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    return `Unexpected error type: ${(error as { message: string }).message}`;
   } else {
-    return `Unexpected error type: ${error.message || error}`;
+    return `Unexpected error type: ${String(error)}`;
   }
 }
 
@@ -273,9 +349,10 @@ async function main() {
 
   const serviceKeypair = await generateKeypair();
   const clientKeypair = await generateKeypair();
+  const walletKeypair = await generateKeypair();
 
-  // Create wallet with error simulation capabilities
-  const errorWallet = new ErrorDemoWallet();
+  // Create wallet with error simulation capabilities and generated private key
+  const errorWallet = new ErrorDemoWallet(walletKeypair.privateKey);
 
   // Set up connection options
   const connectionOptions: NIP47ConnectionOptions = {
@@ -313,7 +390,7 @@ async function main() {
     errorWallet.setErrorMode("insufficient_balance");
     try {
       await client.payInvoice("lnbc2000n1demo");
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -323,7 +400,7 @@ async function main() {
     errorWallet.setErrorMode("invalid_invoice");
     try {
       await client.payInvoice("invalid_invoice_format");
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -333,7 +410,7 @@ async function main() {
     errorWallet.setErrorMode("not_found");
     try {
       await client.lookupInvoice({ payment_hash: "nonexistent_hash" });
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -343,7 +420,7 @@ async function main() {
     errorWallet.setErrorMode("payment_rejected");
     try {
       await client.payInvoice("lnbc1000n1demo");
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -351,7 +428,7 @@ async function main() {
     errorWallet.setErrorMode("route_not_found");
     try {
       await client.payInvoice("lnbc1000n1demo");
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -361,7 +438,7 @@ async function main() {
     errorWallet.setErrorMode("network");
     try {
       await client.getBalance();
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -371,7 +448,7 @@ async function main() {
     errorWallet.setErrorMode("wallet_locked");
     try {
       await client.getBalance();
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -381,7 +458,7 @@ async function main() {
     errorWallet.setErrorMode("internal");
     try {
       await client.makeInvoice(1000, "Test invoice");
-    } catch (error) {
+    } catch (error: unknown) {
       console.log(formatError(error));
     }
 
@@ -413,7 +490,7 @@ async function main() {
       );
       console.log("Succeeded after retries!");
       console.log("Result:", result);
-    } catch (error) {
+    } catch (error: unknown) {
       console.log("Even retry mechanism failed:", formatError(error));
     }
 
@@ -441,7 +518,7 @@ async function main() {
       } else {
         console.log("Could not create valid invoice for testing");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.log("Error looking up valid invoice:", formatError(error));
     }
 
@@ -454,7 +531,7 @@ async function main() {
       await client.lookupInvoice({
         payment_hash: "non_existent_payment_hash",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.log("Received expected NOT_FOUND error:");
       console.log(formatError(error));
 
@@ -481,7 +558,7 @@ async function main() {
     await relay.close();
 
     console.log("\nError handling demo completed successfully!");
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Unexpected error during demo:", error);
     client.disconnect();
     service.disconnect();

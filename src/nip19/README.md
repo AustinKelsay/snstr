@@ -250,3 +250,88 @@ const safeEntity = safelyDecodeEntity(bech32String);
 ```
 
 For a complete example, see [security-example.ts](../../examples/nip19/security-example.ts). 
+
+## TypeScript Types
+
+The SNSTR implementation provides complete TypeScript typings with zero `any` types for all NIP-19 entities. Here's a breakdown of the typing system:
+
+### Basic Types
+
+```typescript
+// Hexadecimal string (32-byte public key, private key, or note ID)
+type HexString = string;
+
+// Bech32 encoded string (prefix1data format)
+type Bech32String = `${string}1${string}`;
+
+// Valid relay URL string (ws:// or wss://)
+type RelayUrl = string;
+```
+
+### Entity Data Types
+
+```typescript
+// Profile data structure (nprofile)
+interface ProfileData {
+  pubkey: HexString;
+  relays?: RelayUrl[];
+}
+
+// Event data structure (nevent)
+interface EventData {
+  id: HexString;
+  relays?: RelayUrl[];
+  author?: HexString;
+  kind?: number;
+}
+
+// Address data structure (naddr)
+interface AddressData {
+  identifier: string;
+  pubkey: HexString;
+  kind: number;
+  relays?: RelayUrl[];
+}
+```
+
+### Decoded Entity Types
+
+```typescript
+// Union type for all possible decoded entity types
+type DecodedEntity = 
+  | { type: "npub"; data: HexString }
+  | { type: "nsec"; data: HexString }
+  | { type: "note"; data: HexString }
+  | { type: "nprofile"; data: ProfileData }
+  | { type: "nevent"; data: EventData }
+  | { type: "naddr"; data: AddressData };
+```
+
+### TLV Types
+
+```typescript
+// Type-Length-Value entry structure
+interface TLVEntry {
+  type: TLVType | number;
+  value: Uint8Array;
+}
+
+// TLV types enum
+enum TLVType {
+  Special = 0, // Depends on prefix: pubkey for nprofile, event id for nevent, identifier (d tag) for naddr
+  Relay = 1,   // Optional relay URL where the entity might be found
+  Author = 2,  // Author pubkey (for naddr, required; for nevent, optional)
+  Kind = 3,    // Event kind (for naddr, required; for nevent, optional)
+}
+```
+
+### Safety with Type Validation
+
+The typing system ensures that:
+
+1. All entity structures are properly validated
+2. Encoding/decoding functions have precise input and output types
+3. Security functions like `filterProfile`, `filterEvent`, and `filterAddress` preserve types
+4. The universal `decode` function returns a discriminated union of all possible entity types
+
+These types make it easier to work with NIP-19 entities in TypeScript by providing autocompletion and type checking. 

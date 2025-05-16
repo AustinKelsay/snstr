@@ -9,8 +9,29 @@ import { NostrEvent } from "../../../src/types/nostr";
 // Mock WebSocket
 jest.mock("websocket-polyfill", () => {});
 
+// Define interface for private relay methods we need to access in tests
+interface RelayPrivateMethods {
+  processValidatedEvent(event: NostrEvent, subscriptionId: string): void;
+  processAddressableEvent(event: NostrEvent): void;
+  processReplaceableEvent(event: NostrEvent): void;
+  getLatestAddressableEvent(
+    kind: number,
+    pubkey: string,
+    dTagValue?: string,
+  ): NostrEvent | undefined;
+}
+
+// Type-safe TestRelay class
+class TestRelay extends Relay {
+  // Expose private methods with proper typing via type assertion
+  getPrivateMethods(): RelayPrivateMethods {
+    return this as unknown as RelayPrivateMethods;
+  }
+}
+
 describe("Addressable Events (NIP-01 §7.1)", () => {
-  let relay: Relay;
+  let relay: TestRelay;
+  let relayMethods: RelayPrivateMethods;
   let user1Keypair: { privateKey: string; publicKey: string };
   let testEvents: {
     event1: NostrEvent;
@@ -21,7 +42,8 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   beforeEach(async () => {
     // Create a relay instance
-    relay = new Relay("wss://test.relay");
+    relay = new TestRelay("wss://test.relay");
+    relayMethods = relay.getPrivateMethods();
 
     // Set up test data
     user1Keypair = await generateKeypair();
@@ -64,31 +86,21 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
       event3: await createSignedEvent(event3Template, user1Keypair.privateKey),
       event4: await createSignedEvent(event4Template, user1Keypair.privateKey),
     };
-
-    // Expose the private methods for testing
-    (relay as any).processValidatedEvent =
-      Relay.prototype["processValidatedEvent"].bind(relay);
-    (relay as any).processAddressableEvent =
-      Relay.prototype["processAddressableEvent"].bind(relay);
-    (relay as any).processReplaceableEvent =
-      Relay.prototype["processReplaceableEvent"].bind(relay);
-    (relay as any).getLatestAddressableEvent =
-      Relay.prototype["getLatestAddressableEvent"].bind(relay);
   });
 
   test("Different d-tag values create separate addressable events", async () => {
     // Process events with same pubkey and kind but different d-tag values
-    (relay as any).processValidatedEvent(testEvents.event1, "sub1");
-    (relay as any).processValidatedEvent(testEvents.event2, "sub1");
+    relayMethods.processValidatedEvent(testEvents.event1, "sub1");
+    relayMethods.processValidatedEvent(testEvents.event2, "sub1");
 
     // Get latest events for each d-tag value
-    const latest1 = (relay as any).getLatestAddressableEvent(
+    const latest1 = relayMethods.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value1",
     );
 
-    const latest2 = (relay as any).getLatestAddressableEvent(
+    const latest2 = relayMethods.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value2",
@@ -97,19 +109,19 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
     // Both events should be stored separately
     expect(latest1).toBeDefined();
     expect(latest2).toBeDefined();
-    expect(latest1.content).toBe("content-1");
-    expect(latest2.content).toBe("content-2");
+    expect(latest1?.content).toBe("content-1");
+    expect(latest2?.content).toBe("content-2");
   });
 
   test("Newer event with same d-tag replaces older one", async () => {
     // Process original event
-    (relay as any).processValidatedEvent(testEvents.event1, "sub1");
+    relayMethods.processValidatedEvent(testEvents.event1, "sub1");
 
     // Process newer event with same d-tag
-    (relay as any).processValidatedEvent(testEvents.event3, "sub1");
+    relayMethods.processValidatedEvent(testEvents.event3, "sub1");
 
     // Get latest event
-    const latest = (relay as any).getLatestAddressableEvent(
+    const latest = relayMethods.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value1",
@@ -117,22 +129,22 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
     // Should be the newer event
     expect(latest).toBeDefined();
-    expect(latest.content).toBe("content-3-newer");
+    expect(latest?.content).toBe("content-3-newer");
   });
 
   test("Different kinds with same d-tag are stored separately", async () => {
     // Process events with same pubkey and d-tag but different kinds
-    (relay as any).processValidatedEvent(testEvents.event1, "sub1");
-    (relay as any).processValidatedEvent(testEvents.event4, "sub1");
+    relayMethods.processValidatedEvent(testEvents.event1, "sub1");
+    relayMethods.processValidatedEvent(testEvents.event4, "sub1");
 
     // Get latest events for each kind
-    const latest1 = (relay as any).getLatestAddressableEvent(
+    const latest1 = relayMethods.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value1",
     );
 
-    const latest2 = (relay as any).getLatestAddressableEvent(
+    const latest2 = relayMethods.getLatestAddressableEvent(
       30001,
       user1Keypair.publicKey,
       "value1",
@@ -141,7 +153,7 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
     // Both events should be stored separately
     expect(latest1).toBeDefined();
     expect(latest2).toBeDefined();
-    expect(latest1.content).toBe("content-1");
-    expect(latest2.content).toBe("content-4-different-kind");
+    expect(latest1?.content).toBe("content-1");
+    expect(latest2?.content).toBe("content-4-different-kind");
   });
 });
