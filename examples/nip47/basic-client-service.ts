@@ -101,8 +101,8 @@ class SimpleWallet implements WalletImplementation {
     this.balance -= total;
 
     // Generate payment hash and preimage
-    const paymentHash = randomHex(32);
-    const preimage = randomHex(32);
+    const paymentHash = randomHex(64); // 32-byte hash
+    const preimage = randomHex(64); // 32-byte preimage
 
     // Create transaction record
     const txn: NIP47Transaction = {

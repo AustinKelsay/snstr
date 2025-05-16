@@ -127,27 +127,23 @@ export enum RelayEvent {
 }
 
 /**
- * Type for relay event handlers
+ * Type for relay event handler callbacks with proper typing for each event
+ */
+export type RelayEventCallbacks = {
+  [RelayEvent.Connect]: (relay: string) => void;
+  [RelayEvent.Disconnect]: (relay: string) => void;
+  [RelayEvent.Error]: (relay: string, error: unknown) => void;
+  [RelayEvent.Notice]: (relay: string, notice: string) => void;
+  [RelayEvent.OK]: (eventId: string, success: boolean, message: string) => void;
+  [RelayEvent.Closed]: (subscriptionId: string, message: string) => void;
+  [RelayEvent.Auth]: (challengeEvent: NostrEvent) => void;
+};
+
+/**
+ * Type for relay event handlers with optional callbacks
  */
 export type RelayEventHandler = {
-  /** Handler for connection events */
-  [RelayEvent.Connect]?: (relay: string) => void;
-  /** Handler for disconnection events */
-  [RelayEvent.Disconnect]?: (relay: string) => void;
-  /** Handler for error events */
-  [RelayEvent.Error]?: (relay: string, error: unknown) => void;
-  /** Handler for notice events */
-  [RelayEvent.Notice]?: (relay: string, notice: string) => void;
-  /** Handler for OK events */
-  [RelayEvent.OK]?: (
-    eventId: string,
-    success: boolean,
-    message: string,
-  ) => void;
-  /** Handler for subscription closed events */
-  [RelayEvent.Closed]?: (subscriptionId: string, message: string) => void;
-  /** Handler for authentication events (NIP-42) */
-  [RelayEvent.Auth]?: (challengeEvent: NostrEvent) => void;
+  [K in keyof RelayEventCallbacks]?: RelayEventCallbacks[K];
 };
 
 /**
@@ -433,7 +429,7 @@ export interface MetricsCollectorOptions {
   trackBandwidth: boolean;
   /** Custom metrics to collect */
   customMetrics?: {
-    [key: string]: (relay: any) => number | string | boolean | null;
+    [key: string]: (relay: RelayInterface) => number | string | boolean | null;
   };
 }
 
@@ -482,6 +478,47 @@ export interface RelayMessageStats {
 }
 
 /**
+ * Profile metadata structure for kind 0 events
+ * https://github.com/nostr-protocol/nips/blob/master/01.md
+ */
+export interface ProfileMetadata {
+  /** Display name or nickname of the user */
+  name?: string;
+  /** Short biography or about text */
+  about?: string;
+  /** URL to the user's profile picture */
+  picture?: string;
+  /** NIP-05 identifier (internet identifier for verification) */
+  nip05?: string;
+  /** URL to banner image */
+  banner?: string;
+  /** User's website URL */
+  website?: string;
+  /** Lightning payment address or LNURL */
+  lud06?: string;
+  /** Lightning Address (user@domain.com) */
+  lud16?: string;
+  /** Custom display name shown when reacting to a note */
+  display_name?: string;
+  /** User's username/handle */
+  username?: string;
+  /** User's display location */
+  location?: string;
+  /** A Bitcoin address in bech32 format */
+  bitcoin?: string;
+  /** LNURL */
+  lnurl?: string;
+  /** Price feeds for showing NIP-15 badges or service price */
+  nip15?: string;
+  /** Mastodon address for federation */
+  mastodon?: string;
+  /** Nonce used for proof of work */
+  nonce?: string;
+  /** Allow additional custom metadata fields */
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+/**
  * Debug options for relay operation
  */
 export interface RelayDebugOptions {
@@ -498,7 +535,7 @@ export interface RelayDebugOptions {
   /** Whether to log validation failures */
   logValidationFailures: boolean;
   /** Custom log handler */
-  logHandler?: (level: string, message: string, data?: any) => void;
+  logHandler?: (level: string, message: string, data?: unknown) => void;
   /** Whether to track error statistics */
   trackErrors: boolean;
   /** Whether to record message history */
@@ -512,15 +549,15 @@ export interface RelayDebugOptions {
  */
 export interface RelayTestContext {
   /** The relay instance being tested */
-  relay: any;
+  relay: RelayInterface;
   /** Original methods/properties that were mocked during testing */
   originals: {
     /** Original WebSocket instance */
     ws?: WebSocket | null;
     /** Original on method for event handlers */
-    on?: ((event: RelayEvent, callback: (...args: any[]) => void) => void);
+    on?: <E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]) => void;
     /** Original off method for event handlers */
-    off?: ((event: RelayEvent, callback: (...args: any[]) => void) => void);
+    off?: <E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]) => void;
   };
   /** Mock functions used during testing */
   mocks: {
@@ -538,9 +575,9 @@ export interface RelayTestContext {
   /** Captured callbacks from event registrations */
   capturedCallbacks: {
     /** Callbacks for ok events */
-    ok?: ((eventId: string, success: boolean, message: string) => void)[];
+    ok?: RelayEventCallbacks[RelayEvent.OK][];
     /** Callbacks for other event types */
-    [key: string]: ((...args: any[]) => void)[] | undefined;
+    [key: string]: RelayEventCallbacks[keyof RelayEventCallbacks][] | undefined;
   };
   /** Options passed to the relay */
   options?: {
@@ -616,8 +653,124 @@ export interface RelayError {
     /** Raw response from the relay if available */
     rawResponse?: string;
     /** Additional custom properties */
-    [key: string]: any;
+    [key: string]: unknown;
   };
   /** Whether this error can be retried */
   isRetryable: boolean;
 }
+
+/**
+ * Interface for relay implementations
+ */
+export interface RelayInterface {
+  readonly url: string;
+  readonly status: RelayStatus;
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  send(message: string): void;
+  on<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void;
+  off<E extends RelayEvent>(event: E, callback: RelayEventCallbacks[E]): void;
+  subscribe(filters: NostrFilter[], onEvent: (event: NostrEvent) => void, onEose?: () => void): string;
+  unsubscribe(subscriptionId: string): void;
+  publish(event: NostrEvent): Promise<PublishResponse>;
+}
+
+/**
+ * Options for Nostr event validation
+ */
+export interface ValidationOptions {
+  /** Whether to validate event signatures */
+  validateSignatures?: boolean;
+  /** Maximum allowed timestamp deviation in seconds from the current time (0 to disable) */
+  maxTimestampDrift?: number;
+  /** Whether to validate that event IDs match the computed hash */
+  validateIds?: boolean;
+  /** Whether to check for required fields based on event kind */
+  validateFields?: boolean;
+  /** Whether to validate tag structure and formats */
+  validateTags?: boolean;
+  /** Whether to validate content against expected format for the event kind */
+  validateContent?: boolean;
+  /** Custom validation function */
+  customValidator?: (event: NostrEvent) => boolean | Promise<boolean>;
+}
+
+/**
+ * Type for extracting events by specific kind
+ */
+export type EventOfKind<K extends number> = Omit<NostrEvent, 'kind'> & { kind: K };
+
+/** Metadata event (kind 0) */
+export type MetadataEvent = EventOfKind<NostrKind.Metadata>;
+
+/** Short text note event (kind 1) */
+export type TextNoteEvent = EventOfKind<NostrKind.ShortNote>;
+
+/** Recommend relay event (kind 2) */
+export type RecommendRelayEvent = EventOfKind<NostrKind.RecommendRelay>;
+
+/** Contacts/follow list event (kind 3) */
+export type ContactsEvent = EventOfKind<NostrKind.Contacts>;
+
+/** Direct message event (kind 4) */
+export type DirectMessageEvent = EventOfKind<NostrKind.DirectMessage>;
+
+/** Deletion event (kind 5) */
+export type DeletionEvent = EventOfKind<NostrKind.Deletion>;
+
+/** Repost event (kind 6) */
+export type RepostEvent = EventOfKind<NostrKind.Repost>;
+
+/** Reaction event (kind 7) */
+export type ReactionEvent = EventOfKind<NostrKind.Reaction>;
+
+/** Badge award event (kind 8) */
+export type BadgeAwardEvent = EventOfKind<NostrKind.BadgeAward>;
+
+/**
+ * Helper type for extracting tag values from an event
+ */
+export interface TaggedEvent<T extends string> extends NostrEvent {
+  tagValues: (name: T) => string[];
+  getTag: (name: T, index?: number) => string | undefined;
+}
+
+/**
+ * Typed tag values for easier type checking
+ */
+export type TagValues = {
+  /** Event reference */
+  e: string[];
+  /** Public key reference */
+  p: string[];
+  /** Address (NIP-33) */
+  a: string[];
+  /** Identifier (replaceable events) */
+  d: string[];
+  /** Topic */
+  t: string[];
+  /** Reference */
+  r: string[];
+  /** Geohash */
+  g: string[];
+  /** URL */
+  u: string[];
+  /** Content warning */
+  c: string[];
+  /** Language */
+  l: string[];
+  /** MIME type */
+  m: string[];
+  /** Subject */
+  s: string[];
+
+  // Add additional tag types as needed
+  [key: string]: string[];
+};
+
+/**
+ * Type-safe tag extraction result
+ */
+export type EventTags = {
+  [K in keyof TagValues]: TagValues[K];
+};

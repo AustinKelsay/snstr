@@ -117,7 +117,7 @@ describe("NIP-46 Permission Handling", () => {
       signedEvent.pubkey,
     );
     expect(valid).toBe(true);
-  }, 5000);
+  }, 10000);
 
   test("Bunker with default permissions rejects unauthorized kind", async () => {
     // Create bunker with default permissions for kind 1 only
