@@ -7,7 +7,6 @@
 
 import {
   encodePublicKey,
-  encodePrivateKey,
   encodeNoteId,
   encodeProfile,
   encodeEvent,
@@ -355,9 +354,10 @@ function demonstrateIncorrectPrefix() {
   console.log("Using type-specific decode with wrong type:");
 
   try {
-    encodePrivateKey(npub);
+    // decodeProfile expects an nprofile string, but we're giving it an npub string.
+    decodeProfile(npub as Bech32String);
     console.error(
-      "❌ Should have failed but passed: Trying to encode npub as private key",
+      "❌ Should have failed but passed: Trying to decode npub as nprofile",
     );
   } catch (error: unknown) {
     const errorMessage =

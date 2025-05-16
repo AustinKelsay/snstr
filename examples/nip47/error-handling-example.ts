@@ -48,6 +48,17 @@ class ErrorDemoWallet implements WalletImplementation {
   private walletPrivateKey: string;
 
   constructor(privateKey: string) {
+    // Validate the private key format
+    if (
+      !privateKey ||
+      typeof privateKey !== "string" ||
+      privateKey.length !== 64 ||
+      !/^[0-9a-fA-F]+$/.test(privateKey)
+    ) {
+      throw new Error(
+        "Invalid private key format. Must be a 64-character hex string.",
+      );
+    }
     this.walletPrivateKey = privateKey;
   }
 

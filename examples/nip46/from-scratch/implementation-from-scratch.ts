@@ -102,7 +102,7 @@ class MinimalNIP46Client {
   private socket: WebSocket;
   private clientKeys: Keypair;
   private signerPubkey: string;
-  private pendingRequests: Map<string, (result: string) => void> = new Map();
+  private pendingRequests: Map<string, { resolve: (result: string) => void, reject: (error: Error) => void }> = new Map();
 
   constructor(relayUrl: string) {
     this.socket = new WebSocket(relayUrl);
@@ -166,10 +166,16 @@ class MinimalNIP46Client {
         reject(new Error(`Request timed out: ${method}`));
       }, 10000);
 
-      // Store resolver
-      this.pendingRequests.set(id, (result) => {
-        clearTimeout(timeout);
-        resolve(result);
+      // Store resolver and rejecter
+      this.pendingRequests.set(id, {
+        resolve: (resultValue: string) => {
+          clearTimeout(timeout);
+          resolve(resultValue);
+        },
+        reject: (errorValue: Error) => {
+          clearTimeout(timeout);
+          reject(errorValue);
+        }
       });
 
       // Encrypt and send request
@@ -251,10 +257,17 @@ class MinimalNIP46Client {
         const response = JSON.parse(decrypted) as NIP46Response;
 
         // Find and call handler
-        const handler = this.pendingRequests.get(response.id);
-        if (handler && response.result !== undefined) {
-          this.pendingRequests.delete(response.id);
-          handler(response.result);
+        const promiseControls = this.pendingRequests.get(response.id);
+        if (promiseControls) {
+          this.pendingRequests.delete(response.id); // Remove before calling resolve/reject
+          if (response.error) {
+            promiseControls.reject(new Error(response.error));
+          } else if (response.result !== undefined) {
+            promiseControls.resolve(response.result);
+          } else {
+            // If response has neither result nor error, but has an ID we know, reject.
+            promiseControls.reject(new Error("Invalid response: missing result and error."));
+          }
         }
       } catch (error) {
         console.error("Failed to decrypt or parse message:", error);

@@ -97,6 +97,11 @@ export class SimpleNIP46Bunker {
       throw new NIP46ConnectionError("Signer public key not set");
     }
 
+    // Also require the signer's _private_ key to be available up-front
+    if (!this.signerKeys.privateKey) {
+      throw new NIP46ConnectionError("Signer private key not set");
+    }
+
     try {
       // Connect to relays
       await this.nostr.connectToRelays();
