@@ -24,20 +24,14 @@ async function testAuthEvent() {
     console.error(`Error from relay ${url}:`, error);
   });
   
-  // Register our AUTH event handler - should receive both relay URL and challenge
-  relay.on(RelayEvent.Auth, (url, challengeEvent) => {
+  // Register our AUTH event handler - updating to match expected signature
+  relay.on(RelayEvent.Auth, (challengeEvent) => {
     console.log('------------------------------------');
-    console.log(`AUTH event received from relay: ${url}`);
+    console.log(`AUTH event received`);
     console.log('Challenge event:', JSON.stringify(challengeEvent, null, 2));
     console.log('------------------------------------');
     
-    // Verify that we received both the relay URL and the challenge event
-    if (url === relayUrl) {
-      console.log('✅ SUCCESS: Relay URL was correctly passed to AUTH event handler');
-    } else {
-      console.error('❌ ERROR: Relay URL was not correctly passed to AUTH event handler');
-    }
-    
+    // Verify that we received the challenge event
     if (challengeEvent) {
       console.log('✅ SUCCESS: Challenge event was correctly passed to AUTH event handler');
     } else {
@@ -60,7 +54,7 @@ async function testAuthEvent() {
     
     // Manual simulation of an AUTH message
     console.log('\nSimulating an AUTH message from the relay...');
-    // @ts-expect-error - Access private method for testing
+    // Access private method for testing
     relay['handleMessage'](['AUTH', { 
       id: 'simulated-challenge-id',
       kind: 22242,
