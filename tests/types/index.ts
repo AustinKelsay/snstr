@@ -7,14 +7,21 @@ export interface MockRelay {
   url: string;
   connected: boolean;
   publishResults: { success: boolean; reason?: string }[];
-  publish(event: NostrEvent, options?: { timeout?: number }): Promise<{ success: boolean; reason?: string }>;
+  publish(
+    event: NostrEvent,
+    options?: { timeout?: number },
+  ): Promise<{ success: boolean; reason?: string }>;
   connect(): Promise<boolean>;
   disconnect(): void;
   on(): void;
   off(): void;
   setConnectionTimeout(timeout: number): void;
   getConnectionTimeout(): number;
-  getLatestAddressableEvent?(kind: number, pubkey: string, dTagValue: string): NostrEvent | undefined;
+  getLatestAddressableEvent?(
+    kind: number,
+    pubkey: string,
+    dTagValue: string,
+  ): NostrEvent | undefined;
   getAddressableEventsByPubkey?(pubkey: string): NostrEvent[];
   getAddressableEventsByKind?(kind: number): NostrEvent[];
 }
@@ -37,7 +44,7 @@ export interface NostrInternals {
  * Type guard to check if a relay is a MockRelay
  */
 export function isMockRelay(relay: Relay | MockRelay): relay is MockRelay {
-  return 'publishResults' in relay;
+  return "publishResults" in relay;
 }
 
 /**
@@ -45,4 +52,4 @@ export function isMockRelay(relay: Relay | MockRelay): relay is MockRelay {
  */
 export function getNostrInternals(client: Nostr): NostrInternals {
   return client as unknown as NostrInternals;
-} 
+}

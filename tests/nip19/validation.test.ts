@@ -12,7 +12,7 @@ import {
   encodeAddress,
   decodeAddress,
   Bech32String,
-  AddressData
+  AddressData,
 } from "../../src/nip19";
 
 describe("NIP-19: Validation and Edge Cases", () => {
@@ -330,7 +330,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
       expect(eventDecoded.kind).toBe(validKind);
 
       // Invalid kind should throw an error
-      const invalidAddr = {...validAddr, kind: invalidKind};
+      const invalidAddr = { ...validAddr, kind: invalidKind };
       expect(() => encodeAddress(invalidAddr)).toThrow(/Invalid kind/);
     });
   });
@@ -343,7 +343,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
         // Type assertion to bypass the type checking for testing
         decodePublicKey("not-a-bech32-string" as Bech32String);
       }).toThrow();
-      
+
       expect(() => {
         // Type assertion to bypass the type checking for testing
         decodeProfile("not-a-bech32-string" as Bech32String);

@@ -53,10 +53,13 @@ describe("NIP-46 Auth Challenges", () => {
     // Access private fields for testing purposes
     const testBunker = bunker as unknown as {
       pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
-      connectedClients: Map<string, { 
-        permissions: Set<string>;
-        lastSeen: number; 
-      }>;
+      connectedClients: Map<
+        string,
+        {
+          permissions: Set<string>;
+          lastSeen: number;
+        }
+      >;
     };
     testBunker.pendingAuthChallenges.set("test-id", challenge);
 

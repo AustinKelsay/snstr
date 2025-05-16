@@ -188,7 +188,7 @@ export interface NIP47Request {
 }
 
 // Union type for request params
-export type NIP47RequestParams = 
+export type NIP47RequestParams =
   | GetInfoParams
   | GetBalanceParams
   | PayInvoiceParams
@@ -301,7 +301,7 @@ export interface NIP47Transaction {
 }
 
 // Union type for response results
-export type NIP47ResponseResult = 
+export type NIP47ResponseResult =
   | GetInfoResponseResult
   | number // for GetBalanceResponse
   | PaymentResponseResult
@@ -310,7 +310,7 @@ export type NIP47ResponseResult =
   | ListTransactionsResponseResult
   | SignMessageResponseResult
   | PaymentResponseResult // for PayKeysendResponse
-  | MultiPaymentResponseResult // for MultiPayInvoice and MultiPayKeysend
+  | MultiPaymentResponseResult; // for MultiPayInvoice and MultiPayKeysend
 
 export interface GetInfoResponseResult {
   alias?: string;
@@ -419,11 +419,13 @@ export interface MultiPayKeysendRequest extends NIP47Request {
 }
 
 // Notification interfaces
-export interface PaymentReceivedNotification extends NIP47Notification<NIP47Transaction> {
+export interface PaymentReceivedNotification
+  extends NIP47Notification<NIP47Transaction> {
   notification_type: NIP47NotificationType.PAYMENT_RECEIVED;
 }
 
-export interface PaymentSentNotification extends NIP47Notification<NIP47Transaction> {
+export interface PaymentSentNotification
+  extends NIP47Notification<NIP47Transaction> {
   notification_type: NIP47NotificationType.PAYMENT_SENT;
 }
 
@@ -431,7 +433,11 @@ export interface PaymentSentNotification extends NIP47Notification<NIP47Transact
 export interface WalletImplementation {
   getInfo(): Promise<GetInfoResponseResult>;
   getBalance(): Promise<number>;
-  payInvoice(invoice: string, amount?: number, maxfee?: number): Promise<PaymentResponseResult>;
+  payInvoice(
+    invoice: string,
+    amount?: number,
+    maxfee?: number,
+  ): Promise<PaymentResponseResult>;
   makeInvoice(
     amount: number,
     description: string,
@@ -450,9 +456,7 @@ export interface WalletImplementation {
     unpaid?: boolean,
     type?: string,
   ): Promise<NIP47Transaction[]>;
-  signMessage?(
-    message: string,
-  ): Promise<SignMessageResponseResult>;
+  signMessage?(message: string): Promise<SignMessageResponseResult>;
 }
 
 // Extended method response interfaces

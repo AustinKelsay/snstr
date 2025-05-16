@@ -559,8 +559,14 @@ describe("Addressable events functionality", () => {
     nostr = new Nostr();
 
     // Add the mocked relays to the nostr instance
-    getNostrInternals(nostr).relays.set("wss://relay1.example.com", mockRelays[0]);
-    getNostrInternals(nostr).relays.set("wss://relay2.example.com", mockRelays[1]);
+    getNostrInternals(nostr).relays.set(
+      "wss://relay1.example.com",
+      mockRelays[0],
+    );
+    getNostrInternals(nostr).relays.set(
+      "wss://relay2.example.com",
+      mockRelays[1],
+    );
   });
 
   test("getLatestAddressableEvent should return the latest event from all relays", () => {

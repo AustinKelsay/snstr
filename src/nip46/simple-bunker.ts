@@ -9,7 +9,7 @@ import {
   NIP46UnsignedEventData,
   NIP46Error,
   NIP46ConnectionError,
-  NIP46Method
+  NIP46Method,
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
@@ -129,10 +129,11 @@ export class SimpleNIP46Bunker {
       );
       return;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to start bunker:`, errorMessage);
-      throw error instanceof NIP46Error 
-        ? error 
+      throw error instanceof NIP46Error
+        ? error
         : new NIP46ConnectionError(`Failed to start bunker: ${errorMessage}`);
     }
   }
@@ -154,7 +155,8 @@ export class SimpleNIP46Bunker {
       await this.nostr.disconnectFromRelays();
       this.logger.info(`Bunker stopped`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.warn(`Error disconnecting from relays:`, errorMessage);
       // Continue despite errors
     }
@@ -303,11 +305,13 @@ export class SimpleNIP46Bunker {
         // Send the response
         await this.sendResponse(response, clientPubkey);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to process request:`, errorMessage);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Error handling request:`, errorMessage);
     }
   }
@@ -439,7 +443,8 @@ export class SimpleNIP46Bunker {
       // Return the signed event
       return createSuccessResponse(request.id, JSON.stringify(signedEvent));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
         `Failed to sign event: ${errorMessage}`,
@@ -488,7 +493,8 @@ export class SimpleNIP46Bunker {
 
       return createSuccessResponse(request.id, encrypted);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
         `NIP-04 encryption failed: ${errorMessage}`,
@@ -532,7 +538,8 @@ export class SimpleNIP46Bunker {
 
       return createSuccessResponse(request.id, decrypted);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
         `NIP-04 decryption failed: ${errorMessage}`,
@@ -580,7 +587,8 @@ export class SimpleNIP46Bunker {
 
       this.logger.debug(`Response sent for request: ${response.id}`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to send response: ${errorMessage}`);
     }
   }

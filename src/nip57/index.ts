@@ -421,7 +421,9 @@ interface LnurlPayResponseRaw {
  * @param data LNURL response data
  * @returns Parsed LNURL pay response or null if invalid
  */
-export function parseLnurlPayResponse(data: LnurlPayResponseRaw): LnurlPayResponse | null {
+export function parseLnurlPayResponse(
+  data: LnurlPayResponseRaw,
+): LnurlPayResponse | null {
   if (
     !data ||
     !data.callback ||

@@ -16,7 +16,7 @@ import {
   decodeEvent,
   decodeProfile,
   Bech32String,
-  AddressData
+  AddressData,
 } from "../../src/nip19";
 
 /**
@@ -54,16 +54,18 @@ function demonstrateHexValidation() {
 
   // Invalid cases
   console.log("\nInvalid hex cases:");
-  invalidHexCases.forEach(({ name, value }: { name: string; value: string | number }) => {
-    try {
-      encodePublicKey(value as string);
-      console.error(`❌ Should have failed but passed: ${name}`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.log(`✅ ${name}: ${errorMessage}`);
-    }
-  });
+  invalidHexCases.forEach(
+    ({ name, value }: { name: string; value: string | number }) => {
+      try {
+        encodePublicKey(value as string);
+        console.error(`❌ Should have failed but passed: ${name}`);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.log(`✅ ${name}: ${errorMessage}`);
+      }
+    },
+  );
 }
 
 /**
@@ -207,16 +209,18 @@ function demonstrateRequiredFields() {
 
   // Invalid cases
   console.log("\nMissing required field cases:");
-  requiredFieldCases.forEach(({ name, data }: { name: string; data: Partial<AddressData> }) => {
-    try {
-      encodeAddress(data as AddressData);
-      console.error(`❌ Should have failed but passed: ${name}`);
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.log(`✅ ${name}: ${errorMessage}`);
-    }
-  });
+  requiredFieldCases.forEach(
+    ({ name, data }: { name: string; data: Partial<AddressData> }) => {
+      try {
+        encodeAddress(data as AddressData);
+        console.error(`❌ Should have failed but passed: ${name}`);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+        console.log(`✅ ${name}: ${errorMessage}`);
+      }
+    },
+  );
 }
 
 /**
@@ -274,7 +278,7 @@ function demonstrateSizeLimits() {
   sizeLimitCases.forEach(
     ({ name, test }: { name: string; test: () => string }) => {
       try {
-        test(); 
+        test();
         console.error(`❌ Should have failed but passed: ${name}`);
       } catch (error: unknown) {
         const errorMessage =

@@ -11,7 +11,7 @@ import {
   encodeAddress,
   decode,
   ProfileData,
-  Bech32String
+  Bech32String,
 } from "../../src/nip19";
 import chalk from "chalk";
 
@@ -37,7 +37,10 @@ function _tryExample(name: string, fn: () => void) {
     fn();
     console.log(chalk.green("✓ Success:"));
   } catch (error: unknown) {
-    console.log(chalk.red("✗ Error:"), error instanceof Error ? error.message : String(error));
+    console.log(
+      chalk.red("✗ Error:"),
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }
 

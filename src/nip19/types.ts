@@ -19,9 +19,9 @@ export enum Prefix {
  */
 export enum TLVType {
   Special = 0, // Depends on prefix: pubkey for nprofile, event id for nevent, identifier (d tag) for naddr
-  Relay = 1,   // Optional relay URL where the entity might be found
-  Author = 2,  // Author pubkey (for naddr, required; for nevent, optional)
-  Kind = 3,    // Event kind (for naddr, required; for nevent, optional)
+  Relay = 1, // Optional relay URL where the entity might be found
+  Author = 2, // Author pubkey (for naddr, required; for nevent, optional)
+  Kind = 3, // Event kind (for naddr, required; for nevent, optional)
 }
 
 /**
@@ -81,7 +81,7 @@ export interface AddressData {
 /**
  * NIP-19 decoded entity types
  */
-export type DecodedEntity = 
+export type DecodedEntity =
   | { type: Prefix.PublicKey; data: HexString }
   | { type: Prefix.PrivateKey; data: HexString }
   | { type: Prefix.Note; data: HexString }
@@ -127,4 +127,4 @@ export interface SecurityOptions {
   validateUrls?: boolean;
   maxRelayLength?: number;
   maxIdentifierLength?: number;
-} 
+}

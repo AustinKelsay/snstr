@@ -802,7 +802,8 @@ export class ZapClient {
 
       // Fetch invoice from LNURL
       const invoiceResponse = await fetch(callbackUrl);
-      const invoiceData = await invoiceResponse.json() as LnurlInvoiceResponse;
+      const invoiceData =
+        (await invoiceResponse.json()) as LnurlInvoiceResponse;
 
       if (invoiceData.status === "ERROR") {
         return {

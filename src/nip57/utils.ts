@@ -184,9 +184,10 @@ export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
       result.amount = String(decoded.millisatoshis);
     } else if (decoded.satoshis) {
       // Convert sats to msats (1 sat = 1000 msats)
-      const sats = typeof decoded.satoshis === 'number' 
-        ? decoded.satoshis 
-        : parseInt(decoded.satoshis, 10);
+      const sats =
+        typeof decoded.satoshis === "number"
+          ? decoded.satoshis
+          : parseInt(decoded.satoshis, 10);
       result.amount = String(sats * 1000);
     }
 
@@ -222,7 +223,10 @@ export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
     } else {
       // Fallback to sections - use custom tag check to avoid type errors
       for (const section of decoded.sections) {
-        if (section.name === "description_hash" || section.name === "purpose_commit_hash") {
+        if (
+          section.name === "description_hash" ||
+          section.name === "purpose_commit_hash"
+        ) {
           if (section.value !== undefined) {
             result.descriptionHash = String(section.value);
             break;

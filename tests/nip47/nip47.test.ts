@@ -61,7 +61,10 @@ class MockWalletImplementation implements WalletImplementation {
     };
   }
 
-  async makeInvoice(amount: number, _description: string): Promise<MakeInvoiceResponseResult> {
+  async makeInvoice(
+    amount: number,
+    _description: string,
+  ): Promise<MakeInvoiceResponseResult> {
     return {
       invoice: "lnbc10n1ptest",
       payment_hash:
@@ -119,9 +122,7 @@ class MockWalletImplementation implements WalletImplementation {
     ];
   }
 
-  async signMessage(
-    message: string,
-  ): Promise<SignMessageResponseResult> {
+  async signMessage(message: string): Promise<SignMessageResponseResult> {
     return {
       signature:
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -133,7 +134,10 @@ class MockWalletImplementation implements WalletImplementation {
 // Type for the mock wallet access
 type ServiceWithMockAccess = {
   walletImpl: {
-    lookupInvoice: (params: { payment_hash?: string; invoice?: string }) => Promise<NIP47Transaction>;
+    lookupInvoice: (params: {
+      payment_hash?: string;
+      invoice?: string;
+    }) => Promise<NIP47Transaction>;
   };
 };
 
@@ -194,22 +198,22 @@ describe("NIP-47: Nostr Wallet Connect", () => {
     try {
       // Add timeout to ensure cleanup completes
       jest.setTimeout(5000);
-      
+
       // First disconnect the client and service, await if possible
       if (client) {
         await client.disconnect();
       }
-      
+
       if (service) {
         await service.disconnect();
       }
-      
+
       // Then close the relay with explicit wait
       if (relay) {
         await relay.close();
-        
+
         // Allow a small delay for final socket cleanup
-        await new Promise(resolve => setTimeout(resolve, 100).unref());
+        await new Promise((resolve) => setTimeout(resolve, 100).unref());
       }
     } catch (error) {
       console.error("Error during test cleanup:", error);
@@ -333,7 +337,9 @@ describe("NIP-47: Nostr Wallet Connect", () => {
     it("should receive notifications from service", async () => {
       jest.setTimeout(10000);
       // Set up notification handler
-      const notificationPromise = new Promise<NIP47Notification<NIP47Transaction>>((resolve) => {
+      const notificationPromise = new Promise<
+        NIP47Notification<NIP47Transaction>
+      >((resolve) => {
         client.onNotification(
           NIP47NotificationType.PAYMENT_RECEIVED,
           (notification: NIP47Notification<unknown>) => {

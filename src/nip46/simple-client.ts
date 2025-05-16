@@ -17,7 +17,7 @@ import {
   NIP46SigningError,
   NIP46Request,
   NIP46Response,
-  NIP46Method
+  NIP46Method,
 } from "./types";
 
 /**
@@ -81,7 +81,9 @@ export class SimpleNIP46Client {
         this.signerPubkey.length !== 64 ||
         !/^[0-9a-fA-F]{64}$/.test(this.signerPubkey)
       ) {
-        throw new NIP46ConnectionError(`Invalid signer pubkey: ${this.signerPubkey}`);
+        throw new NIP46ConnectionError(
+          `Invalid signer pubkey: ${this.signerPubkey}`,
+        );
       }
 
       // Generate client keypair
@@ -121,9 +123,12 @@ export class SimpleNIP46Client {
         this.logger.debug(`Got user pubkey: ${this.userPubkey}`);
         return this.userPubkey;
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to get user public key:`, errorMessage);
-        throw new NIP46ConnectionError("Failed to get user public key after connect");
+        throw new NIP46ConnectionError(
+          "Failed to get user public key after connect",
+        );
       }
     } catch (error) {
       // Clean up on error
@@ -131,7 +136,8 @@ export class SimpleNIP46Client {
       if (error instanceof NIP46Error) {
         throw error;
       } else {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         throw new NIP46ConnectionError(`Connection failed: ${errorMessage}`);
       }
     }
@@ -152,7 +158,10 @@ export class SimpleNIP46Client {
     try {
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<boolean>((_, reject) => {
-        setTimeout(() => reject(new NIP46TimeoutError("Ping timed out")), this.timeout);
+        setTimeout(
+          () => reject(new NIP46TimeoutError("Ping timed out")),
+          this.timeout,
+        );
       });
 
       const pingPromise = this.sendRequest(NIP46Method.PING, []).then(
@@ -332,16 +341,24 @@ export class SimpleNIP46Client {
           .catch((err) => {
             clearTimeout(timeoutId);
             this.pendingRequests.delete(request.id);
-            const errorMessage = err instanceof Error ? err.message : String(err);
+            const errorMessage =
+              err instanceof Error ? err.message : String(err);
             reject(
-              new NIP46ConnectionError(`Failed to sign or publish event: ${errorMessage}`),
+              new NIP46ConnectionError(
+                `Failed to sign or publish event: ${errorMessage}`,
+              ),
             );
           });
       } catch (error) {
         clearTimeout(timeoutId);
         this.pendingRequests.delete(request.id);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        reject(new NIP46EncryptionError(`Failed to encrypt request: ${errorMessage}`));
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        reject(
+          new NIP46EncryptionError(
+            `Failed to encrypt request: ${errorMessage}`,
+          ),
+        );
       }
     });
   }
@@ -396,7 +413,8 @@ export class SimpleNIP46Client {
         );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       this.logger.error(`Failed to process response:`, errorMessage);
     }
   }

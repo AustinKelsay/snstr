@@ -10,7 +10,7 @@ import {
   encodeNoteId,
   decodeNoteId,
   decode,
-  Bech32String
+  Bech32String,
 } from "../../src/nip19";
 
 // Test data fixtures

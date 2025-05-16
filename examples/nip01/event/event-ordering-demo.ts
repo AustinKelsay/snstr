@@ -1,8 +1,6 @@
 import { Nostr, NostrEvent, RelayEvent } from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
-import {
-  createSignedEvent,
-} from "../../../src/nip01/event";
+import { createSignedEvent } from "../../../src/nip01/event";
 
 /**
  * Event Ordering Demo

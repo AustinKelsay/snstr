@@ -18,7 +18,7 @@ import {
   NIP46DecryptionError,
   NIP46SigningError,
   NIP46KeyPair,
-  NIP46UnsignedEventData
+  NIP46UnsignedEventData,
 } from "./types";
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
@@ -250,7 +250,9 @@ export class NostrRemoteSignerClient {
         // Validate response
         if (response.error) {
           console.error("[NIP46 CLIENT] Connection failed:", response.error);
-          throw new NIP46ConnectionError(`Connection failed: ${response.error}`);
+          throw new NIP46ConnectionError(
+            `Connection failed: ${response.error}`,
+          );
         }
 
         if (
@@ -274,9 +276,15 @@ export class NostrRemoteSignerClient {
         if (this.debug)
           console.log("[NIP46 CLIENT] User pubkey:", this.userPubkey);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error("[NIP46 CLIENT] Failed to get user public key:", errorMessage);
-        throw new NIP46ConnectionError("Failed to get user public key after connect");
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.error(
+          "[NIP46 CLIENT] Failed to get user public key:",
+          errorMessage,
+        );
+        throw new NIP46ConnectionError(
+          "Failed to get user public key after connect",
+        );
       }
 
       return this.userPubkey as string;
@@ -287,7 +295,8 @@ export class NostrRemoteSignerClient {
       if (error instanceof NIP46Error) {
         throw error;
       } else {
-        const errorMessage = error instanceof Error ? error.message : String(error);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
         throw new NIP46ConnectionError(`Connection failed: ${errorMessage}`);
       }
     }
@@ -299,7 +308,7 @@ export class NostrRemoteSignerClient {
   private parseConnectionString(str: string): NIP46ConnectionInfo {
     if (!str.startsWith("bunker://") && !str.startsWith("nostrconnect://")) {
       throw new NIP46ConnectionError(
-        "Invalid connection string format. Must start with bunker:// or nostrconnect://"
+        "Invalid connection string format. Must start with bunker:// or nostrconnect://",
       );
     }
 
@@ -311,7 +320,9 @@ export class NostrRemoteSignerClient {
       const pubkey = url.hostname;
 
       if (!pubkey || pubkey.length !== 64) {
-        throw new NIP46ConnectionError("Invalid signer public key in connection string");
+        throw new NIP46ConnectionError(
+          "Invalid signer public key in connection string",
+        );
       }
 
       const relays = url.searchParams.getAll("relay");
@@ -328,8 +339,11 @@ export class NostrRemoteSignerClient {
 
       return { type, pubkey, relays, secret, permissions, metadata };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new NIP46ConnectionError(`Failed to parse connection string: ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new NIP46ConnectionError(
+        `Failed to parse connection string: ${errorMessage}`,
+      );
     }
   }
 
@@ -357,7 +371,9 @@ export class NostrRemoteSignerClient {
     }
 
     if (response.auth_url) {
-      throw new NIP46SigningError("Auth challenge not supported in this implementation");
+      throw new NIP46SigningError(
+        "Auth challenge not supported in this implementation",
+      );
     }
 
     return JSON.parse(response.result!);
@@ -373,7 +389,9 @@ export class NostrRemoteSignerClient {
 
     const response = await this.sendRequest(NIP46Method.GET_PUBLIC_KEY, []);
     if (response.error) {
-      throw new NIP46ConnectionError(`Failed to get public key: ${response.error}`);
+      throw new NIP46ConnectionError(
+        `Failed to get public key: ${response.error}`,
+      );
     }
     return response.result!;
   }
@@ -410,7 +428,9 @@ export class NostrRemoteSignerClient {
     ]);
 
     if (response.error) {
-      throw new NIP46EncryptionError(`NIP-04 encryption failed: ${response.error}`);
+      throw new NIP46EncryptionError(
+        `NIP-04 encryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -433,7 +453,9 @@ export class NostrRemoteSignerClient {
     ]);
 
     if (response.error) {
-      throw new NIP46DecryptionError(`NIP-04 decryption failed: ${response.error}`);
+      throw new NIP46DecryptionError(
+        `NIP-04 decryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -456,7 +478,9 @@ export class NostrRemoteSignerClient {
     ]);
 
     if (response.error) {
-      throw new NIP46EncryptionError(`NIP-44 encryption failed: ${response.error}`);
+      throw new NIP46EncryptionError(
+        `NIP-44 encryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -479,7 +503,9 @@ export class NostrRemoteSignerClient {
     ]);
 
     if (response.error) {
-      throw new NIP46DecryptionError(`NIP-44 decryption failed: ${response.error}`);
+      throw new NIP46DecryptionError(
+        `NIP-44 decryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -560,7 +586,11 @@ export class NostrRemoteSignerClient {
           console.error("[NIP46 CLIENT] Error sending request:", id, error);
           clearTimeout(timeout);
           this.pendingRequests.delete(id);
-          reject(error instanceof Error ? error : new NIP46ConnectionError(String(error)));
+          reject(
+            error instanceof Error
+              ? error
+              : new NIP46ConnectionError(String(error)),
+          );
         }
       });
     });
@@ -643,9 +673,12 @@ export class NostrRemoteSignerClient {
         }
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error("[NIP46 CLIENT] Encryption failed:", errorMessage);
-      throw new NIP46EncryptionError(`Failed to encrypt request: ${errorMessage}`);
+      throw new NIP46EncryptionError(
+        `Failed to encrypt request: ${errorMessage}`,
+      );
     }
 
     // Create and publish the event
@@ -674,9 +707,12 @@ export class NostrRemoteSignerClient {
       if (this.debug)
         console.log("[NIP46 CLIENT] Event published successfully");
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error("[NIP46 CLIENT] Failed to publish event:", errorMessage);
-      throw new NIP46ConnectionError(`Failed to publish request: ${errorMessage}`);
+      throw new NIP46ConnectionError(
+        `Failed to publish request: ${errorMessage}`,
+      );
     }
   }
 
@@ -781,7 +817,8 @@ export class NostrRemoteSignerClient {
       // Handle the response
       pendingRequest.resolve(response);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error("[NIP46 CLIENT] Error handling response:", errorMessage);
     }
   }
@@ -857,8 +894,10 @@ export class NostrRemoteSignerClient {
         }
       } catch (error2) {
         // Both methods failed
-        const error1Message = error1 instanceof Error ? error1.message : String(error1);
-        const error2Message = error2 instanceof Error ? error2.message : String(error2);
+        const error1Message =
+          error1 instanceof Error ? error1.message : String(error1);
+        const error2Message =
+          error2 instanceof Error ? error2.message : String(error2);
         return {
           success: false,
           error: `Decryption failed: ${error1Message}. Fallback also failed: ${error2Message}`,

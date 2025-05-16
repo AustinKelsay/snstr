@@ -10,7 +10,12 @@ import {
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
-import { GetInfoResponseResult, PaymentResponseResult, MakeInvoiceResponseResult, SignMessageResponseResult } from "../../src/nip47/types";
+import {
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
+  SignMessageResponseResult,
+} from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { signEvent, sha256Hex } from "../../src/utils/crypto";
 
@@ -40,7 +45,8 @@ class ErrorDemoWallet implements WalletImplementation {
   private balance: number = 1000; // Only 1000 msats to trigger insufficient balance errors
   private errorMode: string = "none"; // Current error mode to simulate
   // Add a wallet private key for proper signatures
-  private walletPrivateKey: string = "0000000000000000000000000000000000000000000000000000000000000001";
+  private walletPrivateKey: string =
+    "0000000000000000000000000000000000000000000000000000000000000001";
 
   setErrorMode(mode: string) {
     this.errorMode = mode;
@@ -89,12 +95,12 @@ class ErrorDemoWallet implements WalletImplementation {
     maxfee?: number,
   ): Promise<PaymentResponseResult> {
     const paymentAmount = amount || 2000; // Default 2000 msats
-    
+
     // Fee calculation logic (can be more sophisticated)
     // For this example, let's assume a base fee or a simple calculation.
     // We'll keep it at 100 for now for consistency with the previous version,
     // but in a real scenario, this would be dynamic.
-    const calculatedFee = 100; 
+    const calculatedFee = 100;
 
     // Check if maxfee is provided and if calculatedFee exceeds it
     if (maxfee !== undefined && calculatedFee > maxfee) {
@@ -230,22 +236,20 @@ class ErrorDemoWallet implements WalletImplementation {
     _limit?: number,
     _offset?: number,
     _unpaid?: boolean,
-    _type?: TransactionType
+    _type?: TransactionType,
   ): Promise<NIP47Transaction[]> {
     // Simply return an empty array
     return [];
   }
 
-  async signMessage(
-    message: string,
-  ): Promise<SignMessageResponseResult> {
+  async signMessage(message: string): Promise<SignMessageResponseResult> {
     // Use proper cryptographic signing instead of random values
     // Hash the message first to get a 32-byte value to sign
     const messageHash = sha256Hex(message);
-    
+
     // Sign the hash with the wallet's private key
     const signature = await signEvent(messageHash, this.walletPrivateKey);
-    
+
     return {
       signature,
       message,
@@ -274,8 +278,12 @@ function formatError(error: unknown): string {
     `;
   } else if (error instanceof Error) {
     return `Unexpected error type: ${error.message}`;
-  } else if (typeof error === "object" && error !== null && "message" in error) {
-    return `Unexpected error type: ${(error as {message: string}).message}`;
+  } else if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error
+  ) {
+    return `Unexpected error type: ${(error as { message: string }).message}`;
   } else {
     return `Unexpected error type: ${String(error)}`;
   }

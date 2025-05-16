@@ -26,9 +26,9 @@ import {
 
   // Generic decoder
   decode,
-  
+
   // Types
-  Bech32String
+  Bech32String,
 } from "../../src/nip19";
 
 /**

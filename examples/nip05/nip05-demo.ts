@@ -7,11 +7,7 @@
  * 3. Get recommended relays for a user
  */
 
-import {
-  verifyNIP05,
-  lookupNIP05,
-  getNIP05Relays,
-} from "../../src/nip05";
+import { verifyNIP05, lookupNIP05, getNIP05Relays } from "../../src/nip05";
 
 async function main() {
   // Example NIP-05 identifiers to test with

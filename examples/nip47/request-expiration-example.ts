@@ -10,7 +10,11 @@ import {
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
-import { GetInfoResponseResult, PaymentResponseResult, MakeInvoiceResponseResult } from "../../src/nip47/types";
+import {
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
+} from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { signEvent, sha256Hex } from "../../src/utils/crypto";
 
@@ -39,7 +43,8 @@ class NotFoundError extends Error {
 class ExpirationDemoWallet implements WalletImplementation {
   private balance: number = 10000000; // 10,000,000 msats
   // Add a wallet private key for proper signatures
-  private walletPrivateKey: string = "0000000000000000000000000000000000000000000000000000000000000001";
+  private walletPrivateKey: string =
+    "0000000000000000000000000000000000000000000000000000000000000001";
 
   async getInfo(): Promise<GetInfoResponseResult> {
     return {
@@ -82,10 +87,10 @@ class ExpirationDemoWallet implements WalletImplementation {
   }
 
   async makeInvoice(
-    amount: number, 
+    amount: number,
     _description: string, // unused in demo
     description_hash?: string,
-    expiry?: number
+    expiry?: number,
   ): Promise<MakeInvoiceResponseResult> {
     const now = Math.floor(Date.now() / 1000);
     const result: MakeInvoiceResponseResult = {
@@ -136,7 +141,7 @@ class ExpirationDemoWallet implements WalletImplementation {
     _limit?: number,
     _offset?: number,
     _unpaid?: boolean,
-    _type?: string
+    _type?: string,
   ): Promise<NIP47Transaction[]> {
     return [];
   }
@@ -147,10 +152,10 @@ class ExpirationDemoWallet implements WalletImplementation {
     // Use proper cryptographic signing instead of random values
     // Hash the message first to get a 32-byte value to sign
     const messageHash = sha256Hex(message);
-    
+
     // Sign the hash with the wallet's private key
     const signature = await signEvent(messageHash, this.walletPrivateKey);
-    
+
     return {
       signature,
       message,

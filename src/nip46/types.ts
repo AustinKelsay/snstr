@@ -218,6 +218,6 @@ export interface SimpleNIP46BunkerOptions {
  */
 export interface SimpleNIP46ClientOptions {
   timeout?: number;
-  logLevel?: number; // Using LogLevel enum 
+  logLevel?: number; // Using LogLevel enum
   debug?: boolean;
 }

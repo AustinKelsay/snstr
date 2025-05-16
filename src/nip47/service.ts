@@ -145,14 +145,14 @@ export class NostrWalletService {
           this.client.unsubscribe(this.subIds);
           this.subIds = [];
         }
-        
+
         // Make sure we aren't leaving any pending operations
         try {
           this.client.disconnectFromRelays();
         } catch (error) {
           console.error("Error disconnecting service from relays:", error);
         }
-        
+
         // Short delay to allow disconnection to complete
         setTimeout(() => {
           resolve();
@@ -359,7 +359,10 @@ export class NostrWalletService {
   /**
    * Create a properly formatted successful response according to NIP-47 spec
    */
-  private createSuccessResponse(method: NIP47Method, result: NIP47ResponseResult): NIP47Response {
+  private createSuccessResponse(
+    method: NIP47Method,
+    result: NIP47ResponseResult,
+  ): NIP47Response {
     return {
       result_type: method,
       result,
@@ -396,35 +399,50 @@ export class NostrWalletService {
   /**
    * Type guard for PayInvoiceParams
    */
-  private isPayInvoiceParams(method: NIP47Method, params: NIP47RequestParams): params is PayInvoiceParams {
+  private isPayInvoiceParams(
+    method: NIP47Method,
+    params: NIP47RequestParams,
+  ): params is PayInvoiceParams {
     return method === NIP47Method.PAY_INVOICE;
   }
 
   /**
    * Type guard for MakeInvoiceParams
    */
-  private isMakeInvoiceParams(method: NIP47Method, params: NIP47RequestParams): params is MakeInvoiceParams {
+  private isMakeInvoiceParams(
+    method: NIP47Method,
+    params: NIP47RequestParams,
+  ): params is MakeInvoiceParams {
     return method === NIP47Method.MAKE_INVOICE;
   }
 
   /**
    * Type guard for LookupInvoiceParams
    */
-  private isLookupInvoiceParams(method: NIP47Method, params: NIP47RequestParams): params is LookupInvoiceParams {
+  private isLookupInvoiceParams(
+    method: NIP47Method,
+    params: NIP47RequestParams,
+  ): params is LookupInvoiceParams {
     return method === NIP47Method.LOOKUP_INVOICE;
   }
 
   /**
    * Type guard for ListTransactionsParams
    */
-  private isListTransactionsParams(method: NIP47Method, params: NIP47RequestParams): params is ListTransactionsParams {
+  private isListTransactionsParams(
+    method: NIP47Method,
+    params: NIP47RequestParams,
+  ): params is ListTransactionsParams {
     return method === NIP47Method.LIST_TRANSACTIONS;
   }
 
   /**
    * Type guard for SignMessageParams
    */
-  private isSignMessageParams(method: NIP47Method, params: NIP47RequestParams): params is SignMessageParams {
+  private isSignMessageParams(
+    method: NIP47Method,
+    params: NIP47RequestParams,
+  ): params is SignMessageParams {
     return method === NIP47Method.SIGN_MESSAGE;
   }
 
@@ -495,7 +513,11 @@ export class NostrWalletService {
                 invoice: request.params.invoice,
               });
             } catch (error: unknown) {
-              const err = error as { code?: NIP47ErrorCode; message?: string; data?: Record<string, unknown> };
+              const err = error as {
+                code?: NIP47ErrorCode;
+                message?: string;
+                data?: Record<string, unknown>;
+              };
               // Enhance NOT_FOUND errors with more context for lookupInvoice
               if (err.code === NIP47ErrorCode.NOT_FOUND) {
                 const lookupType = request.params.payment_hash
@@ -571,7 +593,11 @@ export class NostrWalletService {
 
       return this.createSuccessResponse(request.method, result);
     } catch (error: unknown) {
-      const err = error as { code?: NIP47ErrorCode; message?: string; data?: Record<string, unknown> };
+      const err = error as {
+        code?: NIP47ErrorCode;
+        message?: string;
+        data?: Record<string, unknown>;
+      };
       return this.createErrorResponse(
         request.method,
         err.code || NIP47ErrorCode.INTERNAL_ERROR,

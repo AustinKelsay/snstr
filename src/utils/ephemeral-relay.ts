@@ -4,10 +4,10 @@ import { bytesToHex } from "@noble/hashes/utils";
 import EventEmitter from "events";
 import { WebSocket, WebSocketServer } from "ws";
 import { NostrEvent, NostrFilter } from "../types/nostr";
-import { 
-  NostrMessage, 
-  NostrOkMessage, 
-  NostrEoseMessage 
+import {
+  NostrMessage,
+  NostrOkMessage,
+  NostrEoseMessage,
 } from "../types/protocol";
 
 /* ================ [ Configuration ] ================ */
@@ -127,7 +127,7 @@ export class NostrRelay {
       }
 
       this._isClosing = true;
-      
+
       // Clear any listeners on the emitter
       this._emitter.removeAllListeners();
 
@@ -137,15 +137,18 @@ export class NostrRelay {
           // Keep track of clients to make sure they all close
           const clientsToClose = this._wss.clients.size;
           let closedClients = 0;
-          
+
           this._wss.clients.forEach((client) => {
             try {
               // Add close handler to track when clients are closed
-              client.once('close', () => {
+              client.once("close", () => {
                 closedClients++;
-                DEBUG && console.log(`[ relay ] client closed (${closedClients}/${clientsToClose})`);
+                DEBUG &&
+                  console.log(
+                    `[ relay ] client closed (${closedClients}/${clientsToClose})`,
+                  );
               });
-              
+
               client.close(1000, "Server shutting down");
             } catch (e) {
               // Count error closures as closed
@@ -173,7 +176,7 @@ export class NostrRelay {
         try {
           wss.close(() => {
             clearTimeout(timeout);
-            
+
             // Final cleanup
             process.nextTick(() => {
               // Ensure everything is fully cleaned up before resolving
@@ -286,7 +289,10 @@ class ClientSession {
                     "EVENT message missing params:",
                     parsed,
                   );
-                return this.send(["NOTICE", "invalid: EVENT message missing params"]);
+                return this.send([
+                  "NOTICE",
+                  "invalid: EVENT message missing params",
+                ]);
               }
               return this._onevent(parsed[1] as SignedEvent);
 
@@ -298,7 +304,10 @@ class ClientSession {
                     "REQ message missing params:",
                     parsed,
                   );
-                return this.send(["NOTICE", "invalid: REQ message missing params"]);
+                return this.send([
+                  "NOTICE",
+                  "invalid: REQ message missing params",
+                ]);
               }
               {
                 const sub_id = parsed[1] as string;
@@ -314,7 +323,10 @@ class ClientSession {
                     "CLOSE message missing params:",
                     parsed,
                   );
-                return this.send(["NOTICE", "invalid: CLOSE message missing params"]);
+                return this.send([
+                  "NOTICE",
+                  "invalid: CLOSE message missing params",
+                ]);
               }
               return this._onclose(parsed[1] as string);
           }
@@ -361,7 +373,12 @@ class ClientSession {
         // Validate basic structure but with NIP-46 specific validation
         if (!this.validateNIP46Event(event)) {
           this.log.debug("NIP-46 event failed validation:", event);
-          this.send(["OK", event.id, false, "NIP-46 event failed validation"] as NostrOkMessage);
+          this.send([
+            "OK",
+            event.id,
+            false,
+            "NIP-46 event failed validation",
+          ] as NostrOkMessage);
           return;
         }
 
@@ -387,7 +404,11 @@ class ClientSession {
 
               // Send to matching subscription
               const [_clientId, subId] = uid.split("/");
-              sub.instance.send(["EVENT", subId, event] as NostrRelayEventMessage);
+              sub.instance.send([
+                "EVENT",
+                subId,
+                event,
+              ] as NostrRelayEventMessage);
               break;
             }
           }
@@ -404,7 +425,12 @@ class ClientSession {
 
       if (!verify_event(event)) {
         this.log.debug("event failed validation:", event);
-        this.send(["OK", event.id, false, "event failed validation"] as NostrOkMessage);
+        this.send([
+          "OK",
+          event.id,
+          false,
+          "event failed validation",
+        ] as NostrOkMessage);
         return;
       }
 

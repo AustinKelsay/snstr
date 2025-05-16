@@ -100,8 +100,7 @@ describe("NIP-44 HMAC Implementation", () => {
 
       try {
         // Get the public key from private key
-        const pub1 = secp256k1.getPublicKey(sec1, false)
-          .slice(1, 33);
+        const pub1 = secp256k1.getPublicKey(sec1, false).slice(1, 33);
         const pub1Hex = Buffer.from(pub1).toString("hex");
 
         // Get the conversation key
@@ -141,8 +140,7 @@ describe("NIP-44 Comprehensive Test Vector Compatibility", () => {
 
       try {
         // Get the public key from private key
-        const pub1 = secp256k1.getPublicKey(sec1, false)
-          .slice(1, 33);
+        const pub1 = secp256k1.getPublicKey(sec1, false).slice(1, 33);
         const pub1Hex = Buffer.from(pub1).toString("hex");
 
         // Decrypt the test vector payload

@@ -16,7 +16,7 @@ import {
   createZapRequest,
   createZapReceipt,
   validateZapReceipt,
-  ZapRequestOptions
+  ZapRequestOptions,
 } from "../../src";
 
 // Import the function directly from the nip57 module

@@ -5,12 +5,7 @@
  * to prevent attacks like XSS through invalid relay URLs.
  */
 
-import {
-  ProfileData,
-  EventData,
-  AddressData,
-  RelayUrl
-} from "./types";
+import { ProfileData, EventData, AddressData, RelayUrl } from "./types";
 
 /**
  * Validates if a relay URL is safe to use
@@ -31,10 +26,12 @@ export function isValidRelayUrl(url: RelayUrl): boolean {
 
     // Check for null bytes and other control characters in the entire URL
     // Use a function to check each character code instead of regex with control chars
-    if ([...url].some(char => {
-      const code = char.charCodeAt(0);
-      return (code <= 0x1F) || (code >= 0x7F && code <= 0x9F);
-    })) {
+    if (
+      [...url].some((char) => {
+        const code = char.charCodeAt(0);
+        return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+      })
+    ) {
       return false;
     }
 

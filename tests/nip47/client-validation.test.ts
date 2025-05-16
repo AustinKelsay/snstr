@@ -3,7 +3,7 @@ import {
   NostrWalletConnectClient,
   NIP47ClientError,
   NIP47ErrorCode,
-  ERROR_RECOVERY_HINTS
+  ERROR_RECOVERY_HINTS,
 } from "../../src/nip47";
 
 describe("NIP-47 Client Parameter Validation", () => {
@@ -92,7 +92,9 @@ describe("NIP-47 Client Parameter Validation", () => {
       expect(ERROR_RECOVERY_HINTS[NIP47ErrorCode.NOT_FOUND]).toBeDefined();
 
       // Verify the hint mentions lookupInvoice specifically
-      expect(ERROR_RECOVERY_HINTS[NIP47ErrorCode.NOT_FOUND]).toContain("lookupInvoice");
+      expect(ERROR_RECOVERY_HINTS[NIP47ErrorCode.NOT_FOUND]).toContain(
+        "lookupInvoice",
+      );
       expect(ERROR_RECOVERY_HINTS[NIP47ErrorCode.NOT_FOUND]).toContain(
         "check that the payment_hash or invoice exists",
       );

@@ -17,7 +17,10 @@ export function generateRequestId(): string {
 /**
  * Create a NIP-46 request object
  */
-export function createRequest(method: NIP46Method, params: string[]): NIP46Request {
+export function createRequest(
+  method: NIP46Method,
+  params: string[],
+): NIP46Request {
   return {
     id: generateRequestId(),
     method,

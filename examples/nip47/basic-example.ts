@@ -12,12 +12,12 @@ import {
   NIP47ErrorCode,
 } from "../../src";
 import { NIP47ClientError } from "../../src/nip47/client";
-import { 
-  GetInfoResponseResult, 
-  PaymentResponseResult, 
-  MakeInvoiceResponseResult, 
+import {
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
   SignMessageResponseResult,
-  NIP47Error
+  NIP47Error,
 } from "../../src/nip47/types";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { signEvent, sha256Hex } from "../../src/utils/crypto";
@@ -43,7 +43,10 @@ class NotFoundError extends Error {
   code = NIP47ErrorCode.NOT_FOUND as const;
   context?: Record<string, unknown>;
 
-  constructor(message = "Resource not found", context?: Record<string, unknown>) {
+  constructor(
+    message = "Resource not found",
+    context?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = "NotFoundError";
     this.context = context;
@@ -62,7 +65,8 @@ class InternalError extends Error {
 class DemoWallet implements WalletImplementation {
   private balance: number = 10000000; // 10,000,000 msats (10,000 sats)
   private invoices: Map<string, NIP47Transaction> = new Map();
-  private walletPrivateKey: string = "0000000000000000000000000000000000000000000000000000000000000001";
+  private walletPrivateKey: string =
+    "0000000000000000000000000000000000000000000000000000000000000001";
 
   constructor() {
     // Add some sample invoices
@@ -110,7 +114,7 @@ class DemoWallet implements WalletImplementation {
 
   async payInvoice(
     invoice: string,
-    amount?: number
+    amount?: number,
   ): Promise<PaymentResponseResult> {
     // Simulate payment
     const paymentAmount = amount || 1000; // Default 1000 msats
@@ -161,7 +165,7 @@ class DemoWallet implements WalletImplementation {
     amount: number,
     description: string,
     description_hash?: string,
-    expiry?: number
+    expiry?: number,
   ): Promise<MakeInvoiceResponseResult> {
     // Generate fake invoice
     const paymentHash = randomHex(32);
@@ -185,7 +189,7 @@ class DemoWallet implements WalletImplementation {
     }
 
     this.invoices.set(paymentHash, txn);
-    
+
     const result: MakeInvoiceResponseResult = {
       invoice: txn.invoice!,
       payment_hash: paymentHash,
@@ -251,24 +255,24 @@ class DemoWallet implements WalletImplementation {
     limit?: number,
     offset?: number,
     unpaid?: boolean,
-    type?: TransactionType
+    type?: TransactionType,
   ): Promise<NIP47Transaction[]> {
     let transactions = Array.from(this.invoices.values());
 
     // Apply filters
-if (from !== undefined) {
-   transactions = transactions.filter(t => t.created_at >= from);
- }
+    if (from !== undefined) {
+      transactions = transactions.filter((t) => t.created_at >= from);
+    }
 
     if (until) {
       transactions = transactions.filter((t) => t.created_at <= until);
     }
 
-if (unpaid === false) {
-  transactions = transactions.filter((t) => t.settled_at !== undefined);
-} else if (unpaid === true) {
-  transactions = transactions.filter((t) => t.settled_at === undefined);
-}
+    if (unpaid === false) {
+      transactions = transactions.filter((t) => t.settled_at !== undefined);
+    } else if (unpaid === true) {
+      transactions = transactions.filter((t) => t.settled_at === undefined);
+    }
 
     if (type) {
       transactions = transactions.filter((t) => t.type === type);
@@ -289,16 +293,14 @@ if (unpaid === false) {
     return transactions;
   }
 
-  async signMessage(
-    message: string
-  ): Promise<SignMessageResponseResult> {
+  async signMessage(message: string): Promise<SignMessageResponseResult> {
     // Use proper cryptographic signing instead of random values
     // Hash the message first to get a 32-byte value to sign
     const messageHash = sha256Hex(message);
-    
+
     // Sign the hash with the wallet's private key
     const signature = await signEvent(messageHash, this.walletPrivateKey);
-    
+
     return {
       signature,
       message,
@@ -501,7 +503,10 @@ async function main() {
       const balanceResult = await client.getBalance({
         expiration: pastExpiration,
       });
-      console.log("This should not be reached due to expiration", balanceResult);
+      console.log(
+        "This should not be reached due to expiration",
+        balanceResult,
+      );
     } catch (error: unknown) {
       if (error instanceof NIP47ClientError) {
         console.log(
@@ -512,11 +517,16 @@ async function main() {
             console.log("Invoice not found, showing appropriate UI message");
             console.log("Error category:", error.category);
             console.log("Error context:", JSON.stringify(error.data || {}));
-            console.log("Recovery hint:", error.recoveryHint || "None provided");
+            console.log(
+              "Recovery hint:",
+              error.recoveryHint || "None provided",
+            );
             console.log("User-friendly message:", error.getUserMessage());
             console.log("Suggested actions:");
             console.log("- Create a new invoice or check payment hash");
-            console.log("- Show transaction history to verify if invoice exists");
+            console.log(
+              "- Show transaction history to verify if invoice exists",
+            );
             console.log("- Offer to rescan the lightning node");
             break;
           case NIP47ErrorCode.TIMEOUT:
@@ -525,8 +535,15 @@ async function main() {
           default:
             console.log(`Unexpected NIP47ClientError: ${error.message}`);
         }
-      } else if (typeof error === 'object' && error !== null && 'code' in error && 'message' in error && 
-                 Object.values(NIP47ErrorCode).includes((error as { code: NIP47ErrorCode | string }).code as NIP47ErrorCode)) {
+      } else if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        "message" in error &&
+        Object.values(NIP47ErrorCode).includes(
+          (error as { code: NIP47ErrorCode | string }).code as NIP47ErrorCode,
+        )
+      ) {
         const nip47Error = error as NIP47Error;
         console.log(
           `Caught error as expected: ${nip47Error.message} (Code: ${nip47Error.code})`,
@@ -535,8 +552,14 @@ async function main() {
           case NIP47ErrorCode.NOT_FOUND:
             console.log("Invoice not found, showing appropriate UI message");
             console.log("Error category:", nip47Error.category);
-            console.log("Error context:", JSON.stringify(nip47Error.data || {}));
-            console.log("Recovery hint:", nip47Error.recoveryHint || "None provided");
+            console.log(
+              "Error context:",
+              JSON.stringify(nip47Error.data || {}),
+            );
+            console.log(
+              "Recovery hint:",
+              nip47Error.recoveryHint || "None provided",
+            );
             console.log("User-friendly message:", nip47Error.message);
             break;
           default:

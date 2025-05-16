@@ -15,7 +15,7 @@ import {
   AddressData,
   Bech32String,
   DecodedEntity,
-  Prefix
+  Prefix,
 } from "../../src/nip19";
 
 // Test data fixtures for TLV entities
@@ -41,15 +41,21 @@ const TEST_FIXTURES = {
 };
 
 // Type guard functions for the DecodedEntity type
-function isProfileData(entity: DecodedEntity): entity is { type: Prefix.Profile; data: ProfileData } {
+function isProfileData(
+  entity: DecodedEntity,
+): entity is { type: Prefix.Profile; data: ProfileData } {
   return entity.type === Prefix.Profile;
 }
 
-function isEventData(entity: DecodedEntity): entity is { type: Prefix.Event; data: EventData } {
+function isEventData(
+  entity: DecodedEntity,
+): entity is { type: Prefix.Event; data: EventData } {
   return entity.type === Prefix.Event;
 }
 
-function isAddressData(entity: DecodedEntity): entity is { type: Prefix.Address; data: AddressData } {
+function isAddressData(
+  entity: DecodedEntity,
+): entity is { type: Prefix.Address; data: AddressData } {
   return entity.type === Prefix.Address;
 }
 

@@ -359,13 +359,10 @@ export class Relay {
       // Return a Promise that will resolve when we get the OK response for this event
       return new Promise<{ success: boolean; reason?: string }>((resolve) => {
         const timeout = options.timeout ?? 10000;
-        let timeoutId: NodeJS.Timeout = setTimeout(
-          () => {
-            cleanup();
-            resolve({ success: false, reason: "timeout" });
-          },
-          timeout,
-        );
+        let timeoutId: NodeJS.Timeout = setTimeout(() => {
+          cleanup();
+          resolve({ success: false, reason: "timeout" });
+        }, timeout);
 
         // Create unique handler function for this specific publish operation
         const handleOk = (

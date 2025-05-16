@@ -1,4 +1,9 @@
-import { getSharedSecret, getMessageKeys, encrypt, decrypt } from "../../src/nip44";
+import {
+  getSharedSecret,
+  getMessageKeys,
+  encrypt,
+  decrypt,
+} from "../../src/nip44";
 import { hexToBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 import * as fs from "fs";
