@@ -136,7 +136,7 @@ export type RelayEventCallbacks = {
   [RelayEvent.Disconnect]: (relay: string) => void;
   [RelayEvent.Error]: (relay: string, error: unknown) => void;
   [RelayEvent.Notice]: (relay: string, notice: string) => void;
-  [RelayEvent.OK]: (eventId: string, success: boolean, message: string) => void;
+  [RelayEvent.OK]: (eventId: string, success: boolean, message?: string) => void;
   [RelayEvent.Closed]: (subscriptionId: string, message: string) => void;
   [RelayEvent.Auth]: (challengeEvent: NostrEvent) => void;
 };
