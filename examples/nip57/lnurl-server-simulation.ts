@@ -40,6 +40,7 @@ interface Invoice {
   description: string;
   paid: boolean;
   preimage: string;
+  bolt11: string;
 }
 
 interface InvoiceResponse {
@@ -102,6 +103,7 @@ class MockLightningWallet {
       description,
       paid: false,
       preimage,
+      bolt11,
     });
 
     return { bolt11, paymentHash };

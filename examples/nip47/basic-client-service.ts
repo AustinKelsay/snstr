@@ -48,13 +48,14 @@ class SimpleWallet implements WalletImplementation {
 
   constructor() {
     // Generate a fresh keypair for this wallet instance and store the promise
-    this.keypairReady = new Promise<void>((resolve) => {
-      generateKeypair().then(keypair => {
+    this.keypairReady = generateKeypair()
+      .then(keypair => {
         this.walletPrivateKey = keypair.privateKey;
         console.log("Generated wallet signing keypair");
-        resolve();
+        // No explicit resolve() needed here.
+        // The promise returned by .then() will resolve with `undefined` (effectively `void`)
+        // if the callback doesn't return a value.
       });
-    });
   }
 
   async getInfo(): Promise<GetInfoResponseResult> {
