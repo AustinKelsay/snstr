@@ -301,7 +301,7 @@ export class Nostr {
   public on(event: RelayEvent.Connect | RelayEvent.Disconnect, callback: (relay: string) => void): void;
   public on(event: RelayEvent.Error, callback: (relay: string, error: unknown) => void): void;
   public on(event: RelayEvent.Notice, callback: (relay: string, notice: string) => void): void;
-  public on(event: RelayEvent.OK, callback: (relay: string, eventId: string, success: boolean, message: string) => void): void;
+  public on(event: RelayEvent.OK, callback: (relay: string, eventId: string, success: boolean, message?: string) => void): void;
   public on(event: RelayEvent.Closed, callback: (relay: string, subscriptionId: string, message: string) => void): void;
   public on(event: RelayEvent.Auth, callback: (relay: string, challengeEvent: NostrEvent) => void): void;
   public on(
@@ -331,8 +331,8 @@ export class Nostr {
           });
           break;
         case RelayEvent.OK:
-          relay.on(event, (eventId: string, success: boolean, message: string) => {
-            (callback as (relay: string, eventId: string, success: boolean, message: string) => void)(
+          relay.on(event, (eventId: string, success: boolean, message?: string) => {
+            (callback as (relay: string, eventId: string, success: boolean, message?: string) => void)(
               url, eventId, success, message
             );
           });

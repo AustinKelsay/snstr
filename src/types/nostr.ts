@@ -28,7 +28,7 @@ export interface EventTemplate {
   /** Arbitrary string (may be encrypted in some event kinds) */
   content: string;
   /** Array of tags. Each tag is an array of strings */
-  tags: string[][];
+  tags?: string[][];
   /** Optional UNIX timestamp in seconds (will be set automatically if not provided) */
   created_at?: number;
 }

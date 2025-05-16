@@ -582,12 +582,12 @@ describe("Relay", () => {
       let okMessageReceived = false;
       let okEventId = "";
       let okSuccess = false;
-      let okMessage = "";
+      let okMessage: string | undefined = "";
 
       // Mock the event handler to capture OK messages
       relay.on(
         RelayEvent.OK,
-        (eventId: string, success: boolean, message: string) => {
+        (eventId: string, success: boolean, message?: string) => {
           okMessageReceived = true;
           okEventId = eventId;
           okSuccess = success;

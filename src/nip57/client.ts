@@ -785,6 +785,7 @@ export class ZapClient {
       const signedZapRequest = await createSignedEvent(
         {
           ...requestTemplate,
+          tags: requestTemplate.tags || [],
           pubkey: options.anonymousZap
             ? "00000000000000000000000000000000000000000000000000000000000000"
             : senderPubkey || "",

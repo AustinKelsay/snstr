@@ -109,7 +109,7 @@ export type RelayConnectCallback = (relay: string) => void;
 export type RelayDisconnectCallback = (relay: string) => void;
 export type RelayErrorCallback = (relay: string, error: unknown) => void;
 export type RelayNoticeCallback = (relay: string, notice: string) => void;
-export type RelayOkCallback = (eventId: string, success: boolean, message: string) => void;
+export type RelayOkCallback = (eventId: string, success: boolean, message?: string) => void;
 export type RelayClosedCallback = (subscriptionId: string, message: string) => void;
 export type RelayAuthCallback = (challengeEvent: NostrEvent) => void;
 export type RelayEventCallback = (event: NostrEvent) => void;

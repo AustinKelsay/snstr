@@ -371,11 +371,11 @@ export class Relay {
         const handleOk = (
           eventId: string,
           success: boolean,
-          message: string,
+          message?: string,
         ) => {
           if (eventId === event.id) {
             cleanup();
-            resolve({ success, reason: message || undefined, relay: this.url });
+            resolve({ success, reason: message, relay: this.url });
           }
         };
 
@@ -565,16 +565,17 @@ export class Relay {
         break;
       }
       case "OK": {
-        const [eventId, success, message] = rest;
+        const [eventId, success, rawMessage] = rest;
         if (debug)
           console.log(
-            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${message}`,
+            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessage}`,
           );
         
         // Ensure all params are of the correct type
         const eventIdStr = typeof eventId === 'string' ? eventId : String(eventId || '');
         const successBool = Boolean(success);
-        const messageStr = typeof message === 'string' ? message : String(message || '');
+        // message can be undefined, or a string. If it's not a string, treat as undefined for the event.
+        const messageStr = typeof rawMessage === 'string' ? rawMessage : undefined;
         
         this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, messageStr);
         break;
@@ -835,7 +836,7 @@ export class Relay {
   private triggerEvent(event: RelayEvent.Connect | RelayEvent.Disconnect, url: string): void;
   private triggerEvent(event: RelayEvent.Error, url: string, error: unknown): void;
   private triggerEvent(event: RelayEvent.Notice, url: string, notice: string): void;
-  private triggerEvent(event: RelayEvent.OK, eventId: string, success: boolean, message: string): void;
+  private triggerEvent(event: RelayEvent.OK, eventId: string, success: boolean, message?: string): void;
   private triggerEvent(event: RelayEvent.Closed, subscriptionId: string, message: string): void;
   private triggerEvent(event: RelayEvent.Auth, challengeEvent: NostrEvent): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
@@ -856,7 +857,7 @@ export class Relay {
           (handler as RelayEventCallbacks[RelayEvent.OK])(
             args[0] as string,
             args[1] as boolean,
-            args[2] as string
+            args[2] as string | undefined
           );
           break;
         case RelayEvent.Closed:
