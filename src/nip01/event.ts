@@ -113,7 +113,12 @@ export async function createSignedEvent(
   event: UnsignedEvent,
   privateKey: string,
 ): Promise<NostrEvent> {
-  if (!privateKey || typeof privateKey !== 'string') {
+  if (
+    !privateKey ||
+    typeof privateKey !== 'string' ||
+    privateKey.length !== 64 ||
+    !/^[0-9a-fA-F]+$/.test(privateKey)
+  ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
   
@@ -156,7 +161,12 @@ export function createTextNote(
     throw new NostrValidationError("Content must be a non-empty string", "content");
   }
   
-  if (!privateKey || typeof privateKey !== 'string') {
+  if (
+    !privateKey ||
+    typeof privateKey !== 'string' ||
+    privateKey.length !== 64 ||
+    !/^[0-9a-fA-F]+$/.test(privateKey)
+  ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -196,7 +206,12 @@ export async function createDirectMessage(
     throw new NostrValidationError("Invalid recipient public key", "recipientPubkey");
   }
   
-  if (!privateKey || typeof privateKey !== 'string') {
+  if (
+    !privateKey ||
+    typeof privateKey !== 'string' ||
+    privateKey.length !== 64 ||
+    !/^[0-9a-fA-F]+$/.test(privateKey)
+  ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -240,7 +255,12 @@ export function createMetadataEvent(
     throw new NostrValidationError("Metadata must be a valid object", "metadata");
   }
   
-  if (!privateKey || typeof privateKey !== 'string') {
+  if (
+    !privateKey ||
+    typeof privateKey !== 'string' ||
+    privateKey.length !== 64 ||
+    !/^[0-9a-fA-F]+$/.test(privateKey)
+  ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -291,7 +311,12 @@ export function createAddressableEvent(
     throw new NostrValidationError("Content must be a non-empty string", "content");
   }
   
-  if (!privateKey || typeof privateKey !== 'string') {
+  if (
+    !privateKey ||
+    typeof privateKey !== 'string' ||
+    privateKey.length !== 64 ||
+    !/^[0-9a-fA-F]+$/.test(privateKey)
+  ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 

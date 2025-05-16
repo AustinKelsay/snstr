@@ -11,7 +11,6 @@ import {
   AddressData,
   DecodedEntity,
   Bech32Result,
-  Bech32BytesResult,
   SimpleBech32Result,
 } from "./types";
 
@@ -93,18 +92,32 @@ function decodeBech32WithLimit(
  */
 export function encodeBech32(prefix: string, data: HexString): Bech32String {
   const dataBytes = hexToBytes(data);
-  return bech32.encodeFromBytes(prefix as Prefix, dataBytes) as Bech32String;
+  const words = bech32.toWords(dataBytes);
+  return bech32.encode(prefix as Prefix, words) as Bech32String;
 }
 
 /**
  * Decodes a bech32 string to a hex string
  */
 export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
-  const { prefix, bytes } = bech32.decodeToBytes(
-    bech32Str,
-  ) as Bech32BytesResult;
-  const data = bytesToHex(bytes);
-  return { prefix, data };
+  // First, check if the prefix is valid without full decoding
+  // This ensures 'Invalid prefix' errors take precedence over other errors
+  const hrp = bech32Str.slice(0, bech32Str.indexOf('1'));
+  
+  try {
+    const { prefix, words } = bech32.decode(bech32Str);
+    const bytes = bech32.fromWords(words);
+    const data = bytesToHex(bytes);
+    return { prefix, data };
+  } catch (error) {
+    // If the error is about invalid length but we got a valid hrp,
+    // we want to prioritize prefix validation errors for consistency
+    if (error instanceof Error && error.message.includes('invalid string length') && 
+        !Object.values(Prefix).includes(hrp as Prefix)) {
+      throw new Error(`Invalid prefix: expected valid prefix, got '${hrp}'`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -121,6 +134,23 @@ export function encodePublicKey(publicKey: HexString): Bech32String {
 function handleDecodingError(error: unknown, entityType: string): never {
   // Only pass through specific error types we want to preserve
   if (error instanceof Error) {
+    // Special case: handle string length errors for bech32 strings with wrong prefixes
+    if (error.message.includes("invalid string length") && 
+        error.message.includes("Expected") && 
+        error.message.includes(")")) {
+      // Extract the actual string from the error message
+      const match = error.message.match(/\(([^)]+)\)/);
+      if (match && match[1]) {
+        const bech32Str = match[1];
+        const actualPrefix = bech32Str.split("1")[0];
+        const expectedPrefix = getExpectedPrefixForEntityType(entityType);
+        
+        if (actualPrefix && expectedPrefix && actualPrefix !== expectedPrefix) {
+          throw new Error(`Invalid prefix: expected '${expectedPrefix}', got '${actualPrefix}'`);
+        }
+      }
+    }
+    
     // Pass through these error types directly as they have specific context
     if (
       error.message.startsWith("Invalid prefix") ||
@@ -152,6 +182,28 @@ function handleDecodingError(error: unknown, entityType: string): never {
   const errorMessage =
     error instanceof Error ? error.message : String(error) || "unknown error";
   throw new Error(`Error decoding ${entityType}: ${errorMessage}`);
+}
+
+/**
+ * Helper function to get the expected prefix for a given entity type
+ */
+function getExpectedPrefixForEntityType(entityType: string): string | null {
+  switch (entityType) {
+    case "npub":
+      return Prefix.PublicKey;
+    case "nsec":
+      return Prefix.PrivateKey;
+    case "note":
+      return Prefix.Note;
+    case "nprofile":
+      return Prefix.Profile;
+    case "nevent":
+      return Prefix.Event;
+    case "naddr":
+      return Prefix.Address;
+    default:
+      return null;
+  }
 }
 
 /**
