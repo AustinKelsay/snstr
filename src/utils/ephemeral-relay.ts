@@ -624,7 +624,7 @@ function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
   // Extract all tag filters from rest
   const tag_filters: string[][] = Object.entries(rest)
     .filter((e) => e[0].startsWith("#"))
-    .map((e) => [e[0].slice(1, 2), ...(e[1] as string[])]);
+    .map((e) => [e[0].slice(1), ...(e[1] as string[])]);
 
   if (ids !== undefined && !ids.includes(event.id)) {
     return false;

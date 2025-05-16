@@ -135,7 +135,10 @@ export function decodeLnurl(lnurl: string): string | null {
     // Use the bech32 library to decode
     // The bech32 library expects the input in specific format (string with '1' separator)
     // Since LNURL is a bech32 string that starts with 'lnurl', we need to ensure it's valid
-    const decoded = bech32.decode(lnurl as `lnurl1${string}`, 1023);
+    const decoded = bech32.decode(
+      lnurl.toLowerCase() as `lnurl1${string}`,
+      1023,
+    );
     const words = decoded.words;
     const bytes = bech32.fromWords(words);
 

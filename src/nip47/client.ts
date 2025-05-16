@@ -106,14 +106,14 @@ const DEFAULT_RETRY_OPTIONS: RetryOptions = {
 
 // Custom error class for NIP-47 errors
 export class NIP47ClientError extends Error {
-  code: NIP47ErrorCode | string;
+  code: NIP47ErrorCode;
   category: NIP47ErrorCategory;
   recoveryHint?: string;
   data?: Record<string, unknown>;
 
   constructor(
     message: string,
-    code: NIP47ErrorCode | string,
+    code: NIP47ErrorCode,
     data?: Record<string, unknown>,
   ) {
     super(message);
@@ -124,7 +124,7 @@ export class NIP47ClientError extends Error {
     this.category = ERROR_CATEGORIES[code] || NIP47ErrorCategory.INTERNAL;
 
     // Add recovery hint if available
-    this.recoveryHint = ERROR_RECOVERY_HINTS[code as NIP47ErrorCode];
+    this.recoveryHint = ERROR_RECOVERY_HINTS[code];
 
     // Add additional error data if provided
     this.data = data;
@@ -470,6 +470,14 @@ export class NostrWalletConnectClient {
         NIP47ErrorCode.INVALID_REQUEST,
       );
     }
+    
+    // Verify result_type is a known NIP47Method
+    if (!Object.values(NIP47Method).includes(resp.result_type as NIP47Method)) {
+      throw new NIP47ClientError(
+        `Invalid response: unknown result_type '${resp.result_type}'`,
+        NIP47ErrorCode.INVALID_REQUEST,
+      );
+    }
 
     // Check that error field exists (can be null)
     if (!("error" in resp)) {
@@ -671,7 +679,7 @@ export class NostrWalletConnectClient {
     if (!this.initialized) {
       throw new NIP47ClientError(
         "Client not initialized",
-        "NOT_INITIALIZED" as NIP47ErrorCode,
+        NIP47ErrorCode.NOT_INITIALIZED,
       );
     }
 
@@ -707,7 +715,7 @@ export class NostrWalletConnectClient {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
         `Failed to encrypt request: ${err.message || "Unknown error"}`,
-        "ENCRYPTION_ERROR" as NIP47ErrorCode,
+        NIP47ErrorCode.ENCRYPTION_ERROR,
         { originalError: error },
       );
     }
@@ -722,7 +730,7 @@ export class NostrWalletConnectClient {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
         `Failed to generate event hash: ${err.message || "Unknown error"}`,
-        "INTERNAL_ERROR" as NIP47ErrorCode,
+        NIP47ErrorCode.INTERNAL_ERROR,
         { originalError: error },
       );
     }
@@ -806,7 +814,7 @@ export class NostrWalletConnectClient {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
         `Error getting wallet info: ${err.message || "Unknown error"}`,
-        "INTERNAL_ERROR" as NIP47ErrorCode,
+        NIP47ErrorCode.INTERNAL_ERROR,
         { originalError: error },
       );
     }
@@ -860,11 +868,11 @@ export class NostrWalletConnectClient {
       throw lastError;
     }
 
-    // This should never happen, but TypeScript requires it
-    throw new NIP47ClientError(
-      "Retry operation failed for an unknown reason",
-      NIP47ErrorCode.INTERNAL_ERROR,
-    );
+      // This should never happen, but TypeScript requires it
+  throw new NIP47ClientError(
+    "Retry operation failed for an unknown reason",
+    NIP47ErrorCode.INTERNAL_ERROR,
+  );
   }
 
   // Example use of retry with existing method
@@ -927,7 +935,7 @@ export class NostrWalletConnectClient {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
         `Error paying invoice: ${err.message || "Unknown error"}`,
-        "PAYMENT_FAILED" as NIP47ErrorCode,
+        NIP47ErrorCode.PAYMENT_FAILED,
         { originalError: error },
       );
     }
@@ -978,7 +986,7 @@ export class NostrWalletConnectClient {
       const err = error instanceof Error ? error : new Error(String(error));
       throw new NIP47ClientError(
         `Error creating invoice: ${err.message || "Unknown error"}`,
-        "INTERNAL_ERROR" as NIP47ErrorCode,
+        NIP47ErrorCode.INTERNAL_ERROR,
         { originalError: error },
       );
     }

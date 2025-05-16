@@ -20,6 +20,9 @@ export enum NIP47Method {
   PAY_KEYSEND = "pay_keysend",
   MULTI_PAY_INVOICE = "multi_pay_invoice",
   MULTI_PAY_KEYSEND = "multi_pay_keysend",
+  
+  // Used for early-reject errors where actual method is unknown
+  UNKNOWN = "unknown"
 }
 
 // NIP-47 notification types
@@ -77,6 +80,9 @@ export enum NIP47ErrorCode {
 
   // Method-specific error codes
   LOOKUP_INVOICE_FAILED = "LOOKUP_INVOICE_FAILED",
+  
+  // Client lifecycle error codes
+  NOT_INITIALIZED = "NOT_INITIALIZED",
 }
 
 // Error code to category mapping
@@ -110,6 +116,7 @@ export const ERROR_CATEGORIES: Record<string, NIP47ErrorCategory> = {
   [NIP47ErrorCode.DECRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
 
   [NIP47ErrorCode.INTERNAL_ERROR]: NIP47ErrorCategory.INTERNAL,
+  [NIP47ErrorCode.NOT_INITIALIZED]: NIP47ErrorCategory.INTERNAL,
 };
 
 // Recovery hints for error codes
@@ -155,6 +162,8 @@ export const ERROR_RECOVERY_HINTS: Record<string, string> = {
     "Wallet is currently unavailable. Try again later",
   [NIP47ErrorCode.LOOKUP_INVOICE_FAILED]:
     "Failed to lookup invoice. Check payment hash or invoice and try again",
+  [NIP47ErrorCode.NOT_INITIALIZED]:
+    "Client not initialized. Call init() before using this method",
 };
 
 // Transaction types

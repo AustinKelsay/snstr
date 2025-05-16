@@ -502,6 +502,7 @@ export class NostrRemoteSignerBunker {
         {
           ...eventTemplate,
           pubkey: this.userKeypair.publicKey,
+          tags: eventTemplate.tags || [],
         },
         this.userKeypair.privateKey,
       );

@@ -138,7 +138,7 @@ export interface NIP46UnsignedEventData {
   kind: number;
   content: string;
   created_at: number;
-  tags: string[][];
+  tags?: string[][];
   pubkey?: string;
 }
 

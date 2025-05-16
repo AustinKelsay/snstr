@@ -14,18 +14,6 @@ import {
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 
-// Additional constants for NIP-46
-export const NIP46_METHODS = {
-  CONNECT: "connect",
-  GET_PUBLIC_KEY: "get_public_key",
-  SIGN_EVENT: "sign_event",
-  PING: "ping",
-  NIP04_ENCRYPT: "nip04_encrypt",
-  NIP04_DECRYPT: "nip04_decrypt",
-  NIP44_ENCRYPT: "nip44_encrypt",
-  NIP44_DECRYPT: "nip44_decrypt",
-};
-
 // Helper functions for response creation
 export function createSuccessResponse(
   id: string,
@@ -308,11 +296,31 @@ export class SimpleNIP46Bunker {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to process request:`, errorMessage);
+        
+        // Send error response to client even when we couldn't parse the request
+        const response = createErrorResponse(
+          "unknown", // cannot recover id - using convention for failed parse
+          `Failed to process request: ${errorMessage}`
+        );
+        await this.sendResponse(response, event.pubkey);
       }
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       this.logger.error(`Error handling request:`, errorMessage);
+      
+      try {
+        // Attempt to send a generic error response for the outer handler as well
+        const response = createErrorResponse(
+          "unknown", // cannot recover id
+          `Failed to handle request: ${errorMessage}`
+        );
+        await this.sendResponse(response, event.pubkey);
+      } catch (err) {
+        // Just log if we can't send the response in this case
+        const errMessage = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Could not send error response: ${errMessage}`);
+      }
     }
   }
 
@@ -425,7 +433,7 @@ export class SimpleNIP46Bunker {
         kind: eventData.kind,
         content: eventData.content,
         created_at: eventData.created_at,
-        tags: eventData.tags || [],
+        tags: eventData.tags ?? [],
         pubkey: this.userKeys.publicKey,
       };
 

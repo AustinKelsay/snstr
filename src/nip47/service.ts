@@ -137,31 +137,26 @@ export class NostrWalletService {
   /**
    * Disconnect from relays
    */
-  public disconnect(): Promise<void> {
-    return new Promise<void>((resolve) => {
-      try {
-        // Clean up subscriptions
-        if (this.subIds.length > 0) {
-          this.client.unsubscribe(this.subIds);
-          this.subIds = [];
-        }
-
-        // Make sure we aren't leaving any pending operations
-        try {
-          this.client.disconnectFromRelays();
-        } catch (error) {
-          console.error("Error disconnecting service from relays:", error);
-        }
-
-        // Short delay to allow disconnection to complete
-        setTimeout(() => {
-          resolve();
-        }, 100).unref();
-      } catch (error) {
-        console.error("Error during service disconnect:", error);
-        resolve();
+  public async disconnect(): Promise<void> {
+    try {
+      // Clean up subscriptions
+      if (this.subIds.length > 0) {
+        this.client.unsubscribe(this.subIds);
+        this.subIds = [];
       }
-    });
+
+      // Make sure we aren't leaving any pending operations
+      try {
+        await this.client.disconnectFromRelays();
+      } catch (error) {
+        console.error("Error disconnecting service from relays:", error);
+      }
+
+      // Short delay to allow any other cleanup to complete
+      return new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error("Error during service disconnect:", error);
+    }
   }
 
   /**
@@ -249,7 +244,7 @@ export class NostrWalletService {
             NIP47ErrorCode.REQUEST_EXPIRED,
             "Request has expired",
             event.id,
-            NIP47Method.GET_INFO, // Use a placeholder method since we don't know the actual method yet
+            NIP47Method.UNKNOWN,
           );
           return;
         }
@@ -269,7 +264,7 @@ export class NostrWalletService {
           NIP47ErrorCode.UNAUTHORIZED_CLIENT,
           "Client not authorized to use this wallet service",
           event.id,
-          NIP47Method.GET_INFO, // Use a placeholder method since we don't know the actual method yet
+          NIP47Method.UNKNOWN,
         );
         return;
       }

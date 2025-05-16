@@ -306,14 +306,17 @@ export class SimpleNIP46Client {
       this.logger.debug(`Sending ${method} request: ${request.id}`);
       this.logger.trace(`JSON payload: ${JSON.stringify(request)}`);
 
-      // Store the promise handlers
-      this.pendingRequests.set(request.id, resolve);
-
       // Set up timeout
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(request.id);
         reject(new NIP46TimeoutError(`Request timed out: ${method}`));
       }, this.timeout);
+      
+      // Store the promise handlers with timeout cleanup
+      this.pendingRequests.set(request.id, (response: NIP46Response) => {
+        clearTimeout(timeoutId);
+        resolve(response);
+      });
 
       // Encrypt and send the request
       try {

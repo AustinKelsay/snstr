@@ -93,7 +93,10 @@ export function parseMessage(data: string): NostrMessage | null {
  * @returns A JSON string representation of the message
  */
 export function serializeMessage(message: NostrMessage): string {
-  return JSON.stringify(message);
+  // Remove undefined entries that appear in the middle/end of the tuple
+  return JSON.stringify(
+    Array.isArray(message) ? message.filter((v) => v !== undefined) : message,
+  );
 }
 
 // Export RelayEvent from nostr.ts instead of redefining it here
