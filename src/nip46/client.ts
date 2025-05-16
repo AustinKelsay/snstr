@@ -87,6 +87,11 @@ export class NostrRemoteSignerClient {
       "#p": [this.clientKeypair.publicKey],
     };
 
+    // Add authors filter if we know the signer's pubkey
+    if (this.signerPubkey) {
+      filter.authors = [this.signerPubkey];
+    }
+
     if (this.debug) {
       console.log(
         "[NIP46 CLIENT] Subscribing with filter:",
@@ -788,6 +793,15 @@ export class NostrRemoteSignerClient {
       if (response.auth_url) {
         if (this.debug)
           console.log("[NIP46 CLIENT] Auth URL detected:", response.auth_url);
+
+        // Resolve the original request so callers can react to the challenge
+        const pendingRequest = this.pendingRequests.get(response.id);
+        if (pendingRequest) {
+          pendingRequest.resolve(response);
+          clearTimeout(pendingRequest.timeout);
+          this.pendingRequests.delete(response.id);
+        }
+
         this.handleAuthChallenge(response);
         return;
       }

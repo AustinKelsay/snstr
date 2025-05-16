@@ -88,11 +88,12 @@ export type NostrFilter = {
 export type Filter = NostrFilter & {
   // Allow additional tag filters while maintaining type safety for the common ones
   /** Tag-filter keys like "#e", "#p", … */
-  [key: `#${string}`]: string[] | undefined;
-
+  [K in `#${string}`]?: string[];
+} & {
   /** Any other custom filter property */
   [key: string]: unknown;
- };
+};
+
 /**
  * Subscription object representing an active subscription to a relay
  */

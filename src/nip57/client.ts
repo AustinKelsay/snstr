@@ -246,7 +246,7 @@ export class NostrZapClient {
   ): Promise<NostrEvent[]> {
     const filter: Filter = {
       kinds: [9735],
-      "#p": [pubkey],
+      "#p": [pubkey] as string[],
       limit: options.limit || 20,
     };
 
@@ -337,7 +337,7 @@ export class NostrZapClient {
   ): Promise<NostrEvent[]> {
     const filter: Filter = {
       kinds: [9735],
-      "#e": [eventId],
+      "#e": [eventId] as string[],
       limit: options.limit || 20,
     };
 
@@ -405,7 +405,7 @@ export class NostrZapClient {
     }
 
     if (options.events && options.events.length > 0) {
-      filter["#e"] = options.events;
+      filter["#e"] = options.events as string[];
     }
 
     // Create a promise to collect events

@@ -571,7 +571,7 @@ export class Relay {
       case "AUTH": {
         const [challengeEvent] = rest;
         if (debug) console.log(`Relay(${this.url}): Auth challenge received:`, challengeEvent);
-        this.triggerEvent(RelayEvent.Auth, challengeEvent);
+        this.triggerEvent(RelayEvent.Auth, this.url, challengeEvent);
         break;
       }
       default:
@@ -844,7 +844,10 @@ export class Relay {
           );
           break;
         case RelayEvent.Auth:
-          (handler as (challengeEvent: NostrEvent) => void)(args[0]);
+          (handler as (relay: string, challengeEvent: NostrEvent) => void)(
+            args[0],
+            args[1]
+          );
           break;
       }
     }

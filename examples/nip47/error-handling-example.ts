@@ -44,9 +44,12 @@ class NotFoundError extends Error {
 class ErrorDemoWallet implements WalletImplementation {
   private balance: number = 1000; // Only 1000 msats to trigger insufficient balance errors
   private errorMode: string = "none"; // Current error mode to simulate
-  // Add a wallet private key for proper signatures
-  private walletPrivateKey: string =
-    "0000000000000000000000000000000000000000000000000000000000000001";
+  // Generate a wallet private key at runtime instead of using a hard-coded value
+  private walletPrivateKey: string;
+
+  constructor(privateKey: string) {
+    this.walletPrivateKey = privateKey;
+  }
 
   setErrorMode(mode: string) {
     this.errorMode = mode;
@@ -335,9 +338,10 @@ async function main() {
 
   const serviceKeypair = await generateKeypair();
   const clientKeypair = await generateKeypair();
+  const walletKeypair = await generateKeypair();
 
-  // Create wallet with error simulation capabilities
-  const errorWallet = new ErrorDemoWallet();
+  // Create wallet with error simulation capabilities and generated private key
+  const errorWallet = new ErrorDemoWallet(walletKeypair.privateKey);
 
   // Set up connection options
   const connectionOptions: NIP47ConnectionOptions = {

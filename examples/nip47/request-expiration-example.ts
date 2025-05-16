@@ -42,9 +42,12 @@ class NotFoundError extends Error {
 // Simple wallet implementation
 class ExpirationDemoWallet implements WalletImplementation {
   private balance: number = 10000000; // 10,000,000 msats
-  // Add a wallet private key for proper signatures
-  private walletPrivateKey: string =
-    "0000000000000000000000000000000000000000000000000000000000000001";
+  // Generate a wallet private key at runtime instead of using a hard-coded value
+  private walletPrivateKey: string;
+
+  constructor(privateKey: string) {
+    this.walletPrivateKey = privateKey;
+  }
 
   async getInfo(): Promise<GetInfoResponseResult> {
     return {
@@ -186,9 +189,10 @@ async function main() {
 
   const serviceKeypair = await generateKeypair();
   const clientKeypair = await generateKeypair();
+  const walletKeypair = await generateKeypair();
 
-  // Create wallet
-  const expirationWallet = new ExpirationDemoWallet();
+  // Create wallet with generated private key
+  const expirationWallet = new ExpirationDemoWallet(walletKeypair.privateKey);
 
   // Set up connection options
   const connectionOptions: NIP47ConnectionOptions = {
