@@ -33,8 +33,8 @@ npm run example:dm:public      # NIP-04 direct message using public relays
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
 npm run example:nip05:verbose  # NIP-05 with verbose logging
-npm run example:nip07          # NIP-07 (Browser Extension)
-npm run example:nip07:dm       # NIP-07 direct messaging
+npm run example:nip07          # NIP-07 (Browser Extension) - Starts HTTP server for examples
+npm run example:nip07:build    # Build NIP-07 browser bundles without starting server
 npm run example:nip11          # NIP-11 (Relay Information Document)
 npm run example:nip11:verbose  # NIP-11 with verbose logging
 npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20)
@@ -56,6 +56,17 @@ npm run example:nip19:validation # Validation and error handling
 npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
 npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
 ```
+
+## NIP-07 Examples
+
+For [NIP-07](https://github.com/nostr-protocol/nips/blob/master/07.md) (Browser Extension Provider), we have browser-based examples:
+
+```bash
+npm run example:nip07          # Starts a local HTTP server for NIP-07 examples
+npm run example:nip07:build    # Builds browser bundles without starting the server
+```
+
+**Important**: Browser extensions cannot access local files loaded via the `file://` protocol. The example script automatically starts an HTTP server to properly test NIP-07 functionality.
 
 ## NIP-46 Examples
 
@@ -126,8 +137,11 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `direct-message.ts` - Direct messaging example with shared secret encryption
 - `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples 
 - `/nip07` - [NIP-07](https://github.com/nostr-protocol/nips/blob/master/07.md) (Web Browser Extension) examples
-  - `browser.ts` - Browser extension example simulating Alby/Nos2x functionality
-  - `direct-message.ts` - Direct message example using extension messaging
+  - `browser.ts` - Browser extension example for text notes and subscriptions
+  - `direct-message.ts` - Direct message example using extension encryption features
+  - `index.html` - Browser interface for the basic example
+  - `direct-message.html` - Browser interface for direct messaging
+  - `README.md` - Specific documentation for NIP-07 examples
 - `/nip11` - [NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md) (Relay Information Document) examples
   - `relay-info-example.ts` - Relay information example for metadata and capabilities
 - `/nip19` - [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) (Bech32-encoded entities) examples

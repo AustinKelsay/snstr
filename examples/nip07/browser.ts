@@ -9,11 +9,24 @@ import {
  * Example showing how to use the SNSTR library with NIP-07 browser extensions
  */
 async function nip07Example() {
+  // Update status to show exactly what we're checking
+  const statusDiv = document.getElementById("status") as HTMLDivElement;
+  if (statusDiv) {
+    statusDiv.textContent = "Checking for NIP-07 extension...";
+  }
+  
+  console.log("Checking for window.nostr:", window.nostr);
+  
   // First check if there's a NIP-07 browser extension available
   if (!hasNip07Support()) {
-    console.error(
-      "No NIP-07 compatible extension detected. Please install one of:",
-    );
+    const errorMessage = "No NIP-07 compatible extension detected. Please install one of: nos2x, Alby, or noStrudel";
+    console.error(errorMessage);
+    
+    if (statusDiv) {
+      statusDiv.textContent = errorMessage;
+      statusDiv.style.backgroundColor = "#ffebee";
+    }
+    
     console.error(
       "- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp",
     );
@@ -25,9 +38,18 @@ async function nip07Example() {
   }
 
   try {
+    if (statusDiv) {
+      statusDiv.textContent = "NIP-07 extension found! Getting public key...";
+    }
+    
     // Get public key from the extension
     const pubkey = await getNip07PublicKey();
     console.log(`Connected with public key: ${pubkey}`);
+    
+    if (statusDiv) {
+      statusDiv.textContent = `Connected with public key: ${pubkey}`;
+      statusDiv.style.backgroundColor = "#e8f5e9";
+    }
 
     // Initialize client with some relays
     const client = new Nip07Nostr([
@@ -59,7 +81,6 @@ async function nip07Example() {
     const publishButton = document.getElementById(
       "publish-button",
     ) as HTMLButtonElement;
-    const statusDiv = document.getElementById("status") as HTMLDivElement;
 
     if (publishButton) {
       publishButton.addEventListener("click", async () => {
@@ -111,6 +132,10 @@ async function nip07Example() {
     // client.disconnectFromRelays();
   } catch (error) {
     console.error("Error in NIP-07 example:", error);
+    if (statusDiv) {
+      statusDiv.textContent = `Error: ${error}`;
+      statusDiv.style.backgroundColor = "#ffebee";
+    }
   }
 }
 

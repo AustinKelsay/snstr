@@ -19,6 +19,16 @@ NIP-07 allows web applications to interact with Nostr through browser extensions
 - 🔄 **Adapter Pattern**: Nostr client adapter for easy extension integration
 - 📝 **Validation**: Robust error handling for extension availability and support
 
+## Important: Browser Security Restrictions
+
+When using NIP-07 extensions, be aware of these critical security constraints:
+
+- Browser extensions **cannot access pages loaded via the `file://` protocol**
+- For testing and development, always serve your pages via HTTP using a local server
+- Different extensions have different security models and prompting behaviors
+- Some extensions may require explicit user permission for each signing operation
+- See the examples directory for proper testing setup with a local HTTP server
+
 ## Basic Usage
 
 ### Check Extension Support
@@ -183,6 +193,16 @@ const dmEvent = await nostr.publishDirectMessage(
 const decryptedContent = await nostr.decryptDirectMessageAsync(receivedEvent);
 ```
 
+## Testing NIP-07 Integration
+
+To properly test your NIP-07 integration:
+
+1. Set up a local HTTP server to serve your HTML/JavaScript files
+2. Install a compatible browser extension (nos2x, Alby, or noStrudel)
+3. Load your page via HTTP (not via file://)
+4. Check browser console for any errors
+5. See the `/examples/nip07` directory for complete setup with a working example
+
 ## Implementation Details
 
 - Provides a wrapped interface to the standard `window.nostr` object
@@ -196,6 +216,14 @@ const decryptedContent = await nostr.decryptDirectMessageAsync(receivedEvent);
 - All cryptographic operations are performed inside the extension
 - Validate that the returned public key matches expectations in multi-user environments
 - Extensions might implement different signing UIs or confirmation dialogs
+
+## Compatible Extensions
+
+The implementation works with these popular NIP-07 compatible extensions:
+
+- [nos2x](https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp) (Chrome)
+- [Alby](https://getalby.com/) (Chrome/Firefox)
+- [noStrudel](https://addons.mozilla.org/en-US/firefox/addon/nostrudel/) (Firefox)
 
 ## API Reference
 
