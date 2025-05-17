@@ -35,6 +35,11 @@ async function main() {
       [relay.url],
       userKeypair.publicKey,
       signerKeypair.publicKey,
+      {
+        // Add default permissions
+        defaultPermissions: ["sign_event:1"], // Allow signing kind 1 (text notes)
+        debug: true,
+      }
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
