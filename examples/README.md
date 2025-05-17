@@ -24,6 +24,9 @@ npm run example:nip01:relay:reconnect      # Relay reconnection with exponential
 npm run example:nip01:relay:filters        # Filter type examples
 npm run example:nip01:validation           # NIP-01 validation flow
 
+# NIP-02 Examples (Contact Lists)
+npm run example:nip02:follows            # Fetching follows and followers
+
 # Direct message examples
 npm run example:dm             # NIP-04 direct message example
 npm run example:dm:verbose     # NIP-04 direct message with verbose logging
@@ -41,7 +44,6 @@ npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20
 npm run example:nip44:js       # NIP-44 JavaScript implementation
 npm run example:nip44:version-compat # NIP-44 version compatibility
 npm run example:nip44:test-vector    # NIP-44 test vectors
-```
 
 ## NIP-19 Examples
 
@@ -133,6 +135,8 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
     - `filter-types.ts` - Filter type examples for event retrieval optimization
 - `/client` - Client-related examples
   - `validation-flow.ts` - NIP-01 validation flow for event verification
+- `/nip02` - [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) (Contact Lists) examples
+  - `nip02-follows-followers-example.ts` - Fetching a user's follows and followers list
 - `/nip04` - [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) (Encrypted Direct Messages) examples
   - `direct-message.ts` - Direct messaging example with shared secret encryption
 - `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples 
