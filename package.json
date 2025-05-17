@@ -74,7 +74,8 @@
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
     "example:nip05:verbose": "VERBOSE=true ts-node examples/nip05/nip05-demo.ts",
-    "example:nip07": "ts-node examples/nip07/browser.ts",
+    "example:nip07": "cd examples/nip07 && npm install && npm run build && npm start",
+    "example:nip07:build": "cd examples/nip07 && npm install && npm run build",
     "example:nip07:dm": "ts-node examples/nip07/direct-message.ts",
     "example:nip11": "ts-node examples/nip11/relay-info-example.ts",
     "example:nip11:verbose": "VERBOSE=true ts-node examples/nip11/relay-info-example.ts",
@@ -125,7 +126,10 @@
     "release": "npm run release:patch && npm run release:push",
     
     "// Branch Management": "-------------- Branch Management --------------",
-    "promote": "scripts/promote-to-main.sh"
+    "promote": "scripts/promote-to-main.sh",
+
+    "// App Shortcuts": "-------------- Application Shortcuts --------------",
+    "start": "npm run example:nip07"
   },
   "keywords": [
     "nostr",

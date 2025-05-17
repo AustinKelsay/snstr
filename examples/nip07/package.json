@@ -1,0 +1,15 @@
+{
+  "name": "snstr-nip07-examples",
+  "version": "1.0.0",
+  "description": "Examples of NIP-07 implementation in snstr",
+  "scripts": {
+    "start": "http-server -c-1 -o",
+    "build": "browserify browser.ts -p tsify > browser-bundle.js && browserify direct-message.ts -p tsify > direct-message-bundle.js"
+  },
+  "devDependencies": {
+    "browserify": "^17.0.0",
+    "http-server": "^14.1.1",
+    "tsify": "^5.0.4",
+    "typescript": "^5.3.3"
+  }
+} 

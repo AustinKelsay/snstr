@@ -9,11 +9,24 @@ import {
  * Example showing how to send and receive direct messages using NIP-07
  */
 async function directMessageExample() {
+  // Update status with what we're checking
+  const statusDiv = document.getElementById("status") as HTMLDivElement;
+  if (statusDiv) {
+    statusDiv.textContent = "Checking for NIP-07 extension...";
+  }
+  
+  console.log("Checking for window.nostr:", window.nostr);
+  
   // First check if there's a NIP-07 browser extension available
   if (!hasNip07Support()) {
-    console.error(
-      "No NIP-07 compatible extension detected. Please install one of:",
-    );
+    const errorMessage = "No NIP-07 compatible extension detected. Please install one of: nos2x, Alby, or noStrudel";
+    console.error(errorMessage);
+    
+    if (statusDiv) {
+      statusDiv.textContent = errorMessage;
+      statusDiv.style.backgroundColor = "#ffebee";
+    }
+    
     console.error(
       "- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp",
     );
@@ -25,9 +38,18 @@ async function directMessageExample() {
   }
 
   try {
+    if (statusDiv) {
+      statusDiv.textContent = "NIP-07 extension found! Getting public key...";
+    }
+    
     // Get public key from the extension
     const pubkey = await getNip07PublicKey();
     console.log(`Connected with public key: ${pubkey}`);
+    
+    if (statusDiv) {
+      statusDiv.textContent = `Connected with public key: ${pubkey}`;
+      statusDiv.style.backgroundColor = "#e8f5e9";
+    }
 
     // Initialize client with some relays
     const client = new Nip07Nostr([
@@ -58,7 +80,6 @@ async function directMessageExample() {
     const sendButton = document.getElementById(
       "send-button",
     ) as HTMLButtonElement;
-    const statusDiv = document.getElementById("status") as HTMLDivElement;
     const messagesContainer = document.getElementById(
       "messages",
     ) as HTMLDivElement;
@@ -84,8 +105,7 @@ async function directMessageExample() {
 
           if (dmEvent) {
             statusDiv.textContent = `Message sent! ID: ${dmEvent.id}`;
-            messageInput.value = "";
-
+            
             // Add sent message to the UI
             const messageElement = document.createElement("div");
             messageElement.className = "message sent";
@@ -95,11 +115,17 @@ async function directMessageExample() {
               <p><small>Sent at ${new Date().toLocaleTimeString()}</small></p>
             `;
             messagesContainer?.appendChild(messageElement);
+            
+            // Clear the message input but keep recipient for conversation
+            messageInput.value = "";
           } else {
             statusDiv.textContent = "Failed to send message";
+            statusDiv.style.backgroundColor = "#ffebee";
           }
         } catch (error) {
+          console.error("Error sending message:", error);
           statusDiv.textContent = `Error: ${error}`;
+          statusDiv.style.backgroundColor = "#ffebee";
         }
       });
     }
@@ -136,6 +162,10 @@ async function directMessageExample() {
     });
   } catch (error) {
     console.error("Error in Direct Message example:", error);
+    if (statusDiv) {
+      statusDiv.textContent = `Error: ${error}`;
+      statusDiv.style.backgroundColor = "#ffebee";
+    }
   }
 }
 
