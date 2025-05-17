@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Generated bundle files
+*-bundle.js
+*.bundle.js
+
+# npm
+package-lock.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo 
