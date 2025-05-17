@@ -14,19 +14,20 @@ async function directMessageExample() {
   if (statusDiv) {
     statusDiv.textContent = "Checking for NIP-07 extension...";
   }
-  
+
   console.log("Checking for window.nostr:", window.nostr);
-  
+
   // First check if there's a NIP-07 browser extension available
   if (!hasNip07Support()) {
-    const errorMessage = "No NIP-07 compatible extension detected. Please install one of: nos2x, Alby, or noStrudel";
+    const errorMessage =
+      "No NIP-07 compatible extension detected. Please install one of: nos2x, Alby, or noStrudel";
     console.error(errorMessage);
-    
+
     if (statusDiv) {
       statusDiv.textContent = errorMessage;
       statusDiv.style.backgroundColor = "#ffebee";
     }
-    
+
     console.error(
       "- nos2x (Chrome): https://chrome.google.com/webstore/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp",
     );
@@ -41,11 +42,11 @@ async function directMessageExample() {
     if (statusDiv) {
       statusDiv.textContent = "NIP-07 extension found! Getting public key...";
     }
-    
+
     // Get public key from the extension
     const pubkey = await getNip07PublicKey();
     console.log(`Connected with public key: ${pubkey}`);
-    
+
     if (statusDiv) {
       statusDiv.textContent = `Connected with public key: ${pubkey}`;
       statusDiv.style.backgroundColor = "#e8f5e9";
@@ -105,7 +106,7 @@ async function directMessageExample() {
 
           if (dmEvent) {
             statusDiv.textContent = `Message sent! ID: ${dmEvent.id}`;
-            
+
             // Add sent message to the UI
             const messageElement = document.createElement("div");
             messageElement.className = "message sent";
@@ -115,7 +116,7 @@ async function directMessageExample() {
               <p><small>Sent at ${new Date().toLocaleTimeString()}</small></p>
             `;
             messagesContainer?.appendChild(messageElement);
-            
+
             // Clear the message input but keep recipient for conversation
             messageInput.value = "";
           } else {

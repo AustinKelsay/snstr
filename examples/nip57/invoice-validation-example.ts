@@ -37,11 +37,16 @@ const originalParseBolt11Invoice =
 let currentDescriptionHashForMock: string | null | undefined = undefined;
 
 // Mock the bolt11 parser to use the dynamically set description hash
-function configuredMockParseBolt11Invoice(bolt11: string): Bolt11InvoiceData | null {
+function configuredMockParseBolt11Invoice(
+  bolt11: string,
+): Bolt11InvoiceData | null {
   console.log(`Parsing invoice: ${bolt11}`);
 
   // For the "missing_hash" case or if currentDescriptionHashForMock is explicitly null
-  if (bolt11.includes("_missing_hash_") || currentDescriptionHashForMock === null) {
+  if (
+    bolt11.includes("_missing_hash_") ||
+    currentDescriptionHashForMock === null
+  ) {
     return {
       paymentHash: "payment_hash_123",
       // No descriptionHash field
@@ -110,8 +115,12 @@ async function main() {
     // The actual hash will be calculated by the real crypto.sha256Hex inside validateZapReceipt
     // So, the mock invoice parser must return this same hash.
     // NIP-57 specifies hashing the JSON stringification of the zap request event.
-    currentDescriptionHashForMock = crypto.sha256Hex(JSON.stringify(validZapRequest));
-    console.log(`Mock invoice will use descriptionHash: ${currentDescriptionHashForMock.substring(0,15)}...`);
+    currentDescriptionHashForMock = crypto.sha256Hex(
+      JSON.stringify(validZapRequest),
+    );
+    console.log(
+      `Mock invoice will use descriptionHash: ${currentDescriptionHashForMock.substring(0, 15)}...`,
+    );
 
     // Create a valid zap receipt
     const validZapReceiptTemplate = createZapReceipt(
@@ -159,7 +168,9 @@ async function main() {
     // The real crypto.sha256Hex will calculate the actual hash of invalidZapRequest.
     // The mock invoice parser needs to return a *different* hash.
     currentDescriptionHashForMock = INVALID_HASH; // Predefined invalid hash constant
-    console.log(`Mock invoice will use descriptionHash: ${currentDescriptionHashForMock.substring(0,15)}... (deliberately wrong for this test)`);
+    console.log(
+      `Mock invoice will use descriptionHash: ${currentDescriptionHashForMock.substring(0, 15)}... (deliberately wrong for this test)`,
+    );
 
     // Create an invalid zap request
     const invalidZapRequestTemplate = createZapRequest(
