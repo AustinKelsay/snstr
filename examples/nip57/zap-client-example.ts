@@ -41,6 +41,7 @@ async function main() {
   }, TIMEOUT);
 
   let relay: NostrRelay | null = null;
+  let client: Nostr | null = null;
 
   try {
     console.log("NIP-57 ZapClient Example with Signet Lightning Address");
@@ -62,7 +63,7 @@ async function main() {
     console.log(`🔑 Charlie pubkey: ${charlie.publicKey.slice(0, 8)}...\n`);
 
     // Initialize a Nostr client for Alice
-    const client = new Nostr([relay.url]);
+    client = new Nostr([relay.url]);
     await client.setPrivateKey(alice.privateKey);
     await client.connectToRelays();
     console.log("✅ Connected to relay\n");
@@ -133,22 +134,26 @@ async function main() {
     // Create a real zap for Bob's note
     console.log("Creating a real zap request for Bob's note...");
 
-    const aliceZapRequest = await createSignedEvent(
+    const zapRequestTemplate = createZapRequest(
       {
-        ...createZapRequest(
-          {
-            recipientPubkey: bob.publicKey,
-            eventId: bobNote.id,
-            amount: 10000, // 10 sats
-            relays: [relay.url],
-            content: "Testing the NIP-57 implementation with signet!",
-          },
-          alice.publicKey,
-        ),
-        pubkey: alice.publicKey,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [],
+        recipientPubkey: bob.publicKey,
+        eventId: bobNote.id,
+        amount: 10000, // 10 sats
+        relays: [relay.url],
+        content: "Testing the NIP-57 implementation with signet!",
       },
+      alice.publicKey,
+    );
+
+    const eventToSign = {
+      ...zapRequestTemplate,
+      pubkey: alice.publicKey,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: zapRequestTemplate.tags ?? [],
+    };
+
+    const aliceZapRequest = await createSignedEvent(
+      eventToSign,
       alice.privateKey,
     );
 
@@ -174,6 +179,8 @@ async function main() {
       // Send the request to get an invoice
       const response = await fetch(zapCallbackUrl);
       const data = await response.json();
+
+      console.log("Full response from LNURL server:", data); // Added for debugging
 
       if (data.status === "ERROR") {
         throw new Error(`Error from LNURL server: ${data.reason}`);
@@ -284,6 +291,9 @@ async function main() {
   } finally {
     // Clean up
     console.log("\nCleaning up resources...");
+    if (client) {
+      await client.disconnectFromRelays();
+    }
     if (relay) {
       await relay.close();
     }
