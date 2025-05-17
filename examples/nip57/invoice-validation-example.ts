@@ -24,26 +24,24 @@ interface Bolt11InvoiceData {
   [key: string]: unknown;
 }
 
-// Create a type for the original functions to properly store and restore them
+// Type for the original invoice parsing function
 type ParseBolt11InvoiceFunction = (bolt11: string) => Bolt11InvoiceData | null;
-type Sha256HexFunction = (data: string | Uint8Array) => string;
 
-// Create mocks
-const VALID_HASH =
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-const INVALID_HASH =
-  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-
-// Store original functions to restore later
+// Store original parseBolt11Invoice function to restore later
 const originalParseBolt11Invoice =
   utils.parseBolt11Invoice as ParseBolt11InvoiceFunction;
-const originalSha256Hex = crypto.sha256Hex as Sha256HexFunction;
 
-// Mock the bolt11 parser
-function mockParseBolt11Invoice(bolt11: string): Bolt11InvoiceData | null {
+// Variable to hold the description hash for the current test case
+// null: means the invoice mock should return no description hash
+// string: means the invoice mock should return this specific description hash
+let currentDescriptionHashForMock: string | null | undefined = undefined;
+
+// Mock the bolt11 parser to use the dynamically set description hash
+function configuredMockParseBolt11Invoice(bolt11: string): Bolt11InvoiceData | null {
   console.log(`Parsing invoice: ${bolt11}`);
 
-  if (bolt11 === "lnbc1000n1_missing_hash_invoice") {
+  // For the "missing_hash" case or if currentDescriptionHashForMock is explicitly null
+  if (bolt11.includes("_missing_hash_") || currentDescriptionHashForMock === null) {
     return {
       paymentHash: "payment_hash_123",
       // No descriptionHash field
@@ -53,26 +51,14 @@ function mockParseBolt11Invoice(bolt11: string): Bolt11InvoiceData | null {
 
   return {
     paymentHash: "payment_hash_123",
-    descriptionHash: VALID_HASH,
+    descriptionHash: currentDescriptionHashForMock, // Use the configured hash
     amount: "1000000",
   };
 }
 
-// Mock the SHA-256 function for the valid case
-function mockSha256HexValid(data: string | Uint8Array): string {
-  console.log(
-    `Calculating hash for: ${typeof data === "string" ? data.substring(0, 30) : "byte array"}...`,
-  );
-  return VALID_HASH;
-}
-
-// Mock the SHA-256 function for the invalid case
-function mockSha256HexInvalid(data: string | Uint8Array): string {
-  console.log(
-    `Calculating hash for: ${typeof data === "string" ? data.substring(0, 30) : "byte array"}...`,
-  );
-  return INVALID_HASH;
-}
+// Create mocks
+const INVALID_HASH =
+  "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 async function main() {
   console.log("NIP-57 Description Hash Validation Example");
@@ -89,12 +75,11 @@ async function main() {
   console.log(`LNURL Server: ${lnurlServerKeypair.publicKey.slice(0, 8)}...\n`);
 
   try {
-    // Override the functions with our mocks using proper typings
-    // Use type assertions to match the module structure
+    // Override the parseBolt11Invoice functions with our mock
+    // We are no longer mocking crypto.sha256Hex
     (
       utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }
-    ).parseBolt11Invoice = mockParseBolt11Invoice;
-    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = mockSha256HexValid;
+    ).parseBolt11Invoice = configuredMockParseBolt11Invoice;
 
     // Example 1: Valid case - Hash matches
     console.log("EXAMPLE 1: VALID ZAP RECEIPT (hashes match)");
@@ -120,6 +105,13 @@ async function main() {
       } as UnsignedEvent,
       senderKeypair.privateKey,
     );
+
+    // Configure mockParseBolt11Invoice for the valid case
+    // The actual hash will be calculated by the real crypto.sha256Hex inside validateZapReceipt
+    // So, the mock invoice parser must return this same hash.
+    // NIP-57 specifies hashing the JSON stringification of the zap request event.
+    currentDescriptionHashForMock = crypto.sha256Hex(JSON.stringify(validZapRequest));
+    console.log(`Mock invoice will use descriptionHash: ${currentDescriptionHashForMock.substring(0,15)}...`);
 
     // Create a valid zap receipt
     const validZapReceiptTemplate = createZapReceipt(
@@ -163,9 +155,11 @@ async function main() {
     console.log("\n\nEXAMPLE 2: INVALID ZAP RECEIPT (hashes don't match)");
     console.log("--------------------------------------------------");
 
-    // Override the sha256 function with our invalid mock
-    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex =
-      mockSha256HexInvalid;
+    // Configure mockParseBolt11Invoice for the invalid (mismatched hash) case
+    // The real crypto.sha256Hex will calculate the actual hash of invalidZapRequest.
+    // The mock invoice parser needs to return a *different* hash.
+    currentDescriptionHashForMock = INVALID_HASH; // Predefined invalid hash constant
+    console.log(`Mock invoice will use descriptionHash: ${currentDescriptionHashForMock.substring(0,15)}... (deliberately wrong for this test)`);
 
     // Create an invalid zap request
     const invalidZapRequestTemplate = createZapRequest(
@@ -232,8 +226,9 @@ async function main() {
     );
     console.log("----------------------------------------------------------");
 
-    // Reset sha256 to valid function to isolate the description hash issue
-    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = mockSha256HexValid;
+    // Configure mockParseBolt11Invoice for the missing hash case
+    currentDescriptionHashForMock = null; // Signal mock to omit descriptionHash
+    console.log("Mock invoice will not include a descriptionHash.");
 
     // Create a zap receipt with a bolt11 invoice missing a description hash
     const missingHashZapReceiptTemplate = createZapReceipt(
@@ -277,7 +272,7 @@ async function main() {
     (
       utils as { parseBolt11Invoice: ParseBolt11InvoiceFunction }
     ).parseBolt11Invoice = originalParseBolt11Invoice;
-    (crypto as { sha256Hex: Sha256HexFunction }).sha256Hex = originalSha256Hex;
+    // No need to restore crypto.sha256Hex as it wasn't mocked
   }
 
   console.log("\n✅ Example completed");
