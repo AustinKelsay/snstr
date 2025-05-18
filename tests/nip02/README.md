@@ -1,4 +1,3 @@
-'''
 # NIP-02 Tests: Contact Lists
 
 This directory contains tests for the NIP-02 (Contact List) implementation in the SNSTR library.
@@ -21,5 +20,4 @@ npm run test:nip02
 
 ## Test Files
 
-- `nip02.test.ts`: Contains tests for creating, validating, and processing NIP-02 contact list events.
-''' 
+- `nip02.test.ts`: Contains tests for creating, validating, and processing NIP-02 contact list events. 

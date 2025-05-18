@@ -1,4 +1,3 @@
-'''
 # NIP-02 Examples: Contact Lists
 
 This directory contains examples demonstrating how to work with Nostr NIP-02, which defines contact lists (follow lists) using `kind: 3` events.
@@ -15,7 +14,7 @@ This directory contains examples demonstrating how to work with Nostr NIP-02, wh
 To run the follows and followers example, use the following npm script:
 
 ```bash
-npm run example:nip02:follows
+npm run example:nip02
 ```
 
 This script will:
@@ -36,5 +35,4 @@ This script will:
 
 - **Event Handling**: Setting up handlers for connection, errors, and notices from relays.
 - **Subscription Management**: Subscribing to relays and unsubscribing when data is received or on timeout.
-- **Asynchronous Operations**: Using Promises to manage fetching data from relays.
-''' 
+- **Asynchronous Operations**: Using Promises to manage fetching data from relays. 

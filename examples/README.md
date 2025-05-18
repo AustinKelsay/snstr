@@ -25,7 +25,7 @@ npm run example:nip01:relay:filters        # Filter type examples
 npm run example:nip01:validation           # NIP-01 validation flow
 
 # NIP-02 Examples (Contact Lists)
-npm run example:nip02:follows            # Fetching follows and followers
+npm run example:nip02            # Fetching follows and followers
 
 # Direct message examples
 npm run example:dm             # NIP-04 direct message example
