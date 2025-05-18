@@ -563,7 +563,7 @@ export class Nostr {
       const event = relay.getLatestReplaceableEvent(pubkey, kind);
       if (
         event &&
-        (!latestEvent || event.created_at > latestEvent.created_at)
+        (!latestEvent || event.created_at > latestEvent.created_at || (event.created_at === latestEvent.created_at && event.id < latestEvent.id))
       ) {
         latestEvent = event;
       }
@@ -592,7 +592,7 @@ export class Nostr {
       const event = relay.getLatestAddressableEvent(kind, pubkey, dTagValue);
       if (
         event &&
-        (!latestEvent || event.created_at > latestEvent.created_at)
+        (!latestEvent || event.created_at > latestEvent.created_at || (event.created_at === latestEvent.created_at && event.id < latestEvent.id))
       ) {
         latestEvent = event;
       }

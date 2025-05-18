@@ -31,11 +31,13 @@ const log = (...args: unknown[]) => VERBOSE && console.log(...args);
 const createdEvents: Map<string, NostrEvent> = new Map();
 
 async function main() {
+  let client: Nostr | undefined;
+  let ephemeralRelay: NostrRelay | null = null;
+  let subIds: string[] = [];
+
   try {
     // 1. Setup client and relay
     log("Setting up relay and client...");
-    let client: Nostr;
-    let ephemeralRelay: NostrRelay | null = null;
 
     if (USE_EPHEMERAL) {
       // Use an ephemeral relay for testing
@@ -57,6 +59,20 @@ async function main() {
     // Connect to the relay
     await client.connectToRelays();
     console.log("Connected to relays");
+
+    // Subscribe to our own replaceable events to ensure client cache is populated
+    subIds = client.subscribe(
+      [{ authors: [keys.publicKey], kinds: [0, 3, 10002] }],
+      (event, relayUrl) => {
+        log(
+          `Received event via subscription from ${relayUrl}: kind ${event.kind}, id ${event.id.substring(0, 8)}...`,
+        );
+      },
+      () => {
+        log("EOSE received for own replaceable events subscription.");
+      },
+    );
+    log("Subscribed to own replaceable events, sub IDs:", subIds);
 
     // 3. Create and publish a metadata event (kind 0)
     console.log("\n--- Creating an initial metadata event (kind 0) ---");
@@ -377,6 +393,19 @@ async function main() {
     console.log("\n🎉 Example completed successfully!");
   } catch (error) {
     console.error("Error in replaceable events example:", error);
+  } finally {
+    // Ensure cleanup, including unsubscribing
+    if (client && subIds && subIds.length > 0) {
+      client.unsubscribe(subIds);
+      log("Unsubscribed from own events.");
+    }
+    if (client) {
+      client.disconnectFromRelays();
+    }
+    if (ephemeralRelay) {
+      await ephemeralRelay.close(); // Assuming close is async
+      console.log("Closed ephemeral relay");
+    }
   }
 }
 
