@@ -90,18 +90,24 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
   }
 
   const parsedContacts: Contact[] = [];
+  const pubkeyRegex = /^[0-9a-fA-F]{64}$/; // Regex for 64 hex characters
+  const relayUrlRegex = /^(wss?:\/\/).+/; // Regex for ws:// or wss://
+
   for (const tag of event.tags) {
     if (
       tag[0] === "p" &&
       typeof tag[1] === "string" &&
-      tag[1].length === 64 // Basic validation for a hex public key
+      pubkeyRegex.test(tag[1]) // Enhanced pubkey validation
     ) {
       const contact: Contact = {
         pubkey: tag[1],
       };
       if (typeof tag[2] === "string" && tag[2].length > 0) {
-        // TODO: Add URL validation for relayUrl
-        contact.relayUrl = tag[2];
+        if (relayUrlRegex.test(tag[2])) { // Relay URL validation
+          contact.relayUrl = tag[2];
+        } else {
+          console.warn("Invalid relay URL:", tag[2]);
+        }
       }
       if (typeof tag[3] === "string" && tag[3].length > 0) {
         contact.petname = tag[3];

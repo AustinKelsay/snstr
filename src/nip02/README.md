@@ -77,7 +77,8 @@ if (receivedEvent.kind === 3) {
 - "p" tags are structured as `["p", <pubkey_hex>, <recommended_relay_url_or_empty_string>, <petname_or_empty_string>]`.
   - If `recommended_relay_url` is not provided but `petname` is, an empty string is used for the relay URL in the tag.
   - When parsing, empty strings for `relayUrl` or `petname` in tags result in these fields being `undefined` in the `Contact` object.
-- Basic validation (hex, length 64) is performed for pubkeys. Relay URL validation is noted as a TODO.
+- Pubkey validation ensures the pubkey is a 64-character hex string.
+- Relay URL validation ensures the URL starts with `ws://` or `wss://`. Invalid relay URLs are ignored (the `relayUrl` field will be `undefined`).
 
 ## Security Considerations
 
