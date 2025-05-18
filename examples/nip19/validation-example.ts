@@ -300,29 +300,58 @@ function demonstrateSizeLimits() {
 function demonstrateTLVEntryLimits() {
   console.log("\n=== TLV Entry Limits ===");
 
-  // Valid number of relays (maximum 20)
-  const exactlyMaxRelays = Array(20)
+  const eventId = "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d";
+  // MAX_TLV_ENTRIES is 20 in the library. For encodeEvent, relays are limited by MAX_TLV_ENTRIES - 3.
+  const MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC = 20 - 3; // This is 17
+
+  // Test Case 1: Event with ID and MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC (17) relays.
+  // Total TLV entries = 1 (ID) + 17 (relays) = 18. This should PASS.
+  // The check in encodeEvent is data.relays.length > (20 - 3), which is false for 17 relays.
+  const seventeenRelays = Array(MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC)
     .fill(0)
     .map((_, i) => `wss://relay${i}.example.com`);
 
   try {
-    const event = encodeEvent({
-      id: "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d",
-      relays: exactlyMaxRelays,
+    const eventWith17Relays = encodeEvent({
+      id: eventId,
+      relays: seventeenRelays,
     });
     console.log(
-      `✅ Successfully encoded with exactly 20 relays (maximum allowed)`,
+      `✅ Test Case 1 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC} relays) PASSED as expected. Total TLV entries: ${1 + MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC}.`
     );
-
-    // Now decode it
-    const decoded = decodeEvent(event);
+    const decoded17 = decodeEvent(eventWith17Relays);
     console.log(
-      `✅ Successfully decoded with ${decoded.relays?.length} relays`,
+      `✅ Successfully decoded event with ${decoded17.relays?.length} relays.`
     );
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
-    console.error(`❌ Unexpected error with maximum relays: ${errorMessage}`);
+    console.error(
+      `❌ Test Case 1 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC} relays) FAILED unexpectedly: ${errorMessage}`
+    );
+  }
+
+  // Test Case 2: Event with ID and MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1 (18) relays.
+  // Total TLV entries = 1 (ID) + 18 (relays) = 19. This should FAIL due to relay specific limit.
+  // The check in encodeEvent is data.relays.length > (20 - 3), which is true for 18 relays.
+  const eighteenRelays = Array(MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1)
+    .fill(0)
+    .map((_, i) => `wss://relay${i}.example.com`);
+  try {
+    encodeEvent({
+      id: eventId,
+      relays: eighteenRelays,
+    });
+    console.error(
+      `❌ Test Case 2 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1} relays) should have FAILED but passed.`
+    );
+  } catch (error: unknown) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    console.log(
+      `✅ Test Case 2 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1} relays) FAILED as expected: ${errorMessage}`
+    );
+    // Expected error: "Too many relay entries (max ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC})"
   }
 
   console.log(
