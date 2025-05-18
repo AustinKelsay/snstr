@@ -1088,7 +1088,11 @@ export class Relay {
     const userEvents = this.replaceableEvents.get(key)!;
     const existingEvent = userEvents.get(event.kind);
 
-    if (!existingEvent || existingEvent.created_at < event.created_at) {
+    if (
+      !existingEvent ||
+      event.created_at > existingEvent.created_at ||
+      (event.created_at === existingEvent.created_at && event.id < existingEvent.id)
+    ) {
       userEvents.set(event.kind, event);
       // In a full implementation, we might want to notify subscribers about the replacement
     }
@@ -1109,7 +1113,11 @@ export class Relay {
 
     const existingEvent = this.addressableEvents.get(key);
 
-    if (!existingEvent || existingEvent.created_at < event.created_at) {
+    if (
+      !existingEvent ||
+      event.created_at > existingEvent.created_at ||
+      (event.created_at === existingEvent.created_at && event.id < existingEvent.id)
+    ) {
       this.addressableEvents.set(key, event);
       // In a full implementation, we might want to notify subscribers about the replacement
     }
