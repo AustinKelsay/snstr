@@ -163,7 +163,10 @@ class ErrorDemoWallet implements WalletImplementation {
       paymentAmount + calculatedFee > this.balance
     ) {
       // Ensure this check doesn't override specific errors if balance is also low
-      if (this.errorMode !== "none" && this.errorMode !== "insufficient_balance") {
+      if (
+        this.errorMode !== "none" &&
+        this.errorMode !== "insufficient_balance"
+      ) {
         // If a specific error mode is set, and it's not one of the ones already handled above,
         // this implies an issue with the test setup or an unhandled error mode.
         // For now, we let the insufficient balance check proceed if the balance is indeed too low.
@@ -176,7 +179,7 @@ class ErrorDemoWallet implements WalletImplementation {
         };
       }
     }
-    
+
     // Success path - deduct from balance
     const totalDebited = paymentAmount + calculatedFee;
     if (totalDebited > this.balance) {

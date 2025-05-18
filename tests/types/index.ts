@@ -1,4 +1,11 @@
-import { Nostr, NostrEvent, Relay, RelayEvent, Subscription, ParsedOkReason } from "../../src";
+import {
+  Nostr,
+  NostrEvent,
+  Relay,
+  RelayEvent,
+  Subscription,
+  ParsedOkReason,
+} from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 /**

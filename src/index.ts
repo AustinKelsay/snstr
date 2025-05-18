@@ -1,8 +1,6 @@
 // Export client classes
 export { Nostr } from "./nip01/nostr";
-export {
-  Relay
-} from "./nip01/relay";
+export { Relay } from "./nip01/relay";
 
 // Export types from nip01/nostr.ts (Callback types)
 export type {

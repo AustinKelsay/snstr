@@ -127,14 +127,14 @@ export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
  * Encodes a public key to npub format
  */
 export function encodePublicKey(publicKey: HexString): Bech32String {
-  if (typeof publicKey !== 'string') {
-    throw new Error('Invalid public key: input must be a string.');
+  if (typeof publicKey !== "string") {
+    throw new Error("Invalid public key: input must be a string.");
   }
   // hexToBytes will validate format, non-empty, but we also need to check exact length.
   const bytes = hexToBytes(publicKey); // hexToBytes validates format, non-even length, non-hex chars
   if (bytes.length !== 32) {
     throw new Error(
-      `Invalid public key hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${publicKey.length} hex chars). Ensure it is not empty and has correct length.`
+      `Invalid public key hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${publicKey.length} hex chars). Ensure it is not empty and has correct length.`,
     );
   }
   const words = bech32.toWords(bytes);
@@ -245,13 +245,13 @@ export function decodePublicKey(npub: Bech32String): HexString {
  * Encodes a private key to nsec format
  */
 export function encodePrivateKey(privateKey: HexString): Bech32String {
-  if (typeof privateKey !== 'string') {
-    throw new Error('Invalid private key: input must be a string.');
+  if (typeof privateKey !== "string") {
+    throw new Error("Invalid private key: input must be a string.");
   }
   const bytes = hexToBytes(privateKey);
   if (bytes.length !== 32) {
     throw new Error(
-      `Invalid private key hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${privateKey.length} hex chars). Ensure it is not empty and has correct length.`
+      `Invalid private key hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${privateKey.length} hex chars). Ensure it is not empty and has correct length.`,
     );
   }
   const words = bech32.toWords(bytes);
@@ -279,13 +279,13 @@ export function decodePrivateKey(nsec: Bech32String): HexString {
  * Encodes a note ID to note format
  */
 export function encodeNoteId(noteId: HexString): Bech32String {
-  if (typeof noteId !== 'string') {
-    throw new Error('Invalid note ID: input must be a string.');
+  if (typeof noteId !== "string") {
+    throw new Error("Invalid note ID: input must be a string.");
   }
   const bytes = hexToBytes(noteId);
   if (bytes.length !== 32) {
     throw new Error(
-      `Invalid note ID hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${noteId.length} hex chars). Ensure it is not empty and has correct length.`
+      `Invalid note ID hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${noteId.length} hex chars). Ensure it is not empty and has correct length.`,
     );
   }
   const words = bech32.toWords(bytes);
@@ -820,17 +820,19 @@ export function decodeAddress(naddr: Bech32String): AddressData {
  * Converts a hex string to a byte array
  */
 function hexToBytes(hex: HexString): Uint8Array {
-  if (typeof hex !== 'string') {
-    throw new Error('Invalid hex string: input must be a string.');
+  if (typeof hex !== "string") {
+    throw new Error("Invalid hex string: input must be a string.");
   }
-  if (hex.length === 0) { // Explicitly disallow empty string for this context.
-    throw new Error('Invalid hex string: cannot be empty.');
+  if (hex.length === 0) {
+    // Explicitly disallow empty string for this context.
+    throw new Error("Invalid hex string: cannot be empty.");
   }
   if (hex.length % 2 !== 0) {
-    throw new Error('Invalid hex string: length must be even.');
+    throw new Error("Invalid hex string: length must be even.");
   }
-  if (!/^[0-9a-fA-F]*$/.test(hex)) { // Add regex check for all characters
-    throw new Error('Invalid hex string: contains non-hex characters.');
+  if (!/^[0-9a-fA-F]*$/.test(hex)) {
+    // Add regex check for all characters
+    throw new Error("Invalid hex string: contains non-hex characters.");
   }
 
   const bytes = new Uint8Array(hex.length / 2);

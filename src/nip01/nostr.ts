@@ -24,7 +24,10 @@ export type NostrClosedCallback = (
   subscriptionId: string,
   message: string,
 ) => void;
-export type NostrAuthCallback = (relay: string, challengeEvent: NostrEvent) => void;
+export type NostrAuthCallback = (
+  relay: string,
+  challengeEvent: NostrEvent,
+) => void;
 
 export type NostrEventCallback =
   | NostrConnectCallback
@@ -452,7 +455,12 @@ export class Nostr {
   ): void;
   public on(
     event: RelayEvent.OK,
-    callback: (relay: string, eventId: string, success: boolean, details: ParsedOkReason) => void,
+    callback: (
+      relay: string,
+      eventId: string,
+      success: boolean,
+      details: ParsedOkReason,
+    ) => void,
   ): void;
   public on(
     event: RelayEvent.Closed,
@@ -563,7 +571,10 @@ export class Nostr {
       const event = relay.getLatestReplaceableEvent(pubkey, kind);
       if (
         event &&
-        (!latestEvent || event.created_at > latestEvent.created_at || (event.created_at === latestEvent.created_at && event.id < latestEvent.id))
+        (!latestEvent ||
+          event.created_at > latestEvent.created_at ||
+          (event.created_at === latestEvent.created_at &&
+            event.id < latestEvent.id))
       ) {
         latestEvent = event;
       }
@@ -592,7 +603,10 @@ export class Nostr {
       const event = relay.getLatestAddressableEvent(kind, pubkey, dTagValue);
       if (
         event &&
-        (!latestEvent || event.created_at > latestEvent.created_at || (event.created_at === latestEvent.created_at && event.id < latestEvent.id))
+        (!latestEvent ||
+          event.created_at > latestEvent.created_at ||
+          (event.created_at === latestEvent.created_at &&
+            event.id < latestEvent.id))
       ) {
         latestEvent = event;
       }

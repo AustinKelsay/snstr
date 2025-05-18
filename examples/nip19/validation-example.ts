@@ -300,7 +300,8 @@ function demonstrateSizeLimits() {
 function demonstrateTLVEntryLimits() {
   console.log("\n=== TLV Entry Limits ===");
 
-  const eventId = "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d";
+  const eventId =
+    "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d";
   // MAX_TLV_ENTRIES is 20 in the library. For encodeEvent, relays are limited by MAX_TLV_ENTRIES - 3.
   const MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC = 20 - 3; // This is 17
 
@@ -317,17 +318,17 @@ function demonstrateTLVEntryLimits() {
       relays: seventeenRelays,
     });
     console.log(
-      `✅ Test Case 1 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC} relays) PASSED as expected. Total TLV entries: ${1 + MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC}.`
+      `✅ Test Case 1 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC} relays) PASSED as expected. Total TLV entries: ${1 + MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC}.`,
     );
     const decoded17 = decodeEvent(eventWith17Relays);
     console.log(
-      `✅ Successfully decoded event with ${decoded17.relays?.length} relays.`
+      `✅ Successfully decoded event with ${decoded17.relays?.length} relays.`,
     );
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     console.error(
-      `❌ Test Case 1 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC} relays) FAILED unexpectedly: ${errorMessage}`
+      `❌ Test Case 1 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC} relays) FAILED unexpectedly: ${errorMessage}`,
     );
   }
 
@@ -343,13 +344,13 @@ function demonstrateTLVEntryLimits() {
       relays: eighteenRelays,
     });
     console.error(
-      `❌ Test Case 2 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1} relays) should have FAILED but passed.`
+      `❌ Test Case 2 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1} relays) should have FAILED but passed.`,
     );
   } catch (error: unknown) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
     console.log(
-      `✅ Test Case 2 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1} relays) FAILED as expected: ${errorMessage}`
+      `✅ Test Case 2 (ID + ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC + 1} relays) FAILED as expected: ${errorMessage}`,
     );
     // Expected error: "Too many relay entries (max ${MAX_RELAYS_ALLOWED_IN_EVENT_WITH_ID_ETC})"
   }

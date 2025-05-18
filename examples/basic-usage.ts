@@ -1,4 +1,11 @@
-import { Nostr, NostrEvent, Filter, RelayEvent, ParsedOkReason, NostrOkCallback } from "../src";
+import {
+  Nostr,
+  NostrEvent,
+  Filter,
+  RelayEvent,
+  ParsedOkReason,
+  NostrOkCallback,
+} from "../src";
 import { NostrRelay } from "../src/utils/ephemeral-relay";
 import {
   createEvent,
@@ -71,7 +78,12 @@ async function main() {
     });
 
     // New handler for OK messages from relays
-    const handleOkEvent: NostrOkCallback = (relayUrl: string, eventId: string, success: boolean, details: ParsedOkReason) => {
+    const handleOkEvent: NostrOkCallback = (
+      relayUrl: string,
+      eventId: string,
+      success: boolean,
+      details: ParsedOkReason,
+    ) => {
       if (success) {
         console.log(
           `Event ${eventId.slice(0, 8)}... from relay ${relayUrl} was accepted${details.rawMessage ? ": " + details.rawMessage : ""}`,

@@ -320,7 +320,7 @@ export class Relay {
     event: E,
     callback: RelayEventCallbacks[E],
   ): void {
-    if (typeof callback !== 'function') return;
+    if (typeof callback !== "function") return;
 
     const existingCallbacks = this.eventHandlers[event];
 
@@ -339,7 +339,7 @@ export class Relay {
     event: E,
     callback: RelayEventCallbacks[E],
   ): void {
-    if (typeof callback !== 'function') return;
+    if (typeof callback !== "function") return;
 
     const callbacksForEvent = this.eventHandlers[event];
     if (callbacksForEvent && Array.isArray(callbacksForEvent)) {
@@ -626,12 +626,18 @@ export class Relay {
         const eventIdStr =
           typeof eventId === "string" ? eventId : String(eventId || "");
         const successBool = Boolean(success);
-        
+
         // Parse the raw message for NIP-20 prefixes
-        const rawMessageStr = typeof rawMessageUntyped === 'string' ? rawMessageUntyped : undefined;
+        const rawMessageStr =
+          typeof rawMessageUntyped === "string" ? rawMessageUntyped : undefined;
         const parsedDetails = this.parseOkMessage(rawMessageStr);
 
-        this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, parsedDetails);
+        this.triggerEvent(
+          RelayEvent.OK,
+          eventIdStr,
+          successBool,
+          parsedDetails,
+        );
         break;
       }
       case "CLOSED": {
@@ -729,7 +735,7 @@ export class Relay {
 
   // Helper function to check if a string is a valid hex string of a specific length
   private isHexString(value: unknown, length?: number): boolean {
-    if (typeof value !== 'string') {
+    if (typeof value !== "string") {
       return false;
     }
     if (!/^[0-9a-fA-F]+$/.test(value)) {
@@ -772,7 +778,8 @@ export class Relay {
 
       // Validate tag structure
       for (const tag of event.tags) {
-        if (!Array.isArray(tag) || tag.length === 0) { // Ensure tag is a non-empty array
+        if (!Array.isArray(tag) || tag.length === 0) {
+          // Ensure tag is a non-empty array
           return false;
         }
 
@@ -813,7 +820,7 @@ export class Relay {
         // would have already been validated by the general tag loop above.
         // Here, we just ensure at least one such 'p' tag exists.
         const hasValidPTagForNIP46 = event.tags.some(
-          (tag: string[]) => tag.length >= 2 && tag[0] === "p"
+          (tag: string[]) => tag.length >= 2 && tag[0] === "p",
         );
 
         if (!hasValidPTagForNIP46) {
@@ -961,10 +968,7 @@ export class Relay {
             // The type assertion in Relay.on ensures the callback matches the event.
             (callback as (...args: unknown[]) => void)(...args);
           } catch (e) {
-            console.error(
-              `Relay(${this.url}): Error in ${event} callback:`,
-              e,
-            );
+            console.error(`Relay(${this.url}): Error in ${event} callback:`, e);
           }
         }
       });
@@ -1103,7 +1107,8 @@ export class Relay {
     if (
       !existingEvent ||
       event.created_at > existingEvent.created_at ||
-      (event.created_at === existingEvent.created_at && event.id < existingEvent.id)
+      (event.created_at === existingEvent.created_at &&
+        event.id < existingEvent.id)
     ) {
       userEvents.set(event.kind, event);
       // In a full implementation, we might want to notify subscribers about the replacement
@@ -1128,7 +1133,8 @@ export class Relay {
     if (
       !existingEvent ||
       event.created_at > existingEvent.created_at ||
-      (event.created_at === existingEvent.created_at && event.id < existingEvent.id)
+      (event.created_at === existingEvent.created_at &&
+        event.id < existingEvent.id)
     ) {
       this.addressableEvents.set(key, event);
       // In a full implementation, we might want to notify subscribers about the replacement
