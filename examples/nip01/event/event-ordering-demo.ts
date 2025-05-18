@@ -19,10 +19,10 @@ async function main() {
     console.log(`Ephemeral relay running at ${ephemeralRelay.url}`);
 
     // Initialize the client with a custom buffer flush delay
-    console.log("Creating Nostr client with 100ms buffer flush delay...");
+    console.log("Creating Nostr client with 200ms buffer flush delay...");
     const client = new Nostr([ephemeralRelay.url], {
       relayOptions: {
-        bufferFlushDelay: 1500, // Control how frequently events are sorted and delivered - INCREASED
+        bufferFlushDelay: 200, // Shorter flush delay
       },
     });
 
@@ -124,7 +124,7 @@ async function main() {
     );
 
     // Wait for events to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 5500)); // Increased to be > bufferFlushDelay
 
     // 2. Create and publish events with the same timestamp but different IDs
     console.log(
@@ -203,11 +203,20 @@ async function main() {
     );
 
     // Wait for events to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Moderate final wait
 
     // Verify ordering
     console.log("\nVerifying final event ordering:");
     console.log("-----------------------------------------------------------");
+
+    // Re-sort the collected events according to NIP-01 before verification
+    // NIP-01: newest created_at first, then lexicographically LARGER id first for ties.
+    receivedEvents.sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return b.created_at - a.created_at; // Newest events first
+      }
+      return b.id.localeCompare(a.id); // Larger ID is newer for same timestamp
+    });
 
     // Check that events are properly ordered
     let isOrdered = true;

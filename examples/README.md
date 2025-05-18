@@ -29,17 +29,13 @@ npm run example:nip02            # Fetching follows and followers
 
 # Direct message examples
 npm run example:dm             # NIP-04 direct message example
-npm run example:dm:verbose     # NIP-04 direct message with verbose logging
-npm run example:dm:public      # NIP-04 direct message using public relays
 
 # NIP-specific examples
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
-npm run example:nip05:verbose  # NIP-05 with verbose logging
 npm run example:nip07          # NIP-07 (Browser Extension) - Starts HTTP server for examples
 npm run example:nip07:build    # Build NIP-07 browser bundles without starting server
 npm run example:nip11          # NIP-11 (Relay Information Document)
-npm run example:nip11:verbose  # NIP-11 with verbose logging
 npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20)
 npm run example:nip44:js       # NIP-44 JavaScript implementation
 npm run example:nip44:version-compat # NIP-44 version compatibility
@@ -51,7 +47,6 @@ For [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) (Bech32-e
 
 ```bash
 npm run example:nip19          # Main NIP-19 example with all features
-npm run example:nip19:verbose  # Verbose logging for main example
 npm run example:nip19:bech32   # Basic Bech32 entities (npub, nsec, note)
 npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
