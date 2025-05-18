@@ -168,13 +168,13 @@ export class NostrWalletService {
 
     // Add notifications tag if applicable
     if (this.supportedNotificationTypes.length > 0) {
-      tags.push(["notifications", this.supportedNotificationTypes.join(" ")]);
+      tags.push(["notifications", JSON.stringify(this.supportedNotificationTypes)]);
     }
 
     // Create event template
     const eventTemplate = {
       kind: NIP47EventKind.INFO,
-      content: this.supportedMethods.join(" "),
+      content: JSON.stringify(this.supportedMethods),
       tags,
     };
 
@@ -219,48 +219,60 @@ export class NostrWalletService {
       return;
     }
 
+    // Determine the pubkey of the client making the request
+    const requesterClientPubkey = event.pubkey;
+    // Determine the pubkey of the service (us) from the p-tag, if present, or default to our pubkey
+    const servicePubkeyTagged = event.tags.find((tag) => tag[0] === "p")?.[1];
+
+    if (!servicePubkeyTagged || servicePubkeyTagged !== this.pubkey) {
+      // If there's no p-tag for us, or it's not for us, ignore.
+      // Or, if strict, error back if p-tag is for someone else. For now, ignore.
+      console.warn(
+        `Request ${event.id} not directly addressed to this service based on p-tag. Expected ${this.pubkey}, got ${servicePubkeyTagged}. Ignoring.`,
+      );
+      return;
+    }
+
+    let decryptedContent: string | undefined;
+    let nip47Request: NIP47Request | undefined;
+
     try {
-      // Extract pubkey of the client from the 'p' tag
-      const clientPubkey = event.tags.find((tag) => tag[0] === "p")?.[1];
-      if (!clientPubkey) {
-        console.error("Request event missing p tag");
-        return;
-      }
-
-      // Check for expiration
+      // Check for expiration (can be done before decryption)
       const expirationTag = event.tags.find((tag) => tag[0] === "expiration");
+      let expirationTimestamp: number | undefined;
       if (expirationTag && expirationTag.length > 1) {
-        const expiration = parseInt(expirationTag[1], 10);
+        expirationTimestamp = parseInt(expirationTag[1], 10);
         const now = Math.floor(Date.now() / 1000);
-
-        if (now > expiration) {
+        if (now > expirationTimestamp) {
           console.log(
-            `Request ${event.id} has expired (${expiration} < ${now})`,
+            `Request ${event.id} has already expired (${expirationTimestamp} < ${now}).`,
           );
-          // Return error response for expired request
+          // Send error response for already expired request
+          // The recipient is the original requester (event.pubkey)
+          // The second parameter to sendErrorResponse is 'senderPubkey' (effectively, who was targeted, i.e. this.pubkey)
           await this.sendErrorResponse(
-            clientPubkey,
-            event.pubkey,
+            requesterClientPubkey,
+            this.pubkey, // The service is the context for this "sender"
             NIP47ErrorCode.REQUEST_EXPIRED,
             "Request has expired",
             event.id,
-            NIP47Method.UNKNOWN,
+            NIP47Method.UNKNOWN, // Method is unknown before decryption
           );
           return;
         }
       }
 
-      // Check if client is authorized when authorization list is provided
+      // Check if client is authorized (can also be done before decryption)
       if (
         this.authorizedClients.length > 0 &&
-        !this.authorizedClients.includes(event.pubkey)
+        !this.authorizedClients.includes(requesterClientPubkey)
       ) {
         console.error(
-          `Client ${event.pubkey} not authorized to use the service`,
+          `Client ${requesterClientPubkey} not authorized to use the service. Request ID: ${event.id}`,
         );
         await this.sendErrorResponse(
-          clientPubkey,
-          event.pubkey,
+          requesterClientPubkey,
+          this.pubkey,
           NIP47ErrorCode.UNAUTHORIZED_CLIENT,
           "Client not authorized to use this wallet service",
           event.id,
@@ -270,33 +282,102 @@ export class NostrWalletService {
       }
 
       console.log(
-        `Handling request from ${event.pubkey}. Event ID: ${event.id}`,
+        `Handling request from ${requesterClientPubkey}. Event ID: ${event.id}`,
       );
       console.log(`Event content length: ${event.content.length}`);
 
-      let decrypted: string;
       try {
-        // Always decrypt with receiver's private key and sender's public key
-        decrypted = decryptNIP04(event.content, this.privkey, event.pubkey);
+        decryptedContent = decryptNIP04(event.content, this.privkey, requesterClientPubkey);
         console.log(
           "Successfully decrypted content: ",
-          decrypted.substring(0, 50) + "...",
+          decryptedContent.substring(0, 50) + "...",
         );
       } catch (decryptError) {
-        console.error("Failed to decrypt message:", decryptError);
-        // We no longer need the fallback since we're using consistent key ordering
-        throw new Error("Failed to decrypt message");
+        console.error(`Failed to decrypt NIP-04 message for event ${event.id}:`, decryptError);
+        // Do not send an error response here as per NIP-47 spec (section: "failed to decrypt")
+        // "The recipient SHOULD NOT send a response event if it cannot decrypt the content."
+        return;
       }
+      
+      nip47Request = JSON.parse(decryptedContent) as NIP47Request;
 
-      const request: NIP47Request = JSON.parse(decrypted);
+      // Now that we have the request method, we can use it if an expiration occurs during processing
+      
+      if (expirationTimestamp) {
+        const nowMs = Date.now();
+        const expirationMs = expirationTimestamp * 1000;
+        const timeoutDurationMs = expirationMs - nowMs;
 
-      // Handle the request
-      const response = await this.handleRequest(request);
+        if (timeoutDurationMs <= 0) {
+          // This case should ideally be caught by the earlier check, but as a safeguard after decryption:
+          console.log(
+            `Request ${event.id} (method: ${nip47Request.method}) expired just before wallet call.`,
+          );
+          const errorRsp = this.createErrorResponse(
+            nip47Request.method,
+            NIP47ErrorCode.REQUEST_EXPIRED,
+            "Request has expired",
+          );
+          await this.sendResponse(requesterClientPubkey, errorRsp, event.id);
+          return;
+        }
 
-      // Send the response
-      await this.sendResponse(event.pubkey, response, event.id);
+        let timeoutHandle: NodeJS.Timeout | undefined;
+
+        const walletCallPromise = this.handleRequest(nip47Request)
+          .finally(() => {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+          });
+                
+        const timeoutPromise = new Promise<NIP47Response>((resolve) => {
+          timeoutHandle = setTimeout(() => {
+            console.log(
+              `Request ${event.id} (method: ${nip47Request!.method}) timed out during wallet processing.`,
+            );
+            resolve(this.createErrorResponse(
+              nip47Request!.method, // nip47Request is guaranteed to be defined here
+              NIP47ErrorCode.REQUEST_EXPIRED,
+              "Request expired during processing",
+            ));
+          }, timeoutDurationMs);
+        });
+
+        const response = await Promise.race([walletCallPromise, timeoutPromise]);
+        // Ensure timeout is cleared if it hasn't fired and walletCall won, or if it did fire.
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+
+        await this.sendResponse(requesterClientPubkey, response, event.id);
+
+      } else {
+        // No valid expiration tag, proceed normally
+        const response = await this.handleRequest(nip47Request);
+        await this.sendResponse(requesterClientPubkey, response, event.id);
+      }
     } catch (error) {
-      console.error("Error handling request:", error);
+      // General error handling for unexpected issues during the try block
+      // (e.g., JSON parsing error if content is not valid JSON after decryption, or other unexpected errors)
+      console.error(`Error processing request ${event.id}:`, error);
+      
+      // Determine method if possible, otherwise use UNKNOWN
+      const methodForError = nip47Request?.method || NIP47Method.UNKNOWN;
+      
+      // It's important not to send an error response if the initial error was due to decryption failure
+      // which is handled by returning early without response.
+      // This catch block is for errors *after* successful decryption or if decryption wasn't the issue.
+      if (decryptedContent !== undefined) { // Check if decryption was attempted and potentially successful
+        await this.sendErrorResponse(
+          requesterClientPubkey,
+          this.pubkey,
+          NIP47ErrorCode.INTERNAL_ERROR,
+          error instanceof Error ? error.message : "Internal server error",
+          event.id,
+          methodForError,
+        );
+      } else {
+        // If decryption was not even attempted or failed in a way that decryptedContent is still undefined,
+        // and we somehow reached here, log it but don't send NIP-47 error to avoid breaking NIP-47 rule for decryption failure.
+         console.error(`Unhandled error for event ${event.id} where decryption state is unclear. No NIP-47 response sent.`);
+      }
     }
   }
 
@@ -700,7 +781,7 @@ export class NostrWalletService {
    */
   private async sendErrorResponse(
     clientPubkey: string,
-    senderPubkey: string,
+    serviceContextPubkey: string,
     errorCode: NIP47ErrorCode,
     errorMessage: string,
     requestId: string,
@@ -715,7 +796,7 @@ export class NostrWalletService {
       data,
     );
 
-    // Send response
-    await this.sendResponse(senderPubkey, response, requestId);
+    // Send response TO the clientPubkey (the original requester)
+    await this.sendResponse(clientPubkey, response, requestId);
   }
 }
