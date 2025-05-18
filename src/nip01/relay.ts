@@ -697,6 +697,20 @@ export class Relay {
     }
   }
 
+  // Helper function to check if a string is a valid hex string of a specific length
+  private isHexString(value: unknown, length?: number): boolean {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    if (!/^[0-9a-fA-F]+$/.test(value)) {
+      return false;
+    }
+    if (length !== undefined && value.length !== length) {
+      return false;
+    }
+    return true;
+  }
+
   /**
    * Perform basic synchronous validation of an event
    *
@@ -714,11 +728,11 @@ export class Relay {
     try {
       // Now we can safely access event properties
       // Check that all required fields are present and have the correct types
-      if (event.id.length !== 64) {
+      if (!this.isHexString(event.id, 64)) {
         return false;
       }
 
-      if (event.pubkey.length !== 64) {
+      if (!this.isHexString(event.pubkey, 64)) {
         return false;
       }
 
@@ -728,7 +742,7 @@ export class Relay {
 
       // Validate tag structure
       for (const tag of event.tags) {
-        if (!Array.isArray(tag)) {
+        if (!Array.isArray(tag) || tag.length === 0) { // Ensure tag is a non-empty array
           return false;
         }
 
@@ -738,9 +752,21 @@ export class Relay {
             return false;
           }
         }
+
+        // Specific NIP-01 tag parameter validation
+        const tagName = tag[0];
+        if (tagName === "e" || tagName === "p") {
+          // For 'e' (event ID) and 'p' (pubkey) tags, the second element must be a 64-char hex string
+          // NIP-01: ["e", <event-id-hex>, <optional-relay-url-string>]
+          // NIP-01: ["p", <pubkey-hex>, <optional-relay-url-string>]
+          if (tag.length < 2 || !this.isHexString(tag[1], 64)) {
+            return false;
+          }
+        }
+        // Other tag types might have different validation rules, not covered by this specific claim.
       }
 
-      if (event.sig.length !== 128) {
+      if (!this.isHexString(event.sig, 128)) {
         return false;
       }
 
@@ -752,21 +778,19 @@ export class Relay {
 
       // Special handling for NIP-46 events (kind 24133)
       if (event.kind === 24133) {
-        // NIP-46 events require at least one p tag with proper format
-        const hasPTag = event.tags.some(
-          (tag: string[]) =>
-            Array.isArray(tag) &&
-            tag.length >= 2 &&
-            tag[0] === "p" &&
-            typeof tag[1] === "string" &&
-            tag[1].length === 64,
+        // NIP-46 events require at least one 'p' tag.
+        // The format of such a 'p' tag (tag[0]==='p', tag.length >= 2, and tag[1] is 64-char hex)
+        // would have already been validated by the general tag loop above.
+        // Here, we just ensure at least one such 'p' tag exists.
+        const hasValidPTagForNIP46 = event.tags.some(
+          (tag: string[]) => tag.length >= 2 && tag[0] === "p"
         );
 
-        if (!hasPTag) {
+        if (!hasValidPTagForNIP46) {
           const debug = process.env.DEBUG?.includes("nostr:*") || false;
           if (debug) {
             console.log(
-              `Relay(${this.url}): NIP-46 event missing valid p tag:`,
+              `Relay(${this.url}): NIP-46 event missing required 'p' tag (expected format ['p', <64_hex_pubkey>, ...]):`,
               JSON.stringify(event.tags),
             );
           }
