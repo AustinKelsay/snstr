@@ -371,10 +371,16 @@ async function main() {
 
   // Clean up after 2 seconds
   setTimeout(async () => {
-    client.unsubscribe(subId);
-    await client.disconnectFromRelays();
-    await relay.close();
-    console.log("\n✅ Example completed. Cleaned up resources.");
+    try {
+      client.unsubscribe(subId);
+      await client.disconnectFromRelays();
+      await relay.close();
+      console.log("\n✅ Example completed. Cleaned up resources.");
+      process.exit(0); // Force exit successfully
+    } catch (err) {
+      console.error("Error during cleanup:", err); // Keep a general error message
+      process.exit(1); // Force exit with error
+    }
   }, 2000);
 }
 
