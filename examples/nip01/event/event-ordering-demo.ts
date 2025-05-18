@@ -22,7 +22,7 @@ async function main() {
     console.log("Creating Nostr client with 100ms buffer flush delay...");
     const client = new Nostr([ephemeralRelay.url], {
       relayOptions: {
-        bufferFlushDelay: 100, // Control how frequently events are sorted and delivered
+        bufferFlushDelay: 1500, // Control how frequently events are sorted and delivered - INCREASED
       },
     });
 

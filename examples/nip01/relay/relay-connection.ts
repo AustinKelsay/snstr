@@ -71,7 +71,7 @@ async function main() {
 
       // Create a validation test subscription
       console.log("Setting up subscription for validation testing...");
-      const validationSubscription = relay.subscribe(
+      const _validationSubscription = relay.subscribe(
         [{ kinds: [1], limit: 2 }],
         (event) => {
           console.log(`✅ Valid event received: ${event.id.slice(0, 8)}...`);
@@ -208,66 +208,58 @@ async function main() {
         "\n--- Demonstrating Protocol-Compliant unsubscribeAll() ---",
       );
 
-      // Create multiple subscriptions to demonstrate unsubscribeAll
-      console.log("Creating multiple subscriptions...");
-      const subId1 = relay.subscribe([{ kinds: [1], limit: 3 }], () => {
-        console.log("Subscription 1 received an event");
-      });
+      // Use a known relay URL for this test section
+      const testRelayUrl = "wss://relay.nostr.band"; // Must match the client's relay
 
-      const subId2 = relay.subscribe([{ kinds: [0], limit: 2 }], () => {
-        console.log("Subscription 2 received an event");
-      });
-
-      const subId3 = relay.subscribe([{ kinds: [4], limit: 1 }], () => {
-        console.log("Subscription 3 received an event");
-      });
-
-      // Show how many active subscriptions we have
-      console.log(`Active subscriptions: ${relay.getSubscriptionIds().size}`);
-      console.log("Subscription IDs:", Array.from(relay.getSubscriptionIds()));
-
-      // Create a Nostr client with this relay
+      // Create a Nostr client instance for this part of the test
       console.log(
-        "\nCreating Nostr client with this relay to demonstrate unsubscribeAll...",
+        `\nCreating Nostr client with relay ${testRelayUrl} to demonstrate unsubscribeAll...`,
       );
-      const { Nostr } = await import("../../../src/nip01/nostr");
-      const client = new Nostr(["wss://relay.nostr.band"]);
+      const { Nostr } = await import("../../../src/nip01/nostr"); // Ensure Nostr is imported if not already
+      const nostrClientForUnsubscribeTest = new Nostr([testRelayUrl]);
+      await nostrClientForUnsubscribeTest.connectToRelays(); // Connect the client
 
-      // Create a subscription through the client
-      client.subscribe([{ kinds: [1], limit: 2 }], () => {
-        console.log("Client subscription received an event");
+      // Get the specific Relay instance from the client to check its subscriptions later
+      const targetRelayInstance = nostrClientForUnsubscribeTest.getRelay(testRelayUrl);
+
+      if (!targetRelayInstance) {
+        console.error(`Could not get relay instance for ${testRelayUrl} from client.`);
+        return; // Cannot proceed with this test
+      }
+
+      // Create multiple subscriptions via the Nostr client
+      console.log("Creating multiple subscriptions via Nostr client...");
+      const _clientSubIds1 = nostrClientForUnsubscribeTest.subscribe([{ kinds: [1], limit: 1 }], () => {
+        console.log("Client Subscription 1 received an event");
       });
+      const _clientSubIds2 = nostrClientForUnsubscribeTest.subscribe([{ kinds: [0], limit: 1 }], () => {
+        console.log("Client Subscription 2 received an event");
+      });
+      const _clientSubIds3 = nostrClientForUnsubscribeTest.subscribe([{ kinds: [4], limit: 1 }], () => {
+        console.log("Client Subscription 3 received an event");
+      });
+
+      // Show how many active subscriptions the specific Relay instance has
+      console.log(`Active subscriptions on Relay instance before unsubscribeAll: ${targetRelayInstance.getSubscriptionIds().size}`);
+      console.log("Subscription IDs on Relay instance:", Array.from(targetRelayInstance.getSubscriptionIds()));
 
       // Demonstrate protocol-compliant unsubscribeAll
       console.log("\nCalling client.unsubscribeAll()...");
-      client.unsubscribeAll();
+      nostrClientForUnsubscribeTest.unsubscribeAll();
 
-      // Check if the relay is still connected (it should be)
-      console.log(
-        `Relay is still connected: ${(relay as unknown as { connected: boolean }).connected}`,
-      );
+      // Allow some time for CLOSE messages to be processed by the relay and client
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Check if all client subscriptions were correctly closed
+      // Check if all client subscriptions were correctly closed on the Relay instance
       console.log(
-        `Relay subscription count after unsubscribeAll: ${relay.getSubscriptionIds().size}`,
+        `Relay subscription count after unsubscribeAll: ${targetRelayInstance.getSubscriptionIds().size}`,
       );
       console.log(
-        "Remaining subscription IDs:",
-        Array.from(relay.getSubscriptionIds()),
+        `Remaining subscription IDs on Relay instance: [ ${Array.from(targetRelayInstance.getSubscriptionIds()).join(", ")} ]`,
       );
 
-      // Close individual subscriptions to clean up
-      console.log("\nClosing remaining individual subscriptions...");
-      relay.unsubscribe(subId1);
-      relay.unsubscribe(subId2);
-      relay.unsubscribe(subId3);
-
-      console.log(
-        `Final subscription count: ${relay.getSubscriptionIds().size}`,
-      );
-
-      // Unsubscribe from validation test
-      relay.unsubscribe(validationSubscription);
+      // Disconnect the test client
+      nostrClientForUnsubscribeTest.disconnectFromRelays();
     } else {
       console.error("Failed to connect to relay");
       // Demonstrate changing timeout and retrying
@@ -346,3 +338,4 @@ main().catch((error) => {
   console.error("Unhandled error in main:", error);
   process.exit(1); // Ensure the process exits on unhandled errors
 });
+

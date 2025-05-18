@@ -8,6 +8,8 @@ import {
   RelayEventCallbacks,
   PublishOptions,
   PublishResponse,
+  NIP20Prefix,
+  ParsedOkReason,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 
@@ -318,16 +320,38 @@ export class Relay {
     event: E,
     callback: RelayEventCallbacks[E],
   ): void {
-    this.eventHandlers[event] = callback;
+    if (typeof callback !== 'function') return;
+
+    const existingCallbacks = this.eventHandlers[event];
+
+    if (!existingCallbacks) {
+      // If no array exists for this event type, create one with the new callback
+      this.eventHandlers[event] = [callback] as any; // Type assertion needed for initial assignment
+    } else {
+      // existingCallbacks is already correctly typed as RelayEventCallbacks[E][] | undefined by the corrected RelayEventHandler
+      if (!existingCallbacks.includes(callback)) {
+        existingCallbacks.push(callback);
+      }
+    }
   }
 
   public off<E extends RelayEvent>(
     event: E,
     callback: RelayEventCallbacks[E],
   ): void {
-    // Only remove if the current handler is the same callback
-    if (this.eventHandlers[event] === callback) {
-      delete this.eventHandlers[event];
+    if (typeof callback !== 'function') return;
+
+    const callbacksForEvent = this.eventHandlers[event];
+    if (callbacksForEvent && Array.isArray(callbacksForEvent)) {
+      const index = callbacksForEvent.indexOf(callback); // Find the index of the callback
+      if (index > -1) {
+        callbacksForEvent.splice(index, 1); // Remove it by index if found
+      }
+
+      // If no callbacks are left, remove the event key from the handlers map
+      if (callbacksForEvent.length === 0) {
+        delete this.eventHandlers[event];
+      }
     }
   }
 
@@ -382,11 +406,16 @@ export class Relay {
         const handleOk = (
           eventId: string,
           success: boolean,
-          message?: string,
+          details: ParsedOkReason,
         ) => {
           if (eventId === event.id) {
             cleanup();
-            resolve({ success, reason: message, relay: this.url });
+            resolve({
+              success,
+              reason: details.rawMessage,
+              parsedReason: details,
+              relay: this.url,
+            });
           }
         };
 
@@ -587,21 +616,22 @@ export class Relay {
         break;
       }
       case "OK": {
-        const [eventId, success, rawMessage] = rest;
+        const [eventId, success, rawMessageUntyped] = rest;
         if (debug)
           console.log(
-            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessage}`,
+            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessageUntyped}`,
           );
 
         // Ensure all params are of the correct type
         const eventIdStr =
           typeof eventId === "string" ? eventId : String(eventId || "");
         const successBool = Boolean(success);
-        // message can be undefined, or a string. If it's not a string, treat as undefined for the event.
-        const messageStr =
-          typeof rawMessage === "string" ? rawMessage : undefined;
+        
+        // Parse the raw message for NIP-20 prefixes
+        const rawMessageStr = typeof rawMessageUntyped === 'string' ? rawMessageUntyped : undefined;
+        const parsedDetails = this.parseOkMessage(rawMessageStr);
 
-        this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, messageStr);
+        this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, parsedDetails);
         break;
       }
       case "CLOSED": {
@@ -909,7 +939,7 @@ export class Relay {
     event: RelayEvent.OK,
     eventId: string,
     success: boolean,
-    message?: string,
+    details: ParsedOkReason,
   ): void;
   private triggerEvent(
     event: RelayEvent.Closed,
@@ -921,41 +951,23 @@ export class Relay {
     challengeEvent: NostrEvent,
   ): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
-    const handler = this.eventHandlers[event];
-    if (handler) {
-      switch (event) {
-        case RelayEvent.Connect:
-        case RelayEvent.Disconnect:
-          (handler as RelayEventCallbacks[typeof event])(this.url);
-          break;
-        case RelayEvent.Error:
-          (handler as RelayEventCallbacks[RelayEvent.Error])(this.url, args[0]);
-          break;
-        case RelayEvent.Notice:
-          (handler as RelayEventCallbacks[RelayEvent.Notice])(
-            this.url,
-            args[0] as string,
-          );
-          break;
-        case RelayEvent.OK:
-          (handler as RelayEventCallbacks[RelayEvent.OK])(
-            args[0] as string,
-            args[1] as boolean,
-            args[2] as string | undefined,
-          );
-          break;
-        case RelayEvent.Closed:
-          (handler as RelayEventCallbacks[RelayEvent.Closed])(
-            args[0] as string,
-            args[1] as string,
-          );
-          break;
-        case RelayEvent.Auth:
-          (handler as RelayEventCallbacks[RelayEvent.Auth])(
-            args[0] as NostrEvent,
-          );
-          break;
-      }
+    const callbacks = this.eventHandlers[event];
+
+    if (callbacks && Array.isArray(callbacks)) {
+      callbacks.forEach((callback) => {
+        if (typeof callback === "function") {
+          try {
+            // Directly call the callback with the spread arguments.
+            // The type assertion in Relay.on ensures the callback matches the event.
+            (callback as (...args: any[]) => void)(...args);
+          } catch (e) {
+            console.error(
+              `Relay(${this.url}): Error in ${event} callback:`,
+              e,
+            );
+          }
+        }
+      });
     }
   }
 
@@ -1178,6 +1190,25 @@ export class Relay {
     return Array.from(this.addressableEvents.values()).filter(
       (event) => event.kind === kind,
     );
+  }
+
+  // Helper function to parse NIP-20 prefixes from OK messages
+  private parseOkMessage(rawMessage?: string): ParsedOkReason {
+    const result: ParsedOkReason = {
+      rawMessage: rawMessage || "",
+      message: rawMessage || "", // Default to full message if no prefix
+    };
+
+    if (rawMessage) {
+      for (const nipPrefix of Object.values(NIP20Prefix)) {
+        if (rawMessage.startsWith(nipPrefix)) {
+          result.prefix = nipPrefix;
+          result.message = rawMessage.substring(nipPrefix.length).trimStart();
+          break;
+        }
+      }
+    }
+    return result;
   }
 
   // Add this helper method to type guard for NostrEvent

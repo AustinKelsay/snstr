@@ -1,5 +1,5 @@
 import { Relay } from "./relay";
-import { NostrEvent, Filter, RelayEvent } from "../types/nostr";
+import { NostrEvent, Filter, RelayEvent, ParsedOkReason } from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { decrypt as decryptNIP04 } from "../nip04";
 import {
@@ -10,23 +10,23 @@ import {
 } from "./event";
 
 // Types for Nostr.on() callbacks (user-provided)
-type NostrConnectCallback = (relay: string) => void;
-type NostrErrorCallback = (relay: string, error: unknown) => void;
-type NostrNoticeCallback = (relay: string, notice: string) => void;
-type NostrOkCallback = (
+export type NostrConnectCallback = (relay: string) => void;
+export type NostrErrorCallback = (relay: string, error: unknown) => void;
+export type NostrNoticeCallback = (relay: string, notice: string) => void;
+export type NostrOkCallback = (
   relay: string,
   eventId: string,
   success: boolean,
-  message?: string,
+  details: ParsedOkReason,
 ) => void;
-type NostrClosedCallback = (
+export type NostrClosedCallback = (
   relay: string,
   subscriptionId: string,
   message: string,
 ) => void;
-type NostrAuthCallback = (relay: string, challengeEvent: NostrEvent) => void;
+export type NostrAuthCallback = (relay: string, challengeEvent: NostrEvent) => void;
 
-type NostrEventCallback =
+export type NostrEventCallback =
   | NostrConnectCallback
   | NostrErrorCallback
   | NostrNoticeCallback
@@ -41,7 +41,7 @@ type RelayNoticeHandler = (notice: string) => void;
 type RelayOkHandler = (
   eventId: string,
   success: boolean,
-  message?: string,
+  details: ParsedOkReason,
 ) => void;
 type RelayClosedHandler = (subscriptionId: string, message: string) => void;
 type RelayAuthHandler = (challengeEvent: NostrEvent) => void;
@@ -104,12 +104,12 @@ export class Nostr {
           (originalCallback as NostrNoticeCallback)(relayUrl, notice);
         };
       case RelayEvent.OK:
-        return (eventId: string, success: boolean, message?: string) => {
+        return (eventId: string, success: boolean, details: ParsedOkReason) => {
           (originalCallback as NostrOkCallback)(
             relayUrl,
             eventId,
             success,
-            message,
+            details,
           );
         };
       case RelayEvent.Closed:
@@ -181,6 +181,10 @@ export class Nostr {
     });
 
     return relay;
+  }
+
+  public getRelay(url: string): Relay | undefined {
+    return this.relays.get(url);
   }
 
   public removeRelay(url: string): void {
@@ -444,12 +448,7 @@ export class Nostr {
   ): void;
   public on(
     event: RelayEvent.OK,
-    callback: (
-      relay: string,
-      eventId: string,
-      success: boolean,
-      message?: string,
-    ) => void,
+    callback: (relay: string, eventId: string, success: boolean, details: ParsedOkReason) => void,
   ): void;
   public on(
     event: RelayEvent.Closed,

@@ -139,7 +139,7 @@ export type RelayEventCallbacks = {
   [RelayEvent.OK]: (
     eventId: string,
     success: boolean,
-    message?: string,
+    details: ParsedOkReason,
   ) => void;
   [RelayEvent.Closed]: (subscriptionId: string, message: string) => void;
   [RelayEvent.Auth]: (challengeEvent: NostrEvent) => void;
@@ -149,7 +149,7 @@ export type RelayEventCallbacks = {
  * Type for relay event handlers with optional callbacks
  */
 export type RelayEventHandler = {
-  [K in keyof RelayEventCallbacks]?: RelayEventCallbacks[K];
+  [K in keyof RelayEventCallbacks]?: RelayEventCallbacks[K][];
 };
 
 /**
@@ -172,6 +172,8 @@ export interface PublishResponse {
   reason?: string;
   /** The relay URL the response came from (useful in multi-relay operations) */
   relay?: string;
+  /** Parsed reason for failure if success is false */
+  parsedReason?: ParsedOkReason;
 }
 
 /**
@@ -796,3 +798,19 @@ export type TagValues = {
 export type EventTags = {
   [K in keyof TagValues]: TagValues[K];
 };
+
+export enum NIP20Prefix {
+  Duplicate = "duplicate:",
+  PoW = "pow:",
+  RateLimited = "rate-limited:",
+  Invalid = "invalid:",
+  Error = "error:",
+  Blocked = "blocked:",
+  AuthRequired = "auth-required:",
+}
+
+export interface ParsedOkReason {
+  prefix?: NIP20Prefix;
+  message: string; // The message part after the prefix, or the full message if no prefix
+  rawMessage: string; // The original, unparsed message from the relay
+}
