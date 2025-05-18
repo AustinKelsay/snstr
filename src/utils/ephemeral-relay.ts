@@ -244,11 +244,18 @@ export class NostrRelay {
       }
 
       if (olderEventIndex !== -1) {
+        // All existing events for this pubkey & kind will be removed, as the new event is the latest.
         DEBUG &&
           console.log(
-            `[ relay ] replacing event ${this._cache[olderEventIndex].id} with ${event.id} for kind ${event.kind} from ${event.pubkey}`,
+            `[ relay ] replacing all existing events for kind ${event.kind}, pubkey ${event.pubkey} with new event ${event.id}.`,
           );
-        this._cache.splice(olderEventIndex, 1);
+        this._cache = this._cache.filter(
+          (cachedEvent) =>
+            !(
+              cachedEvent.pubkey === event.pubkey &&
+              cachedEvent.kind === event.kind
+            ),
+        );
       }
     }
     // Parameterized replaceable events (kinds 30000-39999) would need similar logic

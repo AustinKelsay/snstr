@@ -38,7 +38,7 @@ async function getFollows(client: Nostr, pubkey: string): Promise<Contact[]> {
       },
     ];
 
-    let subId: string | null = null;
+    let subId: string[] | null = null;
     const onEvent = (event: NostrEvent, relay: string) => {
       console.log(
         `Received kind 3 event from ${relay} for ${pubkey}'s follows.`,
