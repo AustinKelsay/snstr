@@ -21,6 +21,9 @@ examples/
 │       ├── relay-connection.ts    # Connection management examples
 │       ├── filter-types.ts        # Filter type examples
 │       └── relay-reconnect.ts     # Reconnection examples
+├── nip02/                     # NIP-02 specific examples
+│   ├── README.md              # Documentation for NIP-02 examples
+│   └── nip02-demo.ts # Example for NIP-02
 ├── nip04/                     # NIP-04 specific examples
 │   ├── README.md              # Documentation for NIP-04 examples
 │   └── direct-message.ts      # NIP-04 specific example
@@ -111,6 +114,7 @@ Add these to package.json:
     "example:nip01:validation": "ts-node examples/client/validation-flow.ts",
     
     "// Other NIPs": "-------------- Other NIPs --------------",
+    "example:nip02:follows": "ts-node examples/nip02/nip02-demo.ts",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
     "example:nip19": "ts-node examples/nip19/nip19-demo.ts"

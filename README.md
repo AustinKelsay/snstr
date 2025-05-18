@@ -44,6 +44,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 SNSTR currently implements the following Nostr Implementation Possibilities (NIPs):
 
 - **NIP-01**: Basic protocol functionality with comprehensive event validation
+- **NIP-02**: Contact List events and interactions (Kind 3)
 - **NIP-04**: Encrypted direct messages using AES-CBC
 - **NIP-05**: DNS identifier verification and relay discovery
 - **NIP-07**: Browser extension integration for key management
@@ -116,6 +117,7 @@ The project is organized with detailed documentation for different components:
 
 #### NIP Documentation
 - **[NIP-01](src/nip01/README.md)**: Basic protocol functionality
+- **[NIP-02](src/nip02/README.md)**: Contact List recommendation
 - **[NIP-04](src/nip04/README.md)**: Encrypted direct messages
 - **[NIP-05](src/nip05/README.md)**: DNS identifier verification
 - **[NIP-07](src/nip07/README.md)**: Browser extension integration
@@ -179,6 +181,7 @@ npm run test:protocols # Protocol implementation tests
 
 # Run tests for specific NIPs
 npm run test:nip01    # NIP-01 (core protocol)
+npm run test:nip02    # NIP-02 (Contact Lists)
 npm run test:nip04    # NIP-04 (encrypted messages)
 npm run test:nip44    # NIP-44 (versioned encryption)
 npm run test:nip57    # NIP-57 (Lightning Zaps)
@@ -228,6 +231,7 @@ npm run test:event         # Event creation and validation
 npm run test:relay         # Relay functionality
 
 # Test specific NIPs
+npm run test:nip02         # NIP-02 (Contact Lists)
 npm run test:nip04         # NIP-04 (Encrypted Direct Messages)
 npm run test:nip05         # NIP-05 (DNS Identifiers)
 npm run test:nip07         # NIP-07 (Browser Extensions)
@@ -269,6 +273,7 @@ npm run example:crypto     # Cryptographic functions
 npm run example:dm         # Direct messaging (NIP-04)
 
 # NIP-specific examples
+npm run example:nip02      # Contact Lists (NIP-02)
 npm run example:nip04      # Encrypted direct messages (NIP-04)
 npm run example:nip05      # DNS identifiers (NIP-05)
 npm run example:nip07      # Browser extensions (NIP-07)

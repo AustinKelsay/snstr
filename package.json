@@ -35,6 +35,7 @@
     "test:crypto:core": "jest tests/utils/crypto.test.ts",
     
     "// Test NIP": "-------------- NIP-specific Tests --------------",
+    "test:nip02": "jest tests/nip02",
     "test:nip04": "jest tests/nip04",
     "test:nip05": "jest tests/nip05",
     "test:nip07": "jest tests/nip07",
@@ -71,6 +72,7 @@
     "example:nip01:validation": "ts-node examples/client/validation-flow.ts",
      
     "// Example NIP": "-------------- Other NIP Examples --------------",
+    "example:nip02": "ts-node examples/nip02/nip02-demo.ts",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
     "example:nip05:verbose": "VERBOSE=true ts-node examples/nip05/nip05-demo.ts",

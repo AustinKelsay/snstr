@@ -79,12 +79,6 @@ interface LnurlInvoiceResponse {
   payment_hash: string;
 }
 
-// Define a type for the global relay instance
-declare global {
-  // eslint-disable-next-line no-var
-  var __NOSTR_RELAY_INSTANCE__: NostrRelay | undefined;
-}
-
 // Mock of LN infrastructure
 class MockLightningWallet {
   private invoices: Map<string, Invoice> = new Map();
@@ -370,13 +364,10 @@ class MockLnurlServer {
       try {
         // Use the ephemeral relay directly
         // Our example is using a fixed port that we know about
-        const ephemeralRelay = global.__NOSTR_RELAY_INSTANCE__;
-        if (ephemeralRelay) {
-          ephemeralRelay.store(signedZapReceipt);
-          console.log(`Published zap receipt to ephemeral relay`);
-        } else {
-          console.error("Could not access ephemeral relay instance");
-        }
+        const ephemeralRelay = new NostrRelay(RELAY_PORT);
+        await ephemeralRelay.start();
+        ephemeralRelay.store(signedZapReceipt);
+        console.log(`Published zap receipt to ephemeral relay`);
       } catch (error) {
         console.error(`Error publishing zap receipt:`, error);
       }
@@ -399,9 +390,6 @@ async function main() {
 
   // Set up an ephemeral relay for testing
   const relay = new NostrRelay(RELAY_PORT);
-
-  // Store relay reference for later use
-  global.__NOSTR_RELAY_INSTANCE__ = relay;
 
   await relay.start();
   console.log(`🔌 Ephemeral relay started at ${DEFAULT_RELAY_URL}\n`);

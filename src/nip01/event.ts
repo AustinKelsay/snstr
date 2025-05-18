@@ -548,7 +548,7 @@ export async function validateEvent(
 
   // 5. Validate signature
   if (validateSignatures) {
-    const isValid = await verifySignature(event.id, event.pubkey, event.sig);
+    const isValid = await verifySignature(event.id, event.sig, event.pubkey);
 
     if (!isValid) {
       throw new NostrValidationError("Invalid signature", "sig", event);
