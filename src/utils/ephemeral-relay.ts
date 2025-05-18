@@ -201,37 +201,53 @@ export class NostrRelay {
   }
 
   store(event: SignedEvent) {
-    const isSimpleReplaceable = event.kind === 0 || event.kind === 3 || (event.kind >= 10000 && event.kind <= 19999);
+    const isSimpleReplaceable =
+      event.kind === 0 ||
+      event.kind === 3 ||
+      (event.kind >= 10000 && event.kind <= 19999);
 
     if (isSimpleReplaceable) {
       let olderEventIndex = -1;
       // Find if an event with the same pubkey and kind exists
       for (let i = 0; i < this._cache.length; i++) {
         const cachedEvent = this._cache[i];
-        if (cachedEvent.pubkey === event.pubkey && cachedEvent.kind === event.kind) {
+        if (
+          cachedEvent.pubkey === event.pubkey &&
+          cachedEvent.kind === event.kind
+        ) {
           // Found an existing event for this replaceable slot
           if (cachedEvent.created_at < event.created_at) {
             // The new event is more recent, mark the old one for removal
             olderEventIndex = i;
-            break; 
+            break;
           } else if (cachedEvent.created_at > event.created_at) {
             // The new event is older, discard it
-            DEBUG && console.log(`[ relay ] discarding older replaceable event ${event.id} (new) vs ${cachedEvent.id} (cached)`);
+            DEBUG &&
+              console.log(
+                `[ relay ] discarding older replaceable event ${event.id} (new) vs ${cachedEvent.id} (cached)`,
+              );
             return;
-          } else { // created_at is the same, NIP-01 says lexicographically larger id wins (is newer)
+          } else {
+            // created_at is the same, NIP-01 says lexicographically larger id wins (is newer)
             if (event.id > cachedEvent.id) {
-                olderEventIndex = i;
-                break;
+              olderEventIndex = i;
+              break;
             } else {
-                DEBUG && console.log(`[ relay ] discarding older/equal replaceable event by id ${event.id} (new) vs ${cachedEvent.id} (cached)`);
-                return;
+              DEBUG &&
+                console.log(
+                  `[ relay ] discarding older/equal replaceable event by id ${event.id} (new) vs ${cachedEvent.id} (cached)`,
+                );
+              return;
             }
           }
         }
       }
 
       if (olderEventIndex !== -1) {
-        DEBUG && console.log(`[ relay ] replacing event ${this._cache[olderEventIndex].id} with ${event.id} for kind ${event.kind} from ${event.pubkey}`);
+        DEBUG &&
+          console.log(
+            `[ relay ] replacing event ${this._cache[olderEventIndex].id} with ${event.id} for kind ${event.kind} from ${event.pubkey}`,
+          );
         this._cache.splice(olderEventIndex, 1);
       }
     }
@@ -252,7 +268,7 @@ export class NostrRelay {
         return b.created_at - a.created_at; // Newer events first
       }
       // If created_at is the same, sort by id (lexicographically larger id is newer)
-      return b.id.localeCompare(a.id); 
+      return b.id.localeCompare(a.id);
     });
 
     // DEBUG && console.log(`[ relay ] Stored event ${event.id}. Cache size: ${this._cache.length}`);

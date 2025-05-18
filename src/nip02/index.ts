@@ -1,4 +1,4 @@
-// NIP-02 implementation will go here 
+// NIP-02 implementation will go here
 
 import { NostrEvent, ContactsEvent } from "../types/nostr";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
@@ -53,11 +53,13 @@ export interface ContactListEvent extends NostrEvent {
  */
 export function createContactListEvent(
   contacts: Contact[],
-  existingContent: string = ""
-): Omit<ContactsEvent, "id" | "sig" | "pubkey"> { // Assuming ContactsEvent is a more generic kind 3 type
+  existingContent: string = "",
+): Omit<ContactsEvent, "id" | "sig" | "pubkey"> {
+  // Assuming ContactsEvent is a more generic kind 3 type
   const tags: string[][] = contacts.map((contact) => {
     const tag: string[] = ["p", contact.pubkey];
-    if (contact.relayUrl || contact.petname) { // Need to add relayUrl even if empty if petname is present
+    if (contact.relayUrl || contact.petname) {
+      // Need to add relayUrl even if empty if petname is present
       tag.push(contact.relayUrl || "");
     }
     if (contact.petname) {
@@ -81,7 +83,8 @@ export function createContactListEvent(
  * @returns An array of `Contact` objects.
  * @throws Error if the event is not a valid kind 3 event.
  */
-export function parseContactsFromEvent(event: ContactsEvent): Contact[] { // Assuming ContactsEvent is suitable
+export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
+  // Assuming ContactsEvent is suitable
   if (event.kind !== 3) {
     throw new Error("Invalid event: Expected kind 3 for contact list.");
   }
@@ -107,4 +110,4 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] { // Ass
     }
   }
   return parsedContacts;
-} 
+}

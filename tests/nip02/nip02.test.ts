@@ -8,7 +8,11 @@ import {
 } from "../../src/nip01/event";
 import { generateKeypair, verifySignature } from "../../src/utils/crypto";
 import { Nostr } from "../../src/nip01/nostr";
-import { createContactListEvent, parseContactsFromEvent, Contact } from "../../src/nip02";
+import {
+  createContactListEvent,
+  parseContactsFromEvent,
+  Contact,
+} from "../../src/nip02";
 
 const RELAY_PORT = 8088; // Using a different port for NIP-02 tests
 const RELAY_URL = `ws://localhost:${RELAY_PORT}`;
@@ -25,8 +29,16 @@ describe("NIP-02: Contact Lists", () => {
 
   const contactB: Contact = { pubkey: "" };
   const contactC: Contact = { pubkey: "" };
-  const contactBWithDetails: Contact = { pubkey: "", relayUrl: RELAY_URL, petname: "UserB_Pet" };
-  const contactCWithDetails: Contact = { pubkey: "", relayUrl: RELAY_URL, petname: "UserC_Pet" };
+  const contactBWithDetails: Contact = {
+    pubkey: "",
+    relayUrl: RELAY_URL,
+    petname: "UserB_Pet",
+  };
+  const contactCWithDetails: Contact = {
+    pubkey: "",
+    relayUrl: RELAY_URL,
+    petname: "UserC_Pet",
+  };
 
   beforeAll(async () => {
     relay = new NostrRelay(RELAY_PORT);
@@ -62,7 +74,10 @@ describe("NIP-02: Contact Lists", () => {
   describe("Kind 3 Event Creation", () => {
     it("should correctly create a kind 3 event with basic contacts (pubkey only)", async () => {
       const contactsToFollow: Contact[] = [contactB, contactC];
-      const unsignedEventTemplate = createContactListEvent(contactsToFollow, "");
+      const unsignedEventTemplate = createContactListEvent(
+        contactsToFollow,
+        "",
+      );
 
       const unsignedEvent: UnsignedEvent = {
         ...unsignedEventTemplate,
@@ -73,58 +88,100 @@ describe("NIP-02: Contact Lists", () => {
 
       expect(signedEvent.kind).toBe(NostrKind.Contacts);
       expect(signedEvent.pubkey).toBe(userAPubKey);
-      contactsToFollow.forEach(contact => {
-        expect(signedEvent.tags).toEqual(expect.arrayContaining([
-          expect.arrayContaining(["p", contact.pubkey])
-        ]));
-        const tag = signedEvent.tags.find(t => t[0] === "p" && t[1] === contact.pubkey);
+      contactsToFollow.forEach((contact) => {
+        expect(signedEvent.tags).toEqual(
+          expect.arrayContaining([
+            expect.arrayContaining(["p", contact.pubkey]),
+          ]),
+        );
+        const tag = signedEvent.tags.find(
+          (t) => t[0] === "p" && t[1] === contact.pubkey,
+        );
         expect(tag).toBeDefined();
         expect(tag?.length).toBe(2);
       });
-      expect(signedEvent.tags.filter(t => t[0] === 'p').length).toBe(contactsToFollow.length);
+      expect(signedEvent.tags.filter((t) => t[0] === "p").length).toBe(
+        contactsToFollow.length,
+      );
       expect(signedEvent.content).toBe("");
       expect(signedEvent.id).toBeDefined();
       expect(signedEvent.id.length).toBe(64);
       expect(signedEvent.sig).toBeDefined();
       expect(signedEvent.sig.length).toBe(128);
-      const isValidSig = await verifySignature(signedEvent.id, signedEvent.sig, signedEvent.pubkey);
+      const isValidSig = await verifySignature(
+        signedEvent.id,
+        signedEvent.sig,
+        signedEvent.pubkey,
+      );
       expect(isValidSig).toBe(true);
     });
 
     it("should correctly create a kind 3 event with contacts including relay and petname", async () => {
-      const contactsToFollow: Contact[] = [contactBWithDetails, { pubkey: contactC.pubkey, petname: "PetC" }];
-      const unsignedEventTemplate = createContactListEvent(contactsToFollow, "Content here");
+      const contactsToFollow: Contact[] = [
+        contactBWithDetails,
+        { pubkey: contactC.pubkey, petname: "PetC" },
+      ];
+      const unsignedEventTemplate = createContactListEvent(
+        contactsToFollow,
+        "Content here",
+      );
 
-      const unsignedEvent: UnsignedEvent = { ...unsignedEventTemplate, pubkey: userAPubKey };
+      const unsignedEvent: UnsignedEvent = {
+        ...unsignedEventTemplate,
+        pubkey: userAPubKey,
+      };
       const signedEvent = await createSignedEvent(unsignedEvent, userAPrivKey);
 
       expect(signedEvent.kind).toBe(NostrKind.Contacts);
       expect(signedEvent.pubkey).toBe(userAPubKey);
       expect(signedEvent.content).toBe("Content here");
 
-      const tagB = signedEvent.tags.find(t => t[0] === "p" && t[1] === contactBWithDetails.pubkey);
-      expect(tagB).toEqual(["p", contactBWithDetails.pubkey, contactBWithDetails.relayUrl, contactBWithDetails.petname]);
+      const tagB = signedEvent.tags.find(
+        (t) => t[0] === "p" && t[1] === contactBWithDetails.pubkey,
+      );
+      expect(tagB).toEqual([
+        "p",
+        contactBWithDetails.pubkey,
+        contactBWithDetails.relayUrl,
+        contactBWithDetails.petname,
+      ]);
 
-      const tagC = signedEvent.tags.find(t => t[0] === "p" && t[1] === contactC.pubkey);
+      const tagC = signedEvent.tags.find(
+        (t) => t[0] === "p" && t[1] === contactC.pubkey,
+      );
       expect(tagC).toEqual(["p", contactC.pubkey, "", "PetC"]);
 
-      expect(signedEvent.tags.filter(t => t[0] === 'p').length).toBe(contactsToFollow.length);
+      expect(signedEvent.tags.filter((t) => t[0] === "p").length).toBe(
+        contactsToFollow.length,
+      );
       expect(signedEvent.id).toBeDefined();
       expect(signedEvent.id.length).toBe(64);
       expect(signedEvent.sig).toBeDefined();
       expect(signedEvent.sig.length).toBe(128);
-      const isValidSig = await verifySignature(signedEvent.id, signedEvent.sig, signedEvent.pubkey);
+      const isValidSig = await verifySignature(
+        signedEvent.id,
+        signedEvent.sig,
+        signedEvent.pubkey,
+      );
       expect(isValidSig).toBe(true);
     });
-    
+
     it("should correctly create a kind 3 event with contact including only relay", async () => {
-      const contactWithOnlyRelay: Contact = { pubkey: userBPubKey, relayUrl: RELAY_URL };
+      const contactWithOnlyRelay: Contact = {
+        pubkey: userBPubKey,
+        relayUrl: RELAY_URL,
+      };
       const contactsToFollow: Contact[] = [contactWithOnlyRelay];
       const unsignedEventTemplate = createContactListEvent(contactsToFollow);
-      const unsignedEvent: UnsignedEvent = { ...unsignedEventTemplate, pubkey: userAPubKey };
+      const unsignedEvent: UnsignedEvent = {
+        ...unsignedEventTemplate,
+        pubkey: userAPubKey,
+      };
       const signedEvent = await createSignedEvent(unsignedEvent, userAPrivKey);
 
-      const tagB = signedEvent.tags.find(t => t[0] === "p" && t[1] === userBPubKey);
+      const tagB = signedEvent.tags.find(
+        (t) => t[0] === "p" && t[1] === userBPubKey,
+      );
       expect(tagB).toEqual(["p", userBPubKey, RELAY_URL]);
     });
 
@@ -146,8 +203,12 @@ describe("NIP-02: Contact Lists", () => {
         created_at: Math.floor(Date.now() / 1000),
       };
       const signedEvent = await createSignedEvent(unsignedEvent, userAPrivKey);
-      await expect(validateEvent(signedEvent)).rejects.toThrow(NostrValidationError);
-      await expect(validateEvent(signedEvent)).rejects.toThrow("Contact list event should have at least one p tag");
+      await expect(validateEvent(signedEvent)).rejects.toThrow(
+        NostrValidationError,
+      );
+      await expect(validateEvent(signedEvent)).rejects.toThrow(
+        "Contact list event should have at least one p tag",
+      );
     });
 
     it("should accept kind 3 event with minimal valid p tag (using Contact array)", async () => {
@@ -177,7 +238,9 @@ describe("NIP-02: Contact Lists", () => {
                 const errors: string[] = [];
                 for (const [url, res] of response.relayResults.entries()) {
                   if (!res.success) {
-                    errors.push(`Relay ${url}: ${res.reason || "Unknown error"}`);
+                    errors.push(
+                      `Relay ${url}: ${res.reason || "Unknown error"}`,
+                    );
                   }
                 }
                 if (errors.length > 0) {
@@ -195,23 +258,33 @@ describe("NIP-02: Contact Lists", () => {
 
     it("Fetching Follows: should fetch and parse contacts (pubkey, relay, petname)", async () => {
       const contactsToPublish: Contact[] = [
-        { pubkey: userBPubKey, relayUrl: RELAY_URL, petname: "UserB_Pet_Relay" },
+        {
+          pubkey: userBPubKey,
+          relayUrl: RELAY_URL,
+          petname: "UserB_Pet_Relay",
+        },
         { pubkey: userCPubKey, petname: "UserC_Pet_NoRelay" },
-        { pubkey: await (await generateKeypair()).publicKey, relayUrl: "wss://another.relay.com" }, // Contact with only relay
-        { pubkey: await (await generateKeypair()).publicKey } // Contact with only pubkey
+        {
+          pubkey: await (await generateKeypair()).publicKey,
+          relayUrl: "wss://another.relay.com",
+        }, // Contact with only relay
+        { pubkey: await (await generateKeypair()).publicKey }, // Contact with only pubkey
       ];
-      
-      const unsignedTemplate = createContactListEvent(contactsToPublish, "Contacts for fetch test");
-      
+
+      const unsignedTemplate = createContactListEvent(
+        contactsToPublish,
+        "Contacts for fetch test",
+      );
+
       const contactListUnsigned: UnsignedEvent = {
         ...unsignedTemplate,
         pubkey: userAPubKey,
       };
 
-      const contactListEvent = await createSignedEvent(
+      const contactListEvent = (await createSignedEvent(
         contactListUnsigned,
         userAPrivKey,
-      ) as ContactsEvent; // Assert as ContactsEvent for type safety
+      )) as ContactsEvent; // Assert as ContactsEvent for type safety
 
       await publishEventAndWait(contactListEvent);
 
@@ -226,7 +299,8 @@ describe("NIP-02: Contact Lists", () => {
           const parsed = parseContactsFromEvent(eventReceived);
           fetchedContacts.push(...parsed);
         },
-        () => { // onEOSE
+        () => {
+          // onEOSE
           client.unsubscribe(subIds);
         },
       );
@@ -237,11 +311,12 @@ describe("NIP-02: Contact Lists", () => {
         const eoseSub = client.subscribe(
           [{ kinds: [NostrKind.Contacts], authors: [userAPubKey], limit: 1 }],
           () => {}, // Event callback, not strictly needed here as main processing is above
-          () => { // onEOSE
+          () => {
+            // onEOSE
             eoseReceived = true;
             client.unsubscribe(eoseSub);
             resolve();
-          }
+          },
         );
         setTimeout(() => {
           if (!eoseReceived) {
@@ -254,8 +329,10 @@ describe("NIP-02: Contact Lists", () => {
       expect(eventReceived).not.toBeNull();
       expect(fetchedContacts.length).toBe(contactsToPublish.length);
 
-      contactsToPublish.forEach(publishedContact => {
-        const foundContact = fetchedContacts.find(fc => fc.pubkey === publishedContact.pubkey);
+      contactsToPublish.forEach((publishedContact) => {
+        const foundContact = fetchedContacts.find(
+          (fc) => fc.pubkey === publishedContact.pubkey,
+        );
         expect(foundContact).toBeDefined();
         expect(foundContact?.petname).toBe(publishedContact.petname); // Undefined will match undefined
         expect(foundContact?.relayUrl).toBe(publishedContact.relayUrl); // Undefined will match undefined
@@ -264,16 +341,16 @@ describe("NIP-02: Contact Lists", () => {
 
     it("Finding Followers: should identify which users follow a given pubkey", async () => {
       const targetUserPubKey = userCPubKey;
-      
+
       // User A will follow targetUserPubKey
       const userAFollowsTargetTemplate = createContactListEvent(
-        [{ pubkey: targetUserPubKey }], 
-        "User A follows Target"
+        [{ pubkey: targetUserPubKey }],
+        "User A follows Target",
       );
       const followerAEvent = await createSignedEvent(
         {
           ...userAFollowsTargetTemplate, // kind, tags, content, created_at are from here
-          pubkey: userAPubKey, 
+          pubkey: userAPubKey,
         },
         userAPrivKey,
       );
@@ -287,8 +364,8 @@ describe("NIP-02: Contact Lists", () => {
       const userBActualPubKey = userBPrivKey.publicKey; // This is the actual pubkey for User B
 
       const userBFollowsTargetTemplate = createContactListEvent(
-        [{ pubkey: targetUserPubKey }], 
-        "User B follows Target"
+        [{ pubkey: targetUserPubKey }],
+        "User B follows Target",
       );
       const followerBEvent = await createSignedEvent(
         {
@@ -337,8 +414,8 @@ describe("NIP-02: Contact Lists", () => {
       const time2 = Math.floor(Date.now() / 1000) + 1000;
 
       const oldFollowsTemplate = createContactListEvent(
-        [{ pubkey: userBPubKey }], 
-        "Old follows list for replaceable test"
+        [{ pubkey: userBPubKey }],
+        "Old follows list for replaceable test",
       );
       const oldFollowsEvent = await createSignedEvent(
         {
@@ -350,14 +427,14 @@ describe("NIP-02: Contact Lists", () => {
       );
 
       const newFollowsTemplate = createContactListEvent(
-        [{ pubkey: userCPubKey }], 
-        "New follows list for replaceable test"
+        [{ pubkey: userCPubKey }],
+        "New follows list for replaceable test",
       );
       const newFollowsEvent = await createSignedEvent(
         {
           ...newFollowsTemplate,
           pubkey: userAPubKey,
-          created_at: time2, 
+          created_at: time2,
         },
         userAPrivKey,
       );
@@ -375,8 +452,10 @@ describe("NIP-02: Contact Lists", () => {
           eventCallbackCount++;
           latestEventReceivedFromCallback = event as ContactsEvent;
           // Assuming latestEventReceivedFromCallback is not null here based on subscription behavior
-          const parsed = parseContactsFromEvent(latestEventReceivedFromCallback!);
-          latestFollowsContacts.length = 0; 
+          const parsed = parseContactsFromEvent(
+            latestEventReceivedFromCallback!,
+          );
+          latestFollowsContacts.length = 0;
           latestFollowsContacts.push(...parsed);
         },
         () => {
@@ -386,7 +465,14 @@ describe("NIP-02: Contact Lists", () => {
 
       await new Promise<void>((resolve) => {
         const onEoseSub = client.subscribe(
-          [{ kinds: [NostrKind.Contacts], authors: [userAPubKey], limit: 1, until: time2 + 10 }],
+          [
+            {
+              kinds: [NostrKind.Contacts],
+              authors: [userAPubKey],
+              limit: 1,
+              until: time2 + 10,
+            },
+          ],
           () => {},
           () => {
             client.unsubscribe(onEoseSub);
@@ -398,23 +484,27 @@ describe("NIP-02: Contact Lists", () => {
           resolve();
         }, 4000);
       });
-      
+
       expect(latestEventReceivedFromCallback).not.toBeNull();
 
       if (latestEventReceivedFromCallback) {
         // Cast to NostrEvent to safely access common event properties
         const receivedEvent = latestEventReceivedFromCallback as NostrEvent;
         expect(receivedEvent.created_at).toBe(time2);
-        expect(receivedEvent.tags.filter(t => t[0] === 'p').length).toBe(1);
+        expect(receivedEvent.tags.filter((t) => t[0] === "p").length).toBe(1);
       } else {
-        fail("latestEventReceivedFromCallback was null after a non-null assertion.");
+        fail(
+          "latestEventReceivedFromCallback was null after a non-null assertion.",
+        );
       }
 
       expect(latestFollowsContacts.length).toBe(1);
       if (latestFollowsContacts.length === 1) {
         expect(latestFollowsContacts[0]?.pubkey).toBe(userCPubKey);
       }
-      expect(latestFollowsContacts.find(c => c.pubkey === userBPubKey)).toBeUndefined();
+      expect(
+        latestFollowsContacts.find((c) => c.pubkey === userBPubKey),
+      ).toBeUndefined();
       expect(eventCallbackCount).toBe(1);
     });
 
@@ -422,13 +512,13 @@ describe("NIP-02: Contact Lists", () => {
     it("Advanced Fetching Followers: should correctly identify followers using createContactListEvent", async () => {
       const baseTime = Math.floor(Date.now() / 1000);
       // Ensure this timestamp is later than any from previous tests for userAPubKey (e.g. Replaceable Event test uses baseTime + 1000)
-      const userA_createdAt = baseTime + 2000; 
+      const userA_createdAt = baseTime + 2000;
       const userC_createdAt = baseTime; // User C can use an earlier or unrelated timestamp
- 
+
       // User A follows User B
       const userAFollowsBTemplate = createContactListEvent(
         [{ pubkey: contactB.pubkey }],
-        "User A follows User B in Advanced Test"
+        "User A follows User B in Advanced Test",
       );
       const userAFollowsBEvent = await createSignedEvent(
         {
@@ -439,27 +529,33 @@ describe("NIP-02: Contact Lists", () => {
         userAPrivKey,
       );
       await publishEventAndWait(userAFollowsBEvent);
-  
+
       // User C follows User B
       const userCFollowsBTemplate = createContactListEvent(
         [{ pubkey: contactB.pubkey }],
-        "User C follows User B in Advanced Test"
+        "User C follows User B in Advanced Test",
       );
       const userCFollowsBEvent = await createSignedEvent(
         {
           ...userCFollowsBTemplate,
-          pubkey: userCPubKey, 
-          created_at: userC_createdAt, 
+          pubkey: userCPubKey,
+          created_at: userC_createdAt,
         },
-        _userCPrivKey, 
+        _userCPrivKey,
       );
       await publishEventAndWait(userCFollowsBEvent);
-  
+
       const followersOfB = new Set<string>();
-      const querySinceTime = userC_createdAt - 60; 
- 
+      const querySinceTime = userC_createdAt - 60;
+
       const subIdsFollowers = client.subscribe(
-         [{ kinds: [NostrKind.Contacts], "#p": [contactB.pubkey], since: querySinceTime }], 
+        [
+          {
+            kinds: [NostrKind.Contacts],
+            "#p": [contactB.pubkey],
+            since: querySinceTime,
+          },
+        ],
         (event) => {
           followersOfB.add(event.pubkey);
         },
@@ -467,22 +563,28 @@ describe("NIP-02: Contact Lists", () => {
           client.unsubscribe(subIdsFollowers);
         },
       );
-  
+
       await new Promise<void>((resolve) => {
         const onEoseSub = client.subscribe(
-           [{ kinds: [NostrKind.Contacts], "#p": [contactB.pubkey], since: querySinceTime }],
-           () => {}, 
-           () => { 
-              client.unsubscribe(onEoseSub);
-              resolve();
-           },
+          [
+            {
+              kinds: [NostrKind.Contacts],
+              "#p": [contactB.pubkey],
+              since: querySinceTime,
+            },
+          ],
+          () => {},
+          () => {
+            client.unsubscribe(onEoseSub);
+            resolve();
+          },
         );
         setTimeout(() => {
           client.unsubscribe(onEoseSub);
-          resolve(); 
-         }, 5000); 
+          resolve();
+        }, 5000);
       });
-  
+
       expect(followersOfB.has(userAPubKey)).toBe(true);
       expect(followersOfB.has(userCPubKey)).toBe(true);
       expect(followersOfB.size).toBe(2);
