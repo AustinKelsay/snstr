@@ -11,15 +11,16 @@
  */
 
 import { Nostr } from '../../src/nip01/nostr';
-import { RelayEvent, Filter, NostrEvent } from '../../src/types/nostr';
+import { RelayEvent, Filter, NostrEvent, ContactsEvent } from '../../src/types/nostr';
+import { parseContactsFromEvent, Contact } from '../../src/nip02'; // Updated import
 // Adjust path based on your project structure // This comment is no longer as relevant with direct imports
 
 const USER_PUBKEY = '6260f29fa75c91aaa292f082e5e87b438d2ab4fdf96af398567b01802ee2fcd4';
 const RELAYS = ['wss://relay.damus.io', 'wss://relay.nostr.band']; // Add more or change as needed
 
-async function getFollows(client: Nostr, pubkey: string): Promise<Set<string>> {
+async function getFollows(client: Nostr, pubkey: string): Promise<Contact[]> { // Return type changed
   return new Promise((resolve) => {
-    const follows = new Set<string>();
+    let foundContacts: Contact[] = []; // Changed from Set<string> to Contact[]
     console.log(`\nFetching follows for pubkey: ${pubkey}...`);
 
     const filters: Filter[] = [
@@ -34,31 +35,36 @@ async function getFollows(client: Nostr, pubkey: string): Promise<Set<string>> {
 
     const onEvent = (event: NostrEvent, relay: string) => {
       console.log(`Received kind 3 event from ${relay} for ${pubkey}'s follows.`);
-      event.tags.forEach(tag => {
-        if (tag[0] === 'p' && tag[1]) {
-          follows.add(tag[1]);
-        }
-      });
+      if (event.kind === 3) {
+        // Use the new parseContactsFromEvent function
+        foundContacts = parseContactsFromEvent(event as ContactsEvent); 
+      } else {
+        console.warn(`Received non-kind-3 event in getFollows: ${event.id}, kind: ${event.kind}`);
+      }
+      // Since kind 3 is replaceable and limit is 1, we can resolve and unsubscribe after the first valid event.
+      // However, EOSE is a more robust signal for completion from the relay's perspective.
+      // For simplicity with limit:1, one might resolve here, but let's stick to EOSE or timeout.
     };
 
     const onEOSE = () => {
       console.log(`EOSE received for ${pubkey}'s follows subscription.`);
       if (subId) {
         client.unsubscribe(subId);
+        subId = null; // Explicitly mark as unsubscribed
       }
-      resolve(follows);
+      resolve(foundContacts);
     };
 
     subId = client.subscribe(filters, onEvent, onEOSE);
 
-    // Timeout to prevent hanging indefinitely if EOSE is not received or relay is slow
     setTimeout(() => {
-      if (subId) {
+      if (subId) { // If subId is still set, it means EOSE hasn't fired or unsubscribed yet
         console.warn("Timeout reached for follows subscription. Unsubscribing.");
         client.unsubscribe(subId);
+        subId = null;
       }
-      resolve(follows); // Resolve with whatever was found
-    }, 15000); // 15 seconds timeout
+      resolve(foundContacts); 
+    }, 15000);
   });
 }
 
@@ -123,8 +129,17 @@ async function main() {
     await client.connectToRelays();
 
     const userFollows = await getFollows(client, USER_PUBKEY);
-    console.log(`\n--- ${USER_PUBKEY} follows (${userFollows.size}) ---`);
-    userFollows.forEach(follow => console.log(follow));
+    console.log(`\n--- ${USER_PUBKEY} follows (${userFollows.length}) ---`);
+    userFollows.forEach(contact => {
+      let contactDetails = `Pubkey: ${contact.pubkey}`;
+      if (contact.petname) {
+        contactDetails += `, Petname: ${contact.petname}`;
+      }
+      if (contact.relayUrl) {
+        contactDetails += `, Relay: ${contact.relayUrl}`;
+      }
+      console.log(contactDetails);
+    });
 
     const userFollowers = await getFollowers(client, USER_PUBKEY);
     console.log(`\n--- ${USER_PUBKEY} is followed by (${userFollowers.size}) ---`);

@@ -201,17 +201,64 @@ export class NostrRelay {
   }
 
   store(event: SignedEvent) {
-    // Add the event to the cache and sort according to NIP-01:
-    // 1. created_at timestamp (descending - newer events first)
-    // 2. event id (lexical ascending) if timestamps are the same
-    this._cache = this._cache.concat(event).sort((a, b) => {
-      // Sort by created_at (descending - newer events first)
-      if (a.created_at !== b.created_at) {
-        return b.created_at - a.created_at;
+    const isSimpleReplaceable = event.kind === 0 || event.kind === 3 || (event.kind >= 10000 && event.kind <= 19999);
+
+    if (isSimpleReplaceable) {
+      let olderEventIndex = -1;
+      // Find if an event with the same pubkey and kind exists
+      for (let i = 0; i < this._cache.length; i++) {
+        const cachedEvent = this._cache[i];
+        if (cachedEvent.pubkey === event.pubkey && cachedEvent.kind === event.kind) {
+          // Found an existing event for this replaceable slot
+          if (cachedEvent.created_at < event.created_at) {
+            // The new event is more recent, mark the old one for removal
+            olderEventIndex = i;
+            break; 
+          } else if (cachedEvent.created_at > event.created_at) {
+            // The new event is older, discard it
+            DEBUG && console.log(`[ relay ] discarding older replaceable event ${event.id} (new) vs ${cachedEvent.id} (cached)`);
+            return;
+          } else { // created_at is the same, NIP-01 says lexicographically larger id wins (is newer)
+            if (event.id > cachedEvent.id) {
+                olderEventIndex = i;
+                break;
+            } else {
+                DEBUG && console.log(`[ relay ] discarding older/equal replaceable event by id ${event.id} (new) vs ${cachedEvent.id} (cached)`);
+                return;
+            }
+          }
+        }
       }
-      // If created_at is the same, sort by id (descending lexical order)
-      return b.id.localeCompare(a.id);
+
+      if (olderEventIndex !== -1) {
+        DEBUG && console.log(`[ relay ] replacing event ${this._cache[olderEventIndex].id} with ${event.id} for kind ${event.kind} from ${event.pubkey}`);
+        this._cache.splice(olderEventIndex, 1);
+      }
+    }
+    // Parameterized replaceable events (kinds 30000-39999) would need similar logic
+    // but also considering the 'd' tag. For now, focusing on simple replaceable.
+
+    // Add the new event (or the event if it's not replaceable/no conflict)
+    this._cache.push(event);
+
+    // Sort the cache:
+    // 1. created_at timestamp (descending - newer events first)
+    // 2. event id (lexicographically larger for ties - NIP-01 tie-breaking for replaceable, though general sort uses smaller)
+    // For simplicity here, maintaining previous sort primarily by created_at, then by id descending.
+    // NIP-01: "When multiple events share the same created_at timestamp, the event with the lexicographically smaller ID is considered older."
+    // So, for equal created_at, larger ID is newer.
+    this._cache.sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return b.created_at - a.created_at; // Newer events first
+      }
+      // If created_at is the same, sort by id (lexicographically larger id is newer)
+      return b.id.localeCompare(a.id); 
     });
+
+    // DEBUG && console.log(`[ relay ] Stored event ${event.id}. Cache size: ${this._cache.length}`);
+    // if (event.pubkey === 'SPECIFIC_TEST_PUBKEY_A_HERE' && event.kind === 3) {
+    //     DEBUG && console.log(`[ relay ] Cache for ${event.pubkey} kind ${event.kind}:`, this._cache.filter(e => e.pubkey === event.pubkey && e.kind === event.kind).map(e => ({id: e.id, created_at: e.created_at, tags_count: e.tags.length })));
+    // }
   }
 }
 

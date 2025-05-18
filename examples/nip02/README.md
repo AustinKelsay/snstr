@@ -5,7 +5,7 @@ This directory contains examples demonstrating how to work with Nostr NIP-02, wh
 
 ## Examples
 
-- **`nip02-follows-followers-example.ts`**: 
+- **`nip02-demo.ts`**: 
   - Demonstrates how to fetch a specific user's contact list (the pubkeys they follow).
   - Shows how to find users who are following a specific pubkey (their followers).
   - Utilizes `kind: 3` events and `p` tags as per NIP-02.

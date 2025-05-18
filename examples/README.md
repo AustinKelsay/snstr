@@ -136,7 +136,7 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
 - `/client` - Client-related examples
   - `validation-flow.ts` - NIP-01 validation flow for event verification
 - `/nip02` - [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) (Contact Lists) examples
-  - `nip02-follows-followers-example.ts` - Fetching a user's follows and followers list
+  - `nip02-demo.ts` - Fetching a user's follows and followers list
 - `/nip04` - [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) (Encrypted Direct Messages) examples
   - `direct-message.ts` - Direct messaging example with shared secret encryption
 - `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples 
