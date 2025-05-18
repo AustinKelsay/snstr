@@ -184,6 +184,10 @@ export class Nostr {
   }
 
   public getRelay(url: string): Relay | undefined {
+    // Re-use the same normalisation logic as addRelay()
+    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
+      url = `wss://${url}`;
+    }
     return this.relays.get(url);
   }
 
