@@ -103,7 +103,8 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
         pubkey: tag[1],
       };
       if (typeof tag[2] === "string" && tag[2].length > 0) {
-        if (relayUrlRegex.test(tag[2])) { // Relay URL validation
+        if (relayUrlRegex.test(tag[2])) {
+          // Relay URL validation
           contact.relayUrl = tag[2];
         } else {
           console.warn("Invalid relay URL:", tag[2]);

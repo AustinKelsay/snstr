@@ -247,9 +247,15 @@ describe("NIP-02: Contact Lists", () => {
         ...baseEvent,
         tags: [
           ["p", "short"], // Invalid: too short
-          ["p", "123456789012345678901234567890123456789012345678901234567890abcdX"], // Invalid: non-hex character
+          [
+            "p",
+            "123456789012345678901234567890123456789012345678901234567890abcdX",
+          ], // Invalid: non-hex character
           ["p", validPk, "ws://relay.com", "Valid Contact"], // Valid
-          ["p", "toolong123456789012345678901234567890123456789012345678901234567890abcde"], // Invalid: too long
+          [
+            "p",
+            "toolong123456789012345678901234567890123456789012345678901234567890abcde",
+          ], // Invalid: too long
         ],
         content: "",
       };
@@ -266,27 +272,56 @@ describe("NIP-02: Contact Lists", () => {
           ["p", userBPubKey], // Pubkey only
           ["p", userCPubKey, "ws://valid.relay.com"], // Pubkey and valid relay
           ["p", userAPubKey, "wss://another.valid.relay.com", "PetA"], // Pubkey, valid relay, petname
-          ["p", "0000000000000000000000000000000000000000000000000000000000000001", "", "PetB"], // Pubkey, empty relay, petname
+          [
+            "p",
+            "0000000000000000000000000000000000000000000000000000000000000001",
+            "",
+            "PetB",
+          ], // Pubkey, empty relay, petname
         ],
         content: "",
       };
       const contacts = parseContactsFromEvent(event);
       expect(contacts.length).toBe(4);
-      expect(contacts.find(c => c.pubkey === userBPubKey)?.relayUrl).toBeUndefined();
-      expect(contacts.find(c => c.pubkey === userBPubKey)?.petname).toBeUndefined();
+      expect(
+        contacts.find((c) => c.pubkey === userBPubKey)?.relayUrl,
+      ).toBeUndefined();
+      expect(
+        contacts.find((c) => c.pubkey === userBPubKey)?.petname,
+      ).toBeUndefined();
 
-      expect(contacts.find(c => c.pubkey === userCPubKey)?.relayUrl).toBe("ws://valid.relay.com");
-      expect(contacts.find(c => c.pubkey === userCPubKey)?.petname).toBeUndefined();
-      
-      expect(contacts.find(c => c.pubkey === userAPubKey)?.relayUrl).toBe("wss://another.valid.relay.com");
-      expect(contacts.find(c => c.pubkey === userAPubKey)?.petname).toBe("PetA");
+      expect(contacts.find((c) => c.pubkey === userCPubKey)?.relayUrl).toBe(
+        "ws://valid.relay.com",
+      );
+      expect(
+        contacts.find((c) => c.pubkey === userCPubKey)?.petname,
+      ).toBeUndefined();
 
-      expect(contacts.find(c => c.pubkey === "0000000000000000000000000000000000000000000000000000000000000001")?.relayUrl).toBeUndefined();
-      expect(contacts.find(c => c.pubkey === "0000000000000000000000000000000000000000000000000000000000000001")?.petname).toBe("PetB");
+      expect(contacts.find((c) => c.pubkey === userAPubKey)?.relayUrl).toBe(
+        "wss://another.valid.relay.com",
+      );
+      expect(contacts.find((c) => c.pubkey === userAPubKey)?.petname).toBe(
+        "PetA",
+      );
+
+      expect(
+        contacts.find(
+          (c) =>
+            c.pubkey ===
+            "0000000000000000000000000000000000000000000000000000000000000001",
+        )?.relayUrl,
+      ).toBeUndefined();
+      expect(
+        contacts.find(
+          (c) =>
+            c.pubkey ===
+            "0000000000000000000000000000000000000000000000000000000000000001",
+        )?.petname,
+      ).toBe("PetB");
     });
 
     it("should set relayUrl to undefined for invalidly formatted relay URLs", () => {
-      const pk1 = userBPubKey; 
+      const pk1 = userBPubKey;
       const pk2 = userCPubKey;
       const event: ContactsEvent = {
         ...baseEvent,
@@ -294,98 +329,160 @@ describe("NIP-02: Contact Lists", () => {
           ["p", pk1, "http://invalid.com", "UserWithHttpRelay"], // Invalid scheme
           ["p", pk2, "ftp://another.invalid.com"], // Invalid scheme
           ["p", userAPubKey, "justarandomstring", "UserWithRandomRelay"], // Invalid format
-          ["p", "0000000000000000000000000000000000000000000000000000000000000002", "ws://valid.but.different.com"], // Valid for comparison
+          [
+            "p",
+            "0000000000000000000000000000000000000000000000000000000000000002",
+            "ws://valid.but.different.com",
+          ], // Valid for comparison
         ],
         content: "",
       };
       const contacts = parseContactsFromEvent(event);
-      expect(contacts.length).toBe(4); 
-      
-      const contact1 = contacts.find(c => c.pubkey === pk1);
+      expect(contacts.length).toBe(4);
+
+      const contact1 = contacts.find((c) => c.pubkey === pk1);
       expect(contact1).toBeDefined();
       expect(contact1?.relayUrl).toBeUndefined();
       expect(contact1?.petname).toBe("UserWithHttpRelay");
 
-      const contact2 = contacts.find(c => c.pubkey === pk2);
+      const contact2 = contacts.find((c) => c.pubkey === pk2);
       expect(contact2).toBeDefined();
       expect(contact2?.relayUrl).toBeUndefined();
-      expect(contact2?.petname).toBeUndefined(); 
+      expect(contact2?.petname).toBeUndefined();
 
-      const contact3 = contacts.find(c => c.pubkey === userAPubKey);
+      const contact3 = contacts.find((c) => c.pubkey === userAPubKey);
       expect(contact3).toBeDefined();
       expect(contact3?.relayUrl).toBeUndefined();
       expect(contact3?.petname).toBe("UserWithRandomRelay");
 
-      const contact4 = contacts.find(c => c.pubkey === "0000000000000000000000000000000000000000000000000000000000000002");
+      const contact4 = contacts.find(
+        (c) =>
+          c.pubkey ===
+          "0000000000000000000000000000000000000000000000000000000000000002",
+      );
       expect(contact4).toBeDefined();
       expect(contact4?.relayUrl).toBe("ws://valid.but.different.com");
     });
 
     it("should still parse petnames even if relayUrl is invalid or absent", () => {
       const event: ContactsEvent = {
-          ...baseEvent,
-          tags: [
-              ["p", userBPubKey, "invalid-relay-url", "PetB"],
-              ["p", userCPubKey, null as any, "PetC"], 
-              ["p", userAPubKey, undefined as any, "PetA"], 
-              ["p", "0000000000000000000000000000000000000000000000000000000000000003", "", "PetD"], // Corrected: Empty string for relay, "PetD" is petname
-          ],
-          content: "",
+        ...baseEvent,
+        tags: [
+          ["p", userBPubKey, "invalid-relay-url", "PetB"],
+          ["p", userCPubKey, "", "PetC"],
+          ["p", userAPubKey, "", "PetA"],
+          [
+            "p",
+            "0000000000000000000000000000000000000000000000000000000000000003",
+            "",
+            "PetD",
+          ], // Corrected: Empty string for relay, "PetD" is petname
+        ],
+        content: "",
       };
       const contacts = parseContactsFromEvent(event);
       expect(contacts.length).toBe(4);
-      expect(contacts.find(c => c.pubkey === userBPubKey)?.petname).toBe("PetB");
-      expect(contacts.find(c => c.pubkey === userBPubKey)?.relayUrl).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === userBPubKey)?.petname).toBe(
+        "PetB",
+      );
+      expect(
+        contacts.find((c) => c.pubkey === userBPubKey)?.relayUrl,
+      ).toBeUndefined();
 
-      expect(contacts.find(c => c.pubkey === userCPubKey)?.petname).toBe("PetC");
-      expect(contacts.find(c => c.pubkey === userCPubKey)?.relayUrl).toBeUndefined();
-      
-      expect(contacts.find(c => c.pubkey === userAPubKey)?.petname).toBe("PetA");
-      expect(contacts.find(c => c.pubkey === userAPubKey)?.relayUrl).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === userCPubKey)?.petname).toBe(
+        "PetC",
+      );
+      expect(
+        contacts.find((c) => c.pubkey === userCPubKey)?.relayUrl,
+      ).toBeUndefined();
 
-      expect(contacts.find(c => c.pubkey === "0000000000000000000000000000000000000000000000000000000000000003")?.petname).toBe("PetD");
-      expect(contacts.find(c => c.pubkey === "0000000000000000000000000000000000000000000000000000000000000003")?.relayUrl).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === userAPubKey)?.petname).toBe(
+        "PetA",
+      );
+      expect(
+        contacts.find((c) => c.pubkey === userAPubKey)?.relayUrl,
+      ).toBeUndefined();
+
+      expect(
+        contacts.find(
+          (c) =>
+            c.pubkey ===
+            "0000000000000000000000000000000000000000000000000000000000000003",
+        )?.petname,
+      ).toBe("PetD");
+      expect(
+        contacts.find(
+          (c) =>
+            c.pubkey ===
+            "0000000000000000000000000000000000000000000000000000000000000003",
+        )?.relayUrl,
+      ).toBeUndefined();
     });
 
     it("should correctly parse a kind 3 event with tags of varying lengths", () => {
-      const pk1 = "1111111111111111111111111111111111111111111111111111111111111111";
-      const pk2 = "2222222222222222222222222222222222222222222222222222222222222222";
-      const pk3 = "3333333333333333333333333333333333333333333333333333333333333333";
-      const pk4 = "4444444444444444444444444444444444444444444444444444444444444444";
+      const pk1 =
+        "1111111111111111111111111111111111111111111111111111111111111111";
+      const pk2 =
+        "2222222222222222222222222222222222222222222222222222222222222222";
+      const pk3 =
+        "3333333333333333333333333333333333333333333333333333333333333333";
+      const pk4 =
+        "4444444444444444444444444444444444444444444444444444444444444444";
 
       const event: ContactsEvent = {
-          ...baseEvent,
-          tags: [
-              ["p", pk1], 
-              ["p", pk2, "ws://relay.one"], 
-              ["p", pk3, "", "PetForPk3"], 
-              ["p", pk4, "ws://relay.four", "PetForPk4"], 
-              ["p", "5555555555555555555555555555555555555555555555555555555555555555", "http://invalid.relay", "PetForPk5"],
-              ["p", "6666666666666666666666666666666666666666666666666666666666666666", "PetForPk6"], 
+        ...baseEvent,
+        tags: [
+          ["p", pk1],
+          ["p", pk2, "ws://relay.one"],
+          ["p", pk3, "", "PetForPk3"],
+          ["p", pk4, "ws://relay.four", "PetForPk4"],
+          [
+            "p",
+            "5555555555555555555555555555555555555555555555555555555555555555",
+            "http://invalid.relay",
+            "PetForPk5",
           ],
-          content: "",
+          [
+            "p",
+            "6666666666666666666666666666666666666666666666666666666666666666",
+            "PetForPk6",
+          ],
+        ],
+        content: "",
       };
       const contacts = parseContactsFromEvent(event);
 
-      expect(contacts.find(c => c.pubkey === pk1)?.relayUrl).toBeUndefined();
-      expect(contacts.find(c => c.pubkey === pk1)?.petname).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === pk1)?.relayUrl).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === pk1)?.petname).toBeUndefined();
 
-      expect(contacts.find(c => c.pubkey === pk2)?.relayUrl).toBe("ws://relay.one");
-      expect(contacts.find(c => c.pubkey === pk2)?.petname).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === pk2)?.relayUrl).toBe(
+        "ws://relay.one",
+      );
+      expect(contacts.find((c) => c.pubkey === pk2)?.petname).toBeUndefined();
 
-      expect(contacts.find(c => c.pubkey === pk3)?.relayUrl).toBeUndefined(); 
-      expect(contacts.find(c => c.pubkey === pk3)?.petname).toBe("PetForPk3");
+      expect(contacts.find((c) => c.pubkey === pk3)?.relayUrl).toBeUndefined();
+      expect(contacts.find((c) => c.pubkey === pk3)?.petname).toBe("PetForPk3");
 
-      expect(contacts.find(c => c.pubkey === pk4)?.relayUrl).toBe("ws://relay.four");
-      expect(contacts.find(c => c.pubkey === pk4)?.petname).toBe("PetForPk4");
+      expect(contacts.find((c) => c.pubkey === pk4)?.relayUrl).toBe(
+        "ws://relay.four",
+      );
+      expect(contacts.find((c) => c.pubkey === pk4)?.petname).toBe("PetForPk4");
 
-      const contact5 = contacts.find(c => c.pubkey === "5555555555555555555555555555555555555555555555555555555555555555");
-      expect(contact5?.relayUrl).toBeUndefined(); 
+      const contact5 = contacts.find(
+        (c) =>
+          c.pubkey ===
+          "5555555555555555555555555555555555555555555555555555555555555555",
+      );
+      expect(contact5?.relayUrl).toBeUndefined();
       expect(contact5?.petname).toBe("PetForPk5");
 
-      const contact6 = contacts.find(c => c.pubkey === "6666666666666666666666666666666666666666666666666666666666666666");
+      const contact6 = contacts.find(
+        (c) =>
+          c.pubkey ===
+          "6666666666666666666666666666666666666666666666666666666666666666",
+      );
       expect(contact6?.relayUrl).toBeUndefined();
-      expect(contact6?.petname).toBeUndefined(); 
+      expect(contact6?.petname).toBeUndefined();
 
       expect(contacts.length).toBe(6);
     });
@@ -438,7 +535,8 @@ describe("NIP-02: Contact Lists", () => {
           relayUrl: "wss://another.relay.com",
         }, // Contact with only relay
         { pubkey: await (await generateKeypair()).publicKey }, // Contact with only pubkey
-        { // New contact with invalid relay URL
+        {
+          // New contact with invalid relay URL
           pubkey: (await generateKeypair()).publicKey, // Use a fresh key for this user
           relayUrl: "http://invalid.url.com", // Invalid relay URL format
           petname: "InvalidRelayUser",
@@ -508,12 +606,15 @@ describe("NIP-02: Contact Lists", () => {
           (fc) => fc.pubkey === publishedContact.pubkey,
         );
         expect(foundContact).toBeDefined();
-        expect(foundContact?.petname).toBe(publishedContact.petname); 
+        expect(foundContact?.petname).toBe(publishedContact.petname);
         // Check for our specific invalid case for relayUrl
-        if (publishedContact.relayUrl && publishedContact.relayUrl.startsWith("http://")) { 
-          expect(foundContact?.relayUrl).toBeUndefined(); 
+        if (
+          publishedContact.relayUrl &&
+          publishedContact.relayUrl.startsWith("http://")
+        ) {
+          expect(foundContact?.relayUrl).toBeUndefined();
         } else {
-          expect(foundContact?.relayUrl).toBe(publishedContact.relayUrl); 
+          expect(foundContact?.relayUrl).toBe(publishedContact.relayUrl);
         }
       });
     });
