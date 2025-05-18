@@ -326,7 +326,7 @@ export class Relay {
 
     if (!existingCallbacks) {
       // If no array exists for this event type, create one with the new callback
-      this.eventHandlers[event] = [callback] as any; // Type assertion needed for initial assignment
+      this.eventHandlers[event] = [callback] as RelayEventHandler[E];
     } else {
       // existingCallbacks is already correctly typed as RelayEventCallbacks[E][] | undefined by the corrected RelayEventHandler
       if (!existingCallbacks.includes(callback)) {
@@ -959,7 +959,7 @@ export class Relay {
           try {
             // Directly call the callback with the spread arguments.
             // The type assertion in Relay.on ensures the callback matches the event.
-            (callback as (...args: any[]) => void)(...args);
+            (callback as (...args: unknown[]) => void)(...args);
           } catch (e) {
             console.error(
               `Relay(${this.url}): Error in ${event} callback:`,
