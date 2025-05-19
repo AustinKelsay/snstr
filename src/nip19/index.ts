@@ -636,8 +636,8 @@ export function encodeAddress(data: AddressData): Bech32String {
     throw new Error("Invalid pubkey: must be a 32-byte hex string");
   }
 
-  if (data.kind === undefined || data.kind < 0 || data.kind > 65535) {
-    throw new Error("Invalid kind: must be between 0 and 65535");
+  if (data.kind === undefined || data.kind < 0 || data.kind > 0xffffffff) { // Allow full 32-bit unsigned range
+    throw new Error("Invalid kind: must be a 32-bit unsigned integer (0 to 4294967295)");
   }
 
   // Check identifier length
@@ -690,9 +690,11 @@ export function encodeAddress(data: AddressData): Bech32String {
   });
 
   // Add kind
-  const kindBytes = new Uint8Array(2);
-  kindBytes[0] = (data.kind >> 8) & 0xff;
-  kindBytes[1] = data.kind & 0xff;
+  const kindBytes = new Uint8Array(4); // Changed to 4 bytes
+  kindBytes[0] = (data.kind >> 24) & 0xff;
+  kindBytes[1] = (data.kind >> 16) & 0xff;
+  kindBytes[2] = (data.kind >> 8) & 0xff;
+  kindBytes[3] = data.kind & 0xff;
 
   entries.push({
     type: TLVType.Kind,
@@ -759,10 +761,10 @@ export function decodeAddress(naddr: Bech32String): AddressData {
         pubkey = bytesToHex(entry.value);
       } else if (entry.type === TLVType.Kind) {
         // This is the event kind
-        if (entry.value.length !== 2) {
-          throw new Error("Invalid kind length: should be 2 bytes");
+        if (entry.value.length !== 4) {
+          throw new Error("Invalid kind length: should be 4 bytes");
         }
-        kind = (entry.value[0] << 8) + entry.value[1];
+        kind = (entry.value[0] << 24) + (entry.value[1] << 16) + (entry.value[2] << 8) + entry.value[3];
       }
       // Ignore unknown types for forward compatibility
     }

@@ -135,7 +135,7 @@ function demonstrateNaddrEncoding() {
   // Example address components
   const pubkey =
     "e8b487c079b0f67c695ae6c4c2552a47f38adfa2533cc5926bd2c102942fdcb5";
-  const kind = 30023; // Long-form content
+  const kind = 300023; // Example of a 32-bit kind (0x493F7), e.g., for long-form content. Previously 30023.
   const identifier = "article-about-tlv";
   const relays = ["wss://relay.example.com", "wss://nos.lol"];
 

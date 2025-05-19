@@ -203,7 +203,7 @@ function demonstrateTLVEncoding() {
   console.log("\n📋 ADDRESS ENCODING:");
   const addressData = {
     pubkey: "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
-    kind: 30023,
+    kind: 300023,
     identifier: "comprehensive-guide-to-nip19",
     relays: ["wss://relay.damus.io"],
   };

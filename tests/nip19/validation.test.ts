@@ -306,7 +306,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
     test("should validate kind values within bounds in nevent and naddr", () => {
       // Updated to use a valid kind within the 0-65535 range
       const validKind = 65000; // Valid kind just under the limit
-      const invalidKind = 70000; // Invalid kind over the limit
+      const invalidKindNaddr = 0x100000000; // Invalid kind over the new 32-bit limit (4294967296)
 
       const validAddr = {
         identifier: "test",
@@ -331,7 +331,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
       expect(eventDecoded.kind).toBeUndefined();
 
       // Invalid kind should throw an error for naddr encoding
-      const invalidAddr = { ...validAddr, kind: invalidKind };
+      const invalidAddr = { ...validAddr, kind: invalidKindNaddr };
       expect(() => encodeAddress(invalidAddr)).toThrow(/Invalid kind/);
 
       // For nevent, encodeEvent no longer validates or uses the kind, so this specific check is not applicable.
