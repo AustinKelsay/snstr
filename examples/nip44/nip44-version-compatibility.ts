@@ -55,60 +55,68 @@ async function main() {
   console.log(`Successful decryption: ${message === decryptedV2}\n`);
 
   // Demonstrate explicit v1 encryption
-  console.log("Version 1 Encryption:");
-  console.log("--------------------");
-
-  // Alice encrypts with version 1
-  const encryptedV1 = encryptNIP44(
-    message,
-    aliceKeypair.privateKey,
-    bobKeypair.publicKey,
-    undefined, // No specific nonce
-    { version: 1 }, // Specify version 1
-  );
-
-  // Inspect the version byte
-  const decodedV1 = decodePayload(encryptedV1);
-  console.log(`Encrypted (base64): ${encryptedV1.substring(0, 50)}...`);
-  console.log(`Version byte: ${decodedV1.version}`);
-
-  // Bob decrypts the version 1 message
-  const decryptedV1 = decryptNIP44(
-    encryptedV1,
-    bobKeypair.privateKey,
-    aliceKeypair.publicKey,
-  );
-
-  console.log(`Decrypted: "${decryptedV1}"`);
-  console.log(`Successful decryption: ${message === decryptedV1}\n`);
+  console.log("Attempting Version 1 Encryption (should fail):");
+  console.log("-----------------------------------------------");
+  try {
+    const encryptedV1 = encryptNIP44(
+      message,
+      aliceKeypair.privateKey,
+      bobKeypair.publicKey,
+      undefined, // No specific nonce
+      { version: 1 }, // Specify version 1
+    );
+    // This part should not be reached
+    const decodedV1 = decodePayload(encryptedV1);
+    console.log(`Encrypted (base64): ${encryptedV1.substring(0, 50)}...`);
+    console.log(`Version byte: ${decodedV1.version}`);
+    const decryptedV1 = decryptNIP44(
+      encryptedV1,
+      bobKeypair.privateKey,
+      aliceKeypair.publicKey,
+    );
+    console.log(`Decrypted: "${decryptedV1}"`);
+    console.log(
+      "❌ Error: V1 encryption succeeded but should have failed!",
+    );
+  } catch (error) {
+    console.log("✅ Success: Encryption with version 1 failed as expected.");
+    console.log(
+      `   Error message: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  console.log("\n");
 
   // Demonstrate explicit v0 encryption
-  console.log("Version 0 Encryption:");
-  console.log("--------------------");
-
-  // Alice encrypts with version 0
-  const encryptedV0 = encryptNIP44(
-    message,
-    aliceKeypair.privateKey,
-    bobKeypair.publicKey,
-    undefined, // No specific nonce
-    { version: 0 }, // Specify version 0
-  );
-
-  // Inspect the version byte
-  const decodedV0 = decodePayload(encryptedV0);
-  console.log(`Encrypted (base64): ${encryptedV0.substring(0, 50)}...`);
-  console.log(`Version byte: ${decodedV0.version}`);
-
-  // Bob decrypts the version 0 message
-  const decryptedV0 = decryptNIP44(
-    encryptedV0,
-    bobKeypair.privateKey,
-    aliceKeypair.publicKey,
-  );
-
-  console.log(`Decrypted: "${decryptedV0}"`);
-  console.log(`Successful decryption: ${message === decryptedV0}\n`);
+  console.log("Attempting Version 0 Encryption (should fail):");
+  console.log("-----------------------------------------------");
+  try {
+    const encryptedV0 = encryptNIP44(
+      message,
+      aliceKeypair.privateKey,
+      bobKeypair.publicKey,
+      undefined, // No specific nonce
+      { version: 0 }, // Specify version 0
+    );
+    // This part should not be reached
+    const decodedV0 = decodePayload(encryptedV0);
+    console.log(`Encrypted (base64): ${encryptedV0.substring(0, 50)}...`);
+    console.log(`Version byte: ${decodedV0.version}`);
+    const decryptedV0 = decryptNIP44(
+      encryptedV0,
+      bobKeypair.privateKey,
+      aliceKeypair.publicKey,
+    );
+    console.log(`Decrypted: "${decryptedV0}"`);
+    console.log(
+      "❌ Error: V0 encryption succeeded but should have failed!",
+    );
+  } catch (error) {
+    console.log("✅ Success: Encryption with version 0 failed as expected.");
+    console.log(
+      `   Error message: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  console.log("\n");
 
   // Cross-version compatibility test
   console.log("Cross-Version Compatibility:");
@@ -137,25 +145,8 @@ async function main() {
   console.log(`Successful: ${aliceMessage === bobDecrypts}`);
 
   // Bob uses v0, Alice uses v2
-  console.log("\nScenario 2: Bob (v0) → Alice");
-  const bobMessage = "Hello Alice, I'm using NIP-44 v0!";
-  const bobToAlice = encryptNIP44(
-    bobMessage,
-    bobKeypair.privateKey,
-    aliceKeypair.publicKey,
-    undefined,
-    { version: 0 },
-  );
-
-  const aliceDecrypts = decryptNIP44(
-    bobToAlice,
-    aliceKeypair.privateKey,
-    bobKeypair.publicKey,
-  );
-
-  console.log(`Bob's message: "${bobMessage}"`);
-  console.log(`Alice decrypts: "${aliceDecrypts}"`);
-  console.log(`Successful: ${bobMessage === aliceDecrypts}`);
+  console.log("\nScenario 2: Bob receiving a V0/V1 message (e.g., from an older client) and Alice (V2) decrypting it.");
+  console.log("  (Decryption of V0/V1 is supported, but sending V0/V1 is not. This scenario is covered by general decryption tests.)");
 
   // Demonstrate invalid version handling
   console.log("\nInvalid Version Handling:");
@@ -186,10 +177,10 @@ async function main() {
   console.log("- Default encryption uses NIP-44 v2 (most secure)");
   console.log("- Decryption automatically works with versions 0, 1, and 2");
   console.log(
-    "- You can explicitly select versions 0, 1 when needed for compatibility",
+    "- NIP-44 compliant clients MUST NOT encrypt new messages with versions 0 or 1.",
   );
   console.log(
-    "- Attempting to use unsupported versions (outside 0-2) will fail appropriately",
+    "- Attempting to use unsupported versions (e.g., 3 or higher) for encryption will fail appropriately",
   );
   console.log(
     "- This implementation complies with NIP-44 requirement that clients:",
@@ -197,7 +188,10 @@ async function main() {
   console.log("  * MUST include a version byte in encrypted payloads");
   console.log("  * MUST be able to decrypt versions 0 and 1");
   console.log(
-    "  * SHOULD be able to encrypt with versions 0 and 1 when needed",
+    "  * MUST NOT encrypt with version 0 (Reserved)",
+  );
+  console.log(
+    "  * MUST NOT encrypt with version 1 (Deprecated and undefined)",
   );
 }
 

@@ -169,15 +169,14 @@ async function main() {
   console.log("\n\nDemonstrating Version Compatibility:");
   console.log("------------------------------------");
   console.log(
-    "NIP-44 supports encryption with different versions (0, 1, and 2)",
+    "NIP-44 includes a version byte. This implementation encrypts with version 2 (current standard).",
   );
-  console.log("By default, messages are encrypted with version 2 (current)");
   console.log(
-    "Decryption works automatically with any supported version (0, 1, 2)",
+    "Decryption works automatically with any supported version (0, 1, 2), ensuring backward compatibility.",
   );
 
   const versionCompatMessage =
-    "This message demonstrates version compatibility";
+    "This message is encrypted with NIP-44 v2 (default).";
 
   // Encrypt with default version (2)
   const defaultEncrypted = encryptNIP44(
@@ -185,43 +184,30 @@ async function main() {
     aliceKeypair.privateKey,
     bobKeypair.publicKey,
   );
-
-  // Encrypt with explicit version 1
-  const v1Encrypted = encryptNIP44(
-    versionCompatMessage,
-    aliceKeypair.privateKey,
-    bobKeypair.publicKey,
-    undefined, // No specific nonce
-    { version: 1 }, // Explicitly use version 1
+  console.log(
+    `\nDefault (v2) encrypted payload: ${defaultEncrypted.substring(0, 60)}...`,
   );
 
-  // Decrypt both messages
+  // Decrypt the message
   const defaultDecrypted = decryptNIP44(
     defaultEncrypted,
     bobKeypair.privateKey,
     aliceKeypair.publicKey,
   );
 
-  const v1Decrypted = decryptNIP44(
-    v1Encrypted,
-    bobKeypair.privateKey,
-    aliceKeypair.publicKey,
-  );
+  console.log(`Decrypted message: "${defaultDecrypted}"`);
+  console.log(`Successful: ${defaultDecrypted === versionCompatMessage}`);
 
-  console.log("\nExample: Encrypting the same message with different versions");
+  console.log("\nNotes on NIP-44 Versioning:");
+  console.log("- This library encrypts all new messages using NIP-44 Version 2.");
   console.log(
-    `Default (v2) encrypted: ${defaultEncrypted.substring(0, 50)}...`,
-  );
-  console.log(`Version 1 encrypted: ${v1Encrypted.substring(0, 50)}...`);
-  console.log(`Both decrypt correctly: ${defaultDecrypted === v1Decrypted}`);
-
-  console.log("\nWhen to use different versions:");
-  console.log("- Version 2: Use by default (most secure and current)");
-  console.log(
-    "- Version 0/1: Use only when explicitly needed for compatibility with older clients",
+    "- It can successfully decrypt messages created with NIP-44 Version 0, 1, or 2.",
   );
   console.log(
-    "For a more detailed demonstration of version compatibility, see nip44-version-compatibility.ts",
+    "- NIP-44 Specification: Clients MUST NOT encrypt new messages with Version 0 (Reserved) or Version 1 (Deprecated).",
+  );
+  console.log(
+    "- For a more detailed demonstration of version handling (including errors for disallowed encryption), see nip44-version-compatibility.ts",
   );
 
   console.log("\n\nNIP-44 vs NIP-04:");

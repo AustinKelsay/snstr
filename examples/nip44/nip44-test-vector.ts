@@ -208,43 +208,85 @@ async function runVectors() {
 
   // Test encryption/decryption with each version
   for (const version of [0, 1, 2]) {
-    try {
-      // Encrypt with specific version
-      const encrypted = encrypt(
-        simpleVector.plaintext,
-        simpleVector.sec1,
-        pub2,
-        undefined, // No specific nonce
-        { version }, // Specify version
+    console.log(`\nTesting with version ${version}:`);
+    if (version === 0 || version === 1) {
+      console.log(
+        `  Attempting to encrypt with version ${version} (should be disallowed)...`,
       );
-
-      // Verify the version in the payload
-      const decoded = decodePayload(encrypted);
-      const versionMatches = decoded.version === version;
-
-      // Decrypt the payload
-      const decrypted = decrypt(encrypted, simpleVector.sec2, pub1);
-      const decryptionWorks = decrypted === simpleVector.plaintext;
-
-      if (versionMatches && decryptionWorks) {
-        console.log(
-          `Version ${version}: Encryption and decryption successful ✅`,
+      try {
+        encrypt(
+          simpleVector.plaintext,
+          simpleVector.sec1,
+          pub2,
+          undefined, // No specific nonce
+          { version }, // Specify version
         );
-      } else {
-        console.log(`Version ${version}: Test failed ❌`);
-        if (!versionMatches) {
+        // If it reaches here, the encryption unexpectedly succeeded
+        console.log(
+          `  ❌ Version ${version}: Encryption unexpectedly succeeded but should have been disallowed.`,
+        );
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          (error.message.includes(
+            "Encryption with version 0 is not permitted",
+          ) ||
+            error.message.includes(
+              "Encryption with version 1 is not permitted",
+            ))
+        ) {
           console.log(
-            `  - Version mismatch: expected ${version}, got ${decoded.version}`,
+            `  ✅ Version ${version}: Encryption correctly failed as expected: ${error.message}`,
           );
-        }
-        if (!decryptionWorks) {
+        } else {
           console.log(
-            `  - Decryption failed: expected "${simpleVector.plaintext}", got "${decrypted}"`,
+            `  ❌ Version ${version}: Encryption failed, but with an unexpected error:`, error,
           );
         }
       }
-    } catch (error) {
-      console.log(`Version ${version}: Exception:`, error);
+    } else if (version === 2) {
+      console.log(
+        `  Attempting to encrypt and decrypt with version ${version} (should succeed)...`,
+      );
+      try {
+        // Encrypt with specific version
+        const encrypted = encrypt(
+          simpleVector.plaintext,
+          simpleVector.sec1,
+          pub2,
+          undefined, // No specific nonce
+          { version }, // Specify version
+        );
+
+        // Verify the version in the payload
+        const decoded = decodePayload(encrypted);
+        const versionMatches = decoded.version === version;
+
+        // Decrypt the payload
+        const decrypted = decrypt(encrypted, simpleVector.sec2, pub1);
+        const decryptionWorks = decrypted === simpleVector.plaintext;
+
+        if (versionMatches && decryptionWorks) {
+          console.log(
+            `  ✅ Version ${version}: Encryption and decryption successful.`,
+          );
+        } else {
+          console.log(`  ❌ Version ${version}: Test failed.`);
+          if (!versionMatches) {
+            console.log(
+              `    - Version mismatch: expected ${version}, got ${decoded.version}`,
+            );
+          }
+          if (!decryptionWorks) {
+            console.log(
+              `    - Decryption failed: expected "${simpleVector.plaintext}", got "${decrypted}"`,
+            );
+          }
+        }
+      } catch (error) {
+        // Catch any unexpected errors during the V2 process
+        console.log(`  ❌ Version ${version}: An unexpected exception occurred:`, error);
+      }
     }
   }
 

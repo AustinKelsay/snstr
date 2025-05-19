@@ -54,16 +54,12 @@ Encrypts a message using NIP-44 encryption (ChaCha20 + HMAC-SHA256).
 - `privateKey` - Sender's private key
 - `publicKey` - Recipient's public key
 - `nonce` - (Optional) 32-byte nonce, will be randomly generated if not provided
-- `options` - (Optional) Additional options:
-  - `version` - (Optional) Specify NIP-44 version for encryption (0, 1, or 2, defaults to 2)
-- Returns: Base64-encoded encrypted message
+- `options` - (Optional) Additional options. Currently, no specific NIP-44 options are typically needed by the user for `encrypt`, as it defaults to the current standard (v2). The `version` field within options is reserved for potential future NIP-44 versions or highly specific scenarios, and **must not** be used to select v0 or v1 for encryption.
+- Returns: Base64-encoded encrypted message (NIP-44 v2)
 
 ```typescript
-// Default encryption with v2
+// Default encryption uses NIP-44 v2
 const encrypted = encryptNIP44('Hello', privateKey, publicKey);
-
-// Explicitly specify version for compatibility with older clients
-const encryptedV1 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 1 });
 ```
 
 ### `decryptNIP44(ciphertext, privateKey, publicKey)`
@@ -107,35 +103,21 @@ This function is used internally to validate MACs securely, but is also exposed 
 This implementation follows the NIP-44 specification requirement that clients:
 - **MUST** include a version byte in encrypted payloads
 - **MUST** be able to decrypt versions 0 and 1
-- **SHOULD** be able to encrypt with versions 0 and 1 (if needed for compatibility)
+- **MUST NOT** encrypt with version 0 ("Reserved")
+- **MUST NOT** encrypt with version 1 ("Deprecated and undefined")
 
 ### Version Support
 
 | Version | Encryption | Decryption | Notes |
 |---------|------------|------------|-------|
-| 0 | ✅ Supported | ✅ Supported | Early experimental version, available for compatibility |
-| 1 | ✅ Supported | ✅ Supported | Interim version, available for compatibility |
-| 2 | ✅ Supported | ✅ Supported | Current version, used by default for encryption |
+| 0 | ❌ Not Supported | ✅ Supported | Per NIP-44: "Reserved. Implementations MUST NOT encrypt with this version." Decryption is supported. |
+| 1 | ❌ Not Supported | ✅ Supported | Per NIP-44: "Deprecated and undefined. Implementations MUST NOT encrypt with this version." Decryption is supported. |
+| 2 | ✅ Supported (Default) | ✅ Supported | Current version, used by default for all encryption. |
 
 ### Default Behavior
 
-- **Encryption**: By default, all messages are encrypted with version 2 (current version)
+- **Encryption**: All messages are encrypted with NIP-44 version 2 (the current standard).
 - **Decryption**: Automatically detects and handles versions 0, 1, and 2
-
-### Explicit Version Selection
-
-You can explicitly choose a version for encryption when needed for compatibility:
-
-```typescript
-// Default - uses version 2
-const encrypted = encryptNIP44('Hello', privateKey, publicKey);
-
-// Force version 1 for compatibility with older clients
-const encryptedV1 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 1 });
-
-// Force version 0 for compatibility with earliest implementations
-const encryptedV0 = encryptNIP44('Hello', privateKey, publicKey, undefined, { version: 0 });
-```
 
 ### Version Differences
 
