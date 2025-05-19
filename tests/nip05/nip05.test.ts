@@ -139,6 +139,42 @@ describe("NIP-05", () => {
         expect.any(Object),
       );
     });
+
+    it("should handle domain-only identifiers correctly (e.g., example.com)", async () => {
+      const mockResponse = {
+        names: {
+          _: "pubkey_for_root",
+        },
+        relays: {
+          pubkey_for_root: ["wss://relay.example.com"],
+        },
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse),
+      });
+
+      const result = await lookupNIP05("example.com");
+
+      expect(result).toEqual(mockResponse);
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/.well-known/nostr.json?name=_", // Note: name=_
+        expect.any(Object),
+      );
+    });
+
+    it("should return null for domain-only identifiers if fetch fails", async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Network error"),
+      );
+      const result = await lookupNIP05("example.com");
+      expect(result).toBeNull();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/.well-known/nostr.json?name=_",
+        expect.any(Object),
+      );
+    });
   });
 
   describe("verifyNIP05", () => {
@@ -219,6 +255,53 @@ describe("NIP-05", () => {
 
       expect(result).toBe(true);
     });
+
+    it("should correctly verify domain-only identifiers (e.g., example.com)", async () => {
+      const pubkey = "pubkey_for_root";
+      const mockResponse = {
+        names: {
+          _: pubkey, // name is "_"
+        },
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse),
+      });
+
+      // When verifying "example.com", it's treated as "_@example.com"
+      // The lookupNIP05 inside verifyNIP05 will be called with "example.com"
+      // which then constructs the URL with name="_"
+      const result = await verifyNIP05("example.com", pubkey);
+      expect(result).toBe(true);
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/.well-known/nostr.json?name=_",
+        expect.any(Object),
+      );
+
+      // Test with a non-matching pubkey
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse), // Same response
+      });
+      const resultNonMatch = await verifyNIP05(
+        "example.com",
+        "another_pubkey",
+      );
+      expect(resultNonMatch).toBe(false);
+    });
+
+    it("should return false for domain-only identifiers if lookup fails during verification", async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Network error"),
+      );
+      const result = await verifyNIP05("example.com", "pubkey_for_root");
+      expect(result).toBe(false);
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/.well-known/nostr.json?name=_",
+        expect.any(Object),
+      );
+    });
   });
 
   describe("getNIP05PubKey", () => {
@@ -297,6 +380,54 @@ describe("NIP-05", () => {
       const result = await getNIP05PubKey("USER@example.com");
 
       expect(result).toBe(pubkey);
+    });
+
+    it("should correctly get pubkey for domain-only identifiers (e.g., example.com)", async () => {
+      const pubkey = "pubkey_for_root";
+      const mockResponse = {
+        names: {
+          _: pubkey, // name is "_"
+        },
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse),
+      });
+      // getNIP05PubKey calls lookupNIP05 with "example.com"
+      const result = await getNIP05PubKey("example.com");
+      expect(result).toBe(pubkey);
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/.well-known/nostr.json?name=_",
+        expect.any(Object),
+      );
+    });
+
+    it("should return null for domain-only identifiers if name '_' is not in response", async () => {
+      const mockResponse = {
+        names: {
+          // No "_" key
+          user: "some_other_pubkey",
+        },
+      };
+      (global.fetch as jest.Mock).mockResolvedValueOnce({
+        ok: true,
+        json: jest.fn().mockResolvedValueOnce(mockResponse),
+      });
+      const result = await getNIP05PubKey("example.com");
+      expect(result).toBeNull();
+    });
+
+    it("should return null for domain-only identifiers if lookup fails", async () => {
+      (global.fetch as jest.Mock).mockRejectedValueOnce(
+        new Error("Network error"),
+      );
+      const result = await getNIP05PubKey("example.com");
+      expect(result).toBeNull();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "https://example.com/.well-known/nostr.json?name=_",
+        expect.any(Object),
+      );
     });
   });
 

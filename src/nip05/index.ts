@@ -20,14 +20,27 @@ export async function verifyNIP05(
   pubkey: string,
 ): Promise<boolean> {
   try {
-    const [name, domain] = identifier.split("@");
+    let name: string, domain: string;
+    const parts = identifier.split("@");
+    if (parts.length === 1) {
+      name = "_";
+      domain = parts[0];
+    } else if (parts.length === 2) {
+      name = parts[0];
+      domain = parts[1];
+    } else {
+      // Invalid format
+      return false;
+    }
 
-    // If the identifier isn't properly formatted
+    // If the identifier isn't properly formatted (e.g. empty name or domain)
     if (!name || !domain) {
       return false;
     }
 
-    const response = await lookupNIP05(identifier);
+    // Use the potentially modified identifier for lookup
+    const modifiedIdentifier = name === "_" && parts.length === 1 ? domain : identifier;
+    const response = await lookupNIP05(modifiedIdentifier);
     if (!response) return false;
 
     // Check if the name exists in the response and corresponds to our pubkey
@@ -47,9 +60,22 @@ export async function lookupNIP05(
   identifier: string,
 ): Promise<NIP05Response | null> {
   try {
-    const [name, domain] = identifier.split("@");
+    let name: string, domain: string;
+    const parts = identifier.split("@");
 
-    // If the identifier isn't properly formatted
+    if (parts.length === 1) {
+      // If there's no "@", assume it's a domain and default name to "_"
+      name = "_";
+      domain = parts[0];
+    } else if (parts.length === 2) {
+      name = parts[0];
+      domain = parts[1];
+    } else {
+      // Invalid format
+      return null;
+    }
+
+    // If the identifier isn't properly formatted (e.g. empty name or domain after split)
     if (!name || !domain) {
       return null;
     }
@@ -97,14 +123,26 @@ export async function getNIP05PubKey(
   identifier: string,
 ): Promise<string | null> {
   try {
-    const [name, domain] = identifier.split("@");
-
-    // If the identifier isn't properly formatted
-    if (!name || !domain) {
+    let name: string, domain: string;
+    const parts = identifier.split("@");
+    if (parts.length === 1) {
+      name = "_";
+      domain = parts[0];
+    } else if (parts.length === 2) {
+      name = parts[0];
+      domain = parts[1];
+    } else {
+      // Invalid format
       return null;
     }
 
-    const response = await lookupNIP05(identifier);
+    // If the identifier isn't properly formatted (e.g. empty name or domain)
+    if (!name || !domain) {
+      return null;
+    }
+    // Use the potentially modified identifier for lookup
+    const modifiedIdentifier = name === "_" && parts.length === 1 ? domain : identifier;
+    const response = await lookupNIP05(modifiedIdentifier);
     if (!response) return null;
 
     // Check if the name exists in the response

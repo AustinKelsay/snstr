@@ -12,16 +12,6 @@ This document lists the critical claims and alleged NIP compliance issues found 
 
 ---
 
-## IV. NIP-05: DNS-based Identifiers
-
-**Claim 4.1: Flawed NIP-05 Identifier Parsing**
-*   **Original Critique Summary:** The NIP-05 parsing logic in `src/nip05/index.ts` does not correctly handle identifiers provided as just `domain.com` (which should imply `_@domain.com`). It incorrectly splits or fails.
-*   **Code Location(s):** `src/nip05/index.ts` (functions `lookupNIP05`, `verifyNIP05`, `getNIP05PubKey`).
-*   **Verification Status:** [X] Verified - Accurate
-*   **Verification Notes:** The functions `lookupNIP05`, `verifyNIP05`, and `getNIP05PubKey` in `src/nip05/index.ts` all begin by splitting the input `identifier` using `identifier.split("@")` into `name` and `domain`. They then check `if (!name || !domain)`. If an identifier like "domain.com" (lacking an '@') is provided, `domain` will be undefined, causing this check to pass and the function to return prematurely (e.g., `null` or `false`). The code does not implement the NIP-05 recommendation that an identifier such as "domain.com" should be treated as `_@domain.com` (i.e., `name = "_"`, `domain = "domain.com"`).
-
----
-
 ## V. NIP-19: Bech32-encoded entities
 
 ### Claim 5.1: Non-standard `kind` field in `nevent` TLV (NIP-19)
