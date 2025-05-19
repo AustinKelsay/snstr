@@ -807,6 +807,7 @@ export enum NIP20Prefix {
   Error = "error:",
   Blocked = "blocked:",
   AuthRequired = "auth-required:",
+  Restricted = "restricted:",
 }
 
 export interface ParsedOkReason {

@@ -889,13 +889,6 @@ export class Relay {
    */
   private async validateEventAsync(event: NostrEvent): Promise<boolean> {
     try {
-      // Skip signature validation for NIP-46 events
-      if (event.kind === 24133) {
-        // For NIP-46, we did basic validation already in validateEvent
-        // Skip the more expensive ID and signature validation
-        return true;
-      }
-
       // Extract the data needed for ID verification (excluding id and sig)
       const eventData = {
         pubkey: event.pubkey,
@@ -1084,9 +1077,9 @@ export class Relay {
       if (a.created_at !== b.created_at) {
         return b.created_at - a.created_at;
       }
-      // If created_at is the same, sort by id (descending lexical order)
-      // This ensures higher IDs win when timestamps match
-      return b.id.localeCompare(a.id);
+      // If created_at is the same, sort by id (ascending lexical order)
+      // This ensures lower IDs win when timestamps match, consistent with NIP-01 replaceable/addressable events.
+      return a.id.localeCompare(b.id);
     });
   }
 
