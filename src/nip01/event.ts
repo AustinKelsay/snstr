@@ -577,30 +577,95 @@ export async function validateEvent(
         }
         break;
 
-      case NostrKind.Contacts:
-        // Contact lists must have p tags for each contact
-        if (!event.tags.some((tag) => tag[0] === "p")) {
+      case NostrKind.Contacts: {
+        // NIP-02: Validate 'p' tags for Kind 3 (Contacts) events.
+        // Tags should conform to: ["p", <pubkey_hex>, <recommended_relay_url_or_empty_string>, <petname_or_empty_string>]
+        // General tag validation (if enabled) ensures all tag items are strings.
+
+        const pubkeyRegexNIP02 = /^[0-9a-fA-F]{64}$/;
+        // Basic regex for ws:// or wss:// URLs. NIP-02 doesn't specify strict URL validation beyond the scheme.
+        const relayUrlRegexNIP02 = /^(wss?:\/\/).+/i;
+
+        for (const tag of event.tags) {
+          if (tag[0] === "p") {
+            // 1. Validate pubkey (tag[1])
+            if (tag.length < 2 || typeof tag[1] !== 'string' || !pubkeyRegexNIP02.test(tag[1])) {
+              throw new NostrValidationError(
+                `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a 64-character hex. Received: '${tag[1]}'.`,
+                "tags",
+                event
+              );
+            }
+
+            // 2. Validate relay URL (tag[2])
+            if (tag.length > 2) {
+              const relayUrl = tag[2];
+              // General tag validation should ensure tag[2] is a string if validateTags=true.
+              // This check provides robustness.
+              if (typeof relayUrl !== 'string') {
+                throw new NostrValidationError(
+                  "Invalid NIP-02 'p' tag: Relay URL at tag[2] must be a string if present.",
+                  "tags",
+                  event
+                );
+              }
+              // If relayUrl is not an empty string, it must be a valid ws/wss URL.
+              if (relayUrl.length > 0 && !relayUrlRegexNIP02.test(relayUrl)) {
+                throw new NostrValidationError(
+                  `Invalid NIP-02 'p' tag: Relay URL "${relayUrl}" at tag[2] is not a valid ws:// or wss:// URL, or an empty string.`,
+                  "tags",
+                  event
+                );
+              }
+            }
+
+            // 3. Validate structure if petname (tag[3]) is present
+            if (tag.length > 3) {
+              const petname = tag[3];
+              // General tag validation should ensure tag[3] is a string if validateTags=true.
+              if (typeof petname !== 'string') {
+                throw new NostrValidationError(
+                  "Invalid NIP-02 'p' tag: Petname at tag[3] must be a string if present.",
+                  "tags",
+                  event
+                );
+              }
+              // According to NIP-02: "If relay URL is not present but petname is, the relay URL MUST be an empty string."
+              // This means tag[2] must exist if tag[3] exists.
+              if (typeof tag[2] !== 'string') {
+                throw new NostrValidationError(
+                  "Invalid NIP-02 'p' tag: Relay URL at tag[2] must be present (and a string, can be empty) if petname at tag[3] is specified.",
+                  "tags",
+                  event
+                );
+              }
+            }
+
+            // 4. Validate maximum length of a 'p' tag
+            if (tag.length > 4) {
+              throw new NostrValidationError(
+                "Invalid NIP-02 'p' tag: Exceeds maximum of 4 elements (p, pubkey, relay, petname).",
+                "tags",
+                event
+              );
+            }
+          }
+        }
+        break;
+      }
+
+      case NostrKind.DirectMessage: {
+        // Direct messages must have exactly one p tag
+        const pTags = event.tags.filter((tag) => tag[0] === "p");
+        if (pTags.length !== 1) {
           throw new NostrValidationError(
-            "Contact list event should have at least one p tag",
+            "Direct message event must have exactly one p tag",
             "tags",
             event,
           );
         }
         break;
-
-      case NostrKind.DirectMessage:
-        // Direct messages must have exactly one p tag
-        {
-          const pTags = event.tags.filter((tag) => tag[0] === "p");
-          if (pTags.length !== 1) {
-            throw new NostrValidationError(
-              "Direct message event must have exactly one p tag",
-              "tags",
-              event,
-            );
-          }
-        }
-        break;
+      }
 
       // Add validation for other kinds as needed
     }
