@@ -1,7 +1,5 @@
 import { hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-import { sha256 } from "@noble/hashes/sha2";
-import { hmac } from "@noble/hashes/hmac";
 import * as crypto from "crypto";
 
 /**
@@ -48,15 +46,8 @@ export function getSharedSecret(
   // Extract x-coordinate only (slice off the first byte which is a prefix)
   const sharedX = sharedPoint.slice(1, 33);
 
-  // Hash the x-coordinate with HMAC-SHA256 using "nip04" as the key for compatibility
-  return hmac.create(sha256, getHmacKey("nip04")).update(sharedX).digest();
-}
-
-/**
- * Helper function to get HMAC key bytes for a string
- */
-function getHmacKey(keyString: string): Uint8Array {
-  return new TextEncoder().encode(keyString);
+  // NIP-04 specifies using the raw 32-byte x-coordinate itself as the key.
+  return sharedX;
 }
 
 /**

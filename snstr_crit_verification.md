@@ -12,16 +12,6 @@ This document lists the critical claims and alleged NIP compliance issues found 
 
 ---
 
-## III. NIP-04: Encrypted Direct Messages (Kind 4)
-
-**Claim 3.1: Incorrect Shared Secret Generation**
-*   **Original Critique Summary:** `getSharedSecret` in `src/nip04/index.ts` incorrectly HMAC-SHA256 hashes the shared x-coordinate (`sharedX`). NIP-04 specifies using the raw 32-byte x-coordinate as the AES key. This makes the implementation incompatible.
-*   **Code Location(s):** `src/nip04/index.ts` (function `getSharedSecret`).
-*   **Verification Status:** [X] Verified - Accurate
-*   **Verification Notes:** The `getSharedSecret` function (lines 28-42 in `src/nip04/index.ts`) calculates the 32-byte ECDH shared x-coordinate (`sharedX`). However, instead of returning this `sharedX` directly as the NIP-04 shared secret (AES key), it further processes it by computing `hmac.create(sha256, getHmacKey("nip04")).update(sharedX).digest()`. NIP-04 specifies using the raw 32-byte x-coordinate itself as the key. This additional HMAC step generates a different key, rendering the implementation incompatible with standard NIP-04.
-
----
-
 ## IV. NIP-05: DNS-based Identifiers
 
 **Claim 4.1: Flawed NIP-05 Identifier Parsing**
