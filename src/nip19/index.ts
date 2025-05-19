@@ -544,23 +544,6 @@ export function encodeEvent(data: EventData): Bech32String {
     });
   }
 
-  // Add kind if provided
-  if (data.kind !== undefined) {
-    if (data.kind < 0 || data.kind > 65535) {
-      throw new Error("Invalid kind: must be between 0 and 65535");
-    }
-
-    // Convert kind to bytes (uint16)
-    const kindBytes = new Uint8Array(2);
-    kindBytes[0] = (data.kind >> 8) & 0xff;
-    kindBytes[1] = data.kind & 0xff;
-
-    entries.push({
-      type: TLVType.Kind,
-      value: kindBytes,
-    });
-  }
-
   // Encode the TLV entries
   const tlvData = encodeTLV(entries);
 
@@ -596,7 +579,6 @@ export function decodeEvent(nevent: Bech32String): EventData {
     let id: HexString | undefined;
     const relays: RelayUrl[] = [];
     let author: HexString | undefined;
-    let kind: number | undefined;
 
     for (const entry of entries) {
       if (entry.type === TLVType.Special) {
@@ -622,12 +604,6 @@ export function decodeEvent(nevent: Bech32String): EventData {
           throw new Error("Invalid author pubkey length: should be 32 bytes");
         }
         author = bytesToHex(entry.value);
-      } else if (entry.type === TLVType.Kind) {
-        // This is the event kind
-        if (entry.value.length !== 2) {
-          throw new Error("Invalid kind length: should be 2 bytes");
-        }
-        kind = (entry.value[0] << 8) + entry.value[1];
       }
       // Ignore unknown types for forward compatibility
     }
@@ -641,7 +617,6 @@ export function decodeEvent(nevent: Bech32String): EventData {
       id,
       relays: relays.length > 0 ? relays : undefined,
       author,
-      kind,
     };
   } catch (error) {
     handleDecodingError(error, "nevent");

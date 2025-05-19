@@ -14,18 +14,6 @@ This document lists the critical claims and alleged NIP compliance issues found 
 
 ## V. NIP-19: Bech32-encoded entities
 
-### Claim 5.1: Non-standard `kind` field in `nevent` TLV (NIP-19)
-
-*   **File & Code:** `src/nip19/index.ts`, `encodeEvent` function.
-*   **NIP-19 Specification:** `nevent` is for encoding an event ID, optionally with recommended relays and author pubkey. Standard TLV types for `nevent` are `special` (type 0), `relay` (type 1), `author` (type 2). TLV type `3` (`kind`) is defined for `naddr` and is a 4-byte integer.
-*   **Verification:**
-    *   The `encodeEvent` function in `src/nip19/index.ts` includes an optional `kind` field in the TLV data if `data.kind` is present, using `TLVType.Kind`.
-    *   This `kind` is encoded as a 2-byte unsigned integer.
-    *   NIP-19 does not define a `kind` TLV field for `nevent` entities. The TLV type `3` (`kind`) is specified only for `naddr` entities and is defined as a 4-byte unsigned integer.
-    *   The library's inclusion of a `kind` field (TLV type 3) in `nevent` is non-standard. Additionally, it uses a 2-byte representation, which conflicts with the 4-byte length defined for TLV type 3 in the context of `naddr`.
-*   **Status:** **Accurate**
-*   **Severity:** Medium. Creates `nevent` strings that are not compliant with NIP-19 and may not be parsable or may be misinterpreted by other clients/libraries.
-
 **Claim 5.2: Incorrect `kind` field byte-length in `naddr` TLV encoding**
 *   **Original Critique Summary:** `encodeAddress` in `src/nip19/index.ts` encodes the `kind` for an `naddr` entity as a 2-byte integer. NIP-19 mandates a 4-byte unsigned big-endian integer for the `kind` in `naddr` TLV.
 *   **Code Location(s):** `src/nip19/index.ts` (function `encodeAddress`, specifically lines ~683-688 in the prior full file view).
