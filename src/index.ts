@@ -2,6 +2,17 @@
 export { Nostr } from "./nip01/nostr";
 export { Relay } from "./nip01/relay";
 
+// Export types from nip01/nostr.ts (Callback types)
+export type {
+  NostrConnectCallback,
+  NostrErrorCallback,
+  NostrNoticeCallback,
+  NostrOkCallback,
+  NostrClosedCallback,
+  NostrAuthCallback,
+  NostrEventCallback,
+} from "./nip01/nostr";
+
 // Export types
 export * from "./types/nostr";
 

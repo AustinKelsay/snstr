@@ -167,8 +167,8 @@ describe("Relay Event Ordering Integration", () => {
     const fourthArg = onEventCallback.mock.calls[3][0] as NostrEvent;
 
     expect(firstArg.id).toBe(event2.id); // Newest timestamp
-    expect(secondArg.id).toBe(event3.id); // Middle timestamp, lexically LARGER (new rule)
-    expect(thirdArg.id).toBe(event4.id); // Middle timestamp, lexically SMALLER (new rule)
+    expect(secondArg.id).toBe(event4.id); // Middle timestamp, lexically SMALLER
+    expect(thirdArg.id).toBe(event3.id); // Middle timestamp, lexically LARGER
     expect(fourthArg.id).toBe(event1.id); // Oldest timestamp
   });
 

@@ -36,10 +36,10 @@ The [`nip44-demo.ts`](./nip44-demo.ts) example demonstrates:
 
 The [`nip44-version-compatibility.ts`](./nip44-version-compatibility.ts) example provides a more in-depth demonstration of:
 
-- Encrypting with specific versions (0, 1, and 2)
-- Automatic decryption of messages from any supported version
-- Cross-version communication scenarios
-- Error handling for unsupported versions
+- Attempting to encrypt with NIP-44 versions 0 and 1 (which correctly results in errors as per NIP-44 spec).
+- Successful encryption with NIP-44 version 2 (the current standard).
+- Automatic decryption of messages from any supported version (0, 1, and 2).
+- Error handling for unsupported versions for encryption.
 
 ### Test Vector Verification
 
@@ -48,8 +48,8 @@ The [`nip44-test-vector.ts`](./nip44-test-vector.ts) example:
 - Loads and verifies official NIP-44 test vectors
 - Tests conversation key derivation
 - Tests message key derivation
-- Tests encryption/decryption with official vectors
-- Demonstrates version compatibility with various test cases
+- Tests decryption of official v2 test vector payloads.
+- Demonstrates NIP-44 version handling for encryption (v0/v1 attempts fail as specified, v2 succeeds) and decryption.
 - Provides detailed examination of specific vectors for debugging
 
 ## Running the Examples

@@ -76,7 +76,7 @@ class ExpirationDemoWallet implements WalletImplementation {
     _maxfee?: number,
   ): Promise<PaymentResponseResult> {
     // Simulate a long-running operation that might exceed expiration
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2500));
 
     const paymentAmount = amount || 1000;
     const fee = Math.floor(paymentAmount * 0.01);

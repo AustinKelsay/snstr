@@ -127,7 +127,18 @@ export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
  * Encodes a public key to npub format
  */
 export function encodePublicKey(publicKey: HexString): Bech32String {
-  return encodeBech32(Prefix.PublicKey, publicKey);
+  if (typeof publicKey !== "string") {
+    throw new Error("Invalid public key: input must be a string.");
+  }
+  // hexToBytes will validate format, non-empty, but we also need to check exact length.
+  const bytes = hexToBytes(publicKey); // hexToBytes validates format, non-even length, non-hex chars
+  if (bytes.length !== 32) {
+    throw new Error(
+      `Invalid public key hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${publicKey.length} hex chars). Ensure it is not empty and has correct length.`,
+    );
+  }
+  const words = bech32.toWords(bytes);
+  return encodeBech32WithLimit(Prefix.PublicKey, words);
 }
 
 /**
@@ -234,7 +245,17 @@ export function decodePublicKey(npub: Bech32String): HexString {
  * Encodes a private key to nsec format
  */
 export function encodePrivateKey(privateKey: HexString): Bech32String {
-  return encodeBech32(Prefix.PrivateKey, privateKey);
+  if (typeof privateKey !== "string") {
+    throw new Error("Invalid private key: input must be a string.");
+  }
+  const bytes = hexToBytes(privateKey);
+  if (bytes.length !== 32) {
+    throw new Error(
+      `Invalid private key hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${privateKey.length} hex chars). Ensure it is not empty and has correct length.`,
+    );
+  }
+  const words = bech32.toWords(bytes);
+  return encodeBech32WithLimit(Prefix.PrivateKey, words);
 }
 
 /**
@@ -258,7 +279,17 @@ export function decodePrivateKey(nsec: Bech32String): HexString {
  * Encodes a note ID to note format
  */
 export function encodeNoteId(noteId: HexString): Bech32String {
-  return encodeBech32(Prefix.Note, noteId);
+  if (typeof noteId !== "string") {
+    throw new Error("Invalid note ID: input must be a string.");
+  }
+  const bytes = hexToBytes(noteId);
+  if (bytes.length !== 32) {
+    throw new Error(
+      `Invalid note ID hex: expected 32 bytes (64 hex chars), got ${bytes.length} bytes (${noteId.length} hex chars). Ensure it is not empty and has correct length.`,
+    );
+  }
+  const words = bech32.toWords(bytes);
+  return encodeBech32WithLimit(Prefix.Note, words);
 }
 
 /**
@@ -513,23 +544,6 @@ export function encodeEvent(data: EventData): Bech32String {
     });
   }
 
-  // Add kind if provided
-  if (data.kind !== undefined) {
-    if (data.kind < 0 || data.kind > 65535) {
-      throw new Error("Invalid kind: must be between 0 and 65535");
-    }
-
-    // Convert kind to bytes (uint16)
-    const kindBytes = new Uint8Array(2);
-    kindBytes[0] = (data.kind >> 8) & 0xff;
-    kindBytes[1] = data.kind & 0xff;
-
-    entries.push({
-      type: TLVType.Kind,
-      value: kindBytes,
-    });
-  }
-
   // Encode the TLV entries
   const tlvData = encodeTLV(entries);
 
@@ -565,7 +579,6 @@ export function decodeEvent(nevent: Bech32String): EventData {
     let id: HexString | undefined;
     const relays: RelayUrl[] = [];
     let author: HexString | undefined;
-    let kind: number | undefined;
 
     for (const entry of entries) {
       if (entry.type === TLVType.Special) {
@@ -591,12 +604,6 @@ export function decodeEvent(nevent: Bech32String): EventData {
           throw new Error("Invalid author pubkey length: should be 32 bytes");
         }
         author = bytesToHex(entry.value);
-      } else if (entry.type === TLVType.Kind) {
-        // This is the event kind
-        if (entry.value.length !== 2) {
-          throw new Error("Invalid kind length: should be 2 bytes");
-        }
-        kind = (entry.value[0] << 8) + entry.value[1];
       }
       // Ignore unknown types for forward compatibility
     }
@@ -610,7 +617,6 @@ export function decodeEvent(nevent: Bech32String): EventData {
       id,
       relays: relays.length > 0 ? relays : undefined,
       author,
-      kind,
     };
   } catch (error) {
     handleDecodingError(error, "nevent");
@@ -630,8 +636,8 @@ export function encodeAddress(data: AddressData): Bech32String {
     throw new Error("Invalid pubkey: must be a 32-byte hex string");
   }
 
-  if (data.kind === undefined || data.kind < 0 || data.kind > 65535) {
-    throw new Error("Invalid kind: must be between 0 and 65535");
+  if (data.kind === undefined || data.kind < 0 || data.kind > 0xffffffff) { // Allow full 32-bit unsigned range
+    throw new Error("Invalid kind: must be a 32-bit unsigned integer (0 to 4294967295)");
   }
 
   // Check identifier length
@@ -684,9 +690,11 @@ export function encodeAddress(data: AddressData): Bech32String {
   });
 
   // Add kind
-  const kindBytes = new Uint8Array(2);
-  kindBytes[0] = (data.kind >> 8) & 0xff;
-  kindBytes[1] = data.kind & 0xff;
+  const kindBytes = new Uint8Array(4); // Changed to 4 bytes
+  kindBytes[0] = (data.kind >> 24) & 0xff;
+  kindBytes[1] = (data.kind >> 16) & 0xff;
+  kindBytes[2] = (data.kind >> 8) & 0xff;
+  kindBytes[3] = data.kind & 0xff;
 
   entries.push({
     type: TLVType.Kind,
@@ -753,10 +761,10 @@ export function decodeAddress(naddr: Bech32String): AddressData {
         pubkey = bytesToHex(entry.value);
       } else if (entry.type === TLVType.Kind) {
         // This is the event kind
-        if (entry.value.length !== 2) {
-          throw new Error("Invalid kind length: should be 2 bytes");
+        if (entry.value.length !== 4) {
+          throw new Error("Invalid kind length: should be 4 bytes");
         }
-        kind = (entry.value[0] << 8) + entry.value[1];
+        kind = (entry.value[0] << 24) + (entry.value[1] << 16) + (entry.value[2] << 8) + entry.value[3];
       }
       // Ignore unknown types for forward compatibility
     }
@@ -789,8 +797,19 @@ export function decodeAddress(naddr: Bech32String): AddressData {
  * Converts a hex string to a byte array
  */
 function hexToBytes(hex: HexString): Uint8Array {
+  if (typeof hex !== "string") {
+    throw new Error("Invalid hex string: input must be a string.");
+  }
+  if (hex.length === 0) {
+    // Explicitly disallow empty string for this context.
+    throw new Error("Invalid hex string: cannot be empty.");
+  }
   if (hex.length % 2 !== 0) {
-    throw new Error("Invalid hex string: length must be even");
+    throw new Error("Invalid hex string: length must be even.");
+  }
+  if (!/^[0-9a-fA-F]*$/.test(hex)) {
+    // Add regex check for all characters
+    throw new Error("Invalid hex string: contains non-hex characters.");
   }
 
   const bytes = new Uint8Array(hex.length / 2);

@@ -4,6 +4,8 @@ import {
   NostrEvent,
   PublishOptions,
   PublishResponse,
+  NIP20Prefix,
+  ParsedOkReason,
 } from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import {
@@ -225,12 +227,21 @@ describe("Relay", () => {
 
       // Now directly call the callback as if an OK message was received
       const okCallback = callbacks.get(RelayEvent.OK) as RelayOkCallback;
-      okCallback(event.id, true, "accepted: all good");
+      // Construct ParsedOkReason for a simple success message
+      const successDetails: ParsedOkReason = {
+        rawMessage: "accepted: all good",
+        message: "accepted: all good", // No standard prefix for simple accept
+        // prefix: undefined by default
+      };
+      okCallback(event.id, true, successDetails);
 
       // Now the publish promise should resolve with success=true
       const result: PublishResponse = await publishPromise;
       expect(result.success).toBe(true);
+      // The 'reason' field (for backward compatibility) should contain the raw message
       expect(result.reason).toBe("accepted: all good");
+      // The new 'parsedReason' field should contain the parsed details
+      expect(result.parsedReason).toEqual(successDetails);
       expect(result.relay).toBe(ephemeralRelay.url);
 
       // Restore the original implementation
@@ -278,12 +289,19 @@ describe("Relay", () => {
 
       // Now directly call the callback with a rejection
       const okCallback = callbacks.get(RelayEvent.OK) as RelayOkCallback;
-      okCallback(event.id, false, "invalid: test rejection");
+      // Construct ParsedOkReason for a rejection message
+      const failureDetails: ParsedOkReason = {
+        prefix: NIP20Prefix.PoW,
+        message: "too low, min difficulty 20 required",
+        rawMessage: "pow: too low, min difficulty 20 required",
+      };
+      okCallback(event.id, false, failureDetails);
 
-      // Now the publish promise should resolve with success=false and the reason
+      // Now the publish promise should resolve with success=false
       const result: PublishResponse = await publishPromise;
       expect(result.success).toBe(false);
-      expect(result.reason).toBe("invalid: test rejection");
+      expect(result.reason).toBe("pow: too low, min difficulty 20 required");
+      expect(result.parsedReason).toEqual(failureDetails);
       expect(result.relay).toBe(ephemeralRelay.url);
 
       // Restore the original implementation
@@ -579,19 +597,19 @@ describe("Relay", () => {
       const relay = new Relay(ephemeralRelay.url);
 
       // Setup a mock to track OK message handling
-      let okMessageReceived = false;
-      let okEventId = "";
-      let okSuccess = false;
-      let okMessage: string | undefined = "";
+      let okEventReceived = false;
+      let receivedEventId = "";
+      let receivedSuccess = false;
+      let receivedDetails: ParsedOkReason | undefined = undefined;
 
       // Mock the event handler to capture OK messages
       relay.on(
         RelayEvent.OK,
-        (eventId: string, success: boolean, message?: string) => {
-          okMessageReceived = true;
-          okEventId = eventId;
-          okSuccess = success;
-          okMessage = message;
+        (eventId: string, success: boolean, details: ParsedOkReason) => {
+          okEventReceived = true;
+          receivedEventId = eventId;
+          receivedSuccess = success;
+          receivedDetails = details;
         },
       );
 
@@ -599,7 +617,12 @@ describe("Relay", () => {
       // This is a direct test of the internal handleMessage method
       const testEventId = "test-event-id-ok-message";
       const testSuccess = true;
-      const testMessage = "Event was stored";
+      const testRawMessage = "pow: Event was stored with PoW 10";
+      const expectedDetails: ParsedOkReason = {
+        prefix: NIP20Prefix.PoW,
+        message: "Event was stored with PoW 10",
+        rawMessage: testRawMessage,
+      };
 
       // Access the private handleMessage method using type assertion
       const internalRelay = asTestRelay(relay);
@@ -607,14 +630,59 @@ describe("Relay", () => {
         "OK",
         testEventId,
         testSuccess,
-        testMessage,
+        testRawMessage, // handleMessage will parse this
       ]);
 
       // Verify the handler was called with the right parameters
-      expect(okMessageReceived).toBe(true);
-      expect(okEventId).toBe(testEventId);
-      expect(okSuccess).toBe(testSuccess);
-      expect(okMessage).toBe(testMessage);
+      expect(okEventReceived).toBe(true);
+      expect(receivedEventId).toBe(testEventId);
+      expect(receivedSuccess).toBe(testSuccess);
+      expect(receivedDetails).toBeDefined();
+      expect(receivedDetails!.prefix).toBe(expectedDetails.prefix);
+      expect(receivedDetails!.message).toBe(expectedDetails.message);
+      expect(receivedDetails!.rawMessage).toBe(expectedDetails.rawMessage);
+    });
+
+    test("should handle OK messages correctly (no prefix)", () => {
+      const relay = new Relay(ephemeralRelay.url);
+      let okEventReceived = false;
+      let receivedEventId = "";
+      let receivedSuccess = false;
+      let receivedDetails: ParsedOkReason | undefined = undefined;
+
+      relay.on(
+        RelayEvent.OK,
+        (eventId: string, success: boolean, details: ParsedOkReason) => {
+          okEventReceived = true;
+          receivedEventId = eventId;
+          receivedSuccess = success;
+          receivedDetails = details;
+        },
+      );
+
+      const testEventId = "test-event-id-ok-no-prefix";
+      const testSuccess = true;
+      const testRawMessage = "Event was stored";
+      const expectedDetails: ParsedOkReason = {
+        // prefix should be undefined
+        message: "Event was stored",
+        rawMessage: testRawMessage,
+      };
+      const internalRelay = asTestRelay(relay);
+      internalRelay.handleMessage([
+        "OK",
+        testEventId,
+        testSuccess,
+        testRawMessage,
+      ]);
+
+      expect(okEventReceived).toBe(true);
+      expect(receivedEventId).toBe(testEventId);
+      expect(receivedSuccess).toBe(testSuccess);
+      expect(receivedDetails).toBeDefined();
+      expect(receivedDetails!.prefix).toBeUndefined();
+      expect(receivedDetails!.message).toBe(expectedDetails.message);
+      expect(receivedDetails!.rawMessage).toBe(expectedDetails.rawMessage);
     });
 
     test("should handle CLOSED messages correctly", () => {

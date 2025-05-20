@@ -135,16 +135,19 @@ class MockLnurlServer {
   private nostrClient: Nostr;
   private keypair: { privateKey: string; publicKey: string };
   private pendingZapRequests: Map<string, PendingZapRequest> = new Map();
+  private nostrRelay: NostrRelay;
 
   constructor(
     port: number,
     wallet: MockLightningWallet,
     nostrClient: Nostr,
     keypair: { privateKey: string; publicKey: string },
+    nostrRelay: NostrRelay,
   ) {
     this.wallet = wallet;
     this.nostrClient = nostrClient;
     this.keypair = keypair;
+    this.nostrRelay = nostrRelay;
 
     // Create HTTP server
     this.server = createServer((req, res) => {
@@ -364,9 +367,10 @@ class MockLnurlServer {
       try {
         // Use the ephemeral relay directly
         // Our example is using a fixed port that we know about
-        const ephemeralRelay = new NostrRelay(RELAY_PORT);
-        await ephemeralRelay.start();
-        ephemeralRelay.store(signedZapReceipt);
+        // const ephemeralRelay = new NostrRelay(RELAY_PORT); <--- REMOVED
+        // await ephemeralRelay.start(); <--- REMOVED
+        // ephemeralRelay.store(signedZapReceipt); <--- REMOVED
+        this.nostrRelay.store(signedZapReceipt); // MODIFIED: Use the existing relay
         console.log(`Published zap receipt to ephemeral relay`);
       } catch (error) {
         console.error(`Error publishing zap receipt:`, error);
@@ -430,6 +434,7 @@ async function main() {
     lightningWallet,
     lnurlServerClient,
     lnurlServerKeypair,
+    relay,
   );
 
   await lnurlServer.start();

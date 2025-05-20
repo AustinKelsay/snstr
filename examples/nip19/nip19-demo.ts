@@ -188,7 +188,7 @@ function demonstrateTLVEncoding() {
     console.log("\nDecoded event data:");
     console.log(`ID: ${decoded.id}`);
     console.log(`Author: ${decoded.author || "(Not included)"}`);
-    console.log(`Kind: ${decoded.kind || "(Not included)"}`);
+    console.log(`Kind: ${decoded.kind !== undefined ? decoded.kind : "(Not part of nevent encoding)"}`);
     console.log("Relays:");
     if (decoded.relays && decoded.relays.length > 0) {
       decoded.relays.forEach((relay) => console.log(`- ${relay}`));
@@ -203,7 +203,7 @@ function demonstrateTLVEncoding() {
   console.log("\n📋 ADDRESS ENCODING:");
   const addressData = {
     pubkey: "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",
-    kind: 30023,
+    kind: 300023,
     identifier: "comprehensive-guide-to-nip19",
     relays: ["wss://relay.damus.io"],
   };

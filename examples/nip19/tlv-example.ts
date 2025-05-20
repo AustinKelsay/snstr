@@ -76,20 +76,21 @@ function demonstrateNeventEncoding() {
   const author =
     "32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245";
   const relays = ["wss://relay.nostr.info", "wss://relay.damus.io"];
-  const kind = 1;
+  const originalKind = 1; // This kind is part of the EventData in memory
 
-  console.log("Input data:");
+  console.log("Input data (EventData object):");
   console.log(`Event ID: ${id}`);
   console.log(`Author: ${author}`);
-  console.log(`Kind: ${kind}`);
+  console.log(`Kind (in memory): ${originalKind}`);
   console.log("Relays:");
   relays.forEach((relay: string) => console.log(`- ${relay}`));
 
   // Encode to TLV format (nevent)
+  // The 'originalKind' from EventData is NOT encoded into the nevent string
   const nevent = encodeEvent({
     id: id,
     author: author,
-    kind: kind,
+    kind: originalKind, // Passed to encodeEvent, but won't be in the nevent TLV
     relays: relays,
   });
 
@@ -97,10 +98,11 @@ function demonstrateNeventEncoding() {
 
   // Decode back to components
   const decoded = decodeEvent(nevent);
-  console.log("\nDecoded data:");
+  console.log("\nDecoded data (from nevent string):");
   console.log(`Event ID: ${decoded.id}`);
-  console.log(`Author: ${decoded.author}`);
-  console.log(`Kind: ${decoded.kind}`);
+  console.log(`Author: ${decoded.author || "(Not included)"}`);
+  // 'kind' is not part of nevent TLV, so decoded.kind will be undefined
+  console.log(`Kind (from nevent): ${decoded.kind !== undefined ? decoded.kind : "(Not part of nevent encoding)"}`);
   console.log("Relays:");
   if (decoded.relays) {
     decoded.relays.forEach((relay: string) => console.log(`- ${relay}`));
@@ -108,17 +110,20 @@ function demonstrateNeventEncoding() {
     console.log("(no relays)");
   }
 
-  // Verify roundtrip
+  // Verify roundtrip for fields that ARE part of nevent encoding
   const idMatch = decoded.id === id;
   const authorMatch = decoded.author === author;
-  const kindMatch = decoded.kind === kind;
+  // kindMatch is no longer applicable as kind is not encoded in nevent
   const relaysMatch =
-    decoded.relays &&
-    JSON.stringify([...decoded.relays].sort()) ===
-      JSON.stringify([...relays].sort());
+    (!relays && !decoded.relays) || // Both undefined/empty
+    (relays && decoded.relays && // Both defined
+      JSON.stringify([...decoded.relays].sort()) ===
+        JSON.stringify([...relays].sort()));
+
   console.log(
-    `\nRoundtrip successful: ${idMatch && authorMatch && kindMatch && relaysMatch}`,
+    `\nRoundtrip successful (for id, author, relays): ${idMatch && authorMatch && relaysMatch}`
   );
+  console.log("Note: 'kind' is not part of 'nevent' encoding and is not expected to roundtrip.");
 }
 
 /**
@@ -130,7 +135,7 @@ function demonstrateNaddrEncoding() {
   // Example address components
   const pubkey =
     "e8b487c079b0f67c695ae6c4c2552a47f38adfa2533cc5926bd2c102942fdcb5";
-  const kind = 30023; // Long-form content
+  const kind = 300023; // Example of a 32-bit kind (0x493F7), e.g., for long-form content. Previously 30023.
   const identifier = "article-about-tlv";
   const relays = ["wss://relay.example.com", "wss://nos.lol"];
 

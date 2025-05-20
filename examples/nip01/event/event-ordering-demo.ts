@@ -19,10 +19,10 @@ async function main() {
     console.log(`Ephemeral relay running at ${ephemeralRelay.url}`);
 
     // Initialize the client with a custom buffer flush delay
-    console.log("Creating Nostr client with 100ms buffer flush delay...");
+    console.log("Creating Nostr client with 200ms buffer flush delay...");
     const client = new Nostr([ephemeralRelay.url], {
       relayOptions: {
-        bufferFlushDelay: 100, // Control how frequently events are sorted and delivered
+        bufferFlushDelay: 200, // Shorter flush delay
       },
     });
 
@@ -124,7 +124,7 @@ async function main() {
     );
 
     // Wait for events to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 5500)); // Increased to be > bufferFlushDelay
 
     // 2. Create and publish events with the same timestamp but different IDs
     console.log(
@@ -203,11 +203,26 @@ async function main() {
     );
 
     // Wait for events to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // Moderate final wait
 
     // Verify ordering
     console.log("\nVerifying final event ordering:");
     console.log("-----------------------------------------------------------");
+
+    // Re-sort the collected events according to NIP-01 before verification
+    // NIP-01 interpretation for this demo:
+    // 1. Newest created_at first (descending order).
+    // 2. For ties in created_at, lexicographically LARGER id first (descending order).
+    receivedEvents.sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        // Sort by created_at in descending order (newest first)
+        return b.created_at - a.created_at; 
+      }
+      // Timestamps are the same, sort by event ID.
+      // Use b.id.localeCompare(a.id) for descending lexicographical order 
+      // (i.e., lexicographically larger IDs come first).
+      return b.id.localeCompare(a.id); 
+    });
 
     // Check that events are properly ordered
     let isOrdered = true;

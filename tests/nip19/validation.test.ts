@@ -306,7 +306,7 @@ describe("NIP-19: Validation and Edge Cases", () => {
     test("should validate kind values within bounds in nevent and naddr", () => {
       // Updated to use a valid kind within the 0-65535 range
       const validKind = 65000; // Valid kind just under the limit
-      const invalidKind = 70000; // Invalid kind over the limit
+      const invalidKindNaddr = 0x100000000; // Invalid kind over the new 32-bit limit (4294967296)
 
       const validAddr = {
         identifier: "test",
@@ -317,21 +317,29 @@ describe("NIP-19: Validation and Edge Cases", () => {
 
       const validEvent = {
         id: "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d",
-        kind: validKind,
+        kind: validKind, // EventData can still have a kind, it just won't be encoded in nevent
       };
 
-      // Valid kind should encode and decode successfully
+      // Valid kind should encode and decode successfully for naddr
       const addrEncoded = encodeAddress(validAddr);
       const addrDecoded = decodeAddress(addrEncoded);
       expect(addrDecoded.kind).toBe(validKind);
 
+      // For nevent, kind is no longer encoded, so it should be undefined after decoding
       const eventEncoded = encodeEvent(validEvent);
       const eventDecoded = decodeEvent(eventEncoded);
-      expect(eventDecoded.kind).toBe(validKind);
+      expect(eventDecoded.kind).toBeUndefined();
 
-      // Invalid kind should throw an error
-      const invalidAddr = { ...validAddr, kind: invalidKind };
+      // Invalid kind should throw an error for naddr encoding
+      const invalidAddr = { ...validAddr, kind: invalidKindNaddr };
       expect(() => encodeAddress(invalidAddr)).toThrow(/Invalid kind/);
+
+      // For nevent, encodeEvent no longer validates or uses the kind, so this specific check is not applicable.
+      // The EventData type still allows kind, so no error is thrown if it's out of expected NIP-19 bounds
+      // as it's not used for nevent encoding.
+      // If EventData.kind had its own validation separate from TLV encoding, that would be tested differently.
+      // const invalidEvent = { ...validEvent, kind: invalidKind };
+      // expect(() => encodeEvent(invalidEvent)).toThrow(/Invalid kind/); // This would no longer throw for this reason.
     });
   });
 

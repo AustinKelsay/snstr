@@ -15,6 +15,7 @@ async function main() {
   const identifiers = [
     "bob@example.com", // Sample from NIP-05 (won't work)
     "_@example.com", // Root identifier (won't work)
+    "example.com", // Root identifier, equivalent to _@example.com (won't work)
     "jack@cash.app", // Real example
     "jack@damus.io", // Real example
   ];

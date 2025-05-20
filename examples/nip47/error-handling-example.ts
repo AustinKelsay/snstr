@@ -109,32 +109,17 @@ class ErrorDemoWallet implements WalletImplementation {
     maxfee?: number,
   ): Promise<PaymentResponseResult> {
     const paymentAmount = amount || 2000; // Default 2000 msats
+    const calculatedFee = 100; // Simplified fee
 
-    // Fee calculation logic (can be more sophisticated)
-    // For this example, let's assume a base fee or a simple calculation.
-    // We'll keep it at 100 for now for consistency with the previous version,
-    // but in a real scenario, this would be dynamic.
-    const calculatedFee = 100;
-
-    // Check if maxfee is provided and if calculatedFee exceeds it
+    // 1. Check for maxfee violation first
     if (maxfee !== undefined && calculatedFee > maxfee) {
       throw {
-        code: NIP47ErrorCode.PAYMENT_REJECTED, // Or a more specific error if defined
+        code: NIP47ErrorCode.PAYMENT_REJECTED,
         message: `Calculated fee (${calculatedFee} msats) exceeds the maximum specified fee (${maxfee} msats).`,
       };
     }
 
-    // Check error modes
-    if (
-      this.errorMode === "insufficient_balance" ||
-      paymentAmount + calculatedFee > this.balance
-    ) {
-      throw {
-        code: NIP47ErrorCode.INSUFFICIENT_BALANCE,
-        message: "Insufficient balance to make payment",
-      };
-    }
-
+    // 2. Handle specific error modes before general balance check
     if (this.errorMode === "invalid_invoice") {
       throw {
         code: NIP47ErrorCode.INVALID_INVOICE_FORMAT,
@@ -169,6 +154,30 @@ class ErrorDemoWallet implements WalletImplementation {
         code: NIP47ErrorCode.WALLET_UNAVAILABLE,
         message: "Wallet is currently unavailable",
       };
+    }
+
+    // 3. Now, check for insufficient balance if no other specific error mode was triggered
+    //    or if the mode is specifically 'insufficient_balance'.
+    if (
+      this.errorMode === "insufficient_balance" ||
+      paymentAmount + calculatedFee > this.balance
+    ) {
+      // Ensure this check doesn't override specific errors if balance is also low
+      if (
+        this.errorMode !== "none" &&
+        this.errorMode !== "insufficient_balance"
+      ) {
+        // If a specific error mode is set, and it's not one of the ones already handled above,
+        // this implies an issue with the test setup or an unhandled error mode.
+        // For now, we let the insufficient balance check proceed if the balance is indeed too low.
+        // However, the specific error modes should ideally be exhaustive for payInvoice error simulations.
+      }
+      if (paymentAmount + calculatedFee > this.balance) {
+        throw {
+          code: NIP47ErrorCode.INSUFFICIENT_BALANCE,
+          message: "Insufficient balance to make payment",
+        };
+      }
     }
 
     // Success path - deduct from balance
@@ -478,14 +487,17 @@ async function main() {
           message: `Wallet is currently unavailable (attempt ${attemptCount})`,
         };
       }
-      errorWallet.setErrorMode("none");
+      errorWallet.setErrorMode("none"); // Correctly switch off unavailable mode
+      // No need to adjust balance here now, the client call will specify a low amount
       return originalPayInvoice.apply(this, args);
     };
 
     try {
-      // Use the built-in retry mechanism
+      // Use the built-in retry mechanism. For the success case on retry,
+      // call payInvoice with an amount that will succeed with the current balance (1000 msats).
+      // e.g., 500 msats + 100 msats fee = 600 msats, which is < 1000 msats.
       const result = await client.withRetry(
-        () => client.payInvoice("lnbc1000n1demo"),
+        () => client.payInvoice("lnbc500n1demoretry", 500), // Specify 500msat amount
         { maxRetries: 3, initialDelay: 500, maxDelay: 2000, factor: 2 },
       );
       console.log("Succeeded after retries!");
@@ -493,6 +505,8 @@ async function main() {
     } catch (error: unknown) {
       console.log("Even retry mechanism failed:", formatError(error));
     }
+    // It's important to restore the original payInvoice method after the test
+    errorWallet.payInvoice = originalPayInvoice;
 
     // Add a specific section to demonstrate NOT_FOUND error for lookupInvoice
     console.log("\n\n=== 5. Handling NOT_FOUND Error for lookupInvoice ===");

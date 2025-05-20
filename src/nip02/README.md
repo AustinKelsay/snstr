@@ -16,7 +16,7 @@ import {
   createContactListEvent,
   parseContactsFromEvent,
   Contact,
-} from './index'; // Adjust path as necessary
+} from './index';
 import { NostrEvent /*, signEvent */ } from '../types/nostr'; // Assuming signEvent and NostrEvent types
 
 // Example: Creating a contact list event

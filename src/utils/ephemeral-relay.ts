@@ -228,8 +228,8 @@ export class NostrRelay {
               );
             return;
           } else {
-            // created_at is the same, NIP-01 says lexicographically larger id wins (is newer)
-            if (event.id > cachedEvent.id) {
+            // created_at is the same, NIP-01 says lexicographically smaller id wins (is older)
+            if (event.id < cachedEvent.id) {
               olderEventIndex = i;
               break;
             } else {

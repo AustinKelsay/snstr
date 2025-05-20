@@ -21,7 +21,7 @@ export enum TLVType {
   Special = 0, // Depends on prefix: pubkey for nprofile, event id for nevent, identifier (d tag) for naddr
   Relay = 1, // Optional relay URL where the entity might be found
   Author = 2, // Author pubkey (for naddr, required; for nevent, optional)
-  Kind = 3, // Event kind (for naddr, required; for nevent, optional)
+  Kind = 3, // Event kind (for naddr, required)
 }
 
 /**

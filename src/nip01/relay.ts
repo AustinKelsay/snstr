@@ -8,6 +8,8 @@ import {
   RelayEventCallbacks,
   PublishOptions,
   PublishResponse,
+  NIP20Prefix,
+  ParsedOkReason,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 
@@ -318,17 +320,55 @@ export class Relay {
     event: E,
     callback: RelayEventCallbacks[E],
   ): void {
-    this.eventHandlers[event] = callback;
+    if (typeof callback !== "function") return;
+
+    const existingCallbacks = this.eventHandlers[event];
+
+    if (!existingCallbacks) {
+      // If no array exists for this event type, create one with the new callback
+      this.eventHandlers[event] = [callback] as RelayEventHandler[E];
+    } else {
+      // existingCallbacks is already correctly typed as RelayEventCallbacks[E][] | undefined by the corrected RelayEventHandler
+      if (!existingCallbacks.includes(callback)) {
+        existingCallbacks.push(callback);
+      }
+    }
   }
 
   public off<E extends RelayEvent>(
     event: E,
     callback: RelayEventCallbacks[E],
   ): void {
-    // Only remove if the current handler is the same callback
-    if (this.eventHandlers[event] === callback) {
-      delete this.eventHandlers[event];
+    if (typeof callback !== "function") return;
+
+    const handlerOrArray = this.eventHandlers[event];
+
+    if (!handlerOrArray) { // If undefined, no handlers registered for this event.
+      return;
     }
+
+    // First, check if the stored entry is a single function (user's identified scenario for robustness)
+    // Note: Types suggest handlerOrArray should be an array if defined (RelayEventCallbacks[E][]).
+    // This check handles potential state where it might erroneously be a single function.
+    if (typeof handlerOrArray === 'function') {
+      if (handlerOrArray === callback) {
+        delete this.eventHandlers[event];
+      }
+    }
+    // Else, if it's an array (the expected scenario based on types and `on` method)
+    else if (Array.isArray(handlerOrArray)) {
+      const callbacksArray = handlerOrArray; // Can also rename to handlerOrArray if preferred
+      const index = callbacksArray.indexOf(callback);
+      if (index > -1) {
+        callbacksArray.splice(index, 1);
+      }
+
+      if (callbacksArray.length === 0) {
+        delete this.eventHandlers[event];
+      }
+    }
+    // If handlerOrArray is defined but is neither a function nor an array (e.g., other object types),
+    // this would be a highly unexpected state. Current behavior is to do nothing, which is safe.
   }
 
   public async publish(
@@ -382,11 +422,16 @@ export class Relay {
         const handleOk = (
           eventId: string,
           success: boolean,
-          message?: string,
+          details: ParsedOkReason,
         ) => {
           if (eventId === event.id) {
             cleanup();
-            resolve({ success, reason: message, relay: this.url });
+            resolve({
+              success,
+              reason: details.rawMessage,
+              parsedReason: details,
+              relay: this.url,
+            });
           }
         };
 
@@ -587,21 +632,28 @@ export class Relay {
         break;
       }
       case "OK": {
-        const [eventId, success, rawMessage] = rest;
+        const [eventId, success, rawMessageUntyped] = rest;
         if (debug)
           console.log(
-            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessage}`,
+            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessageUntyped}`,
           );
 
         // Ensure all params are of the correct type
         const eventIdStr =
           typeof eventId === "string" ? eventId : String(eventId || "");
         const successBool = Boolean(success);
-        // message can be undefined, or a string. If it's not a string, treat as undefined for the event.
-        const messageStr =
-          typeof rawMessage === "string" ? rawMessage : undefined;
 
-        this.triggerEvent(RelayEvent.OK, eventIdStr, successBool, messageStr);
+        // Parse the raw message for NIP-20 prefixes
+        const rawMessageStr =
+          typeof rawMessageUntyped === "string" ? rawMessageUntyped : undefined;
+        const parsedDetails = this.parseOkMessage(rawMessageStr);
+
+        this.triggerEvent(
+          RelayEvent.OK,
+          eventIdStr,
+          successBool,
+          parsedDetails,
+        );
         break;
       }
       case "CLOSED": {
@@ -697,6 +749,20 @@ export class Relay {
     }
   }
 
+  // Helper function to check if a string is a valid hex string of a specific length
+  private isHexString(value: unknown, length?: number): boolean {
+    if (typeof value !== "string") {
+      return false;
+    }
+    if (!/^[0-9a-fA-F]+$/.test(value)) {
+      return false;
+    }
+    if (length !== undefined && value.length !== length) {
+      return false;
+    }
+    return true;
+  }
+
   /**
    * Perform basic synchronous validation of an event
    *
@@ -714,11 +780,11 @@ export class Relay {
     try {
       // Now we can safely access event properties
       // Check that all required fields are present and have the correct types
-      if (event.id.length !== 64) {
+      if (!this.isHexString(event.id, 64)) {
         return false;
       }
 
-      if (event.pubkey.length !== 64) {
+      if (!this.isHexString(event.pubkey, 64)) {
         return false;
       }
 
@@ -728,7 +794,8 @@ export class Relay {
 
       // Validate tag structure
       for (const tag of event.tags) {
-        if (!Array.isArray(tag)) {
+        if (!Array.isArray(tag) || tag.length === 0) {
+          // Ensure tag is a non-empty array
           return false;
         }
 
@@ -738,9 +805,21 @@ export class Relay {
             return false;
           }
         }
+
+        // Specific NIP-01 tag parameter validation
+        const tagName = tag[0];
+        if (tagName === "e" || tagName === "p") {
+          // For 'e' (event ID) and 'p' (pubkey) tags, the second element must be a 64-char hex string
+          // NIP-01: ["e", <event-id-hex>, <optional-relay-url-string>]
+          // NIP-01: ["p", <pubkey-hex>, <optional-relay-url-string>]
+          if (tag.length < 2 || !this.isHexString(tag[1], 64)) {
+            return false;
+          }
+        }
+        // Other tag types might have different validation rules, not covered by this specific claim.
       }
 
-      if (event.sig.length !== 128) {
+      if (!this.isHexString(event.sig, 128)) {
         return false;
       }
 
@@ -752,21 +831,19 @@ export class Relay {
 
       // Special handling for NIP-46 events (kind 24133)
       if (event.kind === 24133) {
-        // NIP-46 events require at least one p tag with proper format
-        const hasPTag = event.tags.some(
-          (tag: string[]) =>
-            Array.isArray(tag) &&
-            tag.length >= 2 &&
-            tag[0] === "p" &&
-            typeof tag[1] === "string" &&
-            tag[1].length === 64,
+        // NIP-46 events require at least one 'p' tag.
+        // The format of such a 'p' tag (tag[0]==='p', tag.length >= 2, and tag[1] is 64-char hex)
+        // would have already been validated by the general tag loop above.
+        // Here, we just ensure at least one such 'p' tag exists.
+        const hasValidPTagForNIP46 = event.tags.some(
+          (tag: string[]) => tag.length >= 2 && tag[0] === "p",
         );
 
-        if (!hasPTag) {
+        if (!hasValidPTagForNIP46) {
           const debug = process.env.DEBUG?.includes("nostr:*") || false;
           if (debug) {
             console.log(
-              `Relay(${this.url}): NIP-46 event missing valid p tag:`,
+              `Relay(${this.url}): NIP-46 event missing required 'p' tag (expected format ['p', <64_hex_pubkey>, ...]):`,
               JSON.stringify(event.tags),
             );
           }
@@ -828,13 +905,6 @@ export class Relay {
    */
   private async validateEventAsync(event: NostrEvent): Promise<boolean> {
     try {
-      // Skip signature validation for NIP-46 events
-      if (event.kind === 24133) {
-        // For NIP-46, we did basic validation already in validateEvent
-        // Skip the more expensive ID and signature validation
-        return true;
-      }
-
       // Extract the data needed for ID verification (excluding id and sig)
       const eventData = {
         pubkey: event.pubkey,
@@ -885,7 +955,7 @@ export class Relay {
     event: RelayEvent.OK,
     eventId: string,
     success: boolean,
-    message?: string,
+    details: ParsedOkReason,
   ): void;
   private triggerEvent(
     event: RelayEvent.Closed,
@@ -897,41 +967,20 @@ export class Relay {
     challengeEvent: NostrEvent,
   ): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
-    const handler = this.eventHandlers[event];
-    if (handler) {
-      switch (event) {
-        case RelayEvent.Connect:
-        case RelayEvent.Disconnect:
-          (handler as RelayEventCallbacks[typeof event])(this.url);
-          break;
-        case RelayEvent.Error:
-          (handler as RelayEventCallbacks[RelayEvent.Error])(this.url, args[0]);
-          break;
-        case RelayEvent.Notice:
-          (handler as RelayEventCallbacks[RelayEvent.Notice])(
-            this.url,
-            args[0] as string,
-          );
-          break;
-        case RelayEvent.OK:
-          (handler as RelayEventCallbacks[RelayEvent.OK])(
-            args[0] as string,
-            args[1] as boolean,
-            args[2] as string | undefined,
-          );
-          break;
-        case RelayEvent.Closed:
-          (handler as RelayEventCallbacks[RelayEvent.Closed])(
-            args[0] as string,
-            args[1] as string,
-          );
-          break;
-        case RelayEvent.Auth:
-          (handler as RelayEventCallbacks[RelayEvent.Auth])(
-            args[0] as NostrEvent,
-          );
-          break;
-      }
+    const callbacks = this.eventHandlers[event];
+
+    if (callbacks && Array.isArray(callbacks)) {
+      callbacks.forEach((callback) => {
+        if (typeof callback === "function") {
+          try {
+            // Directly call the callback with the spread arguments.
+            // The type assertion in Relay.on ensures the callback matches the event.
+            (callback as (...args: unknown[]) => void)(...args);
+          } catch (e) {
+            console.error(`Relay(${this.url}): Error in ${event} callback:`, e);
+          }
+        }
+      });
     }
   }
 
@@ -1044,9 +1093,9 @@ export class Relay {
       if (a.created_at !== b.created_at) {
         return b.created_at - a.created_at;
       }
-      // If created_at is the same, sort by id (descending lexical order)
-      // This ensures higher IDs win when timestamps match
-      return b.id.localeCompare(a.id);
+      // If created_at is the same, sort by id (ascending lexical order)
+      // This ensures lower IDs win when timestamps match, consistent with NIP-01 replaceable/addressable events.
+      return a.id.localeCompare(b.id);
     });
   }
 
@@ -1064,7 +1113,12 @@ export class Relay {
     const userEvents = this.replaceableEvents.get(key)!;
     const existingEvent = userEvents.get(event.kind);
 
-    if (!existingEvent || existingEvent.created_at < event.created_at) {
+    if (
+      !existingEvent ||
+      event.created_at > existingEvent.created_at ||
+      (event.created_at === existingEvent.created_at &&
+        event.id < existingEvent.id)
+    ) {
       userEvents.set(event.kind, event);
       // In a full implementation, we might want to notify subscribers about the replacement
     }
@@ -1085,7 +1139,12 @@ export class Relay {
 
     const existingEvent = this.addressableEvents.get(key);
 
-    if (!existingEvent || existingEvent.created_at < event.created_at) {
+    if (
+      !existingEvent ||
+      event.created_at > existingEvent.created_at ||
+      (event.created_at === existingEvent.created_at &&
+        event.id < existingEvent.id)
+    ) {
       this.addressableEvents.set(key, event);
       // In a full implementation, we might want to notify subscribers about the replacement
     }
@@ -1146,6 +1205,25 @@ export class Relay {
     return Array.from(this.addressableEvents.values()).filter(
       (event) => event.kind === kind,
     );
+  }
+
+  // Helper function to parse NIP-20 prefixes from OK messages
+  private parseOkMessage(rawMessage?: string): ParsedOkReason {
+    const result: ParsedOkReason = {
+      rawMessage: rawMessage || "",
+      message: rawMessage || "", // Default to full message if no prefix
+    };
+
+    if (rawMessage) {
+      for (const nipPrefix of Object.values(NIP20Prefix)) {
+        if (rawMessage.startsWith(nipPrefix)) {
+          result.prefix = nipPrefix;
+          result.message = rawMessage.substring(nipPrefix.length).trimStart();
+          break;
+        }
+      }
+    }
+    return result;
   }
 
   // Add this helper method to type guard for NostrEvent

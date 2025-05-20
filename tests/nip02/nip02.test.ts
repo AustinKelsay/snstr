@@ -4,7 +4,6 @@ import {
   createSignedEvent,
   UnsignedEvent,
   validateEvent,
-  NostrValidationError,
 } from "../../src/nip01/event";
 import { generateKeypair, verifySignature } from "../../src/utils/crypto";
 import { Nostr } from "../../src/nip01/nostr";
@@ -195,7 +194,7 @@ describe("NIP-02: Contact Lists", () => {
       await expect(validateEvent(signedEvent)).resolves.toBe(true);
     });
 
-    it("should reject kind 3 event with no p tags when validateEvent is strict (using empty Contact array)", async () => {
+    it("should accept kind 3 event with no p tags when validateEvent is strict (using empty Contact array)", async () => {
       const unsignedEventTemplate = createContactListEvent([]);
       const unsignedEvent: UnsignedEvent = {
         ...unsignedEventTemplate,
@@ -203,12 +202,8 @@ describe("NIP-02: Contact Lists", () => {
         created_at: Math.floor(Date.now() / 1000),
       };
       const signedEvent = await createSignedEvent(unsignedEvent, userAPrivKey);
-      await expect(validateEvent(signedEvent)).rejects.toThrow(
-        NostrValidationError,
-      );
-      await expect(validateEvent(signedEvent)).rejects.toThrow(
-        "Contact list event should have at least one p tag",
-      );
+      // NIP-02 allows empty contact lists (no 'p' tags), so validateEvent should now pass.
+      await expect(validateEvent(signedEvent)).resolves.toBe(true);
     });
 
     it("should accept kind 3 event with minimal valid p tag (using Contact array)", async () => {
