@@ -210,12 +210,18 @@ async function main() {
     console.log("-----------------------------------------------------------");
 
     // Re-sort the collected events according to NIP-01 before verification
-    // NIP-01: newest created_at first, then lexicographically LARGER id first for ties.
+    // NIP-01 interpretation for this demo:
+    // 1. Newest created_at first (descending order).
+    // 2. For ties in created_at, lexicographically LARGER id first (descending order).
     receivedEvents.sort((a, b) => {
       if (a.created_at !== b.created_at) {
-        return b.created_at - a.created_at; // Newest events first
+        // Sort by created_at in descending order (newest first)
+        return b.created_at - a.created_at; 
       }
-      return b.id.localeCompare(a.id); // Larger ID is newer for same timestamp
+      // Timestamps are the same, sort by event ID.
+      // Use b.id.localeCompare(a.id) for descending lexicographical order 
+      // (i.e., lexicographically larger IDs come first).
+      return b.id.localeCompare(a.id); 
     });
 
     // Check that events are properly ordered

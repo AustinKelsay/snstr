@@ -341,18 +341,34 @@ export class Relay {
   ): void {
     if (typeof callback !== "function") return;
 
-    const callbacksForEvent = this.eventHandlers[event];
-    if (callbacksForEvent && Array.isArray(callbacksForEvent)) {
-      const index = callbacksForEvent.indexOf(callback); // Find the index of the callback
-      if (index > -1) {
-        callbacksForEvent.splice(index, 1); // Remove it by index if found
-      }
+    const handlerOrArray = this.eventHandlers[event];
 
-      // If no callbacks are left, remove the event key from the handlers map
-      if (callbacksForEvent.length === 0) {
+    if (!handlerOrArray) { // If undefined, no handlers registered for this event.
+      return;
+    }
+
+    // First, check if the stored entry is a single function (user's identified scenario for robustness)
+    // Note: Types suggest handlerOrArray should be an array if defined (RelayEventCallbacks[E][]).
+    // This check handles potential state where it might erroneously be a single function.
+    if (typeof handlerOrArray === 'function') {
+      if (handlerOrArray === callback) {
         delete this.eventHandlers[event];
       }
     }
+    // Else, if it's an array (the expected scenario based on types and `on` method)
+    else if (Array.isArray(handlerOrArray)) {
+      const callbacksArray = handlerOrArray; // Can also rename to handlerOrArray if preferred
+      const index = callbacksArray.indexOf(callback);
+      if (index > -1) {
+        callbacksArray.splice(index, 1);
+      }
+
+      if (callbacksArray.length === 0) {
+        delete this.eventHandlers[event];
+      }
+    }
+    // If handlerOrArray is defined but is neither a function nor an array (e.g., other object types),
+    // this would be a highly unexpected state. Current behavior is to do nothing, which is safe.
   }
 
   public async publish(

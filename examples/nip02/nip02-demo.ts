@@ -17,8 +17,7 @@ import {
   NostrEvent,
   ContactsEvent,
 } from "../../src/types/nostr";
-import { parseContactsFromEvent, Contact } from "../../src/nip02"; // Updated import
-// Adjust path based on your project structure // This comment is no longer as relevant with direct imports
+import { parseContactsFromEvent, Contact } from "../../src/nip02";
 
 const USER_PUBKEY =
   "6260f29fa75c91aaa292f082e5e87b438d2ab4fdf96af398567b01802ee2fcd4";

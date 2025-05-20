@@ -1,7 +1,7 @@
 import {
   isValidPublicKeyFormat,
   isValidPrivateKey,
-} from "../../src/nip44"; // Adjust path as needed
+} from "../../src/nip44";
 
 describe("NIP-44 Format Validation", () => {
   describe("isValidPublicKeyFormat", () => {
