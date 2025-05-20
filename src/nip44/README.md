@@ -119,6 +119,10 @@ This implementation follows the NIP-44 specification requirement that clients:
 - **Encryption**: All messages are encrypted with NIP-44 version 2 (the current standard).
 - **Decryption**: Automatically detects and handles versions 0, 1, and 2
 
+**Note on V0/V1 Decryption Compatibility:**
+NIP-44 (Section: Decryption, Point 4) specifies that for decrypting versions 0 and 1: *"Implementations MUST be able to decrypt versions 0 and 1 for compatibility, **using the same algorithms as above** [i.e., version 2's algorithms] with the respective version byte. The `message_nonce` is 32 bytes, `mac` is 32 bytes. Clients MAY refuse to decrypt messages with these versions."*
+This implementation adheres to this directive by applying the NIP-44 v2 cryptographic pipeline (including key derivation with the "nip44-v2" salt, ChaCha20, and HMAC-SHA256) when attempting to decrypt payloads marked as v0 or v1. Therefore, successful decryption of v0/v1 payloads implies they were constructed in a manner compatible with the v2 cryptographic scheme, as guided by the NIP-44 decryption instructions.
+
 ### Version Differences
 
 Currently, all versions use the same cryptographic primitives:

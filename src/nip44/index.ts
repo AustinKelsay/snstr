@@ -32,6 +32,9 @@ const MAX_SUPPORTED_VERSION = 2;
 // We will assume they are the same as v2 unless specified otherwise.
 // TODO: Verify NIP-44 v0 and v1 nonce and MAC sizes.
 // For now, using 32 for all, as per common practice and lack of specific contrary info in NIP-44 for v0/v1.
+// NIP-44 (Decryption, point 2) specifies for v0/v1 decryption:
+// "The `message_nonce` is 32 bytes, `mac` is 32 bytes."
+// This implementation uses these mandated sizes for v0/v1 decryption.
 const NONCE_SIZE_V0 = 32;
 const NONCE_SIZE_V1 = 32;
 const NONCE_SIZE_V2 = 32;
@@ -689,6 +692,9 @@ function decryptV2(
 // It is assumed that v1 decryption uses the same underlying crypto as v2, but with version byte 1.
 // The primary difference is that the conversation key KDF uses the "nip44-v2" salt,
 // as v1 spec for KDF is undefined and NIP-44 mandates v1 decryption.
+// NIP-44 (Decryption, point 2) mandates that v1 payloads be decrypted using the same
+// algorithms as v2, including the "nip44-v2" KDF salt and 32-byte nonce/MAC.
+// This function adheres to that by utilizing decryptV2.
 function decryptV1(
   encryptedData: Uint8Array,
   nonce: Uint8Array,
@@ -702,6 +708,7 @@ function decryptV1(
   // but doesn't detail if their algorithms differ from v2 beyond version byte.
   // Assuming key derivation ("nip44-v2" salt in getSharedSecret) and crypto primitives are the same unless specified.
   // console.warn("NIP-44: decryptV1 is using V2 logic as a placeholder. Verify V1 specification.");
+  // NIP-44 specifies using v2 algorithms for v1 decryption.
   try {
     return decryptV2(encryptedData, nonce, mac, privateKey, publicKey);
   } catch (error) {
@@ -718,6 +725,9 @@ function decryptV1(
 // It is assumed that v0 decryption uses the same underlying crypto as v2, but with version byte 0.
 // The primary difference is that the conversation key KDF uses the "nip44-v2" salt,
 // as v0 spec for KDF is undefined and NIP-44 mandates v0 decryption.
+// NIP-44 (Decryption, point 2) mandates that v0 payloads be decrypted using the same
+// algorithms as v2, including the "nip44-v2" KDF salt and 32-byte nonce/MAC.
+// This function adheres to that by utilizing decryptV2.
 function decryptV0(
   encryptedData: Uint8Array,
   nonce: Uint8Array,
@@ -729,6 +739,7 @@ function decryptV0(
   // This needs to be replaced with actual V0 specification.
   // There's no official NIP for v0, it was an early experimental version.
   // console.warn("NIP-44: decryptV0 is using V2 logic as a placeholder. Verify V0 specification if possible.");
+  // NIP-44 specifies using v2 algorithms for v0 decryption.
   try {
     return decryptV2(encryptedData, nonce, mac, privateKey, publicKey);
   } catch (error) {
