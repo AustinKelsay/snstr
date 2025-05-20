@@ -168,7 +168,7 @@ function unpad(padded: Uint8Array): string {
  * Validate if a string is a valid hex format public key
  * As per NIP-44 spec, pubkey must be a valid non-zero secp256k1 curve point
  */
-function isValidPublicKey(publicKey: string): boolean {
+export function isValidPublicKeyFormat(publicKey: string): boolean {
   return /^[0-9a-f]{64}$/i.test(publicKey);
 }
 
@@ -176,7 +176,7 @@ function isValidPublicKey(publicKey: string): boolean {
  * Validate if a string is a valid hex format private key
  * A valid private key must be a 32-byte hex string with a value less than the curve order
  */
-function isValidPrivateKey(privateKey: string): boolean {
+export function isValidPrivateKey(privateKey: string): boolean {
   // Check format: must be 64 hex characters
   if (!/^[0-9a-f]{64}$/i.test(privateKey)) {
     return false;
@@ -225,7 +225,7 @@ export function getSharedSecret(
   }
 
   // Validate public key - must be a valid x-coordinate on the curve
-  if (!isValidPublicKey(publicKey)) {
+  if (!isValidPublicKeyFormat(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -505,7 +505,7 @@ export function encrypt(
   options?: { version?: number },
 ): string {
   // Validate keys
-  if (!isValidPublicKey(publicKey)) {
+  if (!isValidPublicKeyFormat(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -764,7 +764,7 @@ export function decrypt(
   publicKey: string,
 ): string {
   // Validate keys
-  if (!isValidPublicKey(publicKey)) {
+  if (!isValidPublicKeyFormat(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
