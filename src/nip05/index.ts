@@ -87,6 +87,7 @@ export async function lookupNIP05(
     const fetchOptions: RequestInit = {
       method: "GET",
       headers: { Accept: "application/json" },
+      redirect: "error",
     };
 
     // Add TLS certificate validation

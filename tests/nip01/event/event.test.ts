@@ -6,7 +6,10 @@ import {
   createAddressableEvent,
   UnsignedEvent,
   getEventHash,
+  validateEvent,
+  NostrValidationError,
 } from "../../../src/nip01/event";
+import { NostrEvent } from "../../../src/types/nostr";
 import { verifySignature } from "../../../src/utils/crypto";
 import { getPublicKey } from "../../../src/utils/crypto";
 
@@ -351,6 +354,89 @@ describe("Event Creation and Signing", () => {
 
         expect(template.kind).toBe(kind);
       }
+    });
+  });
+
+  describe("validateEvent - NIP-01 Field Format Validations", () => {
+    const privateKey =
+      "1111111111111111111111111111111111111111111111111111111111111111"; // A different private key for these tests
+    const publicKey = getPublicKey(privateKey);
+    const baseTime = Math.floor(Date.now() / 1000);
+
+    let baseEvent: NostrEvent;
+
+    beforeEach(async () => {
+      // Create a valid base event structure before each test
+      const unsigned: UnsignedEvent = {
+        pubkey: publicKey,
+        created_at: baseTime,
+        kind: 1,
+        tags: [],
+        content: "Validating event structure",
+      };
+      const id = await getEventHash(unsigned);
+      const sig = await verifySignature(id, "ab".repeat(64), publicKey) // Placeholder, real sig not strictly needed for these field format tests if signature validation is off
+        ? "ab".repeat(64)
+        : await createSignedEvent(unsigned, privateKey).then(e => e.sig); // Fallback to generate a real one if needed
+
+      baseEvent = {
+        ...unsigned,
+        id,
+        sig,
+      };
+    });
+
+    // Test for 'id'
+    describe("event.id validation", () => {
+      it("should pass with a valid lowercase hex id", async () => {
+        const event = { ...baseEvent, id: "a1".repeat(32) }; // ensure lowercase
+        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).resolves.toBe(true);
+      });
+
+      it("should throw NostrValidationError for an uppercase hex id", async () => {
+        const event = { ...baseEvent, id: "A1".repeat(32) };
+        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).rejects.toThrow(
+          new NostrValidationError("Invalid event ID: must be lowercase hex", "id")
+        );
+      });
+    });
+
+    // Test for 'pubkey'
+    describe("event.pubkey validation", () => {
+      it("should pass with a valid lowercase hex pubkey", async () => {
+        const event = { ...baseEvent, pubkey: "b2".repeat(32) }; // ensure lowercase
+        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).resolves.toBe(true);
+      });
+
+      it("should throw NostrValidationError for an uppercase hex pubkey", async () => {
+        const event = { ...baseEvent, pubkey: "B2".repeat(32) };
+        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).rejects.toThrow(
+          new NostrValidationError("Invalid pubkey: must be lowercase hex", "pubkey")
+        );
+      });
+    });
+
+    // Test for 'sig'
+    describe("event.sig validation", () => {
+      it("should pass with a valid lowercase hex sig", async () => {
+        const event = { ...baseEvent, sig: "c3".repeat(64) }; // ensure lowercase
+        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).resolves.toBe(true);
+      });
+
+      it("should throw NostrValidationError for an uppercase hex sig", async () => {
+        const event = { ...baseEvent, sig: "C3".repeat(64) };
+        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).rejects.toThrow(
+          new NostrValidationError("Invalid signature: must be lowercase hex", "sig")
+        );
+      });
+    });
+
+    // Optional: Test that other basic validations still work
+    it("should still throw for other invalid fields like missing kind", async () => {
+      const event = { ...baseEvent, kind: undefined } as unknown as NostrEvent;
+      await expect(validateEvent(event)).rejects.toThrow(
+        new NostrValidationError("Kind must be a number", "kind") // Or whatever the actual error for undefined kind is
+      );
     });
   });
 });

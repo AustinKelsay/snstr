@@ -421,7 +421,14 @@ export async function validateEvent(
     // Check ID exists
     if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
       throw new NostrValidationError(
-        "Invalid or missing event ID",
+        "Invalid or missing event ID: must be a 64-character hex string",
+        "id",
+        event,
+      );
+    }
+    if (event.id !== event.id.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid event ID: must be lowercase hex",
         "id",
         event,
       );
@@ -434,7 +441,14 @@ export async function validateEvent(
       event.pubkey.length !== 64
     ) {
       throw new NostrValidationError(
-        "Invalid or missing pubkey",
+        "Invalid or missing pubkey: must be a 64-character hex string",
+        "pubkey",
+        event,
+      );
+    }
+    if (event.pubkey !== event.pubkey.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid pubkey: must be lowercase hex",
         "pubkey",
         event,
       );
@@ -447,7 +461,14 @@ export async function validateEvent(
       event.sig.length !== 128
     ) {
       throw new NostrValidationError(
-        "Invalid or missing signature",
+        "Invalid or missing signature: must be a 128-character hex string",
+        "sig",
+        event,
+      );
+    }
+    if (event.sig !== event.sig.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid signature: must be lowercase hex",
         "sig",
         event,
       );
