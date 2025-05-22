@@ -12,6 +12,7 @@ import {
   ParsedOkReason,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
+import { NostrValidationError } from "./event";
 
 export class Relay {
   private url: string;
@@ -490,6 +491,27 @@ export class Relay {
     onEOSE?: () => void,
   ): string {
     const id = Math.random().toString(36).substring(2, 15);
+
+    // Validate filters before proceeding
+    const fieldsToValidate: (keyof Filter)[] = ['ids', 'authors', '#e', '#p'];
+    for (const filter of filters) {
+      for (const field of fieldsToValidate) {
+        const values = filter[field] as unknown; // Type assertion needed as Filter has [key: string]: unknown
+        if (Array.isArray(values)) {
+          for (const item of values) {
+            if (!this._isValidNip01FilterIdentifier(item)) {
+              const fieldName = field as string;
+              throw new NostrValidationError(
+                `Invalid NIP-01 filter value for '${fieldName}': item '${item}' is not a 64-character lowercase hex string.`,
+                fieldName,
+                filter as any 
+              );
+            }
+          }
+        }
+      }
+    }
+
     const subscription: Subscription = {
       id,
       filters,
@@ -1241,5 +1263,14 @@ export class Relay {
       typeof e.content === "string" &&
       typeof e.sig === "string"
     );
+  }
+
+  // New private helper method for validating NIP-01 filter identifiers
+  private _isValidNip01FilterIdentifier(value: unknown): value is string {
+    if (typeof value !== 'string') {
+      return false;
+    }
+    // Must be 64 characters, lowercase hex
+    return /^[0-9a-f]{64}$/.test(value);
   }
 }
