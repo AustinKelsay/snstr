@@ -375,9 +375,9 @@ describe("Event Creation and Signing", () => {
         content: "Validating event structure",
       };
       const id = await getEventHash(unsigned);
-      const sig = await verifySignature(id, "ab".repeat(64), publicKey) // Placeholder, real sig not strictly needed for these field format tests if signature validation is off
+      const sig = (await verifySignature(id, "ab".repeat(64), publicKey)) // Placeholder, real sig not strictly needed for these field format tests if signature validation is off
         ? "ab".repeat(64)
-        : await createSignedEvent(unsigned, privateKey).then(e => e.sig); // Fallback to generate a real one if needed
+        : await createSignedEvent(unsigned, privateKey).then((e) => e.sig); // Fallback to generate a real one if needed
 
       baseEvent = {
         ...unsigned,
@@ -390,13 +390,26 @@ describe("Event Creation and Signing", () => {
     describe("event.id validation", () => {
       it("should pass with a valid lowercase hex id", async () => {
         const event = { ...baseEvent, id: "a1".repeat(32) }; // ensure lowercase
-        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).resolves.toBe(true);
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).resolves.toBe(true);
       });
 
       it("should throw NostrValidationError for an uppercase hex id", async () => {
         const event = { ...baseEvent, id: "A1".repeat(32) };
-        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).rejects.toThrow(
-          new NostrValidationError("Invalid event ID: must be lowercase hex", "id")
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).rejects.toThrow(
+          new NostrValidationError(
+            "Invalid event ID: must be lowercase hex",
+            "id",
+          ),
         );
       });
     });
@@ -405,13 +418,26 @@ describe("Event Creation and Signing", () => {
     describe("event.pubkey validation", () => {
       it("should pass with a valid lowercase hex pubkey", async () => {
         const event = { ...baseEvent, pubkey: "b2".repeat(32) }; // ensure lowercase
-        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).resolves.toBe(true);
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).resolves.toBe(true);
       });
 
       it("should throw NostrValidationError for an uppercase hex pubkey", async () => {
         const event = { ...baseEvent, pubkey: "B2".repeat(32) };
-        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).rejects.toThrow(
-          new NostrValidationError("Invalid pubkey: must be lowercase hex", "pubkey")
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).rejects.toThrow(
+          new NostrValidationError(
+            "Invalid pubkey: must be lowercase hex",
+            "pubkey",
+          ),
         );
       });
     });
@@ -420,13 +446,26 @@ describe("Event Creation and Signing", () => {
     describe("event.sig validation", () => {
       it("should pass with a valid lowercase hex sig", async () => {
         const event = { ...baseEvent, sig: "c3".repeat(64) }; // ensure lowercase
-        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).resolves.toBe(true);
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).resolves.toBe(true);
       });
 
       it("should throw NostrValidationError for an uppercase hex sig", async () => {
         const event = { ...baseEvent, sig: "C3".repeat(64) };
-        await expect(validateEvent(event, { validateSignatures: false, validateIds: false })).rejects.toThrow(
-          new NostrValidationError("Invalid signature: must be lowercase hex", "sig")
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).rejects.toThrow(
+          new NostrValidationError(
+            "Invalid signature: must be lowercase hex",
+            "sig",
+          ),
         );
       });
     });
@@ -435,7 +474,7 @@ describe("Event Creation and Signing", () => {
     it("should still throw for other invalid fields like missing kind", async () => {
       const event = { ...baseEvent, kind: undefined } as unknown as NostrEvent;
       await expect(validateEvent(event)).rejects.toThrow(
-        new NostrValidationError("Kind must be a number", "kind") // Or whatever the actual error for undefined kind is
+        new NostrValidationError("Kind must be a number", "kind"), // Or whatever the actual error for undefined kind is
       );
     });
   });

@@ -39,7 +39,8 @@ export async function verifyNIP05(
     }
 
     // Use the potentially modified identifier for lookup
-    const modifiedIdentifier = name === "_" && parts.length === 1 ? domain : identifier;
+    const modifiedIdentifier =
+      name === "_" && parts.length === 1 ? domain : identifier;
     const response = await lookupNIP05(modifiedIdentifier);
     if (!response) return false;
 
@@ -142,7 +143,8 @@ export async function getNIP05PubKey(
       return null;
     }
     // Use the potentially modified identifier for lookup
-    const modifiedIdentifier = name === "_" && parts.length === 1 ? domain : identifier;
+    const modifiedIdentifier =
+      name === "_" && parts.length === 1 ? domain : identifier;
     const response = await lookupNIP05(modifiedIdentifier);
     if (!response) return null;
 

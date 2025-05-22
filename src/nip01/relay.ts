@@ -344,14 +344,15 @@ export class Relay {
 
     const handlerOrArray = this.eventHandlers[event];
 
-    if (!handlerOrArray) { // If undefined, no handlers registered for this event.
+    if (!handlerOrArray) {
+      // If undefined, no handlers registered for this event.
       return;
     }
 
     // First, check if the stored entry is a single function (user's identified scenario for robustness)
     // Note: Types suggest handlerOrArray should be an array if defined (RelayEventCallbacks[E][]).
     // This check handles potential state where it might erroneously be a single function.
-    if (typeof handlerOrArray === 'function') {
+    if (typeof handlerOrArray === "function") {
       if (handlerOrArray === callback) {
         delete this.eventHandlers[event];
       }
@@ -493,7 +494,7 @@ export class Relay {
     const id = Math.random().toString(36).substring(2, 15);
 
     // Validate filters before proceeding
-    const fieldsToValidate: (keyof Filter)[] = ['ids', 'authors', '#e', '#p'];
+    const fieldsToValidate: (keyof Filter)[] = ["ids", "authors", "#e", "#p"];
     for (const filter of filters) {
       for (const field of fieldsToValidate) {
         const values = filter[field] as unknown; // Type assertion needed as Filter has [key: string]: unknown
@@ -504,7 +505,7 @@ export class Relay {
               throw new NostrValidationError(
                 `Invalid NIP-01 filter value for '${fieldName}': item '${item}' is not a 64-character lowercase hex string.`,
                 fieldName,
-                filter as any 
+                filter,
               );
             }
           }
@@ -1267,7 +1268,7 @@ export class Relay {
 
   // New private helper method for validating NIP-01 filter identifiers
   private _isValidNip01FilterIdentifier(value: unknown): value is string {
-    if (typeof value !== 'string') {
+    if (typeof value !== "string") {
       return false;
     }
     // Must be 64 characters, lowercase hex

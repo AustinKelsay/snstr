@@ -75,9 +75,7 @@ async function main() {
       aliceKeypair.publicKey,
     );
     console.log(`Decrypted: "${decryptedV1}"`);
-    console.log(
-      "❌ Error: V1 encryption succeeded but should have failed!",
-    );
+    console.log("❌ Error: V1 encryption succeeded but should have failed!");
   } catch (error) {
     console.log("✅ Success: Encryption with version 1 failed as expected.");
     console.log(
@@ -107,9 +105,7 @@ async function main() {
       aliceKeypair.publicKey,
     );
     console.log(`Decrypted: "${decryptedV0}"`);
-    console.log(
-      "❌ Error: V0 encryption succeeded but should have failed!",
-    );
+    console.log("❌ Error: V0 encryption succeeded but should have failed!");
   } catch (error) {
     console.log("✅ Success: Encryption with version 0 failed as expected.");
     console.log(
@@ -145,8 +141,12 @@ async function main() {
   console.log(`Successful: ${aliceMessage === bobDecrypts}`);
 
   // Bob uses v0, Alice uses v2
-  console.log("\nScenario 2: Bob receiving a V0/V1 message (e.g., from an older client) and Alice (V2) decrypting it.");
-  console.log("  (Decryption of V0/V1 is supported, but sending V0/V1 is not. This scenario is covered by general decryption tests.)");
+  console.log(
+    "\nScenario 2: Bob receiving a V0/V1 message (e.g., from an older client) and Alice (V2) decrypting it.",
+  );
+  console.log(
+    "  (Decryption of V0/V1 is supported, but sending V0/V1 is not. This scenario is covered by general decryption tests.)",
+  );
 
   // Demonstrate invalid version handling
   console.log("\nInvalid Version Handling:");
@@ -187,12 +187,8 @@ async function main() {
   );
   console.log("  * MUST include a version byte in encrypted payloads");
   console.log("  * MUST be able to decrypt versions 0 and 1");
-  console.log(
-    "  * MUST NOT encrypt with version 0 (Reserved)",
-  );
-  console.log(
-    "  * MUST NOT encrypt with version 1 (Deprecated and undefined)",
-  );
+  console.log("  * MUST NOT encrypt with version 0 (Reserved)");
+  console.log("  * MUST NOT encrypt with version 1 (Deprecated and undefined)");
 }
 
 main().catch(console.error);

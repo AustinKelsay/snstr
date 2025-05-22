@@ -536,8 +536,10 @@ describe("Relay", () => {
       await relay.connect();
 
       // Define valid 64-char lowercase hex IDs for testing
-      const validEventId1 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-      const validEventId2 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      const validEventId1 =
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const validEventId2 =
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
       // Create events with different tag combinations
       const event1 = {
@@ -547,7 +549,10 @@ describe("Relay", () => {
         kind: 1,
         tags: [
           ["e", validEventId1],
-          ["p", "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"], // Example valid pubkey hex
+          [
+            "p",
+            "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+          ], // Example valid pubkey hex
         ],
         content: `Event with e:${validEventId1}`,
         sig: "test-signature",
@@ -560,7 +565,10 @@ describe("Relay", () => {
         kind: 1,
         tags: [
           ["e", validEventId2],
-          ["p", "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp"], // Example valid pubkey hex
+          [
+            "p",
+            "pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp",
+          ], // Example valid pubkey hex
         ],
         content: `Event with e:${validEventId2}`,
         sig: "test-signature",
@@ -600,9 +608,11 @@ describe("Relay", () => {
           // For now, let's assume the ephemeral relay will do its best.
           // If it sends events, check their content.
           if (receivedEvents.length > 0) {
-             expect(receivedEvents.some(e => e.tags.flat().includes(validEventId1))).toBe(true);
+            expect(
+              receivedEvents.some((e) => e.tags.flat().includes(validEventId1)),
+            ).toBe(true);
           }
-          // We can't be certain about the exact number due to ephemeral relay behavior, 
+          // We can't be certain about the exact number due to ephemeral relay behavior,
           // but if it sends something, it should be one of the published ones.
 
           // Clean up
@@ -612,8 +622,7 @@ describe("Relay", () => {
       );
       // Allow some time for events to be processed by the ephemeral relay and EOSE to be sent
       // This is a common pattern in tests involving asynchronous relay communication.
-      await new Promise(resolve => setTimeout(resolve, 500));
-
+      await new Promise((resolve) => setTimeout(resolve, 500));
     });
   });
 

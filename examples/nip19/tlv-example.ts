@@ -102,7 +102,9 @@ function demonstrateNeventEncoding() {
   console.log(`Event ID: ${decoded.id}`);
   console.log(`Author: ${decoded.author || "(Not included)"}`);
   // 'kind' is not part of nevent TLV, so decoded.kind will be undefined
-  console.log(`Kind (from nevent): ${decoded.kind !== undefined ? decoded.kind : "(Not part of nevent encoding)"}`);
+  console.log(
+    `Kind (from nevent): ${decoded.kind !== undefined ? decoded.kind : "(Not part of nevent encoding)"}`,
+  );
   console.log("Relays:");
   if (decoded.relays) {
     decoded.relays.forEach((relay: string) => console.log(`- ${relay}`));
@@ -116,14 +118,17 @@ function demonstrateNeventEncoding() {
   // kindMatch is no longer applicable as kind is not encoded in nevent
   const relaysMatch =
     (!relays && !decoded.relays) || // Both undefined/empty
-    (relays && decoded.relays && // Both defined
+    (relays &&
+      decoded.relays && // Both defined
       JSON.stringify([...decoded.relays].sort()) ===
         JSON.stringify([...relays].sort()));
 
   console.log(
-    `\nRoundtrip successful (for id, author, relays): ${idMatch && authorMatch && relaysMatch}`
+    `\nRoundtrip successful (for id, author, relays): ${idMatch && authorMatch && relaysMatch}`,
   );
-  console.log("Note: 'kind' is not part of 'nevent' encoding and is not expected to roundtrip.");
+  console.log(
+    "Note: 'kind' is not part of 'nevent' encoding and is not expected to roundtrip.",
+  );
 }
 
 /**

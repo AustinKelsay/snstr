@@ -199,7 +199,9 @@ async function main() {
   console.log(`Successful: ${defaultDecrypted === versionCompatMessage}`);
 
   console.log("\nNotes on NIP-44 Versioning:");
-  console.log("- This library encrypts all new messages using NIP-44 Version 2.");
+  console.log(
+    "- This library encrypts all new messages using NIP-44 Version 2.",
+  );
   console.log(
     "- It can successfully decrypt messages created with NIP-44 Version 0, 1, or 2.",
   );

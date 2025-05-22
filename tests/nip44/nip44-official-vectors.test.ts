@@ -137,7 +137,7 @@ describe("NIP-44 implementation against official test vectors", () => {
         expect(() => {
           encrypt(plaintext, sec1, pub2, undefined, { version: 0 });
         }).toThrowError(
-          "NIP-44: Encryption with version 0 is not permitted by the NIP-44 specification. Only decryption is supported for v0."
+          "NIP-44: Encryption with version 0 is not permitted by the NIP-44 specification. Only decryption is supported for v0.",
         );
         console.log("  Correctly threw error for V0 encryption attempt.");
 
@@ -148,7 +148,7 @@ describe("NIP-44 implementation against official test vectors", () => {
         expect(() => {
           encrypt(plaintext, sec1, pub2, undefined, { version: 1 });
         }).toThrowError(
-          "NIP-44: Encryption with version 1 is not permitted by the NIP-44 specification. Only decryption is supported for v1."
+          "NIP-44: Encryption with version 1 is not permitted by the NIP-44 specification. Only decryption is supported for v1.",
         );
         console.log("  Correctly threw error for V1 encryption attempt.");
 
@@ -156,13 +156,9 @@ describe("NIP-44 implementation against official test vectors", () => {
         console.log(
           `Testing encrypt/decrypt for version: 2 with plaintext: "${plaintext.substring(0, 20)}..."`,
         );
-        const encryptedV2 = encrypt(
-          plaintext,
-          sec1,
-          pub2,
-          undefined,
-          { version: 2 },
-        );
+        const encryptedV2 = encrypt(plaintext, sec1, pub2, undefined, {
+          version: 2,
+        });
         const decodedForCheckV2 = decodePayload(encryptedV2);
         expect(decodedForCheckV2.version).toBe(2);
         console.log(
@@ -293,7 +289,7 @@ describe("NIP-44 implementation against official test vectors", () => {
       const decodedV2 = decodePayload(encryptedV2ForDecode);
       expect(decodedV2.version).toBe(2);
       expect(decodedV2.nonce.length).toBe(32); // NONCE_SIZE_V2
-      expect(decodedV2.mac.length).toBe(32);   // MAC_SIZE_V2
+      expect(decodedV2.mac.length).toBe(32); // MAC_SIZE_V2
       expect(decodedV2.ciphertext.length).toBeGreaterThan(0);
       console.log("  Successfully decoded V2 payload components.");
 
@@ -305,18 +301,26 @@ describe("NIP-44 implementation against official test vectors", () => {
         const decodedV0 = decodePayload(tamperedV0Payload);
         expect(decodedV0.version).toBe(0);
         expect(decodedV0.nonce.length).toBe(32); // NONCE_SIZE_V0 (assuming 32)
-        expect(decodedV0.mac.length).toBe(32);   // MAC_SIZE_V0 (assuming 32)
+        expect(decodedV0.mac.length).toBe(32); // MAC_SIZE_V0 (assuming 32)
         expect(decodedV0.ciphertext.length).toBeGreaterThan(0);
         console.log("  Successfully decoded tampered V0 payload components.");
       } else {
-        throw new Error("Failed to create a V2 payload for V0 tampering in decode test");
+        throw new Error(
+          "Failed to create a V2 payload for V0 tampering in decode test",
+        );
       }
 
       // Test V1 payload decoding by tampering a V2 payload's version byte
       // Re-encrypt to get a fresh V2 payload if buffer was modified
-      const freshEncryptedV2ForV1Tamper = encrypt(plaintext, sec1, pub2, undefined, {
-        version: 2,
-      });
+      const freshEncryptedV2ForV1Tamper = encrypt(
+        plaintext,
+        sec1,
+        pub2,
+        undefined,
+        {
+          version: 2,
+        },
+      );
       v2Buffer = Buffer.from(freshEncryptedV2ForV1Tamper, "base64");
       if (v2Buffer.length > 0) {
         v2Buffer[0] = 1; // Set version to 1
@@ -324,11 +328,13 @@ describe("NIP-44 implementation against official test vectors", () => {
         const decodedV1 = decodePayload(tamperedV1Payload);
         expect(decodedV1.version).toBe(1);
         expect(decodedV1.nonce.length).toBe(32); // NONCE_SIZE_V1 (assuming 32)
-        expect(decodedV1.mac.length).toBe(32);   // MAC_SIZE_V1 (assuming 32)
+        expect(decodedV1.mac.length).toBe(32); // MAC_SIZE_V1 (assuming 32)
         expect(decodedV1.ciphertext.length).toBeGreaterThan(0);
         console.log("  Successfully decoded tampered V1 payload components.");
       } else {
-        throw new Error("Failed to create a V2 payload for V1 tampering in decode test");
+        throw new Error(
+          "Failed to create a V2 payload for V1 tampering in decode test",
+        );
       }
     });
 

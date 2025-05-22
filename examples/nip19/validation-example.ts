@@ -567,22 +567,37 @@ function demonstrateKindValidation() {
     { name: "Valid kind (0)", kind: 0, shouldPass: true },
     { name: "Valid kind (30023)", kind: 30023, shouldPass: true },
     { name: "Valid kind (65535 - old max)", kind: 65535, shouldPass: true },
-    { name: "Valid kind (65536 - above old max)", kind: 65536, shouldPass: true },
-    { name: "Valid kind (0xFFFFFFFF - 32-bit max)", kind: 0xFFFFFFFF, shouldPass: true },
+    {
+      name: "Valid kind (65536 - above old max)",
+      kind: 65536,
+      shouldPass: true,
+    },
+    {
+      name: "Valid kind (0xFFFFFFFF - 32-bit max)",
+      kind: 0xffffffff,
+      shouldPass: true,
+    },
     { name: "Invalid kind (-1)", kind: -1, shouldPass: false },
-    { name: "Invalid kind (0x100000000 - above 32-bit max)", kind: 0x100000000, shouldPass: false },
+    {
+      name: "Invalid kind (0x100000000 - above 32-bit max)",
+      kind: 0x100000000,
+      shouldPass: false,
+    },
   ];
 
   kindTestCases.forEach(({ name, kind, shouldPass }) => {
     try {
       const naddr = encodeAddress({ ...baseAddrData, kind: kind });
       if (shouldPass) {
-        console.log(`✅ ${name}: Successfully encoded naddr: ${naddr.substring(0,20)}...`);
+        console.log(
+          `✅ ${name}: Successfully encoded naddr: ${naddr.substring(0, 20)}...`,
+        );
       } else {
         console.error(`❌ ${name}: Should have failed but passed.`);
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       if (shouldPass) {
         console.error(`❌ ${name}: Failed unexpectedly: ${errorMessage}`);
       } else {
@@ -591,7 +606,9 @@ function demonstrateKindValidation() {
     }
   });
 
-   console.log("\nNote: 'kind' for naddr is a 32-bit unsigned integer (0 to 4,294,967,295).");
+  console.log(
+    "\nNote: 'kind' for naddr is a 32-bit unsigned integer (0 to 4,294,967,295).",
+  );
 }
 
 /**

@@ -468,7 +468,7 @@ class ClientSession {
       // Special handling for NIP-46 events (kind 24133)
       if (event.kind === 24133) {
         // Validate basic structure but with NIP-46 specific validation
-        if (!await this.validateNIP46Event(event)) {
+        if (!(await this.validateNIP46Event(event))) {
           this.log.debug("NIP-46 event failed validation:", event);
           this.send([
             "OK",
@@ -522,7 +522,7 @@ class ClientSession {
 
       // Standard event processing - wrap validateEvent in try-catch
       try {
-        if (!await validateEvent(event)) {
+        if (!(await validateEvent(event))) {
           this.log.debug("event failed validation (returned false):", event);
           this.send([
             "OK",
@@ -538,7 +538,10 @@ class ClientSession {
         if (validationError instanceof Error) {
           errorMessage = validationError.message;
         }
-        this.log.debug(`event failed validation (threw error): ${errorMessage}`, event);
+        this.log.debug(
+          `event failed validation (threw error): ${errorMessage}`,
+          event,
+        );
         this.send([
           "OK",
           event.id,
@@ -711,7 +714,7 @@ class ClientSession {
 
     // Verify signature for NIP-46 events using the canonical validateEvent
     try {
-      if (!await validateEvent(event)) {
+      if (!(await validateEvent(event))) {
         this.log.debug(
           "NIP-46 validation failed: invalid signature verification",
         );

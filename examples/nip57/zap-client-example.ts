@@ -180,7 +180,7 @@ async function main() {
       const response = await fetch(zapCallbackUrl);
       const data = await response.json();
 
-      console.log("Full response from LNURL server:", data); // Added for debugging
+      console.log("Full response from LNURL server:", data);
 
       if (data.status === "ERROR") {
         throw new Error(`Error from LNURL server: ${data.reason}`);
