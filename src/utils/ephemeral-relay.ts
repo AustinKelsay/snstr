@@ -6,8 +6,7 @@ import {
   NostrOkMessage,
   NostrEoseMessage,
 } from "../types/protocol";
-import { getEventHash } from "../nip01/event";
-import { verifySignature } from "./crypto";
+import { validateEvent } from "../nip01/event";
 
 /* ================ [ Configuration ] ================ */
 
@@ -521,13 +520,30 @@ class ClientSession {
       this.log.client("received event id:", event.id);
       this.log.debug("event:", event);
 
-      if (!await verify_event(event)) {
-        this.log.debug("event failed validation:", event);
+      // Standard event processing - wrap validateEvent in try-catch
+      try {
+        if (!await validateEvent(event)) {
+          this.log.debug("event failed validation (returned false):", event);
+          this.send([
+            "OK",
+            event.id,
+            false,
+            "event failed validation: validateEvent returned false",
+          ] as NostrOkMessage);
+          return;
+        }
+      } catch (validationError) {
+        // If validateEvent itself throws (e.g. NostrValidationError from getEventHash)
+        let errorMessage = "event validation error";
+        if (validationError instanceof Error) {
+          errorMessage = validationError.message;
+        }
+        this.log.debug(`event failed validation (threw error): ${errorMessage}`, event);
         this.send([
           "OK",
           event.id,
           false,
-          "event failed validation",
+          `invalid: ${errorMessage}`,
         ] as NostrOkMessage);
         return;
       }
@@ -693,9 +709,9 @@ class ClientSession {
       return false;
     }
 
-    // Verify signature for NIP-46 events
+    // Verify signature for NIP-46 events using the canonical validateEvent
     try {
-      if (!await verify_event(event)) {
+      if (!await validateEvent(event)) {
         this.log.debug(
           "NIP-46 validation failed: invalid signature verification",
         );
@@ -775,27 +791,4 @@ function match_tags(filters: string[][], tags: string[][]): boolean {
 
   // All filter conditions were satisfied
   return true;
-}
-
-async function verify_event(event: SignedEvent): Promise<boolean> {
-  try {
-    const calculatedId = await getEventHash({
-      pubkey: event.pubkey,
-      created_at: event.created_at,
-      kind: event.kind,
-      tags: event.tags,
-      content: event.content,
-    });
-
-    if (calculatedId !== event.id) {
-      return false;
-    }
-
-    // Assuming verifySignature expects (eventId, signature, pubkey)
-    // based on its usage in snstr/src/nip01/relay.ts
-    return await verifySignature(event.id, event.sig, event.pubkey);
-  } catch (error) {
-    // console.error("[verify_event] Error during event verification:", error);
-    return false;
-  }
 }

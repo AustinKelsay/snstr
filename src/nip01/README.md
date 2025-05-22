@@ -67,7 +67,7 @@ client.unsubscribe(subIds);
 ### Working with Events Directly
 
 ```typescript
-import { createEvent, verifyEvent } from '../nip01/event';
+import { createEvent, validateEvent } from '../nip01/event';
 
 // Create an event
 const event = createEvent({
@@ -78,7 +78,7 @@ const event = createEvent({
 });
 
 // Verify an event
-const isValid = await verifyEvent(event);
+const isValid = await validateEvent(event);
 ```
 
 ## Implementation Details
