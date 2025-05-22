@@ -1,6 +1,3 @@
-import { schnorr } from "@noble/curves/secp256k1";
-import { sha256 } from "@noble/hashes/sha2";
-import { bytesToHex } from "@noble/hashes/utils";
 import EventEmitter from "events";
 import { WebSocket, WebSocketServer } from "ws";
 import { NostrEvent, NostrFilter } from "../types/nostr";
@@ -9,6 +6,8 @@ import {
   NostrOkMessage,
   NostrEoseMessage,
 } from "../types/protocol";
+import { getEventHash } from "../nip01/event";
+import { verifySignature } from "./crypto";
 
 /* ================ [ Configuration ] ================ */
 
@@ -204,51 +203,35 @@ export class NostrRelay {
     const isSimpleReplaceable =
       event.kind === 0 ||
       event.kind === 3 ||
-      (event.kind >= 10000 && event.kind <= 19999);
+      (event.kind >= 10000 && event.kind < 20000);
+    const isParameterizedReplaceable =
+      event.kind >= 30000 && event.kind < 40000;
+
+    let shouldAddEvent = true;
 
     if (isSimpleReplaceable) {
-      let olderEventIndex = -1;
-      // Find if an event with the same pubkey and kind exists
-      for (let i = 0; i < this._cache.length; i++) {
-        const cachedEvent = this._cache[i];
+      // Check if a newer or equally new (by ID) event already exists
+      for (const cachedEvent of this._cache) {
         if (
           cachedEvent.pubkey === event.pubkey &&
           cachedEvent.kind === event.kind
         ) {
-          // Found an existing event for this replaceable slot
-          if (cachedEvent.created_at < event.created_at) {
-            // The new event is more recent, mark the old one for removal
-            olderEventIndex = i;
+          if (cachedEvent.created_at > event.created_at) {
+            shouldAddEvent = false; // Cached is strictly newer
             break;
-          } else if (cachedEvent.created_at > event.created_at) {
-            // The new event is older, discard it
-            DEBUG &&
-              console.log(
-                `[ relay ] discarding older replaceable event ${event.id} (new) vs ${cachedEvent.id} (cached)`,
-              );
-            return;
-          } else {
-            // created_at is the same, NIP-01 says lexicographically smaller id wins (is older)
-            if (event.id < cachedEvent.id) {
-              olderEventIndex = i;
-              break;
-            } else {
-              DEBUG &&
-                console.log(
-                  `[ relay ] discarding older/equal replaceable event by id ${event.id} (new) vs ${cachedEvent.id} (cached)`,
-                );
-              return;
-            }
+          }
+          if (
+            cachedEvent.created_at === event.created_at &&
+            cachedEvent.id > event.id // Cached has larger ID (is newer)
+          ) {
+            shouldAddEvent = false; // Cached is same age but wins by ID
+            break;
           }
         }
       }
 
-      if (olderEventIndex !== -1) {
-        // All existing events for this pubkey & kind will be removed, as the new event is the latest.
-        DEBUG &&
-          console.log(
-            `[ relay ] replacing all existing events for kind ${event.kind}, pubkey ${event.pubkey} with new event ${event.id}.`,
-          );
+      if (shouldAddEvent) {
+        // Remove all existing events of this kind and pubkey before adding the new one
         this._cache = this._cache.filter(
           (cachedEvent) =>
             !(
@@ -256,32 +239,77 @@ export class NostrRelay {
               cachedEvent.kind === event.kind
             ),
         );
+        DEBUG &&
+          console.log(
+            `[ relay ] replacing existing events for kind ${event.kind}, pubkey ${event.pubkey} with new event ${event.id}.`,
+          );
+      }
+    } else if (isParameterizedReplaceable) {
+      const dTagValue = event.tags.find((tag) => tag[0] === "d")?.[1] || "";
+
+      for (const cachedEvent of this._cache) {
+        if (
+          cachedEvent.pubkey === event.pubkey &&
+          cachedEvent.kind === event.kind
+        ) {
+          const cachedDTagValue =
+            cachedEvent.tags.find((tag) => tag[0] === "d")?.[1] || "";
+          if (cachedDTagValue === dTagValue) {
+            if (cachedEvent.created_at > event.created_at) {
+              shouldAddEvent = false; // Cached is strictly newer
+              break;
+            }
+            if (
+              cachedEvent.created_at === event.created_at &&
+              cachedEvent.id > event.id // Cached has larger ID (is newer)
+            ) {
+              shouldAddEvent = false; // Cached is same age but wins by ID
+              break;
+            }
+          }
+        }
+      }
+
+      if (shouldAddEvent) {
+        // Remove all existing events of this kind, pubkey, and dTagValue
+        this._cache = this._cache.filter(
+          (cachedEvent) =>
+            !(
+              cachedEvent.pubkey === event.pubkey &&
+              cachedEvent.kind === event.kind &&
+              (cachedEvent.tags.find((tag) => tag[0] === "d")?.[1] || "") ===
+                dTagValue
+            ),
+        );
+        DEBUG &&
+          console.log(
+            `[ relay ] replacing existing events for kind ${event.kind}, pubkey ${event.pubkey}, dTag ${dTagValue} with new event ${event.id}.`,
+          );
       }
     }
-    // Parameterized replaceable events (kinds 30000-39999) would need similar logic
-    // but also considering the 'd' tag. For now, focusing on simple replaceable.
 
-    // Add the new event (or the event if it's not replaceable/no conflict)
-    this._cache.push(event);
-
-    // Sort the cache:
-    // 1. created_at timestamp (descending - newer events first)
-    // 2. event id (lexicographically larger for ties - NIP-01 tie-breaking for replaceable, though general sort uses smaller)
-    // For simplicity here, maintaining previous sort primarily by created_at, then by id descending.
-    // NIP-01: "When multiple events share the same created_at timestamp, the event with the lexicographically smaller ID is considered older."
-    // So, for equal created_at, larger ID is newer.
-    this._cache.sort((a, b) => {
-      if (a.created_at !== b.created_at) {
-        return b.created_at - a.created_at; // Newer events first
-      }
-      // If created_at is the same, sort by id (lexicographically larger id is newer)
-      return b.id.localeCompare(a.id);
-    });
-
-    // DEBUG && console.log(`[ relay ] Stored event ${event.id}. Cache size: ${this._cache.length}`);
-    // if (event.pubkey === 'SPECIFIC_TEST_PUBKEY_A_HERE' && event.kind === 3) {
-    //     DEBUG && console.log(`[ relay ] Cache for ${event.pubkey} kind ${event.kind}:`, this._cache.filter(e => e.pubkey === event.pubkey && e.kind === event.kind).map(e => ({id: e.id, created_at: e.created_at, tags_count: e.tags.length })));
-    // }
+    if (shouldAddEvent) {
+      this._cache.push(event);
+      // Sort the cache:
+      // 1. created_at timestamp (descending - newer events first)
+      // 2. event id (lexicographically larger for ties - NIP-01 tie-breaking)
+      this._cache.sort((a, b) => {
+        if (a.created_at !== b.created_at) {
+          return b.created_at - a.created_at; // Newer events first
+        }
+        // If created_at is the same, sort by id (lexicographically larger id is newer)
+        return b.id.localeCompare(a.id);
+      });
+      VERBOSE &&
+        console.log(
+          `[ relay ] Stored event ${event.id}. Cache size: ${this._cache.length}`,
+        );
+    } else {
+      DEBUG &&
+        console.log(
+          `[ relay ] Discarding event ${event.id} as a newer version already exists or it's older.`,
+        );
+    }
   }
 }
 
@@ -436,12 +464,12 @@ class ClientSession {
     this.log.info("socket encountered an error:\n\n", err);
   }
 
-  _onevent(event: SignedEvent) {
+  async _onevent(event: SignedEvent) {
     try {
       // Special handling for NIP-46 events (kind 24133)
       if (event.kind === 24133) {
         // Validate basic structure but with NIP-46 specific validation
-        if (!this.validateNIP46Event(event)) {
+        if (!await this.validateNIP46Event(event)) {
           this.log.debug("NIP-46 event failed validation:", event);
           this.send([
             "OK",
@@ -493,7 +521,7 @@ class ClientSession {
       this.log.client("received event id:", event.id);
       this.log.debug("event:", event);
 
-      if (!verify_event(event)) {
+      if (!await verify_event(event)) {
         this.log.debug("event failed validation:", event);
         this.send([
           "OK",
@@ -600,7 +628,7 @@ class ClientSession {
   }
 
   // Method to validate NIP-46 events
-  validateNIP46Event(event: SignedEvent): boolean {
+  async validateNIP46Event(event: SignedEvent): Promise<boolean> {
     // Check required fields exist with proper types
     if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
       this.log.debug("NIP-46 validation failed: invalid id");
@@ -667,7 +695,7 @@ class ClientSession {
 
     // Verify signature for NIP-46 events
     try {
-      if (!verify_event(event)) {
+      if (!await verify_event(event)) {
         this.log.debug(
           "NIP-46 validation failed: invalid signature verification",
         );
@@ -749,10 +777,25 @@ function match_tags(filters: string[][], tags: string[][]): boolean {
   return true;
 }
 
-function verify_event(event: SignedEvent) {
-  const { content, created_at, id, kind, pubkey, sig, tags } = event;
-  const pimg = JSON.stringify([0, pubkey, created_at, kind, tags, content]);
-  const dig = bytesToHex(sha256(pimg));
-  if (dig !== id) return false;
-  return schnorr.verify(sig, id, pubkey);
+async function verify_event(event: SignedEvent): Promise<boolean> {
+  try {
+    const calculatedId = await getEventHash({
+      pubkey: event.pubkey,
+      created_at: event.created_at,
+      kind: event.kind,
+      tags: event.tags,
+      content: event.content,
+    });
+
+    if (calculatedId !== event.id) {
+      return false;
+    }
+
+    // Assuming verifySignature expects (eventId, signature, pubkey)
+    // based on its usage in snstr/src/nip01/relay.ts
+    return await verifySignature(event.id, event.sig, event.pubkey);
+  } catch (error) {
+    // console.error("[verify_event] Error during event verification:", error);
+    return false;
+  }
 }
