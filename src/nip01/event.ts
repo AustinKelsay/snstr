@@ -7,6 +7,7 @@ import {
   TaggedEvent,
   TagValues,
   EventTags,
+  Filter,
 } from "../types/nostr";
 import { getPublicKey, verifySignature } from "../utils/crypto";
 import { encrypt as encryptNIP04 } from "../nip04";
@@ -22,14 +23,26 @@ export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 export class NostrValidationError extends Error {
   /** The field that failed validation */
   readonly field?: string;
-  /** The event that failed validation */
-  readonly event?: Partial<NostrEvent>;
+  /** The data that failed validation (can be an event, filter, etc.) */
+  readonly invalidData?:
+    | Partial<NostrEvent>
+    | Filter
+    | Record<string, unknown>
+    | EventTemplate;
 
-  constructor(message: string, field?: string, event?: Partial<NostrEvent>) {
+  constructor(
+    message: string,
+    field?: string,
+    invalidData?:
+      | Partial<NostrEvent>
+      | Filter
+      | Record<string, unknown>
+      | EventTemplate,
+  ) {
     super(message);
     this.name = "NostrValidationError";
     this.field = field;
-    this.event = event;
+    this.invalidData = invalidData;
   }
 }
 
@@ -421,7 +434,14 @@ export async function validateEvent(
     // Check ID exists
     if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
       throw new NostrValidationError(
-        "Invalid or missing event ID",
+        "Invalid or missing event ID: must be a 64-character hex string",
+        "id",
+        event,
+      );
+    }
+    if (event.id !== event.id.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid event ID: must be lowercase hex",
         "id",
         event,
       );
@@ -434,7 +454,14 @@ export async function validateEvent(
       event.pubkey.length !== 64
     ) {
       throw new NostrValidationError(
-        "Invalid or missing pubkey",
+        "Invalid or missing pubkey: must be a 64-character hex string",
+        "pubkey",
+        event,
+      );
+    }
+    if (event.pubkey !== event.pubkey.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid pubkey: must be lowercase hex",
         "pubkey",
         event,
       );
@@ -447,7 +474,14 @@ export async function validateEvent(
       event.sig.length !== 128
     ) {
       throw new NostrValidationError(
-        "Invalid or missing signature",
+        "Invalid or missing signature: must be a 128-character hex string",
+        "sig",
+        event,
+      );
+    }
+    if (event.sig !== event.sig.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid signature: must be lowercase hex",
         "sig",
         event,
       );
@@ -592,11 +626,16 @@ export async function validateEvent(
         for (const tag of event.tags) {
           if (tag[0] === "p") {
             // 1. Validate pubkey (tag[1])
-            if (tag.length < 2 || typeof tag[1] !== 'string' || !hex64Regex.test(tag[1])) { // Use hex64Regex
+            if (
+              tag.length < 2 ||
+              typeof tag[1] !== "string" ||
+              !hex64Regex.test(tag[1])
+            ) {
+              // Use hex64Regex
               throw new NostrValidationError(
                 `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a 64-character hex. Received: '${tag[1]}'.`,
                 "tags",
-                event
+                event,
               );
             }
 
@@ -605,11 +644,11 @@ export async function validateEvent(
               const relayUrl = tag[2];
               // General tag validation should ensure tag[2] is a string if validateTags=true.
               // This check provides robustness.
-              if (typeof relayUrl !== 'string') {
+              if (typeof relayUrl !== "string") {
                 throw new NostrValidationError(
                   "Invalid NIP-02 'p' tag: Relay URL at tag[2] must be a string if present.",
                   "tags",
-                  event
+                  event,
                 );
               }
               // If relayUrl is not an empty string, it must be a valid ws/wss URL.
@@ -617,7 +656,7 @@ export async function validateEvent(
                 throw new NostrValidationError(
                   `Invalid NIP-02 'p' tag: Relay URL "${relayUrl}" at tag[2] is not a valid ws:// or wss:// URL, or an empty string.`,
                   "tags",
-                  event
+                  event,
                 );
               }
             }
@@ -626,20 +665,20 @@ export async function validateEvent(
             if (tag.length > 3) {
               const petname = tag[3];
               // General tag validation should ensure tag[3] is a string if validateTags=true.
-              if (typeof petname !== 'string') {
+              if (typeof petname !== "string") {
                 throw new NostrValidationError(
                   "Invalid NIP-02 'p' tag: Petname at tag[3] must be a string if present.",
                   "tags",
-                  event
+                  event,
                 );
               }
               // According to NIP-02: "If relay URL is not present but petname is, the relay URL MUST be an empty string."
               // This means tag[2] must exist if tag[3] exists.
-              if (typeof tag[2] !== 'string') {
+              if (typeof tag[2] !== "string") {
                 throw new NostrValidationError(
                   "Invalid NIP-02 'p' tag: Relay URL at tag[2] must be present (and a string, can be empty) if petname at tag[3] is specified.",
                   "tags",
-                  event
+                  event,
                 );
               }
             }
@@ -649,7 +688,7 @@ export async function validateEvent(
               throw new NostrValidationError(
                 "Invalid NIP-02 'p' tag: Exceeds maximum of 4 elements (p, pubkey, relay, petname).",
                 "tags",
-                event
+                event,
               );
             }
           }
@@ -670,11 +709,15 @@ export async function validateEvent(
 
         // Validate the pubkey in the 'p' tag
         const pTag = pTags[0];
-        if (pTag.length < 2 || typeof pTag[1] !== 'string' || !hex64Regex.test(pTag[1])) {
+        if (
+          pTag.length < 2 ||
+          typeof pTag[1] !== "string" ||
+          !hex64Regex.test(pTag[1])
+        ) {
           throw new NostrValidationError(
             `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a 64-character hex string. Received: '${pTag[1]}'.`,
             "tags",
-            event
+            event,
           );
         }
         break;

@@ -240,7 +240,8 @@ async function runVectors() {
           );
         } else {
           console.log(
-            `  ❌ Version ${version}: Encryption failed, but with an unexpected error:`, error,
+            `  ❌ Version ${version}: Encryption failed, but with an unexpected error:`,
+            error,
           );
         }
       }
@@ -285,7 +286,10 @@ async function runVectors() {
         }
       } catch (error) {
         // Catch any unexpected errors during the V2 process
-        console.log(`  ❌ Version ${version}: An unexpected exception occurred:`, error);
+        console.log(
+          `  ❌ Version ${version}: An unexpected exception occurred:`,
+          error,
+        );
       }
     }
   }

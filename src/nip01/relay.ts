@@ -12,6 +12,7 @@ import {
   ParsedOkReason,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
+import { NostrValidationError } from "./event";
 
 export class Relay {
   private url: string;
@@ -343,14 +344,15 @@ export class Relay {
 
     const handlerOrArray = this.eventHandlers[event];
 
-    if (!handlerOrArray) { // If undefined, no handlers registered for this event.
+    if (!handlerOrArray) {
+      // If undefined, no handlers registered for this event.
       return;
     }
 
     // First, check if the stored entry is a single function (user's identified scenario for robustness)
     // Note: Types suggest handlerOrArray should be an array if defined (RelayEventCallbacks[E][]).
     // This check handles potential state where it might erroneously be a single function.
-    if (typeof handlerOrArray === 'function') {
+    if (typeof handlerOrArray === "function") {
       if (handlerOrArray === callback) {
         delete this.eventHandlers[event];
       }
@@ -490,6 +492,27 @@ export class Relay {
     onEOSE?: () => void,
   ): string {
     const id = Math.random().toString(36).substring(2, 15);
+
+    // Validate filters before proceeding
+    const fieldsToValidate: (keyof Filter)[] = ["ids", "authors", "#e", "#p"];
+    for (const filter of filters) {
+      for (const field of fieldsToValidate) {
+        const values = filter[field] as unknown; // Type assertion needed as Filter has [key: string]: unknown
+        if (Array.isArray(values)) {
+          for (const item of values) {
+            if (!this._isValidNip01FilterIdentifier(item)) {
+              const fieldName = field as string;
+              throw new NostrValidationError(
+                `Invalid NIP-01 filter value for '${fieldName}': item '${item}' is not a 64-character lowercase hex string.`,
+                fieldName,
+                filter,
+              );
+            }
+          }
+        }
+      }
+    }
+
     const subscription: Subscription = {
       id,
       filters,
@@ -815,6 +838,40 @@ export class Relay {
           if (tag.length < 2 || !this.isHexString(tag[1], 64)) {
             return false;
           }
+        } else if (tagName === "a") {
+          // For 'a' tags, validate the <kind>:<pubkey>:<d-identifier> structure
+          // NIP-01: ["a", "<kind>:<pubkey>:<d-identifier>", <optional-relay-url>]
+          if (tag.length < 2 || typeof tag[1] !== 'string') {
+            return false; // Must have at least name and value, value must be a string
+          }
+          const valueParts = tag[1].split(':');
+          if (valueParts.length !== 3) {
+            // This structure must contain exactly three parts: kind, pubkey, and d-tag value (which can be empty).
+            // e.g., "30023:pubkeyhex:identifier" or "10002:pubkeyhex:"
+            return false;
+          }
+
+          const kindStr = valueParts[0];
+          const pubkeyStr = valueParts[1];
+          // const dValueStr = valueParts[2]; // dValueStr is implicitly validated as a string by split
+
+          // Validate kind (must be a non-negative integer string)
+          const kindNum = parseInt(kindStr, 10);
+          if (
+            isNaN(kindNum) ||
+            !Number.isInteger(kindNum) ||
+            kindNum < 0 || // Kinds must be non-negative
+            String(kindNum) !== kindStr // Ensures no trailing characters, e.g., "123xyz"
+          ) {
+            return false;
+          }
+
+          // Validate pubkey (must be 64-char hex)
+          if (!this.isHexString(pubkeyStr, 64)) {
+            return false;
+          }
+          // dValueStr (valueParts[2]) is a string by virtue of the split.
+          // NIP-01 doesn't impose further generic constraints on its content for the 'a' tag structure itself.
         }
         // Other tag types might have different validation rules, not covered by this specific claim.
       }
@@ -1241,5 +1298,14 @@ export class Relay {
       typeof e.content === "string" &&
       typeof e.sig === "string"
     );
+  }
+
+  // New private helper method for validating NIP-01 filter identifiers
+  private _isValidNip01FilterIdentifier(value: unknown): value is string {
+    if (typeof value !== "string") {
+      return false;
+    }
+    // Must be 64 characters, lowercase hex
+    return /^[0-9a-f]{64}$/.test(value);
   }
 }

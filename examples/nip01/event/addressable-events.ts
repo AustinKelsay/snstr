@@ -133,7 +133,7 @@ async function main() {
     // Wait a moment for the relay to process the event
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // ADDED: Subscribe to fetch the events first
+    // Subscribe to fetch the events first
     console.log("Fetching events via subscription...");
     await new Promise<void>((resolve) => {
       const subIds = client.subscribe(
@@ -270,7 +270,7 @@ async function main() {
     // 9. Retrieve all events of a specific kind
     console.log("\n--- Retrieving all products (kind 30078) ---");
 
-    // ADDED: Subscribe to fetch the products first
+    // Subscribe to fetch the products first
     console.log("Fetching products via subscription...");
     await new Promise<void>((resolve) => {
       const subIds = client.subscribe(

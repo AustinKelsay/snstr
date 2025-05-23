@@ -212,16 +212,16 @@ async function main() {
     // Re-sort the collected events according to NIP-01 before verification
     // NIP-01 interpretation for this demo:
     // 1. Newest created_at first (descending order).
-    // 2. For ties in created_at, lexicographically LARGER id first (descending order).
+    // 2. For ties in created_at, lexicographically SMALLER id first (ascending order).
     receivedEvents.sort((a, b) => {
       if (a.created_at !== b.created_at) {
         // Sort by created_at in descending order (newest first)
-        return b.created_at - a.created_at; 
+        return b.created_at - a.created_at;
       }
       // Timestamps are the same, sort by event ID.
-      // Use b.id.localeCompare(a.id) for descending lexicographical order 
-      // (i.e., lexicographically larger IDs come first).
-      return b.id.localeCompare(a.id); 
+      // Use a.id.localeCompare(b.id) for ascending lexicographical order
+      // (i.e., lexicographically smaller IDs come first).
+      return a.id.localeCompare(b.id);
     });
 
     // Check that events are properly ordered
@@ -237,13 +237,13 @@ async function main() {
         );
         isOrdered = false;
       }
-      // If timestamps are identical, check ID ordering (descending)
+      // If timestamps are identical, check ID ordering (ascending)
       else if (
         prevEvent.created_at === currentEvent.created_at &&
-        prevEvent.id.localeCompare(currentEvent.id) < 0 // prevEvent.id should be greater than or equal to currentEvent.id
+        prevEvent.id.localeCompare(currentEvent.id) > 0 // prevEvent.id should be smaller than or equal to currentEvent.id
       ) {
         console.log(
-          `❌ ID ordering issue: ${prevEvent.id.slice(0, 8)}... (lexically smaller) should come after ${currentEvent.id.slice(0, 8)}... (lexically larger) when timestamps are the same, due to descending ID sort.`,
+          `❌ ID ordering issue: ${prevEvent.id.slice(0, 8)}... (lexically larger) should come after ${currentEvent.id.slice(0, 8)}... (lexically smaller) when timestamps are the same.`,
         );
         isOrdered = false;
       }

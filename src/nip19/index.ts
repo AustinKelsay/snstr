@@ -636,8 +636,11 @@ export function encodeAddress(data: AddressData): Bech32String {
     throw new Error("Invalid pubkey: must be a 32-byte hex string");
   }
 
-  if (data.kind === undefined || data.kind < 0 || data.kind > 0xffffffff) { // Allow full 32-bit unsigned range
-    throw new Error("Invalid kind: must be a 32-bit unsigned integer (0 to 4294967295)");
+  if (data.kind === undefined || data.kind < 0 || data.kind > 0xffffffff) {
+    // Allow full 32-bit unsigned range
+    throw new Error(
+      "Invalid kind: must be a 32-bit unsigned integer (0 to 4294967295)",
+    );
   }
 
   // Check identifier length
@@ -764,7 +767,11 @@ export function decodeAddress(naddr: Bech32String): AddressData {
         if (entry.value.length !== 4) {
           throw new Error("Invalid kind length: should be 4 bytes");
         }
-        kind = (entry.value[0] << 24) + (entry.value[1] << 16) + (entry.value[2] << 8) + entry.value[3];
+        kind =
+          (entry.value[0] << 24) +
+          (entry.value[1] << 16) +
+          (entry.value[2] << 8) +
+          entry.value[3];
       }
       // Ignore unknown types for forward compatibility
     }

@@ -1,7 +1,4 @@
-import {
-  isValidPublicKeyFormat,
-  isValidPrivateKey,
-} from "../../src/nip44";
+import { isValidPublicKeyFormat, isValidPrivateKey } from "../../src/nip44";
 
 describe("NIP-44 Format Validation", () => {
   describe("isValidPublicKeyFormat", () => {
@@ -129,4 +126,4 @@ describe("NIP-44 Format Validation", () => {
       ).toBe(false);
     });
   });
-}); 
+});

@@ -284,10 +284,7 @@ describe("NIP-05", () => {
         ok: true,
         json: jest.fn().mockResolvedValueOnce(mockResponse), // Same response
       });
-      const resultNonMatch = await verifyNIP05(
-        "example.com",
-        "another_pubkey",
-      );
+      const resultNonMatch = await verifyNIP05("example.com", "another_pubkey");
       expect(resultNonMatch).toBe(false);
     });
 

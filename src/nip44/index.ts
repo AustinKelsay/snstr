@@ -523,19 +523,20 @@ export function encrypt(
   // NIP-44 spec (version 2): This is the current and recommended version for encryption.
   if (versionToEncryptWith === 0) {
     throw new Error(
-      "NIP-44: Encryption with version 0 is not permitted by the NIP-44 specification. Only decryption is supported for v0."
+      "NIP-44: Encryption with version 0 is not permitted by the NIP-44 specification. Only decryption is supported for v0.",
     );
   }
   if (versionToEncryptWith === 1) {
     throw new Error(
-      "NIP-44: Encryption with version 1 is not permitted by the NIP-44 specification. Only decryption is supported for v1."
+      "NIP-44: Encryption with version 1 is not permitted by the NIP-44 specification. Only decryption is supported for v1.",
     );
   }
-  if (versionToEncryptWith !== CURRENT_VERSION) { // Currently CURRENT_VERSION is 2
+  if (versionToEncryptWith !== CURRENT_VERSION) {
+    // Currently CURRENT_VERSION is 2
     // This condition will catch any other non-current versions if CURRENT_VERSION changes
     // or if a version > 2 is somehow passed and not caught by MAX_SUPPORTED_VERSION check.
     throw new Error(
-      `NIP-44: Unsupported encryption version: ${versionToEncryptWith}. Only version ${CURRENT_VERSION} is supported for encryption.`
+      `NIP-44: Unsupported encryption version: ${versionToEncryptWith}. Only version ${CURRENT_VERSION} is supported for encryption.`,
     );
   }
 
@@ -543,13 +544,14 @@ export function encrypt(
   // MIN_SUPPORTED_VERSION for encryption is effectively CURRENT_VERSION due to above checks.
   if (versionToEncryptWith > MAX_SUPPORTED_VERSION) {
     throw new Error(
-      `NIP-44: Encryption version ${versionToEncryptWith} is outside the maximum supported range [${MIN_SUPPORTED_VERSION}-${MAX_SUPPORTED_VERSION}].`
+      `NIP-44: Encryption version ${versionToEncryptWith} is outside the maximum supported range [${MIN_SUPPORTED_VERSION}-${MAX_SUPPORTED_VERSION}].`,
     );
   }
 
   // At this point, versionToEncryptWith must be CURRENT_VERSION (e.g., 2)
   try {
-    if (versionToEncryptWith === 2) { // Explicitly check for v2, which is CURRENT_VERSION
+    if (versionToEncryptWith === 2) {
+      // Explicitly check for v2, which is CURRENT_VERSION
       return encryptV2(plaintext, privateKey, publicKey, nonce);
     } else {
       // This path should ideally not be reached due to the extensive checks above.
@@ -564,9 +566,13 @@ export function encrypt(
       if (error.message.startsWith("NIP-44:")) {
         throw error;
       }
-      throw new Error(`NIP-44: Encryption failed (version ${versionToEncryptWith}): ${error.message}`);
+      throw new Error(
+        `NIP-44: Encryption failed (version ${versionToEncryptWith}): ${error.message}`,
+      );
     }
-    throw new Error(`NIP-44: Encryption failed (version ${versionToEncryptWith})`);
+    throw new Error(
+      `NIP-44: Encryption failed (version ${versionToEncryptWith})`,
+    );
   }
 }
 
