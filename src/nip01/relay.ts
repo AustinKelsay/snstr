@@ -838,6 +838,40 @@ export class Relay {
           if (tag.length < 2 || !this.isHexString(tag[1], 64)) {
             return false;
           }
+        } else if (tagName === "a") {
+          // For 'a' tags, validate the <kind>:<pubkey>:<d-identifier> structure
+          // NIP-01: ["a", "<kind>:<pubkey>:<d-identifier>", <optional-relay-url>]
+          if (tag.length < 2 || typeof tag[1] !== 'string') {
+            return false; // Must have at least name and value, value must be a string
+          }
+          const valueParts = tag[1].split(':');
+          if (valueParts.length !== 3) {
+            // This structure must contain exactly three parts: kind, pubkey, and d-tag value (which can be empty).
+            // e.g., "30023:pubkeyhex:identifier" or "10002:pubkeyhex:"
+            return false;
+          }
+
+          const kindStr = valueParts[0];
+          const pubkeyStr = valueParts[1];
+          // const dValueStr = valueParts[2]; // dValueStr is implicitly validated as a string by split
+
+          // Validate kind (must be a non-negative integer string)
+          const kindNum = parseInt(kindStr, 10);
+          if (
+            isNaN(kindNum) ||
+            !Number.isInteger(kindNum) ||
+            kindNum < 0 || // Kinds must be non-negative
+            String(kindNum) !== kindStr // Ensures no trailing characters, e.g., "123xyz"
+          ) {
+            return false;
+          }
+
+          // Validate pubkey (must be 64-char hex)
+          if (!this.isHexString(pubkeyStr, 64)) {
+            return false;
+          }
+          // dValueStr (valueParts[2]) is a string by virtue of the split.
+          // NIP-01 doesn't impose further generic constraints on its content for the 'a' tag structure itself.
         }
         // Other tag types might have different validation rules, not covered by this specific claim.
       }
