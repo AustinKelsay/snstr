@@ -64,7 +64,7 @@ npm run example:nip44
 npm run example:nip44:version-compat
 
 # Run the test vector verification
-npm run example:nip44:run-vectors
+npm run example:nip44:test-vector
 ```
 
 ## Key Concepts
