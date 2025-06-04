@@ -247,9 +247,6 @@ export class Relay {
     const jitter = Math.random() * 0.3 * baseDelay; // Add 0-30% jitter
     const reconnectDelay = baseDelay + jitter;
 
-    console.log(
-      `Scheduling reconnection to ${this.url} in ${Math.round(reconnectDelay)}ms (attempt ${this.reconnectAttempts + 1})`,
-    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
@@ -548,12 +545,6 @@ export class Relay {
     const [type, ...rest] = data;
     const debug = process.env.DEBUG?.includes("nostr:*") || false;
 
-    if (debug) {
-      console.log(`Relay(${this.url}): Received message type: ${type}`);
-      console.log(
-        `Relay(${this.url}): Message data:`,
-        JSON.stringify(rest).substring(0, 200),
-      );
     }
 
     switch (type) {
@@ -570,19 +561,9 @@ export class Relay {
           break;
         }
 
-        if (debug) {
-          console.log(
-            `Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event.kind}, id: ${event.id.slice(0, 8)}...`,
-          );
-        }
 
         // Perform initial synchronous validation
         if (!this.performBasicValidation(event)) {
-          if (debug) {
-            console.log(
-              `Relay(${this.url}): Rejected invalid event: ${event.id}`,
-            );
-          }
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
@@ -597,24 +578,6 @@ export class Relay {
             if (isValid) {
               this.processValidatedEvent(event, subscriptionId as string);
             } else {
-              if (debug) {
-                console.log(
-                  `Relay(${this.url}): Rejected event after async validation: ${event.id}`,
-                );
-              }
-              this.triggerEvent(
-                RelayEvent.Error,
-                this.url,
-                new Error(`Invalid event signature or ID: ${event.id}`),
-              );
-            }
-          })
-          .catch((error) => {
-            if (debug) {
-              console.error(
-                `Relay(${this.url}): Error during async validation for event ${event.id}:`,
-                error,
-              );
             }
             this.triggerEvent(
               RelayEvent.Error,
@@ -629,10 +592,6 @@ export class Relay {
       }
       case "EOSE": {
         const [subscriptionId] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): End of stored events for subscription ${subscriptionId}`,
-          );
 
         // Flush the buffer for this subscription immediately on EOSE
         if (typeof subscriptionId === "string") {
@@ -647,7 +606,6 @@ export class Relay {
       }
       case "NOTICE": {
         const [notice] = rest;
-        if (debug) console.log(`Relay(${this.url}): Notice: ${notice}`);
         // Ensure notice is a string
         const noticeStr =
           typeof notice === "string" ? notice : String(notice || "");
@@ -656,10 +614,6 @@ export class Relay {
       }
       case "OK": {
         const [eventId, success, rawMessageUntyped] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessageUntyped}`,
-          );
 
         // Ensure all params are of the correct type
         const eventIdStr =
@@ -680,11 +634,6 @@ export class Relay {
         break;
       }
       case "CLOSED": {
-        const [subscriptionId, message] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`,
-          );
 
         // Ensure both params are strings
         const subIdStr =
@@ -703,10 +652,6 @@ export class Relay {
       }
       case "AUTH": {
         const [challengeEvent] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): Auth challenge received:`,
-            challengeEvent,
           );
 
         // Check if the challenge is a proper NostrEvent
@@ -724,9 +669,6 @@ export class Relay {
         }
         break;
       }
-      default:
-        if (debug)
-          console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
         break;
     }
   }
@@ -755,20 +697,12 @@ export class Relay {
 
     const subscription = this.subscriptions.get(subscriptionId);
     if (subscription) {
-      if (debug)
-        console.log(
-          `Relay(${this.url}): Found subscription, buffering event for processing`,
-        );
 
       // Buffer the event instead of immediately calling the handler
       const buffer = this.eventBuffers.get(subscriptionId) || [];
       buffer.push(event);
       this.eventBuffers.set(subscriptionId, buffer);
     } else {
-      if (debug)
-        console.log(
-          `Relay(${this.url}): No subscription found for id: ${subscriptionId}`,
-        );
     }
   }
 
@@ -898,11 +832,6 @@ export class Relay {
 
         if (!hasValidPTagForNIP46) {
           const debug = process.env.DEBUG?.includes("nostr:*") || false;
-          if (debug) {
-            console.log(
-              `Relay(${this.url}): NIP-46 event missing required 'p' tag (expected format ['p', <64_hex_pubkey>, ...]):`,
-              JSON.stringify(event.tags),
-            );
           }
           return false;
         }
@@ -912,10 +841,6 @@ export class Relay {
       if (event.created_at < now - 31536000) {
         // Return true but log a warning if debug is enabled
         const debug = process.env.DEBUG?.includes("nostr:*") || false;
-        if (debug) {
-          console.warn(
-            `Relay(${this.url}): Event ${event.id} is very old (${now - event.created_at} seconds)`,
-          );
         }
       }
 

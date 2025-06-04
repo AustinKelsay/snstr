@@ -30,14 +30,12 @@ describe("Relay", () => {
     // Start the ephemeral relay before all tests
     ephemeralRelay = new NostrRelay(RELAY_TEST_PORT);
     await ephemeralRelay.start();
-    console.log(`Ephemeral test relay started on port ${RELAY_TEST_PORT}`);
   });
 
   afterAll(() => {
     // Close the ephemeral relay after tests
     if (ephemeralRelay) {
       ephemeralRelay.close();
-      console.log("Ephemeral test relay shut down");
     }
   });
 

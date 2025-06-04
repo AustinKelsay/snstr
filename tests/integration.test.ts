@@ -151,22 +151,10 @@ describe("Nostr Client Integration", () => {
       const events2: NostrEvent[] = [];
 
       const subId1 = nostr.subscribe([filter1], (event) => {
-        console.log(
-          "Received event for sub1:",
-          event.kind,
-          event.id,
-          JSON.stringify(event.tags),
-        );
         events1.push(event);
       });
 
       const subId2 = nostr.subscribe([filter2], (event) => {
-        console.log(
-          "Received event for sub2:",
-          event.kind,
-          event.id,
-          JSON.stringify(event.tags),
-        );
         events2.push(event);
       });
 
@@ -176,20 +164,6 @@ describe("Nostr Client Integration", () => {
       nostr.unsubscribe(subId1);
       nostr.unsubscribe(subId2);
 
-      console.log(
-        "Events1 count:",
-        events1.length,
-        "Events2 count:",
-        events2.length,
-      );
-      console.log(
-        "Events1 tags:",
-        events1.map((e) => e.tags),
-      );
-      console.log(
-        "Events2 tags:",
-        events2.map((e) => e.tags),
-      );
 
       // We expect at least some events to be received by the subscriptions
       expect(events1.length + events2.length).toBeGreaterThan(0);
