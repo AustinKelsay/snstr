@@ -816,8 +816,8 @@ export class Relay {
 
       // Check reasonable timestamp (not more than 1 hour in the future and not too far in the past)
       const now = Math.floor(Date.now() / 1000);
-      if (event.created_at > now + 3600) {
-        return false; // Reject events with future timestamps
+          if (tag.length < 2 || typeof tag[1] !== "string") {
+          const valueParts = tag[1].split(":");
       }
 
       // Special handling for NIP-46 events (kind 24133)
