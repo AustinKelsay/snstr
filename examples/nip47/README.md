@@ -15,7 +15,7 @@ The [basic-client-service.ts](./basic-client-service.ts) demonstrates:
 Run it with:
 
 ```bash
-npm run example:nip47:basic
+npm run example:nip47:client-service
 ```
 
 ### Error Handling and Retry Example
@@ -30,7 +30,7 @@ The [error-handling-example.ts](./error-handling-example.ts) demonstrates:
 Run it with:
 
 ```bash
-npm run example:nip47:errors
+npm run example:nip47:error-handling
 ```
 
 ### Request Expiration Example
@@ -46,31 +46,6 @@ Run it with:
 npm run example:nip47:expiration
 ```
 
-### Notifications Example
-
-The [notifications-example.ts](./notifications-example.ts) demonstrates:
-- Setting up notification subscriptions
-- Handling payment received/sent notifications
-- Custom notification handling
-
-Run it with:
-
-```bash
-npm run example:nip47:notifications
-```
-
-### Custom Wallet Implementation
-
-The [custom-wallet-implementation.ts](./custom-wallet-implementation.ts) demonstrates:
-- Creating a custom wallet implementation
-- Connecting to an external Lightning node/wallet
-- Advanced configuration options
-
-Run it with:
-
-```bash
-npm run example:nip47:custom
-```
 
 ## What is NIP-47?
 
