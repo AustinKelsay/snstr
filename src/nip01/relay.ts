@@ -543,9 +543,6 @@ export class Relay {
     if (!Array.isArray(data)) return;
 
     const [type, ...rest] = data;
-    const debug = process.env.DEBUG?.includes("nostr:*") || false;
-
-    }
 
     switch (type) {
       case "EVENT": {
@@ -560,7 +557,6 @@ export class Relay {
           );
           break;
         }
-
 
         // Perform initial synchronous validation
         if (!this.performBasicValidation(event)) {
@@ -578,7 +574,14 @@ export class Relay {
             if (isValid) {
               this.processValidatedEvent(event, subscriptionId as string);
             } else {
+              this.triggerEvent(
+                RelayEvent.Error,
+                this.url,
+                new Error(`Async validation failed for event: ${event.id}`),
+              );
             }
+          })
+          .catch((error) => {
             this.triggerEvent(
               RelayEvent.Error,
               this.url,
@@ -634,7 +637,7 @@ export class Relay {
         break;
       }
       case "CLOSED": {
-
+        const [subscriptionId, message] = rest;
         // Ensure both params are strings
         const subIdStr =
           typeof subscriptionId === "string"
@@ -652,8 +655,6 @@ export class Relay {
       }
       case "AUTH": {
         const [challengeEvent] = rest;
-          );
-
         // Check if the challenge is a proper NostrEvent
         if (this.isNostrEvent(challengeEvent)) {
           this.triggerEvent(RelayEvent.Auth, challengeEvent);
@@ -669,6 +670,9 @@ export class Relay {
         }
         break;
       }
+      default:
+        // Unknown message type, ignore or log
+        console.warn(`Relay(${this.url}): Unknown message type:`, type, rest);
         break;
     }
   }
@@ -680,8 +684,6 @@ export class Relay {
     event: NostrEvent,
     subscriptionId: string,
   ): void {
-    const debug = process.env.DEBUG?.includes("nostr:*") || false;
-
     // Process replaceable events (kinds 0, 3, 10000-19999)
     if (
       event.kind === 0 ||
@@ -697,12 +699,10 @@ export class Relay {
 
     const subscription = this.subscriptions.get(subscriptionId);
     if (subscription) {
-
       // Buffer the event instead of immediately calling the handler
       const buffer = this.eventBuffers.get(subscriptionId) || [];
       buffer.push(event);
       this.eventBuffers.set(subscriptionId, buffer);
-    } else {
     }
   }
 
@@ -831,17 +831,14 @@ export class Relay {
         );
 
         if (!hasValidPTagForNIP46) {
-          const debug = process.env.DEBUG?.includes("nostr:*") || false;
-          }
+          // Optionally log here if needed
           return false;
         }
       }
 
       // Optionally log a warning for very old events (e.g., older than a year)
       if (event.created_at < now - 31536000) {
-        // Return true but log a warning if debug is enabled
-        const debug = process.env.DEBUG?.includes("nostr:*") || false;
-        }
+        // Optionally log here if needed
       }
 
       return true;
