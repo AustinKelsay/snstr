@@ -226,9 +226,6 @@ describe("NIP-19: Validation and Edge Cases", () => {
       ).toThrow(/Too many/);
 
       // Note: MAX_TLV_ENTRIES has been reduced from 100 to 20
-      console.log(
-        "SECURITY: MAX_TLV_ENTRIES is now set to 20, which is a reasonable limit",
-      );
     });
 
     test("verifies URL sanitization during decoding", () => {
@@ -250,12 +247,6 @@ describe("NIP-19: Validation and Edge Cases", () => {
 
       // Note: To properly test URL sanitization during decoding, we would need
       // to manipulate the TLV data directly to include an invalid URL
-      console.log(
-        "SECURITY CONCERN: decodeProfile only warns about invalid URLs but still includes them",
-      );
-      console.log(
-        "Recommendation: Invalid URLs should be discarded during decoding, not just warned about",
-      );
     });
   });
 

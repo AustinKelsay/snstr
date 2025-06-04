@@ -48,13 +48,9 @@ describe("NIP-44 Padding Implementation", () => {
 
     for (const testCase of testCases) {
       // Encrypt and decrypt to test padding and unpadding
-      console.log(
-        `Testing message length: ${testCase.input.length} bytes (${testCase.desc})`,
-      );
       const encrypted = encrypt(testCase.input, privateKey, publicKey);
       const decrypted = decrypt(encrypted, privateKey, publicKey);
       expect(decrypted).toBe(testCase.input);
-      console.log(`  Encrypted length: ${encrypted.length} chars (base64)`);
     }
   });
 });
@@ -156,9 +152,6 @@ describe("NIP-44 Comprehensive Test Vector Compatibility", () => {
       }
     }
 
-    console.log(
-      `Successfully decrypted ${successCount} out of ${encryptDecryptVectors.length} official test vectors`,
-    );
     expect(successCount).toBeGreaterThan(0);
   });
 });

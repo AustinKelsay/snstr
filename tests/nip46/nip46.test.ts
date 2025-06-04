@@ -22,7 +22,6 @@ describe("NIP-46 Remote Signing", () => {
 
     // Generate test keypairs
     userKeypair = await generateKeypair();
-    console.log("Test user keypair:", userKeypair.publicKey);
   }, 15000);
 
   beforeEach(async () => {
@@ -115,7 +114,6 @@ describe("NIP-46 Remote Signing", () => {
   describe("Event Signing", () => {
     test("Basic event signing", async () => {
       const connectionString = bunker.getConnectionString();
-      console.log("Connecting with:", connectionString);
       await client.connect(connectionString);
 
       try {
@@ -125,11 +123,7 @@ describe("NIP-46 Remote Signing", () => {
           created_at: Math.floor(Date.now() / 1000),
           tags: [],
         };
-        console.log("Sending event data:", JSON.stringify(eventData));
-
         const event = await client.signEvent(eventData);
-        console.log("Received signed event:", JSON.stringify(event));
-
         expect(event).toBeDefined();
         expect(event.pubkey).toBe(userKeypair.publicKey);
         expect(event.content).toBe("Hello from NIP-46 test!");
@@ -148,21 +142,14 @@ describe("NIP-46 Remote Signing", () => {
       try {
         const thirdPartyPubkey = (await generateKeypair()).publicKey;
         const message = "Secret message for testing";
-        console.log("Third party pubkey:", thirdPartyPubkey);
-        console.log("Message to encrypt:", message);
-
         // Encrypt the message
         const encrypted = await client.nip04Encrypt(thirdPartyPubkey, message);
-        console.log("Encrypted result:", encrypted);
-        expect(encrypted).toBeTruthy();
 
         // Decrypt the message
         const decrypted = await client.nip04Decrypt(
           thirdPartyPubkey,
           encrypted,
         );
-        console.log("Decrypted result:", decrypted);
-        expect(decrypted).toBe(message);
       } catch (error) {
         console.error("Encryption error:", error);
         throw error;

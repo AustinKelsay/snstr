@@ -14,13 +14,11 @@ describe("Nostr Client", () => {
   beforeAll(async () => {
     ephemeralRelay = new NostrRelay(RELAY_TEST_PORT);
     await ephemeralRelay.start();
-    console.log(`Ephemeral test relay started on port ${RELAY_TEST_PORT}`);
   });
 
   afterAll(() => {
     if (ephemeralRelay) {
       ephemeralRelay.close();
-      console.log("Ephemeral test relay shut down");
     }
   });
 
