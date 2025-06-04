@@ -6,6 +6,14 @@ import {
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import {
+  describe,
+  test,
+  beforeEach,
+  afterEach,
+  expect,
+  fail,
+} from "@jest/globals";
 
 describe("NIP-46 Permission Handling", () => {
   let relay: NostrRelay;
@@ -269,11 +277,19 @@ describe("NIP-46 Permission Handling", () => {
       );
       expect(decryptResult).toBe(plaintext);
     } catch (error) {
-      // If decrypt is not implemented, mark the test as pending
-      if (typeof pending === "function") {
-        pending("NIP-04 decrypt not implemented");
+      const notImplemented =
+        error instanceof Error &&
+        /not (implemented|supported)/i.test(error.message);
+      if (notImplemented) {
+        if (typeof pending === "function") {
+          pending("NIP-04 decrypt not implemented");
+          return;
+        }
+      }
+      if (error instanceof Error) {
+        fail(`NIP-04 decrypt failed: ${error.message}`);
       } else {
-        fail(`NIP-04 decrypt failed: ${(error as Error).message}`);
+        fail("NIP-04 decrypt failed with unknown error");
       }
     }
   }, 7000);
