@@ -162,6 +162,21 @@ describe("NIP-19: Basic Bech32 Entities", () => {
         /Invalid bech32 string format/,
       );
     });
+
+    test("should reject strings with misplaced separator", () => {
+      expect(() => decode("1invalid" as Bech32String)).toThrow(
+        /Invalid bech32 string format/,
+      );
+      expect(() => decode("invalid1" as Bech32String)).toThrow(
+        /Invalid bech32 string format/,
+      );
+    });
+
+    test("should reject strings with multiple separators", () => {
+      expect(() => decode("npub1abc1def" as Bech32String)).toThrow(
+        /Invalid bech32 string format/,
+      );
+    });
   });
 
   describe("Prefix Validation", () => {

@@ -100,9 +100,21 @@ export function encodeBech32(prefix: string, data: HexString): Bech32String {
  * Decodes a bech32 string to a hex string
  */
 export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
-  // First, check if the prefix is valid without full decoding
-  // This ensures 'Invalid prefix' errors take precedence over other errors
-  const hrp = bech32Str.slice(0, bech32Str.indexOf("1"));
+  // Ensure the bech32 string contains a single separator in a valid position
+  const firstSep = bech32Str.indexOf("1");
+  const separatorIndex = bech32Str.lastIndexOf("1");
+  if (
+    firstSep !== separatorIndex ||
+    separatorIndex <= 0 ||
+    separatorIndex === bech32Str.length - 1
+  ) {
+    throw new Error(
+      "Invalid bech32 string format: missing or misplaced separator '1'",
+    );
+  }
+
+  // Extract the prefix for potential prefix validation errors
+  const hrp = bech32Str.slice(0, separatorIndex);
 
   try {
     const { prefix, words } = bech32.decode(bech32Str);
@@ -850,15 +862,21 @@ function bytesToHex(bytes: Uint8Array): HexString {
  * Universal decoder for any NIP-19 entity
  */
 export function decode(bech32Str: Bech32String): DecodedEntity {
-  // Basic validation for bech32 format
-  if (!bech32Str.includes("1")) {
+  // Ensure the bech32 string contains a single separator in a valid position
+  const firstSep = bech32Str.indexOf("1");
+  const separatorIndex = bech32Str.lastIndexOf("1");
+  if (
+    firstSep !== separatorIndex ||
+    separatorIndex <= 0 ||
+    separatorIndex === bech32Str.length - 1
+  ) {
     throw new Error(
-      "Invalid bech32 string format: missing separator character '1'",
+      "Invalid bech32 string format: missing or misplaced separator '1'",
     );
   }
 
   // Extract the prefix from the bech32 string
-  const prefix = bech32Str.slice(0, bech32Str.indexOf("1"));
+  const prefix = bech32Str.slice(0, separatorIndex);
 
   switch (prefix) {
     case Prefix.PublicKey:
