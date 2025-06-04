@@ -269,8 +269,12 @@ describe("NIP-46 Permission Handling", () => {
       );
       expect(decryptResult).toBe(plaintext);
     } catch (error) {
-      // If decrypt is not implemented, this test can be skipped
-      console.log("NIP-04 decrypt not implemented, skipping test");
+      // If decrypt is not implemented, mark the test as pending
+      if (typeof pending === "function") {
+        pending("NIP-04 decrypt not implemented");
+      } else {
+        fail(`NIP-04 decrypt failed: ${(error as Error).message}`);
+      }
     }
   }, 7000);
 });
