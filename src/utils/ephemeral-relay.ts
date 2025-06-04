@@ -44,6 +44,7 @@ export class NostrRelay {
   private _wss: WebSocketServer | null;
   private _cache: SignedEvent[];
   private _isClosing: boolean = false;
+  private _purgeTimer: NodeJS.Timeout | null = null;
 
   public conn: number;
 
@@ -99,7 +100,7 @@ export class NostrRelay {
             console.log(
               `[ relay ] purging events every ${this._purge} seconds`,
             );
-          setInterval(() => {
+          this._purgeTimer = setInterval(() => {
             this._cache = [];
           }, this._purge * 1000);
         }
@@ -128,6 +129,11 @@ export class NostrRelay {
 
       // Clear any listeners on the emitter
       this._emitter.removeAllListeners();
+
+      if (this._purgeTimer) {
+        clearInterval(this._purgeTimer);
+        this._purgeTimer = null;
+      }
 
       if (this._wss) {
         // Clean up clients first
