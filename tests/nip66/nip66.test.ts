@@ -5,6 +5,8 @@ import {
   parseRelayMonitorAnnouncement,
   RELAY_DISCOVERY_KIND,
   RELAY_MONITOR_KIND,
+  NipNumber,
+  EventKind,
 } from "../../src/nip66";
 import { NostrEvent } from "../../src/types/nostr";
 
@@ -53,6 +55,131 @@ describe("NIP-66", () => {
     expect(event.kind).toBe(RELAY_MONITOR_KIND);
     expect(event.tags).toContainEqual(["frequency", "3600"]);
     expect(event.tags).toContainEqual(["c", "ws"]);
+  });
+
+  describe("Type alias behavior and data transformation", () => {
+    const validPubkey = "validpubkey123";
+
+    test("supportedNips should accept both numbers and strings (NipNumber type)", () => {
+      const mixedNips: NipNumber[] = [1, "2", 4, "17"];
+      
+      const options = {
+        relay: "wss://relay.example.com",
+        supportedNips: mixedNips,
+      };
+      
+      // Should not throw an error
+      expect(() => createRelayDiscoveryEvent(options, validPubkey)).not.toThrow();
+      
+      const event = createRelayDiscoveryEvent(options, validPubkey);
+      
+      // All NIP numbers should be converted to strings in tags
+      expect(event.tags).toContainEqual(["N", "1"]);
+      expect(event.tags).toContainEqual(["N", "2"]);
+      expect(event.tags).toContainEqual(["N", "4"]);
+      expect(event.tags).toContainEqual(["N", "17"]);
+    });
+
+    test("kinds should accept both numbers and strings (EventKind type)", () => {
+      const mixedKinds: EventKind[] = [0, "1", 3, "10000"];
+      
+      const options = {
+        relay: "wss://relay.example.com",
+        kinds: mixedKinds,
+      };
+      
+      // Should not throw an error
+      expect(() => createRelayDiscoveryEvent(options, validPubkey)).not.toThrow();
+      
+      const event = createRelayDiscoveryEvent(options, validPubkey);
+      
+      // All event kinds should be converted to strings in tags
+      expect(event.tags).toContainEqual(["k", "0"]);
+      expect(event.tags).toContainEqual(["k", "1"]);
+      expect(event.tags).toContainEqual(["k", "3"]);
+      expect(event.tags).toContainEqual(["k", "10000"]);
+    });
+
+    test("parsed events should always have supportedNips and kinds as strings", () => {
+      const event = createRelayDiscoveryEvent(
+        {
+          relay: "wss://relay.example.com",
+          supportedNips: [1, "2", 4], // Mixed input types
+          kinds: [0, "1", 3], // Mixed input types
+        },
+        validPubkey,
+      );
+
+      const parsed = parseRelayDiscoveryEvent({
+        ...event,
+        id: "test",
+        sig: "sig",
+        pubkey: validPubkey,
+      });
+
+      expect(parsed).not.toBeNull();
+      
+      // All parsed values should be strings
+      expect(parsed?.supportedNips).toEqual(["1", "2", "4"]);
+      expect(parsed?.kinds).toEqual(["0", "1", "3"]);
+      
+      // Type check - these should be string arrays
+      expect(typeof parsed?.supportedNips[0]).toBe("string");
+      expect(typeof parsed?.kinds[0]).toBe("string");
+    });
+
+    test("round-trip conversion maintains data integrity", () => {
+      const originalOptions = {
+        relay: "wss://relay.example.com",
+        supportedNips: [1, "2", 4, "17"] as NipNumber[],
+        kinds: [0, "1", 3, "10000"] as EventKind[],
+        network: "clearnet",
+        relayType: "paid",
+      };
+      
+      // Create event
+      const event = createRelayDiscoveryEvent(originalOptions, validPubkey);
+      
+      // Parse event
+      const parsed = parseRelayDiscoveryEvent({
+        ...event,
+        id: "test",
+        sig: "sig",
+        pubkey: validPubkey,
+      });
+
+      expect(parsed).not.toBeNull();
+      
+      // Data should be preserved (as strings)
+      expect(parsed?.supportedNips).toEqual(["1", "2", "4", "17"]);
+      expect(parsed?.kinds).toEqual(["0", "1", "3", "10000"]);
+      expect(parsed?.network).toBe("clearnet");
+      expect(parsed?.relayType).toBe("paid");
+      expect(parsed?.relay).toBe("wss://relay.example.com");
+    });
+
+    test("type aliases should be exported and usable", () => {
+      // This test verifies that the type aliases are properly exported
+      // and can be used in user code
+      
+      const nips: NipNumber[] = [1, "2", 4];
+      const kinds: EventKind[] = [0, "1", 3];
+      
+      // Should be able to use these in function calls
+      const options = {
+        relay: "wss://relay.example.com",
+        supportedNips: nips,
+        kinds: kinds,
+      };
+      
+      expect(() => createRelayDiscoveryEvent(options, validPubkey)).not.toThrow();
+      
+      // Verify they work with mixed types
+      expect(nips).toContain(1); // number
+      expect(nips).toContain("2"); // string
+      expect(kinds).toContain(0); // number  
+      expect(kinds).toContain("1"); // string
+    });
   });
 
   describe("Validation for createRelayDiscoveryEvent", () => {
@@ -263,7 +390,7 @@ describe("NIP-66", () => {
           ["timeout", "-1000"], // Negative value
           ["timeout", "0"], // Zero value (below minimum)
           ["timeout", "500000"], // Too large (above maximum)
-                     ["timeout", "1.5"], // Decimal (parseInt converts to 1, which is valid)
+          ["timeout", "1.5"], // Decimal (parseInt converts to 1, which is valid)
           ["timeout", "2000", ""], // Valid timeout but empty test
           ["timeout", "3000", 123 as any], // Valid timeout but invalid test type
           // Valid timeout without test
@@ -276,11 +403,11 @@ describe("NIP-66", () => {
       const parsed = parseRelayMonitorAnnouncement(malformedEvent);
       expect(parsed).not.toBeNull();
       
-             // Should only have valid timeouts (note: "1.5" becomes 1 via parseInt, which is valid)
-       expect(parsed?.timeouts).toHaveLength(3);
-       expect(parsed?.timeouts[0]).toEqual({ value: 5000, test: "connect" });
-       expect(parsed?.timeouts[1]).toEqual({ value: 1, test: undefined }); // "1.5" -> 1
-       expect(parsed?.timeouts[2]).toEqual({ value: 4000, test: undefined });
+      // Should only have valid timeouts (note: "1.5" becomes 1 via parseInt, which is valid)
+      expect(parsed?.timeouts).toHaveLength(3);
+      expect(parsed?.timeouts[0]).toEqual({ value: 5000, test: "connect" });
+      expect(parsed?.timeouts[1]).toEqual({ value: 1, test: undefined }); // "1.5" -> 1
+      expect(parsed?.timeouts[2]).toEqual({ value: 4000, test: undefined });
       
       // Should have logged warnings for invalid entries
       expect(consoleWarnSpy).toHaveBeenCalledWith(
