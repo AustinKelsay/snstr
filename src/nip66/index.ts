@@ -94,6 +94,9 @@ export function parseRelayDiscoveryEvent(
   };
 
   for (const tag of event.tags) {
+    // Skip invalid tags - must be array with at least 2 elements
+    if (!Array.isArray(tag) || tag.length < 2) continue;
+    
     switch (tag[0]) {
       case "d":
         data.relay = tag[1];
@@ -120,13 +123,22 @@ export function parseRelayDiscoveryEvent(
         data.geohash = tag[1];
         break;
       case "rtt-open":
-        data.rttOpen = parseInt(tag[1], 10);
+        // Parse integer with bounds checking
+        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
+          data.rttOpen = parseInt(tag[1], 10);
+        }
         break;
       case "rtt-read":
-        data.rttRead = parseInt(tag[1], 10);
+        // Parse integer with bounds checking
+        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
+          data.rttRead = parseInt(tag[1], 10);
+        }
         break;
       case "rtt-write":
-        data.rttWrite = parseInt(tag[1], 10);
+        // Parse integer with bounds checking
+        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
+          data.rttWrite = parseInt(tag[1], 10);
+        }
         break;
     }
   }
@@ -190,15 +202,24 @@ export function parseRelayMonitorAnnouncement(
   };
 
   for (const tag of event.tags) {
+    // Skip invalid tags - must be array with at least 2 elements
+    if (!Array.isArray(tag) || tag.length < 2) continue;
+    
     switch (tag[0]) {
       case "frequency":
-        data.frequency = parseInt(tag[1], 10);
+        // Parse integer with bounds checking
+        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
+          data.frequency = parseInt(tag[1], 10);
+        }
         break;
       case "timeout":
-        data.timeouts.push({
-          value: parseInt(tag[1], 10),
-          test: tag[2],
-        });
+        // Parse timeout with bounds checking - requires at least tag[1]
+        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
+          data.timeouts.push({
+            value: parseInt(tag[1], 10),
+            test: tag.length > 2 ? tag[2] : undefined, // Check if tag[2] exists
+          });
+        }
         break;
       case "c":
         data.checks.push(tag[1]);
