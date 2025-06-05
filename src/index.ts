@@ -211,3 +211,16 @@ export {
 
 // NIP-50 search utilities
 export { createSearchFilter } from "./nip50";
+
+// NIP-65: Relay List Metadata
+export { createRelayListEvent, parseRelayList, getReadRelays, getWriteRelays, RELAY_LIST_KIND, RelayListEntry, RelayListEvent } from "./nip65";
+
+// NIP-66: Relay Discovery and Liveness Monitoring
+export {
+  RELAY_DISCOVERY_KIND,
+  RELAY_MONITOR_KIND,
+  createRelayDiscoveryEvent,
+  parseRelayDiscoveryEvent,
+  createRelayMonitorAnnouncement,
+  parseRelayMonitorAnnouncement,
+} from "./nip66";

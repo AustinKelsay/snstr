@@ -1,5 +1,9 @@
 import { Relay } from "../../../src/nip01/relay";
 import { RelayEvent, NostrEvent } from "../../../src/types/nostr";
+import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+
+const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
+const RELAY_PORT = 3336;
 
 /**
  * This example demonstrates the improved connection handling in SNSTR
@@ -7,11 +11,25 @@ import { RelayEvent, NostrEvent } from "../../../src/types/nostr";
  * the event ordering system, and the enhanced event validation.
  */
 async function main() {
-  // Create a relay with a specific connection timeout (5 seconds) and buffer flush delay
-  const relay = new Relay("wss://relay.nostr.band", {
-    connectionTimeout: 5000,
-    bufferFlushDelay: 50, // Control event ordering buffer flush frequency
-  });
+  let relay: Relay;
+  let ephemeralRelay: NostrRelay | null = null;
+
+  if (USE_EPHEMERAL) {
+    console.log("Starting ephemeral relay...");
+    ephemeralRelay = new NostrRelay(RELAY_PORT);
+    await ephemeralRelay.start();
+    relay = new Relay(ephemeralRelay.url, {
+      connectionTimeout: 5000,
+      bufferFlushDelay: 50,
+    });
+    console.log(`Ephemeral relay running at ${ephemeralRelay.url}`);
+  } else {
+    relay = new Relay("wss://relay.nostr.band", {
+      connectionTimeout: 5000,
+      bufferFlushDelay: 50,
+    });
+  }
+
   console.log(
     `Created relay with connection timeout: ${relay.getConnectionTimeout()}ms`,
   );
@@ -208,8 +226,10 @@ async function main() {
         "\n--- Demonstrating Protocol-Compliant unsubscribeAll() ---",
       );
 
-      // Use a known relay URL for this test section
-      const testRelayUrl = "wss://relay.nostr.band"; // Must match the client's relay
+      // Use the same relay URL as above so unsubscribeAll works in either mode
+      const testRelayUrl = USE_EPHEMERAL && ephemeralRelay
+        ? ephemeralRelay.url
+        : "wss://relay.nostr.band";
 
       // Create a Nostr client instance for this part of the test
       console.log(
@@ -346,6 +366,10 @@ async function main() {
 
   // Wait a moment to see the disconnect message
   await new Promise((resolve) => setTimeout(resolve, 500));
+
+  if (ephemeralRelay) {
+    await ephemeralRelay.close();
+  }
 
   console.log("Example completed.");
 }

@@ -93,6 +93,14 @@ npm run example:nip47:error-handling # Error handling example
 npm run example:nip47:expiration # Request expiration example
 ```
 
+## NIP-50 Examples
+
+For [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability):
+
+```bash
+npm run example:nip50          # Basic search filter example
+```
+
 ## NIP-57 Examples
 
 For [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) (Lightning Zaps), we have several examples:
@@ -104,10 +112,12 @@ npm run example:nip57:lnurl    # LNURL server simulation
 npm run example:nip57:validation # Invoice validation example
 ```
 
-For [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability):
+## NIP-65 Examples
+
+For [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) (Relay List Metadata):
 
 ```bash
-npm run example:nip50          # Basic search filter example
+npm run example:nip65          # Relay list metadata demo
 ```
 
 ## Example Categories
