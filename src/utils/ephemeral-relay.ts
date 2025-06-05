@@ -742,7 +742,7 @@ class ClientSession {
 /* ================ [ Methods ] ================ */
 
 function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
-  const { authors, ids, kinds, since, until, ...rest } = filter;
+  const { authors, ids, kinds, since, until, search, ...rest } = filter;
 
   // Extract all tag filters from rest
   const tag_filters: string[][] = Object.entries(rest)
@@ -759,6 +759,14 @@ function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
     return false;
   } else if (kinds !== undefined && !kinds.includes(event.kind)) {
     return false;
+  } else if (search !== undefined && search.length > 0) {
+    const query = search.toLowerCase();
+    const contentMatch = event.content.toLowerCase().includes(query);
+    const tagMatch = event.tags.some((tag) =>
+      tag.some((v) => v.toLowerCase().includes(query)),
+    );
+    if (!contentMatch && !tagMatch) return false;
+    return tag_filters.length > 0 ? match_tags(tag_filters, event.tags) : true;
   } else if (tag_filters.length > 0) {
     return match_tags(tag_filters, event.tags);
   } else {

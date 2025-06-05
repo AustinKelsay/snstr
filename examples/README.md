@@ -93,6 +93,14 @@ npm run example:nip47:error-handling # Error handling example
 npm run example:nip47:expiration # Request expiration example
 ```
 
+## NIP-50 Examples
+
+For [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability):
+
+```bash
+npm run example:nip50          # Basic search filter example
+```
+
 ## NIP-57 Examples
 
 For [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) (Lightning Zaps), we have several examples:
@@ -184,6 +192,8 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `zap-client-example.ts` - Zap client example for sending zaps
   - `lnurl-server-simulation.ts` - LNURL server simulation for zap endpoints
   - `invoice-validation-example.ts` - Invoice validation example for zap verification
+- `/nip50` - [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability)
+  - `search-demo.ts` - Basic search filter usage
 
 ## Building Examples
 

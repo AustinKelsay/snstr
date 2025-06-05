@@ -57,6 +57,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-46**: Remote signing (bunker) support for secure key management
 - **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
 - **NIP-47**: Nostr Wallet Connect for secure wallet communication
+- **NIP-50**: Search capability via `search` subscription filters
 - **NIP-65**: Relay List metadata for read/write relay preferences
 - **NIP-66**: Relay discovery and liveness monitoring
 
