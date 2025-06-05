@@ -32,6 +32,163 @@ export function createRelayDiscoveryEvent(
   options: RelayDiscoveryEventOptions,
   pubkey: string,
 ): UnsignedEvent {
+  // Validate required fields
+  if (!options) {
+    throw new Error("Options object is required");
+  }
+  
+  if (!pubkey || typeof pubkey !== "string" || pubkey.trim() === "") {
+    throw new Error("Valid pubkey is required");
+  }
+  
+  if (!options.relay || typeof options.relay !== "string" || options.relay.trim() === "") {
+    throw new Error("Valid relay URL is required");
+  }
+  
+  // Validate relay URL format (basic WebSocket URL validation)
+  if (!options.relay.startsWith("ws://") && !options.relay.startsWith("wss://")) {
+    throw new Error("Relay URL must start with ws:// or wss://");
+  }
+  
+  // Validate URL format more thoroughly
+  try {
+    new URL(options.relay);
+  } catch {
+    throw new Error("Relay URL must be a valid URL");
+  }
+  
+  // Validate RTT values (must be non-negative numbers if provided)
+  if (options.rttOpen !== undefined) {
+    if (typeof options.rttOpen !== "number" || options.rttOpen < 0 || !isFinite(options.rttOpen)) {
+      throw new Error("rttOpen must be a non-negative number");
+    }
+  }
+  
+  if (options.rttRead !== undefined) {
+    if (typeof options.rttRead !== "number" || options.rttRead < 0 || !isFinite(options.rttRead)) {
+      throw new Error("rttRead must be a non-negative number");
+    }
+  }
+  
+  if (options.rttWrite !== undefined) {
+    if (typeof options.rttWrite !== "number" || options.rttWrite < 0 || !isFinite(options.rttWrite)) {
+      throw new Error("rttWrite must be a non-negative number");
+    }
+  }
+  
+  // Validate array fields
+  if (options.supportedNips !== undefined && !Array.isArray(options.supportedNips)) {
+    throw new Error("supportedNips must be an array");
+  }
+  
+  if (options.requirements !== undefined && !Array.isArray(options.requirements)) {
+    throw new Error("requirements must be an array");
+  }
+  
+  if (options.topics !== undefined && !Array.isArray(options.topics)) {
+    throw new Error("topics must be an array");
+  }
+  
+  if (options.kinds !== undefined && !Array.isArray(options.kinds)) {
+    throw new Error("kinds must be an array");
+  }
+  
+  if (options.additionalTags !== undefined && !Array.isArray(options.additionalTags)) {
+    throw new Error("additionalTags must be an array");
+  }
+  
+  // Validate geohash format if provided (basic validation)
+  if (options.geohash !== undefined) {
+    if (typeof options.geohash !== "string" || options.geohash.trim() === "") {
+      throw new Error("geohash must be a non-empty string");
+    }
+    // Basic geohash validation (alphanumeric, reasonable length)
+    if (!/^[0-9a-z]+$/i.test(options.geohash) || options.geohash.length > 12) {
+      throw new Error("geohash must be alphanumeric and at most 12 characters");
+    }
+  }
+  
+  // Validate network if provided
+  if (options.network !== undefined) {
+    if (typeof options.network !== "string" || options.network.trim() === "") {
+      throw new Error("network must be a non-empty string");
+    }
+  }
+  
+  // Validate relayType if provided
+  if (options.relayType !== undefined) {
+    if (typeof options.relayType !== "string" || options.relayType.trim() === "") {
+      throw new Error("relayType must be a non-empty string");
+    }
+  }
+  
+  // Validate supportedNips values
+  if (options.supportedNips) {
+    for (const nip of options.supportedNips) {
+      if (typeof nip === "number") {
+        if (!isFinite(nip) || nip < 0 || !Number.isInteger(nip)) {
+          throw new Error("supportedNips must contain valid positive integers");
+        }
+      } else if (typeof nip === "string") {
+        const parsed = parseInt(nip, 10);
+        if (isNaN(parsed) || parsed < 0) {
+          throw new Error("supportedNips must contain valid positive integers or integer strings");
+        }
+      } else {
+        throw new Error("supportedNips must contain numbers or strings");
+      }
+    }
+  }
+  
+  // Validate kinds values
+  if (options.kinds) {
+    for (const kind of options.kinds) {
+      if (typeof kind === "number") {
+        if (!isFinite(kind) || kind < 0 || !Number.isInteger(kind)) {
+          throw new Error("kinds must contain valid non-negative integers");
+        }
+      } else if (typeof kind === "string") {
+        const parsed = parseInt(kind, 10);
+        if (isNaN(parsed) || parsed < 0) {
+          throw new Error("kinds must contain valid non-negative integers or integer strings");
+        }
+      } else {
+        throw new Error("kinds must contain numbers or strings");
+      }
+    }
+  }
+  
+  // Validate string arrays
+  if (options.requirements) {
+    for (const req of options.requirements) {
+      if (typeof req !== "string" || req.trim() === "") {
+        throw new Error("requirements must contain non-empty strings");
+      }
+    }
+  }
+  
+  if (options.topics) {
+    for (const topic of options.topics) {
+      if (typeof topic !== "string" || topic.trim() === "") {
+        throw new Error("topics must contain non-empty strings");
+      }
+    }
+  }
+  
+  // Validate additionalTags structure
+  if (options.additionalTags) {
+    for (const tag of options.additionalTags) {
+      if (!Array.isArray(tag)) {
+        throw new Error("additionalTags must be an array of string arrays");
+      }
+      for (const tagItem of tag) {
+        if (typeof tagItem !== "string") {
+          throw new Error("additionalTags must contain arrays of strings");
+        }
+      }
+    }
+  }
+  
   const tags: string[][] = [["d", options.relay]];
 
   if (options.network) tags.push(["n", options.network]);
@@ -161,6 +318,95 @@ export function createRelayMonitorAnnouncement(
   options: RelayMonitorAnnouncementOptions,
   pubkey: string,
 ): UnsignedEvent {
+  // Validate required fields
+  if (!options) {
+    throw new Error("Options object is required");
+  }
+  
+  if (!pubkey || typeof pubkey !== "string" || pubkey.trim() === "") {
+    throw new Error("Valid pubkey is required");
+  }
+  
+  if (options.frequency === undefined || options.frequency === null) {
+    throw new Error("frequency is required");
+  }
+  
+  if (typeof options.frequency !== "number" || options.frequency <= 0 || !isFinite(options.frequency) || !Number.isInteger(options.frequency)) {
+    throw new Error("frequency must be a positive integer");
+  }
+  
+  // Validate timeouts array if provided
+  if (options.timeouts !== undefined) {
+    if (!Array.isArray(options.timeouts)) {
+      throw new Error("timeouts must be an array");
+    }
+    
+    for (const timeout of options.timeouts) {
+      if (!timeout || typeof timeout !== "object") {
+        throw new Error("timeouts must contain timeout definition objects");
+      }
+      
+      if (timeout.value === undefined || timeout.value === null) {
+        throw new Error("timeout value is required");
+      }
+      
+      if (typeof timeout.value !== "number" || timeout.value <= 0 || !isFinite(timeout.value) || !Number.isInteger(timeout.value)) {
+        throw new Error("timeout value must be a positive integer");
+      }
+      
+      if (timeout.test !== undefined && (typeof timeout.test !== "string" || timeout.test.trim() === "")) {
+        throw new Error("timeout test must be a non-empty string if provided");
+      }
+    }
+  }
+  
+  // Validate checks array if provided
+  if (options.checks !== undefined) {
+    if (!Array.isArray(options.checks)) {
+      throw new Error("checks must be an array");
+    }
+    
+    for (const check of options.checks) {
+      if (typeof check !== "string" || check.trim() === "") {
+        throw new Error("checks must contain non-empty strings");
+      }
+    }
+  }
+  
+  // Validate geohash format if provided
+  if (options.geohash !== undefined) {
+    if (typeof options.geohash !== "string" || options.geohash.trim() === "") {
+      throw new Error("geohash must be a non-empty string");
+    }
+    // Basic geohash validation (alphanumeric, reasonable length)
+    if (!/^[0-9a-z]+$/i.test(options.geohash) || options.geohash.length > 12) {
+      throw new Error("geohash must be alphanumeric and at most 12 characters");
+    }
+  }
+  
+  // Validate content if provided
+  if (options.content !== undefined && typeof options.content !== "string") {
+    throw new Error("content must be a string");
+  }
+  
+  // Validate additionalTags structure
+  if (options.additionalTags !== undefined) {
+    if (!Array.isArray(options.additionalTags)) {
+      throw new Error("additionalTags must be an array");
+    }
+    
+    for (const tag of options.additionalTags) {
+      if (!Array.isArray(tag)) {
+        throw new Error("additionalTags must be an array of string arrays");
+      }
+      for (const tagItem of tag) {
+        if (typeof tagItem !== "string") {
+          throw new Error("additionalTags must contain arrays of strings");
+        }
+      }
+    }
+  }
+  
   const tags: string[][] = [["frequency", options.frequency.toString()]];
 
   if (options.timeouts) {
