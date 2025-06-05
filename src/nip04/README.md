@@ -81,7 +81,7 @@ Common validation errors include:
 - `'Invalid encrypted message: IV is not valid base64'`
 - `'Invalid IV length: expected 16 bytes, got X'`
 
-## Usage
+## Basic Usage
 
 ### Basic Encryption and Decryption
 

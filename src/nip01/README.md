@@ -6,7 +6,7 @@ This directory contains the implementation of [NIP-01](https://github.com/nostr-
 
 NIP-01 is the foundational specification for Nostr, outlining the basic protocol flow, event format, relay communication, and subscription mechanism. This implementation provides a complete client and relay interface with comprehensive validation for Nostr events.
 
-## Key Components
+## Key Features
 
 - ✅ **Event Creation and Validation**: Full support for creating, signing, and validating Nostr events
 - ✅ **Relay Communication**: WebSocket-based connection management with automatic reconnection
