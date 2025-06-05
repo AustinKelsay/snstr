@@ -71,7 +71,7 @@ describe("NIP-44 implementation against official test vectors", () => {
       const keys = getMessageKeys(conversationKeyBytes, nonceBytes);
       
       // Calculate the HMAC to see if it matches
-      const _calculatedMac = hmacWithAAD(
+      const calculatedMac = hmacWithAAD(
         keys.hmac_key,
         decodedPayload.ciphertext,
         decodedPayload.nonce,
