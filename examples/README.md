@@ -104,6 +104,12 @@ npm run example:nip57:lnurl    # LNURL server simulation
 npm run example:nip57:validation # Invoice validation example
 ```
 
+For [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability):
+
+```bash
+npm run example:nip50          # Basic search filter example
+```
+
 ## Example Categories
 
 You can also run example groups:
@@ -176,6 +182,8 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `zap-client-example.ts` - Zap client example for sending zaps
   - `lnurl-server-simulation.ts` - LNURL server simulation for zap endpoints
   - `invoice-validation-example.ts` - Invoice validation example for zap verification
+- `/nip50` - [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability)
+  - `search-demo.ts` - Basic search filter usage
 
 ## Building Examples
 

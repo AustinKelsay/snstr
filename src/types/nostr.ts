@@ -80,6 +80,11 @@ export type NostrFilter = {
   until?: number;
   /** Maximum number of events to return */
   limit?: number;
+  /**
+   * Full text search query string as defined in NIP-50.
+   * Relays interpret this to return events matching the query.
+   */
+  search?: string;
 };
 
 /**

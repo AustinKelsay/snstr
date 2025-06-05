@@ -208,3 +208,6 @@ export {
   NIP47ConnectionOptions,
   TransactionType,
 } from "./nip47";
+
+// NIP-50 search utilities
+export { createSearchFilter } from "./nip50";
