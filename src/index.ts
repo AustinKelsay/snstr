@@ -59,6 +59,16 @@ export {
   constantTimeEqual as constantTimeEqual,
 } from "./nip44";
 
+// Export NIP-17 utilities
+export {
+  createDirectMessage,
+  decryptDirectMessage,
+  DM_KIND,
+  FILE_KIND,
+  GIFT_WRAP_KIND,
+  SEAL_KIND,
+} from "./nip17";
+
 // Export NIP-19 utilities
 export {
   // Core encoding/decoding functions

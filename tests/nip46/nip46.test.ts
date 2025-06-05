@@ -145,11 +145,12 @@ describe("NIP-46 Remote Signing", () => {
         // Encrypt the message
         const encrypted = await client.nip04Encrypt(thirdPartyPubkey, message);
 
-        // Decrypt the message
+        // Decrypt the message and verify round trip
         const decrypted = await client.nip04Decrypt(
           thirdPartyPubkey,
           encrypted,
         );
+        expect(decrypted).toBe(message);
       } catch (error) {
         console.error("Encryption error:", error);
         throw error;
