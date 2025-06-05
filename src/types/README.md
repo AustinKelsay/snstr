@@ -140,7 +140,7 @@ function processEvent(event: NostrEvent) {
     console.log('This is a replaceable event');
   }
   
-  // Process parameterized replaceable events (NIP-33)
+  // Process addressable events (NIP-01 parameterized replaceable events)
   if (event.kind >= 30000 && event.kind < 40000) {
     const dTag = event.tags.find(tag => tag[0] === 'd')?.[1] || '';
     console.log(`Addressable event with d tag value: ${dTag}`);
@@ -455,9 +455,8 @@ declare module '../types/nostr' {
 
 The types in this directory implement these NIPs:
 
-- **[NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md)**: Basic protocol flow and event format
+- **[NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md)**: Basic protocol flow and event format, including parameterized replaceable events
 - **[NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md)**: Relay information document
 - **[NIP-16](https://github.com/nostr-protocol/nips/blob/master/16.md)**: Ephemeral events
-- **[NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md)**: Parameterized replaceable events
 - **[NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md)**: Authentication of clients to relays 
 - **[NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md)**: Search capability 

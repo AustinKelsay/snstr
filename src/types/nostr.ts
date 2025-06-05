@@ -50,7 +50,7 @@ export type NostrFilter = {
   "#e"?: string[];
   /** Filter by p tags (pubkey references) */
   "#p"?: string[];
-  /** Filter by a tags (address references NIP-33) */
+  /** Filter by a tags for addressable events (NIP-01) */
   "#a"?: string[];
   /** Filter by d tags (for replaceable events) */
   "#d"?: string[];
@@ -767,7 +767,7 @@ export type TagValues = {
   e: string[];
   /** Public key reference */
   p: string[];
-  /** Address (NIP-33) */
+  /** Address for parameterized replaceable events (NIP-01) */
   a: string[];
   /** Identifier (replaceable events) */
   d: string[];
