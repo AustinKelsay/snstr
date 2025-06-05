@@ -46,6 +46,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-01**: Basic protocol functionality with comprehensive event validation
 - **NIP-02**: Contact List events and interactions (Kind 3)
 - **NIP-04**: Encrypted direct messages using AES-CBC
+- **NIP-17**: Gift wrapped direct messages using NIP-44 encryption
 - **NIP-05**: DNS identifier verification and relay discovery
 - **NIP-07**: Browser extension integration for key management
 - **NIP-11**: Relay Information Document for discovering relay capabilities
@@ -159,6 +160,7 @@ npm run example:nip04  # Encrypted direct messages
 npm run example:nip05  # DNS identifiers
 npm run example:nip19  # Bech32-encoded entities
 npm run example:nip44  # Versioned encryption
+npm run example:nip17  # Gift wrapped direct messages
 npm run example:nip46  # Remote signing protocol
 npm run example:nip57  # Lightning Zaps
 ```
@@ -184,6 +186,7 @@ npm run test:nip01    # NIP-01 (core protocol)
 npm run test:nip02    # NIP-02 (Contact Lists)
 npm run test:nip04    # NIP-04 (encrypted messages)
 npm run test:nip44    # NIP-44 (versioned encryption)
+npm run test:nip17    # NIP-17 (direct messaging)
 npm run test:nip57    # NIP-57 (Lightning Zaps)
 ```
 
@@ -238,6 +241,7 @@ npm run test:nip07         # NIP-07 (Browser Extensions)
 npm run test:nip11         # NIP-11 (Relay Information)
 npm run test:nip19         # NIP-19 (Bech32 Entities)
 npm run test:nip44         # NIP-44 (Versioned Encryption)
+npm run test:nip17         # NIP-17 (Direct Messages)
 npm run test:nip46         # NIP-46 (Remote Signing)
 npm run test:nip47         # NIP-47 (Wallet Connect)
 npm run test:nip57         # NIP-57 (Lightning Zaps)
@@ -280,6 +284,7 @@ npm run example:nip07      # Browser extensions (NIP-07)
 npm run example:nip11      # Relay information (NIP-11)
 npm run example:nip19      # Bech32-encoded entities (NIP-19)
 npm run example:nip44      # Versioned encryption (NIP-44)
+npm run example:nip17      # Gift wrapped direct messages (NIP-17)
 npm run example:nip46      # Remote signing protocol (NIP-46)
 npm run example:nip47      # Wallet connect (NIP-47)
 npm run example:nip57      # Lightning zaps (NIP-57)

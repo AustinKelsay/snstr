@@ -57,7 +57,9 @@ describe("NIP-44 implementation against official test vectors", () => {
       const sharedSecret1 = getSharedSecret(sec1, pub2);
       const sharedSecret2 = getSharedSecret(sec2, pub1);
 
-                  expect(Buffer.from(sharedSecret1).toString("hex")).toBe(conversation_key);
+      // Both parties should derive the same conversation key
+      expect(Buffer.from(sharedSecret1).toString("hex")).toBe(conversation_key);
+      expect(Buffer.from(sharedSecret2).toString("hex")).toBe(conversation_key);
 
       // Decode the payload to inspect components
       const decodedPayload = decodePayload(payload);
@@ -73,6 +75,10 @@ describe("NIP-44 implementation against official test vectors", () => {
         keys.hmac_key,
         decodedPayload.ciphertext,
         decodedPayload.nonce,
+      );
+      // Verify the MAC matches the payload MAC
+      expect(Buffer.from(calculatedMac).toString("hex")).toBe(
+        Buffer.from(decodedPayload.mac).toString("hex"),
       );
             
       try {
