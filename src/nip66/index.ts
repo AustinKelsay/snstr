@@ -26,6 +26,23 @@ export const RELAY_DISCOVERY_KIND = 30166;
 export const RELAY_MONITOR_KIND = 10166;
 
 /**
+ * Validate geohash format if provided
+ * @param geohash - The geohash string to validate (can be undefined)
+ * @throws Error if geohash is invalid
+ */
+function validateGeohash(geohash: string | undefined): void {
+  if (geohash !== undefined) {
+    if (typeof geohash !== "string" || geohash.trim() === "") {
+      throw new Error("geohash must be a non-empty string");
+    }
+    // Basic geohash validation (alphanumeric, reasonable length)
+    if (!/^[0-9a-z]+$/i.test(geohash) || geohash.length > 12) {
+      throw new Error("geohash must be alphanumeric and at most 12 characters");
+    }
+  }
+}
+
+/**
  * Create a relay discovery event (kind 30166)
  */
 export function createRelayDiscoveryEvent(
@@ -97,16 +114,8 @@ export function createRelayDiscoveryEvent(
     throw new Error("additionalTags must be an array");
   }
   
-  // Validate geohash format if provided (basic validation)
-  if (options.geohash !== undefined) {
-    if (typeof options.geohash !== "string" || options.geohash.trim() === "") {
-      throw new Error("geohash must be a non-empty string");
-    }
-    // Basic geohash validation (alphanumeric, reasonable length)
-    if (!/^[0-9a-z]+$/i.test(options.geohash) || options.geohash.length > 12) {
-      throw new Error("geohash must be alphanumeric and at most 12 characters");
-    }
-  }
+  // Validate geohash format if provided
+  validateGeohash(options.geohash);
   
   // Validate network if provided
   if (options.network !== undefined) {
@@ -331,7 +340,7 @@ export function createRelayMonitorAnnouncement(
     throw new Error("frequency is required");
   }
   
-  if (typeof options.frequency !== "number" || options.frequency <= 0 || !isFinite(options.frequency) || !Number.isInteger(options.frequency)) {
+  if (typeof options.frequency !== "number" || options.frequency <= 0 || !Number.isFinite(options.frequency) || !Number.isInteger(options.frequency)) {
     throw new Error("frequency must be a positive integer");
   }
   
@@ -350,7 +359,7 @@ export function createRelayMonitorAnnouncement(
         throw new Error("timeout value is required");
       }
       
-      if (typeof timeout.value !== "number" || timeout.value <= 0 || !isFinite(timeout.value) || !Number.isInteger(timeout.value)) {
+      if (typeof timeout.value !== "number" || timeout.value <= 0 || !Number.isFinite(timeout.value) || !Number.isInteger(timeout.value)) {
         throw new Error("timeout value must be a positive integer");
       }
       
@@ -374,15 +383,7 @@ export function createRelayMonitorAnnouncement(
   }
   
   // Validate geohash format if provided
-  if (options.geohash !== undefined) {
-    if (typeof options.geohash !== "string" || options.geohash.trim() === "") {
-      throw new Error("geohash must be a non-empty string");
-    }
-    // Basic geohash validation (alphanumeric, reasonable length)
-    if (!/^[0-9a-z]+$/i.test(options.geohash) || options.geohash.length > 12) {
-      throw new Error("geohash must be alphanumeric and at most 12 characters");
-    }
-  }
+  validateGeohash(options.geohash);
   
   // Validate content if provided
   if (options.content !== undefined && typeof options.content !== "string") {
