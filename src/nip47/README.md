@@ -10,7 +10,7 @@ Nostr Wallet Connect (NWC) provides a secure way for applications to interact wi
 2. **Service Implementation** - For wallet services that need to respond to client requests
 3. **Utility Functions** - For connection string generation and parsing
 
-## Key Components
+## Key Features
 
 - `NostrWalletConnectClient`: The client-side implementation, used by applications to connect to a remote wallet service.
 - `NostrWalletService`: The server-side implementation, used by wallet providers to implement the NWC protocol.

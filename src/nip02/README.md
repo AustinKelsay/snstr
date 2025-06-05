@@ -2,6 +2,12 @@
 
 This directory contains the implementation for NIP-02, which defines a format for users to publish their contact list (follows) as a Nostr event of kind 3. Each contact in the list can include the user's public key, a recommended relay URL, and a petname for that user.
 
+## Overview
+
+NIP-02 events allow users to share and update contact lists. This module
+provides helper functions for creating and parsing these events while
+supporting optional relay URLs and petnames for each contact.
+
 ## Key Features
 
 - Defines a `Contact` interface: `{ pubkey: string; relayUrl?: string; petname?: string; }`.

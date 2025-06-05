@@ -6,9 +6,9 @@ This directory contains examples demonstrating how to use NIP-04 encrypted direc
 
 [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) defines a protocol for encrypted direct messages in Nostr. It uses ECDH (Elliptic Curve Diffie-Hellman) to create a shared secret between sender and recipient, then encrypts the message with AES-256-CBC.
 
-**Implementation Details**:
-- Uses HMAC-SHA256 with the key "nip04" for shared secret derivation
-- Ensures compatibility with nip04 spec compliant nostr libraries and clients
+-**Implementation Details**:
+- Uses ECDH to derive a 32-byte shared secret
+- Ensures compatibility with NIP-04 compliant Nostr libraries and clients
 - Provides robust validation of message format and proper error handling
 
 **Note**: NIP-04 is considered less secure than NIP-44 and has been marked as "unrecommended" in favor of NIP-44. It's provided here for compatibility with older clients.
@@ -36,7 +36,7 @@ npm run example:nip04
 ## Key Concepts
 
 - **Shared Secret Generation**: Both parties can independently derive the same shared secret using ECDH
-- **Shared Secret Processing**: The X coordinate is extracted from the shared point and processed with HMAC-SHA256
+- **Shared Secret Processing**: The X coordinate is used directly as the encryption key
 - **Message Encryption/Decryption**: Using AES-256-CBC with the derived shared secret
 - **Key Exchange**: No direct key exchange is needed; only public keys are shared
 - **Cross-Platform Compatibility**: Uses Web Crypto API which works in both browsers and Node.js

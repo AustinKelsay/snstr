@@ -5,7 +5,7 @@ This directory contains tests for the NIP-04 (Encrypted Direct Messages) impleme
 ## Test Coverage
 
 - ✅ Encryption/decryption functionality
-- ✅ Shared secret derivation (using HMAC-SHA256)
+- ✅ ECDH shared secret derivation
 - ✅ Format validation (`<ciphertext>?iv=<initialization_vector>`)
 - ✅ Cross-compatibility with other implementations
 - ✅ Error handling for invalid inputs
@@ -26,10 +26,10 @@ npx jest tests/nip04/encryption.test.ts
 
 ## Implementation Notes
 
-While NIP-04 is now considered "unrecommended" in favor of NIP-44, these tests ensure compatibility with existing clients and messages. The implementation includes specific compatibility with nip04 spec compliant libraries and clients by:
+While NIP-04 is now considered "unrecommended" in favor of NIP-44, these tests ensure compatibility with existing clients and messages. The implementation includes specific compatibility with NIP-04 compliant libraries and clients by:
 
-- Using HMAC-SHA256 with the key "nip04" for shared secret derivation
-- Following the same approach to key handling as nip04 spec compliant libraries and clients
+- Using ECDH to derive the shared secret
+- Following the same approach to key handling as NIP-04 compliant libraries and clients
 - Including specific compatibility test cases
 
 ## Security Considerations
