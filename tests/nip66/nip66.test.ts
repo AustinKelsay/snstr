@@ -12,6 +12,32 @@ import {
 } from "../../src/nip66";
 import { NostrEvent } from "../../src/types/nostr";
 
+// Test types that allow invalid inputs for validation testing
+type TestRelayDiscoveryOptions = {
+  relay?: string | null | undefined;
+  content?: string | Record<string, unknown> | number | object;
+  network?: string | number;
+  relayType?: string | number;
+  supportedNips?: unknown;
+  requirements?: unknown;
+  topics?: unknown;
+  kinds?: unknown;
+  geohash?: string | number;
+  rttOpen?: number | string;
+  rttRead?: number | string;
+  rttWrite?: number | string;
+  additionalTags?: unknown;
+};
+
+type TestRelayMonitorOptions = {
+  frequency?: number | string | null | undefined;
+  timeouts?: unknown;
+  checks?: unknown;
+  geohash?: string | number;
+  content?: string | number | object;
+  additionalTags?: unknown;
+};
+
 /**
  * Tests for NIP-66 relay discovery utilities
  */
@@ -188,27 +214,22 @@ describe("NIP-66", () => {
     const validPubkey = "validpubkey123";
 
     test("should throw error for missing options", () => {
-      // @ts-expect-error - Testing invalid null input
-      expect(() => createRelayDiscoveryEvent(null, validPubkey)).toThrow("Options object is required");
-      // @ts-expect-error - Testing invalid undefined input
-      expect(() => createRelayDiscoveryEvent(undefined, validPubkey)).toThrow("Options object is required");
+      expect(() => createRelayDiscoveryEvent(null as unknown as RelayDiscoveryEventOptions, validPubkey)).toThrow("Options object is required");
+      expect(() => createRelayDiscoveryEvent(undefined as unknown as RelayDiscoveryEventOptions, validPubkey)).toThrow("Options object is required");
     });
 
     test("should throw error for invalid pubkey", () => {
       const options: RelayDiscoveryEventOptions = { relay: "wss://relay.example.com" };
       expect(() => createRelayDiscoveryEvent(options, "")).toThrow("Valid pubkey is required");
       expect(() => createRelayDiscoveryEvent(options, "   ")).toThrow("Valid pubkey is required");
-      // @ts-expect-error - Testing invalid null input
-      expect(() => createRelayDiscoveryEvent(options, null)).toThrow("Valid pubkey is required");
-      // @ts-expect-error - Testing invalid undefined input
-      expect(() => createRelayDiscoveryEvent(options, undefined)).toThrow("Valid pubkey is required");
+      expect(() => createRelayDiscoveryEvent(options, null as unknown as string)).toThrow("Valid pubkey is required");
+      expect(() => createRelayDiscoveryEvent(options, undefined as unknown as string)).toThrow("Valid pubkey is required");
     });
 
     test("should throw error for invalid relay URL", () => {
       expect(() => createRelayDiscoveryEvent({ relay: "" }, validPubkey)).toThrow("Valid relay URL is required");
       expect(() => createRelayDiscoveryEvent({ relay: "   " }, validPubkey)).toThrow("Valid relay URL is required");
-      // @ts-expect-error - Testing invalid null input
-      expect(() => createRelayDiscoveryEvent({ relay: null }, validPubkey)).toThrow("Valid relay URL is required");
+      expect(() => createRelayDiscoveryEvent({ relay: null } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("Valid relay URL is required");
       expect(() => createRelayDiscoveryEvent({ relay: "http://example.com" }, validPubkey)).toThrow("Relay URL must start with ws:// or wss://");
       expect(() => createRelayDiscoveryEvent({ relay: "wss://invalid url" }, validPubkey)).toThrow("Relay URL must be a valid URL");
     });
@@ -217,8 +238,7 @@ describe("NIP-66", () => {
       const baseOptions: RelayDiscoveryEventOptions = { relay: "wss://relay.example.com" };
       
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, rttOpen: -1 }, validPubkey)).toThrow("rttOpen must be a non-negative number");
-      // @ts-expect-error - Testing invalid string input for number field
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, rttOpen: "100" }, validPubkey)).toThrow("rttOpen must be a non-negative number");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, rttOpen: "100" } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("rttOpen must be a non-negative number");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, rttOpen: Infinity }, validPubkey)).toThrow("rttOpen must be a non-negative number");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, rttRead: -5 }, validPubkey)).toThrow("rttRead must be a non-negative number");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, rttWrite: NaN }, validPubkey)).toThrow("rttWrite must be a non-negative number");
@@ -227,14 +247,10 @@ describe("NIP-66", () => {
     test("should throw error for invalid array fields", () => {
       const baseOptions: RelayDiscoveryEventOptions = { relay: "wss://relay.example.com" };
       
-      // @ts-expect-error - Testing invalid string input for array field
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: "not array" }, validPubkey)).toThrow("supportedNips must be an array");
-      // @ts-expect-error - Testing invalid object input for array field
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, requirements: {} }, validPubkey)).toThrow("requirements must be an array");
-      // @ts-expect-error - Testing invalid string input for array field
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, topics: "string" }, validPubkey)).toThrow("topics must be an array");
-      // @ts-expect-error - Testing invalid number input for array field
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, kinds: 123 }, validPubkey)).toThrow("kinds must be an array");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: "not array" } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("supportedNips must be an array");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, requirements: {} } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("requirements must be an array");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, topics: "string" } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("topics must be an array");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, kinds: 123 } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("kinds must be an array");
     });
 
     test("should throw error for invalid geohash", () => {
@@ -242,8 +258,7 @@ describe("NIP-66", () => {
       
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, geohash: "" }, validPubkey)).toThrow("geohash must be a non-empty string");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, geohash: "   " }, validPubkey)).toThrow("geohash must be a non-empty string");
-      // @ts-expect-error - Testing invalid number input for string field
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, geohash: 123 }, validPubkey)).toThrow("geohash must be a non-empty string");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, geohash: 123 } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("geohash must be a non-empty string");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, geohash: "invalid-chars!" }, validPubkey)).toThrow("geohash must be alphanumeric and at most 12 characters");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, geohash: "verylonggeohashvalue" }, validPubkey)).toThrow("geohash must be alphanumeric and at most 12 characters");
     });
@@ -254,8 +269,7 @@ describe("NIP-66", () => {
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: [-1] }, validPubkey)).toThrow("supportedNips must contain valid positive integers");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: [1.5] }, validPubkey)).toThrow("supportedNips must contain valid positive integers");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: ["invalid"] }, validPubkey)).toThrow("supportedNips must contain valid positive integers or integer strings");
-      // @ts-expect-error - Testing invalid boolean input
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: [true] }, validPubkey)).toThrow("supportedNips must contain numbers or strings");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, supportedNips: [true] } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("supportedNips must contain numbers or strings");
     });
 
     test("should throw error for invalid kinds values", () => {
@@ -263,26 +277,22 @@ describe("NIP-66", () => {
       
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, kinds: [-1] }, validPubkey)).toThrow("kinds must contain valid non-negative integers");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, kinds: [1.5] }, validPubkey)).toThrow("kinds must contain valid non-negative integers");
-      // @ts-expect-error - Testing invalid object input
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, kinds: [{}] }, validPubkey)).toThrow("kinds must contain numbers or strings");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, kinds: [{}] } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("kinds must contain numbers or strings");
     });
 
     test("should throw error for invalid string arrays", () => {
       const baseOptions: RelayDiscoveryEventOptions = { relay: "wss://relay.example.com" };
       
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, requirements: [""] }, validPubkey)).toThrow("requirements must contain non-empty strings");
-      // @ts-expect-error - Testing invalid number input in string array
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, requirements: [123] }, validPubkey)).toThrow("requirements must contain non-empty strings");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, requirements: [123] } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("requirements must contain non-empty strings");
       expect(() => createRelayDiscoveryEvent({ ...baseOptions, topics: ["   "] }, validPubkey)).toThrow("topics must contain non-empty strings");
     });
 
     test("should throw error for invalid additionalTags", () => {
       const baseOptions: RelayDiscoveryEventOptions = { relay: "wss://relay.example.com" };
       
-      // @ts-expect-error - Testing invalid nested array structure
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, additionalTags: ["not array"] }, validPubkey)).toThrow("additionalTags must be an array of string arrays");
-      // @ts-expect-error - Testing invalid number in string array
-      expect(() => createRelayDiscoveryEvent({ ...baseOptions, additionalTags: [[123]] }, validPubkey)).toThrow("additionalTags must contain arrays of strings");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, additionalTags: ["not array"] } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("additionalTags must be an array of string arrays");
+      expect(() => createRelayDiscoveryEvent({ ...baseOptions, additionalTags: [[123]] } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("additionalTags must contain arrays of strings");
     });
 
     test("should accept valid options", () => {
@@ -309,40 +319,31 @@ describe("NIP-66", () => {
     const validPubkey = "validpubkey123";
 
     test("should throw error for missing options", () => {
-      // @ts-expect-error - Testing invalid null input
-      expect(() => createRelayMonitorAnnouncement(null, validPubkey)).toThrow("Options object is required");
-      // @ts-expect-error - Testing invalid undefined input
-      expect(() => createRelayMonitorAnnouncement(undefined, validPubkey)).toThrow("Options object is required");
+      expect(() => createRelayMonitorAnnouncement(null as unknown as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("Options object is required");
+      expect(() => createRelayMonitorAnnouncement(undefined as unknown as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("Options object is required");
     });
 
     test("should throw error for invalid pubkey", () => {
       const options: RelayMonitorAnnouncementOptions = { frequency: 3600 };
       expect(() => createRelayMonitorAnnouncement(options, "")).toThrow("Valid pubkey is required");
-      // @ts-expect-error - Testing invalid null input
-      expect(() => createRelayMonitorAnnouncement(options, null)).toThrow("Valid pubkey is required");
+      expect(() => createRelayMonitorAnnouncement(options, null as unknown as string)).toThrow("Valid pubkey is required");
     });
 
     test("should throw error for invalid frequency", () => {
-      // @ts-expect-error - Testing invalid undefined input
-      expect(() => createRelayMonitorAnnouncement({ frequency: undefined }, validPubkey)).toThrow("frequency is required");
-      // @ts-expect-error - Testing invalid null input
-      expect(() => createRelayMonitorAnnouncement({ frequency: null }, validPubkey)).toThrow("frequency is required");
+      expect(() => createRelayMonitorAnnouncement({ frequency: undefined } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("frequency is required");
+      expect(() => createRelayMonitorAnnouncement({ frequency: null } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("frequency is required");
       expect(() => createRelayMonitorAnnouncement({ frequency: 0 }, validPubkey)).toThrow("frequency must be a positive integer");
       expect(() => createRelayMonitorAnnouncement({ frequency: -1 }, validPubkey)).toThrow("frequency must be a positive integer");
       expect(() => createRelayMonitorAnnouncement({ frequency: 1.5 }, validPubkey)).toThrow("frequency must be a positive integer");
-      // @ts-expect-error - Testing invalid string input for number field
-      expect(() => createRelayMonitorAnnouncement({ frequency: "3600" }, validPubkey)).toThrow("frequency must be a positive integer");
+      expect(() => createRelayMonitorAnnouncement({ frequency: "3600" } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("frequency must be a positive integer");
     });
 
     test("should throw error for invalid timeouts", () => {
       const baseOptions: RelayMonitorAnnouncementOptions = { frequency: 3600 };
       
-      // @ts-expect-error - Testing invalid string input for array field
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: "not array" }, validPubkey)).toThrow("timeouts must be an array");
-      // @ts-expect-error - Testing invalid null element in array
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [null] }, validPubkey)).toThrow("timeouts must contain timeout definition objects");
-      // @ts-expect-error - Testing invalid missing value in timeout object
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [{ value: undefined }] }, validPubkey)).toThrow("timeout value is required");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: "not array" } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("timeouts must be an array");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [null] } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("timeouts must contain timeout definition objects");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [{ value: undefined }] } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("timeout value is required");
       expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [{ value: 0 }] }, validPubkey)).toThrow("timeout value must be a positive integer");
       expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [{ value: -1 }] }, validPubkey)).toThrow("timeout value must be a positive integer");
       expect(() => createRelayMonitorAnnouncement({ ...baseOptions, timeouts: [{ value: 1.5 }] }, validPubkey)).toThrow("timeout value must be a positive integer");
@@ -352,11 +353,9 @@ describe("NIP-66", () => {
     test("should throw error for invalid checks", () => {
       const baseOptions: RelayMonitorAnnouncementOptions = { frequency: 3600 };
       
-      // @ts-expect-error - Testing invalid string input for array field
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, checks: "not array" }, validPubkey)).toThrow("checks must be an array");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, checks: "not array" } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("checks must be an array");
       expect(() => createRelayMonitorAnnouncement({ ...baseOptions, checks: [""] }, validPubkey)).toThrow("checks must contain non-empty strings");
-      // @ts-expect-error - Testing invalid number input in string array
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, checks: [123] }, validPubkey)).toThrow("checks must contain non-empty strings");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, checks: [123] } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("checks must contain non-empty strings");
     });
 
     test("should throw error for invalid geohash", () => {
@@ -369,10 +368,8 @@ describe("NIP-66", () => {
     test("should throw error for invalid content", () => {
       const baseOptions: RelayMonitorAnnouncementOptions = { frequency: 3600 };
       
-      // @ts-expect-error - Testing invalid number input for string field
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, content: 123 }, validPubkey)).toThrow("content must be a string");
-      // @ts-expect-error - Testing invalid object input for string field
-      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, content: {} }, validPubkey)).toThrow("content must be a string");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, content: 123 } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("content must be a string");
+      expect(() => createRelayMonitorAnnouncement({ ...baseOptions, content: {} } as TestRelayMonitorOptions as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("content must be a string");
     });
 
     test("should accept valid options", () => {
@@ -423,8 +420,7 @@ describe("NIP-66", () => {
           ["timeout", "500000"], // Too large (above maximum)
           ["timeout", "1.5"], // Decimal (parseInt converts to 1, which is valid)
           ["timeout", "2000", ""], // Valid timeout but empty test
-          // @ts-expect-error - Testing invalid type for test parameter
-          ["timeout", "3000", 123], // Valid timeout but invalid test type
+          ["timeout", "3000", 123 as unknown as string], // Valid timeout but invalid test type
           // Valid timeout without test
           ["timeout", "4000"],
         ],
