@@ -41,13 +41,14 @@
     "test:nip09": "jest tests/nip09",
     "test:nip07": "jest tests/nip07",
     "test:nip11": "jest tests/nip11",
+    "test:nip17": "jest tests/nip17",
     "test:nip19": "jest tests/nip19",
     "test:nip44": "jest tests/nip44",
     "test:nip46": "jest tests/nip46",
     "test:nip47": "jest tests/nip47",
     "test:nip57": "jest tests/nip57",
     "test:nip65": "jest tests/nip65",
-    "test:nip17": "jest tests/nip17",
+    "test:nip66": "jest tests/nip66",
 
     "// Test Groups": "-------------- Test Category Groups --------------",
     "test:all": "npm test",
@@ -109,6 +110,7 @@
     "example:nip57:client": "ts-node examples/nip57/zap-client-example.ts",
     "example:nip57:lnurl": "ts-node examples/nip57/lnurl-server-simulation.ts",
     "example:nip57:validation": "ts-node examples/nip57/invoice-validation-example.ts",
+    "example:nip66": "ts-node examples/nip66/nip66-demo.ts",
     
     "// Example Groups": "-------------- Example Category Groups --------------",
     "example:all": "npm run example",
