@@ -104,6 +104,14 @@ npm run example:nip57:lnurl    # LNURL server simulation
 npm run example:nip57:validation # Invoice validation example
 ```
 
+## NIP-65 Examples
+
+For [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) (Relay List Metadata):
+
+```bash
+npm run example:nip65          # Relay list metadata demo
+```
+
 ## Example Categories
 
 You can also run example groups:
