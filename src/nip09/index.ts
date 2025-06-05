@@ -75,6 +75,7 @@ export function isDeletionRequestForEvent(
   deletion: NostrEvent,
   event: NostrEvent,
 ): boolean {
+  if (deletion.kind !== NostrKind.Deletion) return false;
   if (deletion.pubkey !== event.pubkey) return false;
   const targets = parseDeletionTargets(deletion);
   if (targets.ids.includes(event.id)) return true;
