@@ -41,8 +41,8 @@ export function createRelayListEvent(
       continue;
     }
     let marker: string | undefined;
-    const read = r.read !== false; // default to true if undefined
-    const write = r.write !== false;
+    const read = r.read ?? true;  // default to true if undefined
+    const write = r.write ?? true; // default to true if undefined
 
     if (read && !write) marker = "read";
     else if (write && !read) marker = "write";
