@@ -1,4 +1,5 @@
 import { NostrEvent } from "../types/nostr";
+import { validateRelayUrl } from "../nip19/index";
 
 /** Relay list entry describing read/write preferences */
 export interface RelayListEntry {
@@ -30,8 +31,15 @@ export function createRelayListEvent(
   const tags: string[][] = [];
 
   for (const r of relays) {
-    // skip entries without a URL
-    if (!r.url) continue;
+    // skip entries with missing or invalid URL
+    if (!r.url || !validateRelayUrl(r.url)) {
+      if (!r.url) {
+        console.warn("Skipping relay entry with missing URL", r);
+      } else {
+        console.warn(`Skipping relay entry with invalid URL: ${r.url}`, r);
+      }
+      continue;
+    }
     let marker: string | undefined;
     const read = r.read !== false; // default to true if undefined
     const write = r.write !== false;
