@@ -100,7 +100,10 @@ export function encodeBech32(prefix: string, data: HexString): Bech32String {
  * Decodes a bech32 string to a hex string
  */
 export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
-  // Ensure the bech32 string contains a single separator in a valid position
+/**
+ * Validates bech32 string format and returns the separator index
+ */
+function validateBech32Format(bech32Str: Bech32String): number {
   const firstSep = bech32Str.indexOf("1");
   const separatorIndex = bech32Str.lastIndexOf("1");
   if (
@@ -112,9 +115,15 @@ export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
       "Invalid bech32 string format: missing or misplaced separator '1'",
     );
   }
+  return separatorIndex;
+}
 
-  // Extract the prefix for potential prefix validation errors
+export function decodeBech32(bech32Str: Bech32String): SimpleBech32Result {
+  const separatorIndex = validateBech32Format(bech32Str);
   const hrp = bech32Str.slice(0, separatorIndex);
+
+  // ... rest of implementation ...
+}
 
   try {
     const { prefix, words } = bech32.decode(bech32Str);
