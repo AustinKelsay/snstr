@@ -18,10 +18,13 @@ import {
   ContactsEvent,
 } from "../../src/types/nostr";
 import { parseContactsFromEvent, Contact } from "../../src/nip02";
+import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 const USER_PUBKEY =
   "6260f29fa75c91aaa292f082e5e87b438d2ab4fdf96af398567b01802ee2fcd4";
-const RELAYS = ["wss://relay.damus.io", "wss://relay.nostr.band"]; // Add more or change as needed
+const PUBLIC_RELAYS = ["wss://relay.damus.io", "wss://relay.nostr.band"];
+const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
+const RELAY_PORT = 3338;
 
 async function getFollows(client: Nostr, pubkey: string): Promise<Contact[]> {
   // Return type changed
@@ -130,7 +133,18 @@ async function getFollowers(
 }
 
 async function main() {
-  const client = new Nostr(RELAYS);
+  let client: Nostr;
+  let ephemeralRelay: NostrRelay | null = null;
+
+  if (USE_EPHEMERAL) {
+    console.log("Starting ephemeral relay...");
+    ephemeralRelay = new NostrRelay(RELAY_PORT);
+    await ephemeralRelay.start();
+    console.log(`Ephemeral relay started at ${ephemeralRelay.url}`);
+    client = new Nostr([ephemeralRelay.url]);
+  } else {
+    client = new Nostr(PUBLIC_RELAYS);
+  }
 
   client.on(RelayEvent.Connect, (relayUrl) => {
     console.log(`Connected to ${relayUrl}`);
@@ -170,6 +184,9 @@ async function main() {
   } finally {
     console.log("\nDisconnecting from relays...");
     client.disconnectFromRelays();
+    if (ephemeralRelay) {
+      await ephemeralRelay.close();
+    }
     console.log("Disconnected.");
   }
 }

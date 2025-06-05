@@ -32,7 +32,7 @@ const MAX_TLV_ENTRIES = 20; // Max number of TLV entries to prevent DoS (reduced
  * Relay URLs must start with wss:// or ws:// and contain a valid hostname
  * No credentials are allowed in URLs
  */
-function validateRelayUrl(url: string): boolean {
+export function validateRelayUrl(url: string): boolean {
   try {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       return false;

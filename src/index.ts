@@ -209,6 +209,9 @@ export {
   TransactionType,
 } from "./nip47";
 
+// NIP-65: Relay List Metadata
+export { createRelayListEvent, parseRelayList, getReadRelays, getWriteRelays, RELAY_LIST_KIND, RelayListEntry, RelayListEvent } from "./nip65";
+
 // NIP-66: Relay Discovery and Liveness Monitoring
 export {
   RELAY_DISCOVERY_KIND,
