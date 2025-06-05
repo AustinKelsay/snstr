@@ -165,7 +165,7 @@ export class Nip07Nostr extends Nostr {
       throw new Error("Event is not a direct message (kind 4)");
     }
 
-    // Return a Promise.then pattern that resolves synchronously
+    // Synchronous decryption isn't supported with NIP-07; an error will be thrown
     try {
       // In a direct message, we need to return a string, not a Promise
       // However, the NIP-07 extension functions are async

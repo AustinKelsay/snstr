@@ -46,8 +46,10 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-01**: Basic protocol functionality with comprehensive event validation
 - **NIP-02**: Contact List events and interactions (Kind 3)
 - **NIP-04**: Encrypted direct messages using AES-CBC
+- **NIP-17**: Gift wrapped direct messages using NIP-44 encryption
 - **NIP-05**: DNS identifier verification and relay discovery
 - **NIP-07**: Browser extension integration for key management
+- **NIP-09**: Event deletion requests for removing published events
 - **NIP-11**: Relay Information Document for discovering relay capabilities
 - **NIP-19**: Bech32-encoded entities for human-readable identifiers
 - **NIP-44**: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
@@ -121,6 +123,7 @@ The project is organized with detailed documentation for different components:
 - **[NIP-04](src/nip04/README.md)**: Encrypted direct messages
 - **[NIP-05](src/nip05/README.md)**: DNS identifier verification
 - **[NIP-07](src/nip07/README.md)**: Browser extension integration
+- **[NIP-09](src/nip09/README.md)**: Event deletion requests
 - **[NIP-11](src/nip11/README.md)**: Relay information document
 - **[NIP-19](src/nip19/README.md)**: Bech32-encoded entities
 - **[NIP-44](src/nip44/README.md)**: Versioned encryption
@@ -157,8 +160,10 @@ npm run example:nip01:validation          # NIP-01 validation flow
 # Run other NIP-specific examples
 npm run example:nip04  # Encrypted direct messages
 npm run example:nip05  # DNS identifiers
+npm run example:nip09  # Deletion requests
 npm run example:nip19  # Bech32-encoded entities
 npm run example:nip44  # Versioned encryption
+npm run example:nip17  # Gift wrapped direct messages
 npm run example:nip46  # Remote signing protocol
 npm run example:nip57  # Lightning Zaps
 ```
@@ -184,6 +189,7 @@ npm run test:nip01    # NIP-01 (core protocol)
 npm run test:nip02    # NIP-02 (Contact Lists)
 npm run test:nip04    # NIP-04 (encrypted messages)
 npm run test:nip44    # NIP-44 (versioned encryption)
+npm run test:nip17    # NIP-17 (direct messaging)
 npm run test:nip57    # NIP-57 (Lightning Zaps)
 ```
 
@@ -234,10 +240,12 @@ npm run test:relay         # Relay functionality
 npm run test:nip02         # NIP-02 (Contact Lists)
 npm run test:nip04         # NIP-04 (Encrypted Direct Messages)
 npm run test:nip05         # NIP-05 (DNS Identifiers)
+npm run test:nip09         # NIP-09 (Event Deletion Requests)
 npm run test:nip07         # NIP-07 (Browser Extensions)
 npm run test:nip11         # NIP-11 (Relay Information)
 npm run test:nip19         # NIP-19 (Bech32 Entities)
 npm run test:nip44         # NIP-44 (Versioned Encryption)
+npm run test:nip17         # NIP-17 (Direct Messages)
 npm run test:nip46         # NIP-46 (Remote Signing)
 npm run test:nip47         # NIP-47 (Wallet Connect)
 npm run test:nip57         # NIP-57 (Lightning Zaps)
@@ -276,10 +284,12 @@ npm run example:dm         # Direct messaging (NIP-04)
 npm run example:nip02      # Contact Lists (NIP-02)
 npm run example:nip04      # Encrypted direct messages (NIP-04)
 npm run example:nip05      # DNS identifiers (NIP-05)
+npm run example:nip09      # Deletion requests (NIP-09)
 npm run example:nip07      # Browser extensions (NIP-07)
 npm run example:nip11      # Relay information (NIP-11)
 npm run example:nip19      # Bech32-encoded entities (NIP-19)
 npm run example:nip44      # Versioned encryption (NIP-44)
+npm run example:nip17      # Gift wrapped direct messages (NIP-17)
 npm run example:nip46      # Remote signing protocol (NIP-46)
 npm run example:nip47      # Wallet connect (NIP-47)
 npm run example:nip57      # Lightning zaps (NIP-57)

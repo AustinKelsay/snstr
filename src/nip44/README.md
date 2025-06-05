@@ -1,4 +1,4 @@
-# NIP-44 Encryption Implementation
+# NIP-44: Encryption Implementation
 
 This is an implementation of [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md), which defines a new encryption scheme for Nostr direct messages.
 
@@ -14,7 +14,7 @@ NIP-44 replaces the older NIP-04 encryption with a more secure approach using Ch
 - Secure nonce handling with 32-byte nonces
 - **Full version compatibility** supporting decryption of v0, v1, and v2 messages
 
-## Usage
+## Basic Usage
 
 ```typescript
 import { 

@@ -167,6 +167,7 @@ The following scripts should be maintained for running tests:
     "test:relay": "jest tests/nip01/relay",
     "test:nip04": "jest tests/nip04",
     "test:nip05": "jest tests/nip05",
+    "test:nip09": "jest tests/nip09",
     "test:nip07": "jest tests/nip07",
     "test:nip11": "jest tests/nip11",
     "test:nip19": "jest tests/nip19",

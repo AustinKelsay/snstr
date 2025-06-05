@@ -247,9 +247,6 @@ export class Relay {
     const jitter = Math.random() * 0.3 * baseDelay; // Add 0-30% jitter
     const reconnectDelay = baseDelay + jitter;
 
-    console.log(
-      `Scheduling reconnection to ${this.url} in ${Math.round(reconnectDelay)}ms (attempt ${this.reconnectAttempts + 1})`,
-    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
@@ -546,15 +543,6 @@ export class Relay {
     if (!Array.isArray(data)) return;
 
     const [type, ...rest] = data;
-    const debug = process.env.DEBUG?.includes("nostr:*") || false;
-
-    if (debug) {
-      console.log(`Relay(${this.url}): Received message type: ${type}`);
-      console.log(
-        `Relay(${this.url}): Message data:`,
-        JSON.stringify(rest).substring(0, 200),
-      );
-    }
 
     switch (type) {
       case "EVENT": {
@@ -570,19 +558,8 @@ export class Relay {
           break;
         }
 
-        if (debug) {
-          console.log(
-            `Relay(${this.url}): Event for subscription ${subscriptionId}, kind: ${event.kind}, id: ${event.id.slice(0, 8)}...`,
-          );
-        }
-
         // Perform initial synchronous validation
         if (!this.performBasicValidation(event)) {
-          if (debug) {
-            console.log(
-              `Relay(${this.url}): Rejected invalid event: ${event.id}`,
-            );
-          }
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
@@ -597,25 +574,14 @@ export class Relay {
             if (isValid) {
               this.processValidatedEvent(event, subscriptionId as string);
             } else {
-              if (debug) {
-                console.log(
-                  `Relay(${this.url}): Rejected event after async validation: ${event.id}`,
-                );
-              }
               this.triggerEvent(
                 RelayEvent.Error,
                 this.url,
-                new Error(`Invalid event signature or ID: ${event.id}`),
+                new Error(`Async validation failed for event: ${event.id}`),
               );
             }
           })
           .catch((error) => {
-            if (debug) {
-              console.error(
-                `Relay(${this.url}): Error during async validation for event ${event.id}:`,
-                error,
-              );
-            }
             this.triggerEvent(
               RelayEvent.Error,
               this.url,
@@ -629,10 +595,6 @@ export class Relay {
       }
       case "EOSE": {
         const [subscriptionId] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): End of stored events for subscription ${subscriptionId}`,
-          );
 
         // Flush the buffer for this subscription immediately on EOSE
         if (typeof subscriptionId === "string") {
@@ -647,7 +609,6 @@ export class Relay {
       }
       case "NOTICE": {
         const [notice] = rest;
-        if (debug) console.log(`Relay(${this.url}): Notice: ${notice}`);
         // Ensure notice is a string
         const noticeStr =
           typeof notice === "string" ? notice : String(notice || "");
@@ -656,10 +617,6 @@ export class Relay {
       }
       case "OK": {
         const [eventId, success, rawMessageUntyped] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): OK message for event ${eventId}: ${success ? "success" : "failed"}, ${rawMessageUntyped}`,
-          );
 
         // Ensure all params are of the correct type
         const eventIdStr =
@@ -681,11 +638,6 @@ export class Relay {
       }
       case "CLOSED": {
         const [subscriptionId, message] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): Subscription ${subscriptionId} closed by relay: ${message}`,
-          );
-
         // Ensure both params are strings
         const subIdStr =
           typeof subscriptionId === "string"
@@ -703,12 +655,6 @@ export class Relay {
       }
       case "AUTH": {
         const [challengeEvent] = rest;
-        if (debug)
-          console.log(
-            `Relay(${this.url}): Auth challenge received:`,
-            challengeEvent,
-          );
-
         // Check if the challenge is a proper NostrEvent
         if (this.isNostrEvent(challengeEvent)) {
           this.triggerEvent(RelayEvent.Auth, challengeEvent);
@@ -725,8 +671,8 @@ export class Relay {
         break;
       }
       default:
-        if (debug)
-          console.log(`Relay(${this.url}): Unhandled message type: ${type}`);
+        // Unknown message type, ignore or log
+        console.warn(`Relay(${this.url}): Unknown message type:`, type, rest);
         break;
     }
   }
@@ -738,8 +684,6 @@ export class Relay {
     event: NostrEvent,
     subscriptionId: string,
   ): void {
-    const debug = process.env.DEBUG?.includes("nostr:*") || false;
-
     // Process replaceable events (kinds 0, 3, 10000-19999)
     if (
       event.kind === 0 ||
@@ -755,20 +699,10 @@ export class Relay {
 
     const subscription = this.subscriptions.get(subscriptionId);
     if (subscription) {
-      if (debug)
-        console.log(
-          `Relay(${this.url}): Found subscription, buffering event for processing`,
-        );
-
       // Buffer the event instead of immediately calling the handler
       const buffer = this.eventBuffers.get(subscriptionId) || [];
       buffer.push(event);
       this.eventBuffers.set(subscriptionId, buffer);
-    } else {
-      if (debug)
-        console.log(
-          `Relay(${this.url}): No subscription found for id: ${subscriptionId}`,
-        );
     }
   }
 
@@ -897,26 +831,14 @@ export class Relay {
         );
 
         if (!hasValidPTagForNIP46) {
-          const debug = process.env.DEBUG?.includes("nostr:*") || false;
-          if (debug) {
-            console.log(
-              `Relay(${this.url}): NIP-46 event missing required 'p' tag (expected format ['p', <64_hex_pubkey>, ...]):`,
-              JSON.stringify(event.tags),
-            );
-          }
+          // Optionally log here if needed
           return false;
         }
       }
 
       // Optionally log a warning for very old events (e.g., older than a year)
       if (event.created_at < now - 31536000) {
-        // Return true but log a warning if debug is enabled
-        const debug = process.env.DEBUG?.includes("nostr:*") || false;
-        if (debug) {
-          console.warn(
-            `Relay(${this.url}): Event ${event.id} is very old (${now - event.created_at} seconds)`,
-          );
-        }
+        // Optionally log here if needed
       }
 
       return true;

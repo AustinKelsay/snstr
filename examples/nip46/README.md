@@ -21,7 +21,7 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for diagrams and a visual explanation o
 A single comprehensive example that shows the core functionality:
 
 ```bash
-npm run example:nip46:unified
+npm run example:nip46
 ```
 
 Key features demonstrated:

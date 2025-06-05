@@ -59,6 +59,16 @@ export {
   constantTimeEqual as constantTimeEqual,
 } from "./nip44";
 
+// Export NIP-17 utilities
+export {
+  createDirectMessage,
+  decryptDirectMessage,
+  DM_KIND,
+  FILE_KIND,
+  GIFT_WRAP_KIND,
+  SEAL_KIND,
+} from "./nip17";
+
 // Export NIP-19 utilities
 export {
   // Core encoding/decoding functions
@@ -116,6 +126,13 @@ export {
   encryptNip44 as encryptNip44WithExtension,
   decryptNip44 as decryptNip44WithExtension,
 } from "./nip07";
+
+// Export NIP-09 utilities
+export {
+  createDeletionRequest,
+  parseDeletionTargets,
+  isDeletionRequestForEvent,
+} from "./nip09";
 
 // Export NIP-07 adapter
 export { Nip07Nostr } from "./nip07/adapter";

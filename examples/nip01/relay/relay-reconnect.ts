@@ -14,38 +14,55 @@
  */
 
 import { Relay, RelayEvent } from "../../../src/index";
+import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+
+const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
+const RELAY_PORT = 3337;
 
 // Configure logging based on environment variables
 const verbose = process.env.VERBOSE === "1";
 const debug = process.env.DEBUG === "1";
 
-// Create a relay with custom reconnection settings
-const relay = new Relay("wss://relay.damus.io", {
-  autoReconnect: true,
-  maxReconnectAttempts: 5,
-  maxReconnectDelay: 15000,
-});
+async function main() {
+  let relay: Relay;
+  let ephemeralRelay: NostrRelay | null = null;
 
-// Set up event handlers to monitor connection status
-relay.on(RelayEvent.Connect, (url: string) => {
-  console.log(`✅ Connected to ${url}`);
-});
+  if (USE_EPHEMERAL) {
+    console.log("Starting ephemeral relay...");
+    ephemeralRelay = new NostrRelay(RELAY_PORT);
+    await ephemeralRelay.start();
+    console.log(`Ephemeral relay started at ${ephemeralRelay.url}`);
+    relay = new Relay(ephemeralRelay.url, {
+      autoReconnect: true,
+      maxReconnectAttempts: 5,
+      maxReconnectDelay: 15000,
+    });
+  } else {
+    relay = new Relay("wss://relay.damus.io", {
+      autoReconnect: true,
+      maxReconnectAttempts: 5,
+      maxReconnectDelay: 15000,
+    });
+  }
 
-relay.on(RelayEvent.Disconnect, (url: string) => {
-  console.log(
-    `❌ Disconnected from ${url}, will attempt to reconnect automatically`,
-  );
-});
+  // Set up event handlers to monitor connection status
+  relay.on(RelayEvent.Connect, (url: string) => {
+    console.log(`✅ Connected to ${url}`);
+  });
 
-relay.on(RelayEvent.Error, (url: string, error: unknown) => {
-  console.error(`⚠️ Error with ${url}:`, error);
-});
+  relay.on(RelayEvent.Disconnect, (url: string) => {
+    console.log(
+      `❌ Disconnected from ${url}, will attempt to reconnect automatically`,
+    );
+  });
 
-// Connect to relay
-console.log("Connecting to relay...");
-relay
-  .connect()
-  .then((success) => {
+  relay.on(RelayEvent.Error, (url: string, error: unknown) => {
+    console.error(`⚠️ Error with ${url}:`, error);
+  });
+
+  console.log("Connecting to relay...");
+  try {
+    const success = await relay.connect();
     if (success) {
       console.log("Successfully established initial connection");
 
@@ -71,8 +88,6 @@ relay
       // Simulate a disconnection after 5 seconds to demonstrate reconnection
       setTimeout(() => {
         console.log("\nSimulating network interruption...");
-        // This is just for demonstration purposes - normally you wouldn't force close
-        // the WebSocket directly. In real usage, network interruptions would trigger this.
         if (relay["ws"]) {
           console.log("Forcing WebSocket to close to demonstrate reconnection");
           relay["ws"].close();
@@ -80,28 +95,33 @@ relay
       }, 5000);
 
       // After 20 seconds, disconnect and exit
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log("\nDemo complete, disconnecting...");
         relay.disconnect();
+        if (ephemeralRelay) {
+          await ephemeralRelay.close();
+        }
         console.log("Disconnected. Example finished.");
-
-        // In a real application you might keep the connection open until the app exits
       }, 20000);
     } else {
       console.error("Failed to connect to relay");
     }
-  })
-  .catch((error) => {
+  } catch (error) {
     console.error("Error connecting to relay:", error);
-  });
+  }
 
-// Also demonstrate how to control reconnection programmatically
-console.log("\nReconnection control methods:");
-console.log("- relay.setAutoReconnect(false) - Disable automatic reconnection");
-console.log("- relay.setAutoReconnect(true) - Enable automatic reconnection");
-console.log(
-  "- relay.setMaxReconnectAttempts(10) - Set maximum reconnection attempts",
-);
-console.log(
-  "- relay.setMaxReconnectDelay(30000) - Set maximum delay between attempts (ms)",
-);
+  // Also demonstrate how to control reconnection programmatically
+  console.log("\nReconnection control methods:");
+  console.log("- relay.setAutoReconnect(false) - Disable automatic reconnection");
+  console.log("- relay.setAutoReconnect(true) - Enable automatic reconnection");
+  console.log(
+    "- relay.setMaxReconnectAttempts(10) - Set maximum reconnection attempts",
+  );
+  console.log(
+    "- relay.setMaxReconnectDelay(30000) - Set maximum delay between attempts (ms)",
+  );
+}
+
+main().catch((err) => {
+  console.error(err);
+});

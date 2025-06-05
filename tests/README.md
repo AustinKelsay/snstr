@@ -23,6 +23,8 @@ Tests are organized into directories by NIP number, with subdirectories for spec
     - `nip05.test.ts` - Tests for DNS identity verification
   - `/nip07` - Tests for NIP-07 (Browser Extension Integration)
     - `nip07.test.ts` - Tests for browser extension functionality
+  - `/nip09` - Tests for NIP-09 (Event Deletion Requests)
+    - `nip09.test.ts` - Deletion request creation and parsing
   - `/nip11` - Tests for NIP-11 (Relay Information Document)
     - `nip11.test.ts` - Tests for relay information functionality
   - `/nip19` - Tests for NIP-19 (bech32-encoded entities)
@@ -70,6 +72,7 @@ To run tests for a specific NIP:
 npm run test:nip01       # Run all NIP-01 core protocol tests
 npm run test:nip04       # Run NIP-04 tests
 npm run test:nip05       # Run NIP-05 tests
+npm run test:nip09       # Run NIP-09 tests
 npm run test:nip19       # Run NIP-19 tests
 npm run test:nip44       # Run NIP-44 tests
 npm run test:nip46       # Run NIP-46 tests

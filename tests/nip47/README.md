@@ -37,13 +37,13 @@ Recent improvements to error handling include:
 To run all NIP-47 tests:
 
 ```bash
-npm test -- tests/nip47
+npm run test:nip47
 ```
 
 To run a specific test file:
 
 ```bash
-npm test -- tests/nip47/error-handling.test.ts
+npx jest tests/nip47/error-handling.test.ts
 ```
 
 ## Related Code

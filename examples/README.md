@@ -33,6 +33,7 @@ npm run example:dm             # NIP-04 direct message example
 # NIP-specific examples
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
+npm run example:nip09          # NIP-09 deletion request example
 npm run example:nip07          # NIP-07 (Browser Extension) - Starts HTTP server for examples
 npm run example:nip07:build    # Build NIP-07 browser bundles without starting server
 npm run example:nip11          # NIP-11 (Relay Information Document)
@@ -40,6 +41,7 @@ npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20
 npm run example:nip44:js       # NIP-44 JavaScript implementation
 npm run example:nip44:version-compat # NIP-44 version compatibility
 npm run example:nip44:test-vector    # NIP-44 test vectors
+npm run example:nip17          # NIP-17 gift wrapped messaging
 
 ## NIP-19 Examples
 
@@ -109,7 +111,7 @@ You can also run example groups:
 ```bash
 npm run example:all           # Run basic example
 npm run example:basic         # Run example, crypto, and dm examples
-npm run example:messaging     # Run dm, nip04, and nip44 examples
+npm run example:messaging     # Run dm, nip04, nip44 and nip17 examples
 npm run example:identity      # Run nip05, nip07, and nip19 examples
 npm run example:payments      # Run nip47 and nip57 examples
 npm run example:advanced      # Run nip46 and nip47:error-handling examples
@@ -134,7 +136,8 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `nip02-demo.ts` - Fetching a user's follows and followers list
 - `/nip04` - [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) (Encrypted Direct Messages) examples
   - `direct-message.ts` - Direct messaging example with shared secret encryption
-- `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples 
+- `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples
+- `/nip09` - [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) (Event Deletion Requests) examples
 - `/nip07` - [NIP-07](https://github.com/nostr-protocol/nips/blob/master/07.md) (Web Browser Extension) examples
   - `browser.ts` - Browser extension example for text notes and subscriptions
   - `direct-message.ts` - Direct message example using extension encryption features
@@ -154,6 +157,8 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `nip44-demo.js` - JavaScript implementation of NIP-44 encryption
   - `nip44-version-compatibility.ts` - Demonstrates versioned encryption compatibility
   - `nip44-test-vector.ts` - Test vectors for NIP-44 encryption
+- `/nip17` - [NIP-17](https://github.com/nostr-protocol/nips/blob/master/17.md) (Gift wrapped direct messages)
+  - `nip17-demo.ts` - Create and decrypt a gift wrapped message
 - `/nip46` - [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) (Nostr Connect/Remote Signing) examples
   - `unified-example.ts` - Main example with complete implementation
   - `minimal.ts` - Minimal implementation for basic use cases

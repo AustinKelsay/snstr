@@ -90,7 +90,7 @@ Permissions control what operations a client can perform. They are defined in th
 - `nip44_decrypt`: Allow NIP-44 decryption
 - `ping`: Allow ping functionality
 
-## Usage Examples
+## Basic Usage
 
 ### Simple Client Example
 

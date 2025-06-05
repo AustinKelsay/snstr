@@ -69,7 +69,7 @@ describe("Enhanced NostrFilter Types", () => {
         kinds: [NostrKind.ShortNote],
         "#e": ["event1", "event2"], // event references
         "#p": ["pubkey1", "pubkey2"], // pubkey references
-        "#a": ["address1", "address2"], // address references (NIP-33)
+        "#a": ["address1", "address2"], // address references for addressable events (NIP-01)
         "#d": ["d-tag1", "d-tag2"], // d-tag for replaceable events
         "#t": ["topic1", "topic2"], // topics/hashtags
         "#r": ["reference1", "reference2"], // references/URLs
