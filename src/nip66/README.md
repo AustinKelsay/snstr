@@ -30,26 +30,86 @@ import {
   RELAY_DISCOVERY_KIND,
   RELAY_MONITOR_KIND,
   parseRelayDiscoveryEvent,
+  parseRelayMonitorAnnouncement,
 } from 'snstr';
-import { signEvent } from 'snstr';
+import { signEvent, generateKeypair } from 'snstr';
 
-const keys = await generateKeypair();
+async function createAndSignDiscoveryEvent() {
+  try {
+    const keys = await generateKeypair();
 
-const discovery = createRelayDiscoveryEvent(
-  {
-    relay: 'wss://relay.example.com',
-    network: 'clearnet',
-    supportedNips: [1, 11],
-    rttOpen: 150,
-  },
-  keys.publicKey,
-);
+    const discovery = createRelayDiscoveryEvent(
+      {
+        relay: 'wss://relay.example.com',
+        network: 'clearnet',
+        supportedNips: [1, 11],
+        rttOpen: 150,
+      },
+      keys.publicKey,
+    );
 
-const signed = await signEvent(discovery, keys.privateKey);
-console.log(signed.kind === RELAY_DISCOVERY_KIND); // true
+    const signed = await signEvent(discovery, keys.privateKey);
+    console.log(signed.kind === RELAY_DISCOVERY_KIND); // true
 
-const parsed = parseRelayDiscoveryEvent(signed);
-console.log(parsed.relay); // 'wss://relay.example.com'
+    const parsed = parseRelayDiscoveryEvent(signed);
+    console.log(parsed?.relay); // 'wss://relay.example.com' (safely accessed)
+    
+    if (parsed) {
+      console.log('Relay discovery event parsed successfully');
+      console.log('Supported NIPs:', parsed.supportedNips);
+      console.log('RTT Open:', parsed.rttOpen);
+    } else {
+      console.error('Failed to parse relay discovery event');
+    }
+  } catch (error) {
+    console.error('Error creating or signing discovery event:', error);
+  }
+}
+
+// Call the async function
+createAndSignDiscoveryEvent();
+```
+
+## Monitor Announcement Example
+
+```typescript
+async function createMonitorAnnouncement() {
+  try {
+    const keys = await generateKeypair();
+
+    const announcement = createRelayMonitorAnnouncement(
+      {
+        frequency: 3600, // Monitor every hour
+        timeouts: [
+          { value: 5000, test: 'connect' },
+          { value: 3000, test: 'read' },
+        ],
+        checks: ['ws', 'nip11', 'geo'],
+        geohash: '9q8yy',
+        content: 'Relay monitor for North America region',
+      },
+      keys.publicKey,
+    );
+
+    const signed = await signEvent(announcement, keys.privateKey);
+    console.log(signed.kind === RELAY_MONITOR_KIND); // true
+
+    const parsed = parseRelayMonitorAnnouncement(signed);
+    
+    if (parsed) {
+      console.log('Monitor announcement parsed successfully');
+      console.log('Frequency:', parsed.frequency, 'seconds');
+      console.log('Checks:', parsed.checks);
+      console.log('Timeouts:', parsed.timeouts);
+    } else {
+      console.error('Failed to parse monitor announcement');
+    }
+  } catch (error) {
+    console.error('Error creating monitor announcement:', error);
+  }
+}
+
+createMonitorAnnouncement();
 ```
 
 ## Implementation Details
