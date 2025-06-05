@@ -18,6 +18,9 @@ export function createSearchFilter(
   query: string,
   other: Partial<Filter> = {},
 ): Filter {
+  if (!query || typeof query !== 'string' || query.trim() === '') {
+    throw new Error('Query must be a non-empty string');
+  }
   return { ...other, search: query } as Filter;
 }
 
