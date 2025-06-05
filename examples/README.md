@@ -33,6 +33,7 @@ npm run example:dm             # NIP-04 direct message example
 # NIP-specific examples
 npm run example:nip04          # NIP-04 (Encrypted Direct Messages)
 npm run example:nip05          # NIP-05 (DNS Identifier Verification)
+npm run example:nip09          # NIP-09 deletion request example
 npm run example:nip07          # NIP-07 (Browser Extension) - Starts HTTP server for examples
 npm run example:nip07:build    # Build NIP-07 browser bundles without starting server
 npm run example:nip11          # NIP-11 (Relay Information Document)
@@ -135,7 +136,8 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `nip02-demo.ts` - Fetching a user's follows and followers list
 - `/nip04` - [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) (Encrypted Direct Messages) examples
   - `direct-message.ts` - Direct messaging example with shared secret encryption
-- `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples 
+- `/nip05` - [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md) (DNS Identifier Verification) examples
+- `/nip09` - [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) (Event Deletion Requests) examples
 - `/nip07` - [NIP-07](https://github.com/nostr-protocol/nips/blob/master/07.md) (Web Browser Extension) examples
   - `browser.ts` - Browser extension example for text notes and subscriptions
   - `direct-message.ts` - Direct message example using extension encryption features

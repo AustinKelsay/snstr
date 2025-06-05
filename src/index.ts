@@ -127,6 +127,13 @@ export {
   decryptNip44 as decryptNip44WithExtension,
 } from "./nip07";
 
+// Export NIP-09 utilities
+export {
+  createDeletionRequest,
+  parseDeletionTargets,
+  isDeletionRequestForEvent,
+} from "./nip09";
+
 // Export NIP-07 adapter
 export { Nip07Nostr } from "./nip07/adapter";
 
