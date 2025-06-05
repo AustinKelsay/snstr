@@ -234,6 +234,161 @@ describe("NIP-66", () => {
     });
   });
 
+  describe("Enhanced parsing validation with bounds checking", () => {
+    // Mock console.warn to capture warnings
+    let consoleWarnSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleWarnSpy.mockRestore();
+    });
+
+    test("parseRelayMonitorAnnouncement should handle invalid timeout values gracefully", () => {
+      const malformedEvent: NostrEvent = {
+        id: "test",
+        pubkey: "testkey",
+        created_at: 1234567890,
+        kind: RELAY_MONITOR_KIND,
+        tags: [
+          ["frequency", "3600"],
+          // Valid timeout
+          ["timeout", "5000", "connect"],
+          // Invalid timeouts - should be skipped with warnings
+          ["timeout", ""], // Empty value
+          ["timeout", "   "], // Whitespace only
+          ["timeout", "invalid"], // Non-numeric
+          ["timeout", "-1000"], // Negative value
+          ["timeout", "0"], // Zero value (below minimum)
+          ["timeout", "500000"], // Too large (above maximum)
+                     ["timeout", "1.5"], // Decimal (parseInt converts to 1, which is valid)
+          ["timeout", "2000", ""], // Valid timeout but empty test
+          ["timeout", "3000", 123 as any], // Valid timeout but invalid test type
+          // Valid timeout without test
+          ["timeout", "4000"],
+        ],
+        content: "Test content",
+        sig: "testsig",
+      };
+
+      const parsed = parseRelayMonitorAnnouncement(malformedEvent);
+      expect(parsed).not.toBeNull();
+      
+             // Should only have valid timeouts (note: "1.5" becomes 1 via parseInt, which is valid)
+       expect(parsed?.timeouts).toHaveLength(3);
+       expect(parsed?.timeouts[0]).toEqual({ value: 5000, test: "connect" });
+       expect(parsed?.timeouts[1]).toEqual({ value: 1, test: undefined }); // "1.5" -> 1
+       expect(parsed?.timeouts[2]).toEqual({ value: 4000, test: undefined });
+      
+      // Should have logged warnings for invalid entries
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NIP-66: Skipping timeout tag with missing or empty value")
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NIP-66: Skipping timeout tag with invalid numeric value")
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NIP-66: Skipping timeout tag with value out of bounds")
+      );
+    });
+
+    test("parseRelayMonitorAnnouncement should handle invalid frequency values gracefully", () => {
+      const malformedEvent: NostrEvent = {
+        id: "test",
+        pubkey: "testkey",
+        created_at: 1234567890,
+        kind: RELAY_MONITOR_KIND,
+        tags: [
+          // Invalid frequencies - should be skipped with warnings
+          ["frequency", ""], // Empty value
+          ["frequency", "invalid"], // Non-numeric
+          ["frequency", "-1"], // Negative
+          ["frequency", "0"], // Zero (below minimum)
+          ["frequency", "100000"], // Too large (above maximum)
+          // Valid frequency (should be used)
+          ["frequency", "3600"],
+        ],
+        content: "Test content",
+        sig: "testsig",
+      };
+
+      const parsed = parseRelayMonitorAnnouncement(malformedEvent);
+      expect(parsed).not.toBeNull();
+      
+      // Should use the valid frequency (last valid one wins)
+      expect(parsed?.frequency).toBe(3600);
+      
+      // Should have logged warnings for invalid entries
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NIP-66: Skipping frequency tag with missing or empty value")
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NIP-66: Skipping frequency tag with invalid numeric value")
+      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("NIP-66: Skipping frequency tag with value out of bounds")
+      );
+    });
+
+    test("parseRelayMonitorAnnouncement should handle edge case timeout values correctly", () => {
+      const edgeCaseEvent: NostrEvent = {
+        id: "test",
+        pubkey: "testkey",
+        created_at: 1234567890,
+        kind: RELAY_MONITOR_KIND,
+        tags: [
+          ["frequency", "3600"],
+          // Edge cases that should be valid
+          ["timeout", "1"], // Minimum valid value
+          ["timeout", "300000"], // Maximum valid value
+          ["timeout", "1000", "test"], // Valid with test
+          // Edge cases that should be invalid
+          ["timeout", "0"], // Below minimum
+          ["timeout", "300001"], // Above maximum
+        ],
+        content: "Test content",
+        sig: "testsig",
+      };
+
+      const parsed = parseRelayMonitorAnnouncement(edgeCaseEvent);
+      expect(parsed).not.toBeNull();
+      
+      // Should only have valid timeouts
+      expect(parsed?.timeouts).toHaveLength(3);
+      expect(parsed?.timeouts[0]).toEqual({ value: 1, test: undefined });
+      expect(parsed?.timeouts[1]).toEqual({ value: 300000, test: undefined });
+      expect(parsed?.timeouts[2]).toEqual({ value: 1000, test: "test" });
+    });
+
+    test("parseRelayMonitorAnnouncement should handle exceptions gracefully", () => {
+      // Create a malformed tag that might cause unexpected errors
+      const event: NostrEvent = {
+        id: "test",
+        pubkey: "testkey",
+        created_at: 1234567890,
+        kind: RELAY_MONITOR_KIND,
+        tags: [
+          ["frequency", "3600"],
+          ["timeout", "5000"],
+          // This should be handled by existing bounds checking
+          ["timeout", "NaN"],
+        ],
+        content: "Test content",
+        sig: "testsig",
+      };
+
+      // Should not throw an error
+      expect(() => parseRelayMonitorAnnouncement(event)).not.toThrow();
+      
+      const parsed = parseRelayMonitorAnnouncement(event);
+      expect(parsed).not.toBeNull();
+      expect(parsed?.timeouts).toHaveLength(1);
+      expect(parsed?.timeouts[0]).toEqual({ value: 5000, test: undefined });
+    });
+  });
+
   describe("Bounds checking for malformed tags", () => {
     test("parseRelayDiscoveryEvent should handle malformed tags gracefully", () => {
       const malformedEvent: NostrEvent = {

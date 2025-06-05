@@ -453,18 +453,109 @@ export function parseRelayMonitorAnnouncement(
     
     switch (tag[0]) {
       case "frequency":
-        // Parse integer with bounds checking
-        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
-          data.frequency = parseInt(tag[1], 10);
+        // Enhanced frequency parsing with validation and error handling
+        try {
+          // Check if frequency value exists
+          if (!tag[1] || tag[1].trim() === "") {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Skipping frequency tag with missing or empty value: ${JSON.stringify(tag)}`);
+            }
+            break;
+          }
+          
+          // Parse the frequency value
+          const frequencyValue = parseInt(tag[1], 10);
+          
+          // Validate parsed number
+          if (isNaN(frequencyValue)) {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Skipping frequency tag with invalid numeric value: "${tag[1]}"`);
+            }
+            break;
+          }
+          
+          // Define acceptable bounds for frequency values (in seconds)
+          const MIN_FREQUENCY = 1; // 1 second minimum
+          const MAX_FREQUENCY = 86400; // 24 hours maximum (86,400 seconds)
+          
+          // Check bounds
+          if (frequencyValue < MIN_FREQUENCY || frequencyValue > MAX_FREQUENCY) {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Skipping frequency tag with value out of bounds (${MIN_FREQUENCY}-${MAX_FREQUENCY}s): ${frequencyValue}s`);
+            }
+            break;
+          }
+          
+          // All validation passed - set frequency
+          data.frequency = frequencyValue;
+          
+        } catch (error) {
+          // Handle any unexpected errors during parsing
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`NIP-66: Error parsing frequency tag ${JSON.stringify(tag)}:`, error);
+          }
+          // Continue processing other tags
         }
         break;
       case "timeout":
-        // Parse timeout with bounds checking - requires at least tag[1]
-        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
+        // Enhanced timeout parsing with comprehensive validation and error handling
+        try {
+          // Check if timeout value exists
+          if (!tag[1] || tag[1].trim() === "") {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Skipping timeout tag with missing or empty value: ${JSON.stringify(tag)}`);
+            }
+            break;
+          }
+          
+          // Parse the timeout value
+          const timeoutValue = parseInt(tag[1], 10);
+          
+          // Validate parsed number
+          if (isNaN(timeoutValue)) {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Skipping timeout tag with invalid numeric value: "${tag[1]}"`);
+            }
+            break;
+          }
+          
+          // Define acceptable bounds for timeout values (in milliseconds)
+          const MIN_TIMEOUT = 1; // 1ms minimum
+          const MAX_TIMEOUT = 300000; // 5 minutes maximum (300,000ms)
+          
+          // Check bounds
+          if (timeoutValue < MIN_TIMEOUT || timeoutValue > MAX_TIMEOUT) {
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Skipping timeout tag with value out of bounds (${MIN_TIMEOUT}-${MAX_TIMEOUT}ms): ${timeoutValue}ms`);
+            }
+            break;
+          }
+          
+          // Validate test parameter if present
+          let testParam: string | undefined = undefined;
+          if (tag.length > 2) {
+            if (typeof tag[2] === "string" && tag[2].trim() !== "") {
+              testParam = tag[2];
+            } else if (tag[2] !== undefined) {
+              if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`NIP-66: Skipping timeout tag with invalid test parameter: ${JSON.stringify(tag[2])}`);
+              }
+              break;
+            }
+          }
+          
+          // All validation passed - add to timeouts
           data.timeouts.push({
-            value: parseInt(tag[1], 10),
-            test: tag.length > 2 ? tag[2] : undefined, // Check if tag[2] exists
+            value: timeoutValue,
+            test: testParam,
           });
+          
+        } catch (error) {
+          // Handle any unexpected errors during parsing
+          if (typeof console !== 'undefined' && console.warn) {
+            console.warn(`NIP-66: Error parsing timeout tag ${JSON.stringify(tag)}:`, error);
+          }
+          // Continue processing other tags
         }
         break;
       case "c":
