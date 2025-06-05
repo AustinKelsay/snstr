@@ -55,7 +55,7 @@ describe("NIP-44 implementation against official test vectors", () => {
             
       // Get shared secret
       const sharedSecret1 = getSharedSecret(sec1, pub2);
-      const sharedSecret2 = getSharedSecret(sec2, pub1);
+      const _sharedSecret2 = getSharedSecret(sec2, pub1);
 
                   expect(Buffer.from(sharedSecret1).toString("hex")).toBe(conversation_key);
 
@@ -69,7 +69,7 @@ describe("NIP-44 implementation against official test vectors", () => {
       const keys = getMessageKeys(conversationKeyBytes, nonceBytes);
       
       // Calculate the HMAC to see if it matches
-      const calculatedMac = hmacWithAAD(
+      const _calculatedMac = hmacWithAAD(
         keys.hmac_key,
         decodedPayload.ciphertext,
         decodedPayload.nonce,
