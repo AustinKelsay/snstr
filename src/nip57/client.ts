@@ -12,6 +12,7 @@
 import { NostrEvent, Filter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { createSignedEvent } from "../nip01/event";
+import { getUnixTime } from "../utils/time";
 import {
   createZapRequest,
   validateZapReceipt,
@@ -789,7 +790,7 @@ export class ZapClient {
           pubkey: options.anonymousZap
             ? "00000000000000000000000000000000000000000000000000000000000000"
             : senderPubkey || "",
-          created_at: Math.floor(Date.now() / 1000),
+          created_at: getUnixTime(),
         },
         privateKey,
       );

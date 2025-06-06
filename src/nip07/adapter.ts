@@ -1,6 +1,7 @@
 import { NostrEvent } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import * as nip07 from "./index";
+import { getUnixTime } from "../utils/time";
 
 /**
  * NIP-07 enabled Nostr client that uses browser extension for signing
@@ -87,7 +88,7 @@ export class Nip07Nostr extends Nostr {
 
     const event: Omit<NostrEvent, "id" | "pubkey" | "sig"> = {
       kind: 1,
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: getUnixTime(),
       tags,
       content,
     };
@@ -140,7 +141,7 @@ export class Nip07Nostr extends Nostr {
 
       const event: Omit<NostrEvent, "id" | "pubkey" | "sig"> = {
         kind: 4,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: getUnixTime(),
         tags: updatedTags,
         content: encryptedContent,
       };

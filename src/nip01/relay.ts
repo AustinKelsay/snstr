@@ -13,6 +13,7 @@ import {
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 import { NostrValidationError } from "./event";
+import { getUnixTime } from "../utils/time";
 
 export class Relay {
   private url: string;
@@ -815,7 +816,7 @@ export class Relay {
       }
 
       // Check reasonable timestamp (not more than 1 hour in the future and not too far in the past)
-      const now = Math.floor(Date.now() / 1000);
+      const now = getUnixTime();
       if (event.created_at > now + 3600) {
         return false; // Reject events with future timestamps
       }
