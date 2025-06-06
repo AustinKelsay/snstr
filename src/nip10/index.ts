@@ -65,12 +65,14 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
 
   for (const tag of eTags) {
     const [_, id, relay, marker, pubkey] = tag;
+    const relayValue = relay || undefined;
+    const pubkeyValue = pubkey === "" ? undefined : pubkey;
     if (marker === "root") {
-      root = { id, relay: relay || undefined, pubkey };
+      root = { id, relay: relayValue, pubkey: pubkeyValue };
     } else if (marker === "reply") {
-      reply = { id, relay: relay || undefined, pubkey };
+      reply = { id, relay: relayValue, pubkey: pubkeyValue };
     } else {
-      unmarked.push({ id, relay: relay || undefined, pubkey });
+      unmarked.push({ id, relay: relayValue, pubkey: pubkeyValue });
     }
   }
 
@@ -90,7 +92,7 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
   const quotes: ThreadPointer[] = qTags.map((tag) => ({
     id: tag[1],
     relay: tag[2] || undefined,
-    pubkey: tag[3],
+    pubkey: tag[3] === "" ? undefined : tag[3],
   }));
 
   return { root, reply, mentions, quotes };
