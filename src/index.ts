@@ -108,6 +108,9 @@ export {
   TLVType,
 } from "./nip19";
 
+// Export NIP-21 utilities
+export { encodeNostrURI, decodeNostrURI, NOSTR_URI_PREFIX } from "./nip21";
+
 // Export NIP-05 utilities
 export {
   verifyNIP05,
@@ -213,7 +216,15 @@ export {
 export { createSearchFilter } from "./nip50";
 
 // NIP-65: Relay List Metadata
-export { createRelayListEvent, parseRelayList, getReadRelays, getWriteRelays, RELAY_LIST_KIND, RelayListEntry, RelayListEvent } from "./nip65";
+export {
+  createRelayListEvent,
+  parseRelayList,
+  getReadRelays,
+  getWriteRelays,
+  RELAY_LIST_KIND,
+  RelayListEntry,
+  RelayListEvent,
+} from "./nip65";
 
 // NIP-66: Relay Discovery and Liveness Monitoring
 export {
