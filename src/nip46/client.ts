@@ -1,5 +1,6 @@
 import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
+import { getUnixTime } from "../utils/time";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
@@ -691,7 +692,7 @@ export class NostrRemoteSignerClient {
       const event = {
         kind: 24133,
         pubkey: this.clientKeypair.publicKey,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: getUnixTime(),
         tags: [["p", this.signerPubkey]],
         content: encryptedContent,
         id: "",

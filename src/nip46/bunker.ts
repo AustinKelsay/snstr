@@ -3,6 +3,7 @@ import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
+import { getUnixTime } from "../utils/time";
 import {
   NIP46Method,
   NIP46Request,
@@ -723,7 +724,7 @@ export class NostrRemoteSignerBunker {
       await this.nostr.publishEvent({
         kind: 24133,
         pubkey: this.signerKeypair.publicKey,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: getUnixTime(),
         tags: [["p", clientPubkey]],
         content: encryptedContent,
         id: "",
@@ -780,7 +781,7 @@ export class NostrRemoteSignerBunker {
               ? [["nostrconnect_url", metadata.nostrconnect_url]]
               : []),
           ],
-          created_at: Math.floor(Date.now() / 1000),
+          created_at: getUnixTime(),
           pubkey: this.signerKeypair.publicKey,
         },
         this.signerKeypair.privateKey,
