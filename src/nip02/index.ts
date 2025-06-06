@@ -1,6 +1,7 @@
 // NIP-02 implementation will go here
 
 import { NostrEvent, ContactsEvent } from "../types/nostr";
+import { getUnixTime } from "../utils/time";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
 // Adjust the import path if necessary.
 
@@ -72,7 +73,7 @@ export function createContactListEvent(
     kind: 3,
     tags,
     content: existingContent,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: getUnixTime(),
   };
 }
 

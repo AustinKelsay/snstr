@@ -13,6 +13,7 @@ import {
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
+import { getUnixTime } from "../utils/time";
 
 // Helper functions for response creation
 export function createSuccessResponse(
@@ -584,7 +585,7 @@ export class SimpleNIP46Bunker {
       const eventData: UnsignedEvent = {
         kind: 24133,
         pubkey: this.signerKeys.publicKey,
-        created_at: Math.floor(Date.now() / 1000),
+        created_at: getUnixTime(),
         tags: [["p", clientPubkey]],
         content: encrypted,
       };

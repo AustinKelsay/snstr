@@ -37,6 +37,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Remote signing capability via NIP-46
 - Lightning Zaps integration via NIP-57
 - Wallet connection via NIP-47
+- Relay list metadata via NIP-65
 - Built-in ephemeral relay for testing and development
 
 ## Supported NIPs
@@ -56,6 +57,9 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-46**: Remote signing (bunker) support for secure key management
 - **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
 - **NIP-47**: Nostr Wallet Connect for secure wallet communication
+- **NIP-50**: Search capability via `search` subscription filters
+- **NIP-65**: Relay List metadata for read/write relay preferences
+- **NIP-66**: Relay discovery and liveness monitoring
 
 For detailed information on each implementation, see the corresponding directories in the `src/` directory (e.g., `src/nip01/`, `src/nip04/`, etc.).
 
@@ -166,6 +170,7 @@ npm run example:nip44  # Versioned encryption
 npm run example:nip17  # Gift wrapped direct messages
 npm run example:nip46  # Remote signing protocol
 npm run example:nip57  # Lightning Zaps
+npm run example:nip65  # Relay list metadata
 ```
 
 For a full list of examples and detailed descriptions, see the [examples README](./examples/README.md).
@@ -249,6 +254,7 @@ npm run test:nip17         # NIP-17 (Direct Messages)
 npm run test:nip46         # NIP-46 (Remote Signing)
 npm run test:nip47         # NIP-47 (Wallet Connect)
 npm run test:nip57         # NIP-57 (Lightning Zaps)
+npm run test:nip65         # NIP-65 (Relay List Metadata)
 ```
 
 ### Example Scripts
@@ -293,6 +299,7 @@ npm run example:nip17      # Gift wrapped direct messages (NIP-17)
 npm run example:nip46      # Remote signing protocol (NIP-46)
 npm run example:nip47      # Wallet connect (NIP-47)
 npm run example:nip57      # Lightning zaps (NIP-57)
+npm run example:nip65      # Relay list metadata (NIP-65)
 ```
 
 ### Code Quality Scripts

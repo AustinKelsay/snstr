@@ -48,6 +48,10 @@ Tests are organized into directories by NIP number, with subdirectories for spec
     - `error-handling.test.ts` - Error handling tests
   - `/nip57` - Tests for NIP-57 (Lightning Zaps)
     - `zap.test.ts` - Zap functionality tests
+  - `/nip65` - Tests for NIP-65 (Relay List Metadata)
+    - `nip65.test.ts` - Relay list parsing and creation
+  - `/nip66` - Tests for NIP-66 (Relay Discovery & Monitoring)
+    - `nip66.test.ts` - Relay discovery and liveness tests
 
 - **Other Directories**:
   - `/types` - Type definitions and helpers for testing
@@ -78,6 +82,8 @@ npm run test:nip44       # Run NIP-44 tests
 npm run test:nip46       # Run NIP-46 tests
 npm run test:nip47       # Run NIP-47 tests
 npm run test:nip57       # Run NIP-57 tests
+npm run test:nip65       # Run NIP-65 tests
+npm run test:nip66       # Run NIP-66 tests
 ```
 
 For NIP-01 components specifically:

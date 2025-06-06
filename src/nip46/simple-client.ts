@@ -1,6 +1,7 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
+import { getUnixTime } from "../utils/time";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { createSignedEvent } from "../nip01/event";
 import { generateRequestId } from "./utils/request-response";
@@ -334,7 +335,7 @@ export class SimpleNIP46Client {
         const eventData: Omit<NostrEvent, "id" | "sig"> = {
           kind: 24133,
           pubkey: this.clientKeys.publicKey,
-          created_at: Math.floor(Date.now() / 1000),
+          created_at: getUnixTime(),
           tags: [["p", this.signerPubkey]],
           content: encrypted,
         };

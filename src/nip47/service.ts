@@ -2,6 +2,7 @@ import { Nostr } from "../nip01/nostr";
 import { NostrEvent } from "../types/nostr";
 import { signEvent } from "../utils/crypto";
 import { getEventHash } from "../nip01/event";
+import { getUnixTime } from "../utils/time";
 import { createEvent, createSignedEvent } from "../nip01/event";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import {
@@ -245,7 +246,7 @@ export class NostrWalletService {
       let expirationTimestamp: number | undefined;
       if (expirationTag && expirationTag.length > 1) {
         expirationTimestamp = parseInt(expirationTag[1], 10);
-        const now = Math.floor(Date.now() / 1000);
+        const now = getUnixTime();
         if (now > expirationTimestamp) {
           console.log(
             `Request ${event.id} has already expired (${expirationTimestamp} < ${now}).`,

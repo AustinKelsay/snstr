@@ -93,6 +93,14 @@ npm run example:nip47:error-handling # Error handling example
 npm run example:nip47:expiration # Request expiration example
 ```
 
+## NIP-50 Examples
+
+For [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability):
+
+```bash
+npm run example:nip50          # Basic search filter example
+```
+
 ## NIP-57 Examples
 
 For [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) (Lightning Zaps), we have several examples:
@@ -102,6 +110,22 @@ npm run example:nip57          # Basic NIP-57 example
 npm run example:nip57:client   # Zap client example
 npm run example:nip57:lnurl    # LNURL server simulation
 npm run example:nip57:validation # Invoice validation example
+```
+
+## NIP-65 Examples
+
+For [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) (Relay List Metadata):
+
+```bash
+npm run example:nip65          # Relay list metadata demo
+```
+
+## NIP-66 Examples
+
+For [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) (Relay Discovery and Liveness Monitoring):
+
+```bash
+npm run example:nip66          # Relay discovery and monitoring demo
 ```
 
 ## Example Categories
@@ -176,6 +200,10 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `zap-client-example.ts` - Zap client example for sending zaps
   - `lnurl-server-simulation.ts` - LNURL server simulation for zap endpoints
   - `invoice-validation-example.ts` - Invoice validation example for zap verification
+- `/nip50` - [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) (Search capability)
+  - `search-demo.ts` - Basic search filter usage
+- `/nip66` - [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) (Relay Discovery and Liveness Monitoring)
+  - `nip66-demo.ts` - Relay discovery and monitoring demo
 
 ## Building Examples
 
