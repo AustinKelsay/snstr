@@ -282,6 +282,7 @@ export interface RelayLimitation {
   /** Maximum limit value filter */
   max_limit?: number;
   /** Maximum time range for queries in seconds */
+  /** Maximum subscription ID length */
   max_subid_length?: number;
   /** Minimum PoW difficulty (NIP-13) */
   min_pow_difficulty?: number;
