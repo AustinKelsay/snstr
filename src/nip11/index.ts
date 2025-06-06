@@ -8,8 +8,8 @@
  * @see https://github.com/nostr-protocol/nips/blob/master/11.md
  */
 
-import { RelayInfo } from "./types";
-export * from "./types";
+import { RelayInfo } from "../types/nostr";
+export type { RelayInfo, RelayLimitation, RelayFees, FeeSchedule } from "../types/nostr";
 
 // Cache for relay information to avoid repeated requests
 const relayInfoCache: Record<

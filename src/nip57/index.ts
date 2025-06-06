@@ -13,6 +13,7 @@ import { NostrEvent, EventTemplate } from "../types/nostr";
 import { createEvent } from "../nip01/event";
 import { sha256Hex, verifySignature } from "../utils/crypto";
 import { parseBolt11Invoice } from "./utils";
+export type { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 
 // Export types from client.ts
 export {

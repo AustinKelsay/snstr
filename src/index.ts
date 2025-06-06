@@ -164,6 +164,8 @@ export {
   ZapReceiptOptions,
   ZapValidationResult,
   LnurlPayResponse,
+  LnurlSuccessAction,
+  LnurlInvoiceResponse,
   ZapStats,
 } from "./nip57";
 

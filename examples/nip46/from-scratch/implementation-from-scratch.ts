@@ -4,50 +4,17 @@ import {
   verifySignature,
   encryptNIP04,
   decryptNIP04,
+  NostrEvent,
+  EventTemplate,
+  NIP46Request,
+  NIP46Response,
 } from "../../../src";
 import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
 
 // Type definitions
-interface NostrEvent {
-  kind: number;
-  content: string;
-  created_at: number;
-  tags: string[][];
-  pubkey: string;
-  id: string;
-  sig: string;
-}
-
-interface UnsignedEvent {
-  kind: number;
-  content: string;
-  created_at: number;
-  tags: string[][];
-  pubkey: string;
-}
-
-interface NostrEventToSign {
-  kind: number;
-  content: string;
-  created_at?: number;
-  tags: string[][];
-  pubkey?: string;
-  id?: string;
-  sig?: string;
-}
-
-interface NIP46Request {
-  id: string;
-  method: string;
-  params: string[];
-}
-
-interface NIP46Response {
-  id: string;
-  result?: string;
-  error?: string;
-}
+type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
+type NostrEventToSign = EventTemplate & { tags: string[][] };
 
 interface Keypair {
   publicKey: string;

@@ -252,46 +252,88 @@ export enum NostrKind {
  * Relay Information Document as defined in NIP-11
  * https://github.com/nostr-protocol/nips/blob/master/11.md
  */
-export interface RelayInformation {
-  /** Name of the relay */
-  name?: string;
-  /** Description of the relay */
+export interface FeeSchedule {
+  /** Amount in the smallest unit of currency */
+  amount: number;
+  /** The unit of currency (e.g., "msats" or "USD") */
+  unit: string;
+  /** The period if applicable (e.g., "day", "month") */
+  period?: number;
+  /** Human-readable description of the fee */
   description?: string;
-  /** Public key of the relay administrator */
+}
+
+export interface RelayFees {
+  /** Fee for publishing an event */
+  admission?: FeeSchedule[];
+  /** Fee for subscription */
+  subscription?: FeeSchedule[];
+  /** Fee for publishing an event */
+  publication?: FeeSchedule[];
+}
+
+export interface RelayLimitation {
+  /** Maximum event size in bytes */
+  max_message_length?: number;
+  /** Maximum number of subscriptions per connection */
+  max_subscriptions?: number;
+  /** Maximum filter length */
+  max_filters?: number;
+  /** Maximum limit value filter */
+  max_limit?: number;
+  /** Maximum time range for queries in seconds */
+  max_subid_length?: number;
+  /** Minimum PoW difficulty (NIP-13) */
+  min_pow_difficulty?: number;
+  /** Whether to require payment for events */
+  payments_required?: boolean;
+  /** Whether to require auth for events */
+  auth_required?: boolean;
+  /** Whether to restrict reads to authenticated users */
+  restricted_reads?: boolean;
+  /** Whether to restrict writes to authenticated users */
+  restricted_writes?: boolean;
+  /** Maximum time allowed for an event (legacy field) */
+  max_event_time?: number;
+  /** Restricted to kind list */
+  restricted_kinds?: number[];
+  /** Creator-only kind list */
+  creator_only_kinds?: number[];
+}
+
+export interface RelayInfo {
+  /** The relay software name */
+  name?: string;
+  /** The relay description */
+  description?: string;
+  /** The operator's pubkey */
   pubkey?: string;
-  /** Contact info for the relay administrator */
+  /** The relay contact */
   contact?: string;
   /** Relay software information */
   software?: string;
   /** Relay software version */
   version?: string;
-  /** Supported NIPs */
+  /** List of NIP numbers supported by the relay */
   supported_nips?: number[];
-  /** Limitations of the relay service */
-  limitation?: {
-    /** Maximum message size in bytes */
-    max_message_length?: number;
-    /** Maximum number of subscriptions */
-    max_subscriptions?: number;
-    /** Maximum number of filters */
-    max_filters?: number;
-    /** Maximum limit value for events */
-    max_limit?: number;
-    /** Maximum time allowed for an event */
-    max_event_time?: number;
-    /** Minimum PoW difficulty */
-    min_pow_difficulty?: number;
-    /** Auth required */
-    auth_required?: boolean;
-    /** Payment required */
-    payment_required?: boolean;
-    /** Restricted to kind list */
-    restricted_kinds?: number[];
-    /** Creator-only kind list */
-    creator_only_kinds?: number[];
-  };
-  /** Relay payments information */
+  /** List of MIME types supported for the content field */
+  supported_content_types?: string[];
+  /** Server limitation details */
+  limitation?: RelayLimitation;
+  /** Payments information */
   payments_url?: string;
+  /** Relay fees information */
+  fees?: RelayFees;
+  /** Relay icon */
+  icon?: string;
+  /** Alternative relay URLs */
+  relay_countries?: string[];
+  /** Language tags in BCP47 format */
+  language_tags?: string[];
+  /** Tags for categorization */
+  tags?: string[];
+  /** URL to the community/forum */
+  posting_policy?: string;
   /** Relay retention policies */
   retention?: {
     [key: string]: {
@@ -308,9 +350,13 @@ export interface RelayInformation {
     /** Block_list of pubkeys */
     block_list?: string[];
   };
-  /** Relay icons */
-  icon?: string;
 }
+
+/**
+ * Backwards compatibility alias
+ * @deprecated Use `RelayInfo` instead.
+ */
+export type RelayInformation = RelayInfo;
 
 /**
  * Statistics about a relay connection
@@ -339,7 +385,7 @@ export interface RelayStats {
   /** Average latency in milliseconds */
   averageLatency?: number;
   /** Relay information document (if available) */
-  info?: RelayInformation;
+  info?: RelayInfo;
 }
 
 /**
