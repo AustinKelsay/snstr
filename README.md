@@ -1,4 +1,5 @@
 # SNSTR - Simple Nostr Software Toolkit for Retards
+
 ### Still Under Construction 🚧
 
 SNSTR is a lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
@@ -24,6 +25,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 ## Features
 
 ### Core Functionality
+
 - Event creation and signing with comprehensive validation
 - Relay connections with automatic reconnect
 - Filter-based subscriptions
@@ -31,6 +33,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Support for addressable events (kinds 30000-39999)
 
 ### Advanced Features
+
 - Encrypted messaging with both NIP-04 (AES-CBC) and NIP-44 (ChaCha20+HMAC)
 - Identity verification with NIP-05 DNS-based identifiers
 - Browser extension integration via NIP-07
@@ -55,6 +58,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-10**: Text notes and threading metadata
 - **NIP-11**: Relay Information Document for discovering relay capabilities
 - **NIP-19**: Bech32-encoded entities for human-readable identifiers
+- **NIP-21**: URI scheme for nostr links
 - **NIP-44**: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
 - **NIP-46**: Remote signing (bunker) support for secure key management
 - **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
@@ -74,25 +78,25 @@ For detailed information on each implementation, see the corresponding directori
 ## Basic Usage
 
 ```typescript
-import { Nostr, RelayEvent } from 'snstr';
+import { Nostr, RelayEvent } from "snstr";
 
 async function main() {
   // Initialize with relays and connection timeout
-  const client = new Nostr(['wss://relay.nostr.band']);
-  
+  const client = new Nostr(["wss://relay.nostr.band"]);
+
   // Generate keypair
   const keys = await client.generateKeys();
-  
+
   // Connect to relays
   await client.connectToRelays();
-  
+
   // Set up event handlers
   client.on(RelayEvent.Connect, (relay) => {
     console.log(`Connected to ${relay}`);
   });
-  
+
   // Publish a note
-  const note = await client.publishTextNote('Hello, Nostr!');
+  const note = await client.publishTextNote("Hello, Nostr!");
   console.log(`Published note with ID: ${note?.id}`);
 
   // Subscribe to events
@@ -100,7 +104,7 @@ async function main() {
     [{ kinds: [1], limit: 10 }], // Filter for text notes
     (event, relay) => {
       console.log(`Received event from ${relay}:`, event);
-    }
+    },
   );
 
   // Cleanup
@@ -120,10 +124,12 @@ For more examples including encryption, relay management, and NIP-specific featu
 The project is organized with detailed documentation for different components:
 
 #### Core Documentation
+
 - **[Test Documentation](tests/README.md)**: Overview of test organization and execution
 - **[Examples Documentation](examples/README.md)**: Complete guide to examples for all features
 
 #### NIP Documentation
+
 - **[NIP-01](src/nip01/README.md)**: Basic protocol functionality
 - **[NIP-02](src/nip02/README.md)**: Contact List recommendation
 - **[NIP-04](src/nip04/README.md)**: Encrypted direct messages
@@ -138,8 +144,8 @@ The project is organized with detailed documentation for different components:
 - **[NIP-47](src/nip47/README.md)**: Nostr Wallet Connect
 - **[NIP-57](src/nip57/README.md)**: Lightning Zaps
 
-
 #### Standardization Guidelines
+
 - **[NIP Implementation Guide](src/NIP_STANDARDIZATION.md)**: Standards for implementing NIPs
 - **[Test Standardization](tests/TEST_STANDARDIZATION.md)**: Guide for writing standardized tests
 - **[Example Standardization](examples/EXAMPLE_STANDARDIZATION.md)**: Guide for creating standardized examples
@@ -210,6 +216,7 @@ For more information about the test structure and methodology, see the [tests RE
 SNSTR provides numerous npm scripts to help with development, testing, and running examples:
 
 ### Build Scripts
+
 ```bash
 # Build the library
 npm run build
@@ -219,6 +226,7 @@ npm run build:examples
 ```
 
 ### Testing Scripts
+
 ```bash
 # Run all tests
 npm test
@@ -239,8 +247,8 @@ npm run test:integration   # Integration tests
 # Test specific NIP-01 components
 npm run test:nip01         # All NIP-01 tests
 npm run test:nip01:event   # Event-related tests
-npm run test:nip01:relay   # Relay-related tests 
-npm run test:nostr         # Nostr client 
+npm run test:nip01:relay   # Relay-related tests
+npm run test:nostr         # Nostr client
 npm run test:event         # Event creation and validation
 npm run test:relay         # Relay functionality
 
@@ -261,6 +269,7 @@ npm run test:nip65         # NIP-65 (Relay List Metadata)
 ```
 
 ### Example Scripts
+
 ```bash
 # Run the basic example
 npm run example
@@ -306,6 +315,7 @@ npm run example:nip65      # Relay list metadata (NIP-65)
 ```
 
 ### Code Quality Scripts
+
 ```bash
 # Run linting
 npm run lint
@@ -385,6 +395,7 @@ There are two ways to trigger a release:
 5. Click "Run workflow" to start the process
 
 This will:
+
 - Bump the version in package.json
 - Create a git tag
 - Build the project

@@ -110,6 +110,9 @@ export {
   TLVType,
 } from "./nip19";
 
+// Export NIP-21 utilities
+export { encodeNostrURI, decodeNostrURI, NOSTR_URI_PREFIX } from "./nip21";
+
 // Export NIP-05 utilities
 export {
   verifyNIP05,
