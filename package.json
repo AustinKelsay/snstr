@@ -8,17 +8,14 @@
     "// Build": "-------------- Build Commands --------------",
     "build": "rimraf dist && tsc",
     "build:examples": "tsc -p examples/tsconfig.json",
-    
     "// Lint & Format": "-------------- Code Quality --------------",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"examples/**/*.ts\"",
-     
     "// Test Main": "-------------- Main Test Commands --------------",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest tests/integration.test.ts",
-    
     "// Test Core": "-------------- Core Component Tests --------------",
     "test:nip01": "jest tests/nip01",
     "test:nip01:event": "jest tests/nip01/event",
@@ -33,16 +30,17 @@
     "test:nip01:relay:filter": "jest tests/nip01/relay/filters.test.ts",
     "test:nip01:relay:reconnect": "jest tests/nip01/relay/relay-reconnect.test.ts",
     "test:crypto:core": "jest tests/crypto.test.ts",
-    
     "// Test NIP": "-------------- NIP-specific Tests --------------",
     "test:nip02": "jest tests/nip02",
     "test:nip04": "jest tests/nip04",
     "test:nip05": "jest tests/nip05",
     "test:nip07": "jest tests/nip07",
     "test:nip09": "jest tests/nip09",
+    "test:nip10": "jest tests/nip10",
     "test:nip11": "jest tests/nip11",
     "test:nip17": "jest tests/nip17",
     "test:nip19": "jest tests/nip19",
+    "test:nip21": "jest tests/nip21",
     "test:nip44": "jest tests/nip44",
     "test:nip46": "jest tests/nip46",
     "test:nip47": "jest tests/nip47",
@@ -50,21 +48,18 @@
     "test:nip57": "jest tests/nip57",
     "test:nip65": "jest tests/nip65",
     "test:nip66": "jest tests/nip66",
-
     "// Test Groups": "-------------- Test Category Groups --------------",
     "test:all": "npm test",
     "test:core": "jest tests/nip01",
     "test:crypto": "jest tests/crypto.test.ts tests/nip04 tests/nip44",
     "test:identity": "jest tests/nip05 tests/nip07 tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57",
-     
     "// Example Basic": "-------------- Basic Examples --------------",
     "example": "ts-node examples/basic-usage.ts",
     "example:verbose": "VERBOSE=true ts-node examples/basic-usage.ts",
     "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
     "example:dm": "ts-node examples/nip04/direct-message.ts",
-    
     "// Example NIP-01": "-------------- NIP-01 Examples --------------",
     "example:nip01:event:ordering": "ts-node examples/nip01/event/event-ordering-demo.ts",
     "example:nip01:event:addressable": "ts-node examples/nip01/event/addressable-events.ts",
@@ -73,7 +68,6 @@
     "example:nip01:relay:filters": "ts-node examples/nip01/relay/filter-types.ts",
     "example:nip01:relay:reconnect": "ts-node examples/nip01/relay/relay-reconnect.ts",
     "example:nip01:validation": "ts-node examples/client/validation-flow.ts",
-     
     "// Example NIP": "-------------- Other NIP Examples --------------",
     "example:nip02": "ts-node examples/nip02/nip02-demo.ts",
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
@@ -113,7 +107,6 @@
     "example:nip57:validation": "ts-node examples/nip57/invoice-validation-example.ts",
     "example:nip65": "ts-node examples/nip65/nip65-demo.ts",
     "example:nip66": "ts-node examples/nip66/nip66-demo.ts",
-    
     "// Example Groups": "-------------- Example Category Groups --------------",
     "example:all": "npm run example",
     "example:basic": "npm run example && npm run example:crypto && npm run example:dm",
@@ -123,7 +116,6 @@
     "example:payments": "npm run example:nip47 && npm run example:nip57",
     "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling",
     "example:validation": "npm run example:nip01:validation",
-
     "// Release": "-------------- Release Commands --------------",
     "release:prepare": "npm run lint && npm test && npm run build",
     "release:patch": "npm run release:prepare && npm version patch",
@@ -131,10 +123,8 @@
     "release:major": "npm run release:prepare && npm version major",
     "release:push": "git push && git push --tags",
     "release": "npm run release:patch && npm run release:push",
-    
     "// Branch Management": "-------------- Branch Management --------------",
     "promote": "scripts/promote-to-main.sh",
-
     "// App Shortcuts": "-------------- Application Shortcuts --------------",
     "start": "npm run example:nip07"
   },

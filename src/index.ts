@@ -110,6 +110,9 @@ export {
   TLVType,
 } from "./nip19";
 
+// Export NIP-21 utilities
+export { encodeNostrURI, decodeNostrURI, NOSTR_URI_PREFIX } from "./nip21";
+
 // Export NIP-05 utilities
 export {
   verifyNIP05,
@@ -135,6 +138,15 @@ export {
   parseDeletionTargets,
   isDeletionRequestForEvent,
 } from "./nip09";
+
+// Export NIP-10 utilities
+export {
+  createReplyTags,
+  createQuoteTag,
+  parseThreadReferences,
+  ThreadPointer,
+  ThreadReferences,
+} from "./nip10";
 
 // Export NIP-07 adapter
 export { Nip07Nostr } from "./nip07/adapter";
@@ -166,6 +178,8 @@ export {
   ZapReceiptOptions,
   ZapValidationResult,
   LnurlPayResponse,
+  LnurlSuccessAction,
+  LnurlInvoiceResponse,
   ZapStats,
 } from "./nip57";
 
@@ -215,7 +229,15 @@ export {
 export { createSearchFilter } from "./nip50";
 
 // NIP-65: Relay List Metadata
-export { createRelayListEvent, parseRelayList, getReadRelays, getWriteRelays, RELAY_LIST_KIND, RelayListEntry, RelayListEvent } from "./nip65";
+export {
+  createRelayListEvent,
+  parseRelayList,
+  getReadRelays,
+  getWriteRelays,
+  RELAY_LIST_KIND,
+  RelayListEntry,
+  RelayListEvent,
+} from "./nip65";
 
 // NIP-66: Relay Discovery and Liveness Monitoring
 export {
