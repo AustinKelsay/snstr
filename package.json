@@ -40,6 +40,7 @@
     "test:nip05": "jest tests/nip05",
     "test:nip07": "jest tests/nip07",
     "test:nip09": "jest tests/nip09",
+    "test:nip10": "jest tests/nip10",
     "test:nip11": "jest tests/nip11",
     "test:nip17": "jest tests/nip17",
     "test:nip19": "jest tests/nip19",

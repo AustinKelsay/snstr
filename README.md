@@ -36,6 +36,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Browser extension integration via NIP-07
 - Remote signing capability via NIP-46
 - Lightning Zaps integration via NIP-57
+- Threaded conversations via NIP-10
 - Wallet connection via NIP-47
 - Relay list metadata via NIP-65
 - Built-in ephemeral relay for testing and development
@@ -51,6 +52,7 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-05**: DNS identifier verification and relay discovery
 - **NIP-07**: Browser extension integration for key management
 - **NIP-09**: Event deletion requests for removing published events
+- **NIP-10**: Text notes and threading metadata
 - **NIP-11**: Relay Information Document for discovering relay capabilities
 - **NIP-19**: Bech32-encoded entities for human-readable identifiers
 - **NIP-44**: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
@@ -128,6 +130,7 @@ The project is organized with detailed documentation for different components:
 - **[NIP-05](src/nip05/README.md)**: DNS identifier verification
 - **[NIP-07](src/nip07/README.md)**: Browser extension integration
 - **[NIP-09](src/nip09/README.md)**: Event deletion requests
+- **[NIP-10](src/nip10/README.md)**: Text notes and threads
 - **[NIP-11](src/nip11/README.md)**: Relay information document
 - **[NIP-19](src/nip19/README.md)**: Bech32-encoded entities
 - **[NIP-44](src/nip44/README.md)**: Versioned encryption

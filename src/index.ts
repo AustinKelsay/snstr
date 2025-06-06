@@ -136,6 +136,15 @@ export {
   isDeletionRequestForEvent,
 } from "./nip09";
 
+// Export NIP-10 utilities
+export {
+  createReplyTags,
+  createQuoteTag,
+  parseThreadReferences,
+  ThreadPointer,
+  ThreadReferences,
+} from "./nip10";
+
 // Export NIP-07 adapter
 export { Nip07Nostr } from "./nip07/adapter";
 
@@ -215,7 +224,15 @@ export {
 export { createSearchFilter } from "./nip50";
 
 // NIP-65: Relay List Metadata
-export { createRelayListEvent, parseRelayList, getReadRelays, getWriteRelays, RELAY_LIST_KIND, RelayListEntry, RelayListEvent } from "./nip65";
+export {
+  createRelayListEvent,
+  parseRelayList,
+  getReadRelays,
+  getWriteRelays,
+  RELAY_LIST_KIND,
+  RelayListEntry,
+  RelayListEvent,
+} from "./nip65";
 
 // NIP-66: Relay Discovery and Liveness Monitoring
 export {
