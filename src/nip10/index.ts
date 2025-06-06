@@ -36,10 +36,28 @@ export function createReplyTags(
 ): string[][] {
   const tags: string[][] = [];
 
-  tags.push(["e", root.id, root.relay ?? "", "root", root.pubkey ?? ""]);
+  // Build root tag conditionally
+  const rootTag = ["e", root.id];
+  if (root.relay) {
+    rootTag.push(root.relay);
+  }
+  rootTag.push("root");
+  if (root.pubkey) {
+    rootTag.push(root.pubkey);
+  }
+  tags.push(rootTag);
 
   if (reply) {
-    tags.push(["e", reply.id, reply.relay ?? "", "reply", reply.pubkey ?? ""]);
+    // Build reply tag conditionally
+    const replyTag = ["e", reply.id];
+    if (reply.relay) {
+      replyTag.push(reply.relay);
+    }
+    replyTag.push("reply");
+    if (reply.pubkey) {
+      replyTag.push(reply.pubkey);
+    }
+    tags.push(replyTag);
   }
 
   return tags;
@@ -47,7 +65,14 @@ export function createReplyTags(
 
 /** Create a "q" tag for quoting an event */
 export function createQuoteTag(pointer: ThreadPointer): string[] {
-  return ["q", pointer.id, pointer.relay ?? "", pointer.pubkey ?? ""];
+  const tag = ["q", pointer.id];
+  if (pointer.relay) {
+    tag.push(pointer.relay);
+  }
+  if (pointer.pubkey) {
+    tag.push(pointer.pubkey);
+  }
+  return tag;
 }
 
 /**

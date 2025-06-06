@@ -12,13 +12,13 @@ describe("NIP-10 utilities", () => {
       { id: "reply" },
     );
     expect(tags).toEqual([
-      ["e", "root", "wss://relay", "root", ""],
-      ["e", "reply", "", "reply", ""],
+      ["e", "root", "wss://relay", "root"],
+      ["e", "reply", "reply"],
     ]);
   });
 
   test("createQuoteTag should build q tag", () => {
-    expect(createQuoteTag({ id: "abc" })).toEqual(["q", "abc", "", ""]);
+    expect(createQuoteTag({ id: "abc" })).toEqual(["q", "abc"]);
   });
 
   test("parseThreadReferences handles marked tags", () => {
@@ -65,7 +65,24 @@ describe("NIP-10 utilities", () => {
 
   test("createReplyTags should build only root tag when no reply", () => {
     expect(createReplyTags({ id: "root" })).toEqual([
-      ["e", "root", "", "root", ""],
+      ["e", "root", "root"],
+    ]);
+  });
+
+  test("createReplyTags should include all fields when present", () => {
+    const tags = createReplyTags(
+      { id: "root", relay: "wss://relay1", pubkey: "pub1" },
+      { id: "reply", relay: "wss://relay2", pubkey: "pub2" },
+    );
+    expect(tags).toEqual([
+      ["e", "root", "wss://relay1", "root", "pub1"],
+      ["e", "reply", "wss://relay2", "reply", "pub2"],
+    ]);
+  });
+
+  test("createQuoteTag should include all fields when present", () => {
+    expect(createQuoteTag({ id: "abc", relay: "wss://relay", pubkey: "pub" })).toEqual([
+      "q", "abc", "wss://relay", "pub"
     ]);
   });
 
