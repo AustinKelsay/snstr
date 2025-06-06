@@ -4,8 +4,7 @@ import {
   Relay,
   RelayEvent,
   RelayEventCallbacks,
-  Subscription,
-  ParsedOkReason,
+  Subscription
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
