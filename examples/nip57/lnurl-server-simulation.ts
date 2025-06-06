@@ -17,6 +17,7 @@ import {
   createZapReceipt,
   validateZapReceipt,
   ZapRequestOptions,
+  LnurlInvoiceResponse,
 } from "../../src";
 
 // Import the function directly from the nip57 module
@@ -74,10 +75,6 @@ interface LnurlErrorResponse {
   reason: string;
 }
 
-interface LnurlInvoiceResponse {
-  pr: string;
-  payment_hash: string;
-}
 
 // Mock of LN infrastructure
 class MockLightningWallet {

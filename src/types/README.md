@@ -21,7 +21,7 @@ Contains the fundamental types for Nostr events and communication:
 - **`SubscriptionResponse`**: Response from a subscription operation
 - **`RelayStatus`**: Enum for relay connection statuses
 - **`NostrKind`**: Enum of standard Nostr event kinds
-- **`RelayInformation`**: Relay information document as defined in NIP-11
+- **`RelayInfo`**: Relay information document as defined in NIP-11
 - **`RelayStats`**: Statistics about a relay connection
 - **`RelayGroup`**: Group of relays with specific purposes (read, write, fallback)
 - **`WebSocketReadyState`**: Constants for WebSocket connection states
@@ -251,10 +251,10 @@ async function publishWithOptions(relay: Relay, event: NostrEvent) {
 ### Working with Relay Capabilities
 
 ```typescript
-import { RelayCapabilities, RelayInformation } from '../types/nostr';
+import { RelayCapabilities, RelayInfo } from '../types/nostr';
 
 // Parse relay information document
-function parseRelayCapabilities(info: RelayInformation): RelayCapabilities {
+function parseRelayCapabilities(info: RelayInfo): RelayCapabilities {
   return {
     supportedNips: info.supported_nips || [],
     supportsSearch: (info.supported_nips || []).includes(50),

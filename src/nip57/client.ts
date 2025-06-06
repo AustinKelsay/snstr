@@ -10,6 +10,7 @@
  */
 
 import { NostrEvent, Filter } from "../types/nostr";
+import { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 import { Nostr } from "../nip01/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
@@ -36,22 +37,6 @@ export interface ZapClientOptions {
 
   /** Default relay URLs to use when not specified explicitly */
   defaultRelays?: string[];
-}
-
-/**
- * Success action to be performed after payment
- */
-export interface LnurlSuccessAction {
-  /** Type of success action */
-  tag: string;
-  /** Action message */
-  message?: string;
-  /** URL to visit after payment */
-  url?: string;
-  /** Description of the action */
-  description?: string;
-  /** CDATA for the action */
-  cdata?: string;
 }
 
 /**
@@ -854,18 +839,6 @@ export class ZapClient {
     const splitInfo = parseZapSplit(event);
     return calculateZapSplitAmounts(totalAmount, splitInfo);
   }
-}
-
-// Define a type for LNURL invoice responses
-/**
- * LNURL invoice response
- */
-export interface LnurlInvoiceResponse {
-  pr: string;
-  payment_hash?: string;
-  successAction?: LnurlSuccessAction;
-  status?: string;
-  reason?: string;
 }
 
 export default ZapClient;
