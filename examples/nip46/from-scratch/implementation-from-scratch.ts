@@ -8,6 +8,7 @@ import {
   EventTemplate,
   NIP46Request,
   NIP46Response,
+  NIP46Method,
 } from "../../../src";
 import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
@@ -127,8 +128,40 @@ class MinimalNIP46Client {
       // Generate request ID
       const id = Math.random().toString(36).substring(2, 10);
 
+      // Convert string method to NIP46Method enum
+      let methodEnum: NIP46Method;
+      switch (method) {
+        case "connect":
+          methodEnum = NIP46Method.CONNECT;
+          break;
+        case "get_public_key":
+          methodEnum = NIP46Method.GET_PUBLIC_KEY;
+          break;
+        case "sign_event":
+          methodEnum = NIP46Method.SIGN_EVENT;
+          break;
+        case "ping":
+          methodEnum = NIP46Method.PING;
+          break;
+        case "nip04_encrypt":
+          methodEnum = NIP46Method.NIP04_ENCRYPT;
+          break;
+        case "nip04_decrypt":
+          methodEnum = NIP46Method.NIP04_DECRYPT;
+          break;
+        case "nip44_encrypt":
+          methodEnum = NIP46Method.NIP44_ENCRYPT;
+          break;
+        case "nip44_decrypt":
+          methodEnum = NIP46Method.NIP44_DECRYPT;
+          break;
+        default:
+          reject(new Error(`Unknown NIP46 method: ${method}`));
+          return;
+      }
+
       // Create request object
-      const request: NIP46Request = { id, method, params };
+      const request: NIP46Request = { id, method: methodEnum, params };
 
       // Set up timeout
       const timeout = setTimeout(() => {
