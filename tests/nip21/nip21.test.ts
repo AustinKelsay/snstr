@@ -1,4 +1,4 @@
-import { encodePublicKey, Prefix } from "../../src/nip19";
+import { encodePublicKey, Prefix, encodePrivateKey } from "../../src/nip19";
 import { encodeNostrURI, decodeNostrURI } from "../../src/nip21";
 
 describe("NIP-21: nostr URI scheme", () => {
@@ -20,7 +20,10 @@ describe("NIP-21: nostr URI scheme", () => {
   });
 
   test("encodeNostrURI rejects nsec", () => {
-    expect(() => encodeNostrURI("nsec1deadbeef" as any)).toThrow(/nsec/);
+    // Create a proper nsec using a valid private key to test rejection
+    const privateKey = "d55f1f2d59c62fb6fa5b1d88adf3e9aad291d63f9d0fcef6b5c8139a400f3dd6";
+    const nsec = encodePrivateKey(privateKey);
+    expect(() => encodeNostrURI(nsec)).toThrow(/nsec/);
   });
 
   test("decodeNostrURI rejects invalid prefix", () => {
