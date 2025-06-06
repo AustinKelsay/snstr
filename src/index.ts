@@ -24,6 +24,8 @@ export {
   verifySignature,
 } from "./utils/crypto";
 
+export { getUnixTime } from "./utils/time";
+
 export {
   createEvent,
   createAddressableEvent,

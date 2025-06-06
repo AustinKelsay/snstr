@@ -14,6 +14,7 @@ import { encrypt as encryptNIP04 } from "../nip04";
 import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
+import { getUnixTime } from "../utils/time";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 
@@ -155,7 +156,7 @@ export function createEvent(
 
   return {
     pubkey,
-    created_at: template.created_at || Math.floor(Date.now() / 1000),
+    created_at: template.created_at || getUnixTime(),
     kind: template.kind,
     tags: template.tags || [],
     content: template.content,
@@ -234,7 +235,7 @@ export function createTextNote(
 
   return {
     pubkey,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: getUnixTime(),
     kind: NostrKind.ShortNote,
     tags,
     content,
@@ -293,7 +294,7 @@ export async function createDirectMessage(
 
     return {
       pubkey,
-      created_at: Math.floor(Date.now() / 1000),
+      created_at: getUnixTime(),
       kind: NostrKind.DirectMessage,
       tags: [["p", recipientPubkey], ...tags],
       content: encryptedContent,
@@ -338,7 +339,7 @@ export function createMetadataEvent(
 
   return {
     pubkey,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: getUnixTime(),
     kind: NostrKind.Metadata,
     tags: [],
     content: JSON.stringify(metadata),
@@ -400,7 +401,7 @@ export function createAddressableEvent(
 
   return {
     pubkey,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: getUnixTime(),
     kind,
     tags,
     content,
@@ -548,7 +549,7 @@ export async function validateEvent(
 
   // 3. Validate timestamp drift if enabled
   if (maxTimestampDrift > 0) {
-    const now = Math.floor(Date.now() / 1000);
+    const now = getUnixTime();
     const drift = Math.abs(now - event.created_at);
 
     if (drift > maxTimestampDrift) {

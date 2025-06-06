@@ -1,5 +1,6 @@
 import { NostrEvent } from "../types/nostr";
 import { validateRelayUrl } from "../nip19/index";
+import { getUnixTime } from "../utils/time";
 
 /** Relay list entry describing read/write preferences */
 export interface RelayListEntry {
@@ -55,7 +56,7 @@ export function createRelayListEvent(
     kind: RELAY_LIST_KIND,
     tags,
     content,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: getUnixTime(),
   };
 }
 
