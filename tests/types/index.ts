@@ -3,8 +3,8 @@ import {
   NostrEvent,
   Relay,
   RelayEvent,
-  Subscription,
-  ParsedOkReason,
+  RelayEventCallbacks,
+  Subscription
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
@@ -110,50 +110,31 @@ export function asTestRelay(relay: Relay): RelayTestAccess {
 }
 
 /**
- * Type definitions for Relay event callbacks used in tests
+ * Type definitions for Relay event callbacks used in tests.
+ * These are aliases of the library's `RelayEventCallbacks` type
+ * for consistency and to avoid type duplication.
  */
-export type RelayConnectCallback = (relay: string) => void;
-export type RelayDisconnectCallback = (relay: string) => void;
-export type RelayErrorCallback = (relay: string, error: unknown) => void;
-export type RelayNoticeCallback = (relay: string, notice: string) => void;
-export type RelayOkCallback = (
-  eventId: string,
-  success: boolean,
-  details: ParsedOkReason,
-) => void;
-export type RelayClosedCallback = (
-  subscriptionId: string,
-  message: string,
-) => void;
-export type RelayAuthCallback = (challengeEvent: NostrEvent) => void;
+export type RelayConnectCallback = RelayEventCallbacks[RelayEvent.Connect];
+export type RelayDisconnectCallback = RelayEventCallbacks[RelayEvent.Disconnect];
+export type RelayErrorCallback = RelayEventCallbacks[RelayEvent.Error];
+export type RelayNoticeCallback = RelayEventCallbacks[RelayEvent.Notice];
+export type RelayOkCallback = RelayEventCallbacks[RelayEvent.OK];
+export type RelayClosedCallback = RelayEventCallbacks[RelayEvent.Closed];
+export type RelayAuthCallback = RelayEventCallbacks[RelayEvent.Auth];
 export type RelayEventCallback = (event: NostrEvent) => void;
 export type RelayEoseCallback = () => void;
 
 /**
  * Type for all possible relay callbacks mapped by event type
  */
-export interface RelayCallbacks {
-  [RelayEvent.Connect]: RelayConnectCallback;
-  [RelayEvent.Disconnect]: RelayDisconnectCallback;
-  [RelayEvent.Error]: RelayErrorCallback;
-  [RelayEvent.Notice]: RelayNoticeCallback;
-  [RelayEvent.OK]: RelayOkCallback;
-  [RelayEvent.Closed]: RelayClosedCallback;
-  [RelayEvent.Auth]: RelayAuthCallback;
-}
+export type RelayCallbacks = RelayEventCallbacks;
 
 /**
  * Type for captured callbacks in tests
  */
-export interface CapturedCallbacks {
-  [RelayEvent.Connect]?: RelayConnectCallback[];
-  [RelayEvent.Disconnect]?: RelayDisconnectCallback[];
-  [RelayEvent.Error]?: RelayErrorCallback[];
-  [RelayEvent.Notice]?: RelayNoticeCallback[];
-  [RelayEvent.OK]?: RelayOkCallback[];
-  [RelayEvent.Closed]?: RelayClosedCallback[];
-  [RelayEvent.Auth]?: RelayAuthCallback[];
-}
+export type CapturedCallbacks = {
+  [K in RelayEvent]?: RelayEventCallbacks[K][];
+};
 
 /**
  * Helper function to safely capture a Relay callback in tests
