@@ -14,18 +14,11 @@ import {
 import { Logger, LogLevel } from "./utils/logger";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
-
-// Helper functions for response creation
-export function createSuccessResponse(
-  id: string,
-  result: string,
-): NIP46Response {
-  return { id, result };
-}
-
-export function createErrorResponse(id: string, error: string): NIP46Response {
-  return { id, error };
-}
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from "./utils/request-response";
+import { buildConnectionString } from "./utils/connection";
 
 // Session data for connected clients
 interface ClientSession {
@@ -163,14 +156,11 @@ export class SimpleNIP46Bunker {
    * Get a connection string for clients
    */
   getConnectionString(): string {
-    const relayParams = this.relays
-      .map((relay) => `relay=${encodeURIComponent(relay)}`)
-      .join("&");
-    const secretParam = this.secret
-      ? `&secret=${encodeURIComponent(this.secret)}`
-      : "";
-
-    return `bunker://${this.signerKeys.publicKey}?${relayParams}${secretParam}`;
+    return buildConnectionString({
+      pubkey: this.signerKeys.publicKey,
+      relays: this.relays,
+      secret: this.secret,
+    });
   }
 
   /**
