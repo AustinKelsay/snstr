@@ -10,7 +10,6 @@ import {
   NIP46Request,
   NIP46Response,
   NIP46ClientOptions,
-  NIP46Metadata,
   NIP46EncryptionResult,
   NIP46Error,
   NIP46ConnectionError,
