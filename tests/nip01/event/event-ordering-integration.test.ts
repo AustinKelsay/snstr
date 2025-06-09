@@ -5,7 +5,7 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
-import { useWebSocketImplementation } from "../../../src/utils/websocket";
+import { useWebSocketImplementation, resetWebSocketImplementation } from "../../../src/utils/websocket";
 import { jest } from "@jest/globals";
 
 /**
@@ -33,7 +33,6 @@ describe("Relay Event Ordering Integration", () => {
   let relay: Relay;
   let onEventCallback: jest.Mock;
   let onEOSECallback: jest.Mock;
-  const originalWebSocket = global.WebSocket;
 
   // Type assertion function to access private members for testing
   const asTestable = (r: Relay) =>
@@ -80,8 +79,7 @@ describe("Relay Event Ordering Integration", () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
-    useWebSocketImplementation(originalWebSocket as unknown as typeof WebSocket);
-    global.WebSocket = originalWebSocket;
+    resetWebSocketImplementation();
     if (relay) {
       relay.disconnect();
     }

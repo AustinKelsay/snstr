@@ -1,5 +1,5 @@
 import { Relay } from "../../../src";
-import { useWebSocketImplementation } from "../../../src/utils/websocket";
+import { useWebSocketImplementation, resetWebSocketImplementation } from "../../../src/utils/websocket";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -27,15 +27,13 @@ class MockWebSocket {
 }
 
 describe("useWebSocketImplementation", () => {
-  const OriginalWS = global.WebSocket;
-
   beforeEach(() => {
     MockWebSocket.instances.length = 0;
     useWebSocketImplementation(MockWebSocket as unknown as typeof WebSocket);
   });
 
   afterEach(() => {
-    useWebSocketImplementation(OriginalWS as unknown as typeof WebSocket);
+    resetWebSocketImplementation();
   });
 
   test("Relay.connect should use injected WebSocket", async () => {
