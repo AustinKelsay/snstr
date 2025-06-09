@@ -119,6 +119,29 @@ main().catch(console.error);
 
 For more examples including encryption, relay management, and NIP-specific features, see the [examples directory](./examples/README.md).
 
+### Custom WebSocket Implementation
+
+SNSTR relies on `websocket-polyfill` when running in Node.js. If you want to provide your own `WebSocket` class (for example when using a different runtime), you can set it with `useWebSocketImplementation`:
+
+```typescript
+-import { useWebSocketImplementation } from "snstr/utils/websocket";
++import { useWebSocketImplementation } from "snstr";
+import WS from "isomorphic-ws";
+
+useWebSocketImplementation(WS);
+```
+
+**Note**: To run the custom WebSocket example (`npm run example:custom-websocket`), you need to install a WebSocket package first:
+
+```bash
+# Install the ws package (used in the example)
+npm install ws
+npm install --save-dev @types/ws
+
+# Or use isomorphic-ws for cross-platform compatibility
+npm install isomorphic-ws
+```
+
 ## Documentation
 
 The project is organized with detailed documentation for different components:

@@ -6,11 +6,17 @@ This directory contains example code demonstrating how to use the SNSTR library 
 
 All examples can be run using npm scripts. Here's how to use them:
 
+**Note**: The custom WebSocket example requires installing the `ws` package first:
+```bash
+npm install ws @types/ws
+```
+
 ````bash
 # Basic usage examples
 npm run example                # Basic usage with ephemeral relay
 npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
+npm run example:custom-websocket # Use a custom WebSocket implementation (requires 'ws' package)
 
 # Crypto examples
 npm run example:crypto         # Cryptography examples (key generation, signing, verification)

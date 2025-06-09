@@ -1,4 +1,4 @@
-import "websocket-polyfill";
+import { getWebSocketImplementation } from "../utils/websocket";
 import {
   NostrEvent,
   Filter,
@@ -73,7 +73,8 @@ export class Relay {
     // Create the connection promise
     const connectionPromise = new Promise<boolean>((resolve, reject) => {
       try {
-        this.ws = new WebSocket(this.url);
+        const WS = getWebSocketImplementation();
+        this.ws = new WS(this.url);
 
         // Set up connection timeout
         const timeoutId = setTimeout(() => {
