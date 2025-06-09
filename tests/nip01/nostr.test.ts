@@ -271,6 +271,26 @@ describe("Nostr Client", () => {
       }).not.toThrow();
     });
 
+    test("should forward autoClose option to relays", async () => {
+      await client.connectToRelays();
+
+      const subIds = client.subscribe(
+        [{ kinds: [1] }],
+        () => {},
+        undefined,
+        { autoClose: true },
+      );
+
+      const relayMap = getNostrInternals(client).relays as Map<string, Relay>;
+      const relay = Array.from(relayMap.values())[0] as Relay;
+
+      expect(relay.getSubscriptionIds().has(subIds[0])).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(relay.getSubscriptionIds().size).toBe(0);
+    });
+
     // Add test for unsubscribeAll() method
     test("should properly close all subscriptions with unsubscribeAll", async () => {
       // Start ephemeral relay

@@ -1,5 +1,11 @@
 import { Relay } from "./relay";
-import { NostrEvent, Filter, RelayEvent, ParsedOkReason } from "../types/nostr";
+import {
+  NostrEvent,
+  Filter,
+  RelayEvent,
+  ParsedOkReason,
+  SubscriptionOptions,
+} from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { decrypt as decryptNIP04 } from "../nip04";
 import {
@@ -408,6 +414,7 @@ export class Nostr {
     filters: Filter[],
     onEvent: (event: NostrEvent, relay: string) => void,
     onEOSE?: () => void,
+    options: SubscriptionOptions = {},
   ): string[] {
     const subscriptionIds: string[] = [];
 
@@ -416,6 +423,7 @@ export class Nostr {
         filters,
         (event) => onEvent(event, url),
         onEOSE,
+        options,
       );
       subscriptionIds.push(id);
     });

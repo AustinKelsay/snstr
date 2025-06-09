@@ -8,6 +8,7 @@ import {
   ParsedOkReason,
 } from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { WebSocketServer } from "ws";
 import {
   asTestRelay,
   RelayConnectCallback,
@@ -525,6 +526,55 @@ describe("Relay", () => {
 
       // Cleanup
       relay.disconnect();
+    });
+
+    test("should auto unsubscribe on EOSE when autoClose is true", async () => {
+      const relay = new Relay(ephemeralRelay.url);
+      await relay.connect();
+
+      const subId = relay.subscribe(
+        [{ kinds: [1], limit: 1 }],
+        () => {},
+        undefined,
+        { autoClose: true },
+      );
+
+      expect(relay.getSubscriptionIds().has(subId)).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(relay.getSubscriptionIds().has(subId)).toBe(false);
+
+      relay.disconnect();
+    });
+
+    test("should auto unsubscribe after timeout if EOSE not received", async () => {
+      const server = new WebSocketServer({ port: 0 });
+      await new Promise((res) => server.on("listening", res));
+      const address = server.address() as import("net").AddressInfo;
+      const port = address.port;
+      server.on("connection", (ws) => {
+        ws.on("message", () => {}); // ignore
+      });
+
+      const relay = new Relay(`ws://localhost:${port}`);
+      await relay.connect();
+
+      const subId = relay.subscribe(
+        [{ kinds: [1] }],
+        () => {},
+        undefined,
+        { autoClose: true, eoseTimeout: 50 },
+      );
+
+      expect(relay.getSubscriptionIds().has(subId)).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(relay.getSubscriptionIds().has(subId)).toBe(false);
+
+      relay.disconnect();
+      await new Promise((res) => server.close(res));
     });
   });
 

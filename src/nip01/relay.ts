@@ -10,6 +10,7 @@ import {
   PublishResponse,
   NIP20Prefix,
   ParsedOkReason,
+  SubscriptionOptions,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 import { NostrValidationError } from "./event";
@@ -489,6 +490,7 @@ export class Relay {
     filters: Filter[],
     onEvent: (event: NostrEvent) => void,
     onEOSE?: () => void,
+    options: SubscriptionOptions = {},
   ): string {
     const id = Math.random().toString(36).substring(2, 15);
 
@@ -517,7 +519,14 @@ export class Relay {
       filters,
       onEvent,
       onEOSE,
+      options,
     };
+
+    if (options.autoClose && options.eoseTimeout && options.eoseTimeout > 0) {
+      subscription.eoseTimer = setTimeout(() => {
+        this.unsubscribe(id);
+      }, options.eoseTimeout);
+    }
 
     this.subscriptions.set(id, subscription);
     this.eventBuffers.set(id, []); // Initialize an empty event buffer for this subscription
@@ -531,7 +540,11 @@ export class Relay {
   }
 
   public unsubscribe(id: string): void {
-    if (!this.subscriptions.has(id)) return;
+    const subscription = this.subscriptions.get(id);
+    if (!subscription) return;
+    if (subscription.eoseTimer) {
+      clearTimeout(subscription.eoseTimer);
+    }
     this.subscriptions.delete(id);
     this.eventBuffers.delete(id); // Clean up the event buffer for this subscription
 
@@ -605,6 +618,9 @@ export class Relay {
           const subscription = this.subscriptions.get(subscriptionId);
           if (subscription && subscription.onEOSE) {
             subscription.onEOSE();
+          }
+          if (subscription && subscription.options?.autoClose) {
+            this.unsubscribe(subscriptionId);
           }
         }
         break;

@@ -33,6 +33,9 @@ npm run example:nip01:relay:pool
 # Filter types and subscription handling
 npm run example:nip01:relay:filters
 
+# Automatically close subscriptions
+npm run example:nip01:relay:auto-close
+
 # Relay reconnection with exponential backoff
 npm run example:nip01:relay:reconnect
 ```
@@ -56,6 +59,7 @@ npm run example:nip01:validation  # Located in examples/client/validation-flow.t
 
   - `relay-connection.ts` - Connection management with error handling and timeout configuration
   - `filter-types.ts` - Different filter types for subscription and event retrieval
+  - `auto-unsubscribe-example.ts` - Automatic subscription cleanup on EOSE or timeout
   - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
   - `relay-pool.ts` - Manage multiple relays with RelayPool
 

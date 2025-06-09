@@ -38,6 +38,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Identity verification with NIP-05 DNS-based identifiers
 - Browser extension integration via NIP-07
 - Remote signing capability via NIP-46
+- Automatic subscription cleanup with `autoClose` option
 - Lightning Zaps integration via NIP-57
 - Threaded conversations via NIP-10
 - Wallet connection via NIP-47
@@ -105,6 +106,8 @@ async function main() {
     (event, relay) => {
       console.log(`Received event from ${relay}:`, event);
     },
+    undefined,
+    { autoClose: true, eoseTimeout: 5000 },
   );
 
   // Cleanup
