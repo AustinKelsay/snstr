@@ -137,4 +137,153 @@ describe("RelayPool", () => {
 
     expect(event).toBeNull();
   });
+
+  test("should handle partial relay failures gracefully", async () => {
+    const pool = new RelayPool([relay1.url, relay2.url]);
+    const keys = await generateKeypair();
+
+    // Subscribe to mix of working and non-working relays
+    const badRelayUrl = "ws://localhost:9999"; // Non-existent relay
+    const received: NostrEvent[] = [];
+    let eoseReceived = false;
+
+    const sub = await pool.subscribe(
+      [relay1.url, badRelayUrl, relay2.url],
+      [{ kinds: [1] }],
+      (event) => {
+        received.push(event);
+      },
+      () => {
+        eoseReceived = true;
+      },
+    );
+
+    // Publish events to working relays
+    const testEvent = await createSignedEvent(createTextNote("partial failure test", keys.privateKey), keys.privateKey);
+    await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    sub.close();
+
+    // Should still receive events from working relays
+    expect(received.length).toBeGreaterThan(0);
+    expect(eoseReceived).toBe(true); // EOSE should fire from successful relays
+  });
+
+  test("should immediately close subscriptions without waiting", async () => {
+    const pool = new RelayPool([relay1.url, relay2.url]);
+    const keys = await generateKeypair();
+
+    const received: NostrEvent[] = [];
+    const sub = await pool.subscribe(
+      [relay1.url, relay2.url],
+      [{ kinds: [1] }],
+      (event) => {
+        received.push(event);
+      },
+    );
+
+    // Close immediately after subscribing
+    const startTime = Date.now();
+    sub.close();
+    const closeTime = Date.now() - startTime;
+
+    // Close should be immediate (< 50ms)
+    expect(closeTime).toBeLessThan(50);
+
+    // Verify no events are processed after close
+    const testEvent = await createSignedEvent(createTextNote("after close test", keys.privateKey), keys.privateKey);
+    await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
+    
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    
+    // Should not receive the event published after close
+    const afterCloseEvents = received.filter(e => e.content === "after close test");
+    expect(afterCloseEvents).toHaveLength(0);
+  });
+
+  test("should handle event processing errors gracefully", async () => {
+    const pool = new RelayPool([relay1.url, relay2.url]);
+    const keys = await generateKeypair();
+
+    const received: NostrEvent[] = [];
+    const errors: Error[] = [];
+
+    // Mock console.warn to capture error logs
+    const originalWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      if (args[0] && args[0].includes('Error processing event')) {
+        errors.push(new Error(args[0]));
+      }
+    };
+
+    const sub = await pool.subscribe(
+      [relay1.url, relay2.url],
+      [{ kinds: [1] }],
+      (event) => {
+        received.push(event);
+        // Throw error on specific event to test error handling
+        if (event.content === "error event") {
+          throw new Error("Test event processing error");
+        }
+      },
+    );
+
+    // Publish normal event and error-triggering event
+    const normalEvent = await createSignedEvent(createTextNote("normal event", keys.privateKey), keys.privateKey);
+    const errorEvent = await createSignedEvent(createTextNote("error event", keys.privateKey), keys.privateKey);
+
+    await Promise.all(pool.publish([relay1.url], normalEvent));
+    await Promise.all(pool.publish([relay2.url], errorEvent));
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    sub.close();
+
+    // Restore console.warn
+    console.warn = originalWarn;
+
+    // Should have received both events even though one caused an error
+    expect(received.length).toBe(2);
+    expect(received.some(e => e.content === "normal event")).toBe(true);
+    expect(received.some(e => e.content === "error event")).toBe(true);
+    
+    // Should have logged the error
+    expect(errors.length).toBeGreaterThan(0);
+  });
+
+  test("should handle multiple close calls safely", async () => {
+    const pool = new RelayPool([relay1.url, relay2.url]);
+    
+    const sub = await pool.subscribe(
+      [relay1.url, relay2.url],
+      [{ kinds: [1] }],
+      () => {},
+    );
+
+    // Multiple close calls should not cause errors
+    expect(() => {
+      sub.close();
+      sub.close();
+      sub.close();
+    }).not.toThrow();
+  });
+
+  test("should work with only invalid relays", async () => {
+    const pool = new RelayPool();
+    
+    // Subscribe to only non-existent relays
+    const sub = await pool.subscribe(
+      ["ws://localhost:9999", "ws://localhost:9998"],
+      [{ kinds: [1] }],
+      () => {},
+      () => {
+        // EOSE should not be called since no relays succeeded
+      },
+    );
+
+    // Should complete without throwing errors
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    
+    expect(() => sub.close()).not.toThrow();
+  });
 });

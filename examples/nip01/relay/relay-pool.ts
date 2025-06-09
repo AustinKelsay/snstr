@@ -66,6 +66,41 @@ async function main() {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   sub.close();
 
+  console.log("\nDemonstrating error handling with mixed relay availability...");
+  const receivedWithErrors: Record<string, NostrEvent[]> = {};
+  let eoseWithErrorsReceived = false;
+
+  // Add a non-existent relay to test error handling
+  const mixedRelays = [...relayUrls, "ws://localhost:9999"];
+  
+  const errorSub = await pool.subscribe(
+    mixedRelays,
+    [{ kinds: [1], since: event.created_at - 60 }],
+    (ev, relay) => {
+      receivedWithErrors[relay] = receivedWithErrors[relay] || [];
+      receivedWithErrors[relay].push(ev);
+      console.log(`Received from ${relay}: ${ev.content}`);
+    },
+    () => {
+      eoseWithErrorsReceived = true;
+      console.log("EOSE from available relays (some relays failed)");
+    },
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  
+  console.log("Testing immediate close capability...");
+  const immediateCloseStart = Date.now();
+  errorSub.close();
+  const immediateCloseTime = Date.now() - immediateCloseStart;
+  console.log(`Subscription closed immediately in ${immediateCloseTime}ms`);
+
+  // Demonstrate that the subscription continues to work despite some relay failures
+  if (eoseWithErrorsReceived) {
+    const workingRelayCount = Object.keys(receivedWithErrors).length;
+    console.log(`Successfully subscribed to ${workingRelayCount} out of ${mixedRelays.length} relays`);
+  }
+
   console.log("\nDemonstrating querySync - fetching recent events...");
   const recentEvents = await pool.querySync(
     relayUrls,
