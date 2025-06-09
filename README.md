@@ -124,7 +124,8 @@ For more examples including encryption, relay management, and NIP-specific featu
 SNSTR relies on `websocket-polyfill` when running in Node.js. If you want to provide your own `WebSocket` class (for example when using a different runtime), you can set it with `useWebSocketImplementation`:
 
 ```typescript
-import { useWebSocketImplementation } from "snstr/utils/websocket";
+-import { useWebSocketImplementation } from "snstr/utils/websocket";
++import { useWebSocketImplementation } from "snstr";
 import WS from "isomorphic-ws";
 
 useWebSocketImplementation(WS);
