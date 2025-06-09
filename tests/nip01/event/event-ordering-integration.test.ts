@@ -5,6 +5,7 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
+import { useWebSocketImplementation } from "../../../src/utils/websocket";
 import { jest } from "@jest/globals";
 
 /**
@@ -32,6 +33,7 @@ describe("Relay Event Ordering Integration", () => {
   let relay: Relay;
   let onEventCallback: jest.Mock;
   let onEOSECallback: jest.Mock;
+  const originalWebSocket = global.WebSocket;
 
   // Type assertion function to access private members for testing
   const asTestable = (r: Relay) =>
@@ -63,6 +65,7 @@ describe("Relay Event Ordering Integration", () => {
     global.WebSocket = jest.fn(
       () => mockSocketInstance,
     ) as unknown as typeof WebSocket;
+    useWebSocketImplementation(global.WebSocket as unknown as typeof WebSocket);
 
     // Create a relay with a 50ms buffer flush delay
     relay = new Relay("wss://test-relay.com", { bufferFlushDelay: 50 });
@@ -77,6 +80,8 @@ describe("Relay Event Ordering Integration", () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    useWebSocketImplementation(originalWebSocket as unknown as typeof WebSocket);
+    global.WebSocket = originalWebSocket;
     if (relay) {
       relay.disconnect();
     }

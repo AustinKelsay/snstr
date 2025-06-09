@@ -58,6 +58,7 @@
     "example": "ts-node examples/basic-usage.ts",
     "example:verbose": "VERBOSE=true ts-node examples/basic-usage.ts",
     "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
+    "example:custom-websocket": "ts-node examples/custom-websocket.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
     "example:dm": "ts-node examples/nip04/direct-message.ts",
     "// Example NIP-01": "-------------- NIP-01 Examples --------------",

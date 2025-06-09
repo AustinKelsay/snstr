@@ -11,6 +11,7 @@ All examples can be run using npm scripts. Here's how to use them:
 npm run example                # Basic usage with ephemeral relay
 npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
+npm run example:custom-websocket # Use a custom WebSocket implementation
 
 # Crypto examples
 npm run example:crypto         # Cryptography examples (key generation, signing, verification)
