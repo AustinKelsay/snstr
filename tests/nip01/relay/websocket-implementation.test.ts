@@ -12,13 +12,13 @@ class MockWebSocket {
     MockWebSocket.instances.push(this);
     setTimeout(() => {
       this.readyState = MockWebSocket.OPEN;
-      this.onopen && this.onopen();
+      this.onopen?.();
     }, 0);
   }
   send(_data: string) {}
   close() {
     this.readyState = MockWebSocket.CLOSED;
-    this.onclose && this.onclose();
+    this.onclose?.();
   }
   static CONNECTING = 0;
   static OPEN = 1;

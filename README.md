@@ -130,6 +130,17 @@ import WS from "isomorphic-ws";
 useWebSocketImplementation(WS);
 ```
 
+**Note**: To run the custom WebSocket example (`npm run example:custom-websocket`), you need to install a WebSocket package first:
+
+```bash
+# Install the ws package (used in the example)
+npm install ws
+npm install --save-dev @types/ws
+
+# Or use isomorphic-ws for cross-platform compatibility
+npm install isomorphic-ws
+```
+
 ## Documentation
 
 The project is organized with detailed documentation for different components:

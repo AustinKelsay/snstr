@@ -8,6 +8,11 @@
  * - Providing a different WebSocket constructor
  * - Establishing a connection with Relay using the custom WebSocket
  *
+ * Prerequisites:
+ * Install the ws package before running this example:
+ * npm install ws
+ * npm install --save-dev @types/ws
+ *
  * How to run:
  * npm run example:custom-websocket
  */
