@@ -22,6 +22,7 @@ npm run example:nip01:event:replaceable    # Replaceable events (kinds 0, 3, 100
 npm run example:nip01:relay:connection     # Relay connection with timeout handling
 npm run example:nip01:relay:reconnect      # Relay reconnection with exponential backoff
 npm run example:nip01:relay:filters        # Filter type examples
+npm run example:nip01:relay:auto-close     # Subscription auto-unsubscribe example
 npm run example:nip01:validation           # NIP-01 validation flow
 
 # NIP-02 Examples (Contact Lists)
@@ -154,6 +155,7 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
     - `relay-connection.ts` - Connection management with error handling and timeout configuration
     - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
     - `filter-types.ts` - Filter type examples for event retrieval optimization
+    - `auto-unsubscribe-example.ts` - Demonstrates automatic subscription cleanup
 - `/client` - Client-related examples
   - `validation-flow.ts` - NIP-01 validation flow for event verification
 - `/nip02` - [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) (Contact Lists) examples
