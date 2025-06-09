@@ -66,7 +66,34 @@ async function main() {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   sub.close();
 
+  console.log("\nDemonstrating querySync - fetching recent events...");
+  const recentEvents = await pool.querySync(
+    relayUrls,
+    { kinds: [1], since: Math.floor(Date.now() / 1000) - 300 }, // Last 5 minutes
+    { timeout: 2000 }
+  );
+  console.log(`Found ${recentEvents.length} recent events via querySync`);
+
+  console.log("\nDemonstrating get - fetching most recent event...");
+  const latestEvent = await pool.get(
+    relayUrls,
+    { kinds: [1] },
+    { timeout: 2000 }
+  );
+  if (latestEvent) {
+    console.log(`Most recent event: "${latestEvent.content}" (${new Date(latestEvent.created_at * 1000).toISOString()})`);
+  } else {
+    console.log("No events found");
+  }
+
+  // Close relay pool connections before shutting down ephemeral relays
+  console.log("\nClosing relay pool connections...");
+  pool.close();
+
   if (USE_EPHEMERAL) {
+    // Give a moment for connections to close gracefully
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    console.log("Shutting down ephemeral relays...");
     ephemeralRelays.forEach((r) => r.close());
   }
 }

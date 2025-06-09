@@ -103,27 +103,29 @@ export class RelayPool {
     filter: Filter,
     options: { timeout?: number } = {},
   ): Promise<NostrEvent[]> {
-    return new Promise(async (resolve) => {
+    return new Promise((resolve) => {
       const events: NostrEvent[] = [];
       let timer: NodeJS.Timeout | null = null;
+      let sub: { close: () => void } | null = null;
 
-      const sub = await this.subscribe(
+      this.subscribe(
         relays,
         [filter],
         (ev) => events.push(ev),
         () => {
           if (timer) clearTimeout(timer);
-          sub.close();
+          if (sub) sub.close();
           resolve(events);
         },
-      );
-
-      if (options.timeout && options.timeout > 0) {
-        timer = setTimeout(() => {
-          sub.close();
-          resolve(events);
-        }, options.timeout);
-      }
+      ).then((subscription) => {
+        sub = subscription;
+        if (options.timeout && options.timeout > 0) {
+          timer = setTimeout(() => {
+            if (sub) sub.close();
+            resolve(events);
+          }, options.timeout);
+        }
+      });
     });
   }
 
