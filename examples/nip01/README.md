@@ -27,6 +27,9 @@ npm run example:nip01:event:replaceable
 # Relay connection with timeout handling
 npm run example:nip01:relay:connection
 
+# RelayPool multi-relay demo
+npm run example:nip01:relay:pool
+
 # Filter types and subscription handling
 npm run example:nip01:relay:filters
 
@@ -44,14 +47,17 @@ npm run example:nip01:validation  # Located in examples/client/validation-flow.t
 ## Directory Structure
 
 - `/event` - Event-related examples
+
   - `event-ordering-demo.ts` - Demonstrates event ordering with timestamp and lexicographic ordering
   - `addressable-events.ts` - Shows how to work with addressable events (kinds 30000-39999)
   - `replaceable-events.ts` - Demonstrates replaceable events (kinds 0, 3, 10000-19999)
 
 - `/relay` - Relay-related examples
+
   - `relay-connection.ts` - Connection management with error handling and timeout configuration
   - `filter-types.ts` - Different filter types for subscription and event retrieval
   - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
+  - `relay-pool.ts` - Manage multiple relays with RelayPool
 
 - Related examples in other directories:
   - `examples/client/validation-flow.ts` - NIP-01 event validation process
@@ -80,4 +86,4 @@ The examples in this directory demonstrate both basic and advanced usage pattern
 - Creating complex filter combinations
 - Handling event ordering with non-monotonic timestamps
 - Implementing proper reconnection backoff strategies
-- Managing subscription lifecycles 
+- Managing subscription lifecycles

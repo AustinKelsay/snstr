@@ -6,7 +6,7 @@ This directory contains example code demonstrating how to use the SNSTR library 
 
 All examples can be run using npm scripts. Here's how to use them:
 
-```bash
+````bash
 # Basic usage examples
 npm run example                # Basic usage with ephemeral relay
 npm run example:verbose        # Basic usage with verbose logging
@@ -22,6 +22,7 @@ npm run example:nip01:event:addressable    # Addressable events (kinds 30000-399
 npm run example:nip01:event:replaceable    # Replaceable events (kinds 0, 3, 10000-19999)
 npm run example:nip01:relay:connection     # Relay connection with timeout handling
 npm run example:nip01:relay:reconnect      # Relay reconnection with exponential backoff
+npm run example:nip01:relay:pool           # RelayPool multi-relay demo
 npm run example:nip01:relay:filters        # Filter type examples
 npm run example:nip01:validation           # NIP-01 validation flow
 
@@ -55,7 +56,7 @@ npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
 npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
 npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
-```
+````
 
 ## NIP-07 Examples
 
@@ -154,6 +155,7 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `/relay` - Relay-related examples
     - `relay-connection.ts` - Connection management with error handling and timeout configuration
     - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
+    - `relay-pool.ts` - Manage multiple relays with RelayPool
     - `filter-types.ts` - Filter type examples for event retrieval optimization
 - `/client` - Client-related examples
   - `validation-flow.ts` - NIP-01 validation flow for event verification
