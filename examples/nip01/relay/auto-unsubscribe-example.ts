@@ -39,7 +39,7 @@ async function main() {
   console.log(`Subscription created with id ${subId}`);
 
   // publish a simple event so the relay sends EOSE
-  await relay.publishEvent({
+  await relay.publish({
     id: "0".repeat(64),
     pubkey: "0".repeat(64),
     created_at: Math.floor(Date.now() / 1000),
