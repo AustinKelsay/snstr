@@ -306,12 +306,3 @@ export function extractLnurlMetadata(
   }
 }
 
-export default {
-  fetchLnurlPayMetadata,
-  supportsNostrZaps,
-  decodeLnurl,
-  buildZapCallbackUrl,
-  extractLnurlMetadata,
-  parseBolt11Invoice,
-  getLightningAddressUrl,
-};

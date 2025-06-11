@@ -448,13 +448,3 @@ export function parseLnurlPayResponse(
   };
 }
 
-export default {
-  ZAP_REQUEST_KIND,
-  ZAP_RECEIPT_KIND,
-  createZapRequest,
-  createZapReceipt,
-  validateZapReceipt,
-  parseZapSplit,
-  calculateZapSplitAmounts,
-  parseLnurlPayResponse,
-};
