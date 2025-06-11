@@ -507,6 +507,75 @@ export class Nostr {
     });
   }
 
+  /**
+   * Collect events matching the given filters from all connected relays.
+   *
+   * @param filters Array of filters to apply
+   * @param options Optional max wait time in milliseconds
+   * @returns Promise resolving to all received events
+   */
+  public async fetchMany(
+    filters: Filter[],
+    options?: { maxWait?: number },
+  ): Promise<NostrEvent[]> {
+    if (this.relays.size === 0) return [];
+
+    return new Promise((resolve) => {
+      const events: NostrEvent[] = [];
+      let eoseCount = 0;
+
+      const subIds = this.subscribe(
+        filters,
+        (event) => {
+          events.push(event);
+        },
+        () => {
+          eoseCount++;
+          if (eoseCount >= this.relays.size) {
+            cleanup();
+          }
+        },
+      );
+
+      let timeoutId: NodeJS.Timeout | null = null;
+      const cleanup = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        this.unsubscribe(subIds);
+        resolve(events);
+      };
+
+      if (options?.maxWait && options.maxWait > 0) {
+        timeoutId = setTimeout(cleanup, options.maxWait);
+      }
+    });
+  }
+
+  /**
+   * Retrieve the newest single event matching the filters from all relays.
+   *
+   * @param filters Filters to apply (limit will be forced to 1)
+   * @param options Optional max wait time in milliseconds
+   * @returns The newest matching event or null
+   */
+  public async fetchOne(
+    filters: Filter[],
+    options?: { maxWait?: number },
+  ): Promise<NostrEvent | null> {
+    const limitedFilters = filters.map((f) => ({ ...f, limit: 1 }));
+    const events = await this.fetchMany(limitedFilters, options);
+
+    if (events.length === 0) return null;
+
+    events.sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return b.created_at - a.created_at;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    return events[0];
+  }
+
   // Define overloads for each event type with proper parameter typing
   public on(
     event: RelayEvent.Connect | RelayEvent.Disconnect,
