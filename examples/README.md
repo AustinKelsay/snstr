@@ -30,6 +30,7 @@ npm run example:nip01:relay:reconnect      # Relay reconnection with exponential
 npm run example:nip01:relay:pool           # RelayPool multi-relay demo
 npm run example:nip01:relay:filters        # Filter type examples
 npm run example:nip01:relay:auto-close     # Subscription auto-unsubscribe example
+npm run example:nip01:relay:query          # Pooled fetchOne/fetchMany demo
 npm run example:nip01:validation           # NIP-01 validation flow
 
 # NIP-02 Examples (Contact Lists)

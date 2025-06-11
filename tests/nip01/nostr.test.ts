@@ -271,7 +271,7 @@ describe("Nostr Client", () => {
       expect(() => {
         client.unsubscribe(subIds);
       }).not.toThrow();
-    });
+  });
 
     test("should forward autoClose option to relays", async () => {
       await client.connectToRelays();
@@ -337,6 +337,97 @@ describe("Nostr Client", () => {
       client.disconnectFromRelays();
       await mockRelay.close();
       unsubscribeSpy.mockRestore();
+    });
+  });
+
+  describe("Fetch helpers", () => {
+    test("fetchMany should return empty array when no relays", async () => {
+      const emptyClient = new Nostr();
+      const events = await emptyClient.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+      expect(events).toEqual([]);
+    });
+
+    test("fetchMany should retrieve events matching a filter", async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      await client.publishTextNote("note-one");
+      await client.publishTextNote("note-two");
+
+      // Give the relay time to store the events
+      await new Promise((r) => setTimeout(r, 100));
+
+      const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 500 });
+
+      const contents = events.map((e) => e.content);
+      expect(contents).toEqual(expect.arrayContaining(["note-one", "note-two"]));
+    });
+
+    test("fetchOne should return the newest event", async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      await client.publishTextNote("first-note");
+      await new Promise((r) => setTimeout(r, 1100));
+      await client.publishTextNote("second-note");
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      const event = await client.fetchOne([{ kinds: [1] }], { maxWait: 500 });
+
+      expect(event).not.toBeNull();
+      expect(event?.content).toBe("second-note");
+    });
+
+    test("fetchMany should collect events from multiple relays and clean up", async () => {
+      const relayA = new NostrRelay(3601);
+      const relayB = new NostrRelay(3602);
+      await relayA.start();
+      await relayB.start();
+
+      const multi = new Nostr([relayA.url, relayB.url]);
+      await multi.generateKeys();
+      await multi.connectToRelays();
+
+      await multi.publishTextNote("multi-note");
+      await new Promise((r) => setTimeout(r, 100));
+
+      const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 500 });
+      expect(events.length).toBeGreaterThanOrEqual(2);
+
+      // ensure subscriptions cleaned up
+      getNostrInternals(multi).relays.forEach((relay) => {
+        const testRelay = asTestRelay(relay as Relay);
+        expect(testRelay.getSubscriptionIds().size).toBe(0);
+      });
+
+      multi.disconnectFromRelays();
+      await relayA.close();
+      await relayB.close();
+    });
+
+    test("fetchOne should return newest event across relays", async () => {
+      const relayA = new NostrRelay(3603);
+      const relayB = new NostrRelay(3604);
+      await relayA.start();
+      await relayB.start();
+
+      const multi = new Nostr([relayA.url, relayB.url]);
+      await multi.generateKeys();
+      await multi.connectToRelays();
+
+      await multi.publishTextNote("old-note");
+      await new Promise((r) => setTimeout(r, 1100));
+      await multi.publishTextNote("new-note");
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      const latest = await multi.fetchOne([{ kinds: [1] }], { maxWait: 500 });
+      expect(latest?.content).toBe("new-note");
+
+      multi.disconnectFromRelays();
+      await relayA.close();
+      await relayB.close();
     });
   });
 });
