@@ -63,7 +63,10 @@ export function createRelayDiscoveryEvent(
     throw new Error("Valid relay URL is required");
   }
 
-  if (!isValidRelayUrl(options.relay)) {
+  // Trim and normalize the relay URL
+  const trimmedRelay = options.relay.trim();
+
+  if (!isValidRelayUrl(trimmedRelay)) {
     throw new Error("Relay URL must start with ws:// or wss:// and be valid");
   }
   
@@ -191,7 +194,7 @@ export function createRelayDiscoveryEvent(
     }
   }
   
-  const tags: string[][] = [["d", options.relay]];
+  const tags: string[][] = [["d", trimmedRelay]];
 
   if (options.network) tags.push(["n", options.network]);
   if (options.relayType) tags.push(["T", options.relayType]);

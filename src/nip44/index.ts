@@ -170,7 +170,30 @@ function unpad(padded: Uint8Array): string {
  * Must be lowercase hex as per Nostr conventions
  */
 export function isValidPublicKeyFormat(publicKey: string): boolean {
-  return /^[0-9a-f]{64}$/.test(publicKey);
+  // Check format: must be 64 hex characters (lowercase only)
+  if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+    return false;
+  }
+
+  try {
+    // For Nostr x-only public keys, we need to try both possible y-coordinates
+    // to verify the x-coordinate represents a valid point on the secp256k1 curve
+    try {
+      // Try with '02' prefix (even y-coordinate)
+      secp256k1.getSharedSecret("0000000000000000000000000000000000000000000000000000000000000001", "02" + publicKey);
+      return true;
+    } catch {
+      try {
+        // Try with '03' prefix (odd y-coordinate)
+        secp256k1.getSharedSecret("0000000000000000000000000000000000000000000000000000000000000001", "03" + publicKey);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  } catch {
+    return false;
+  }
 }
 
 /**
