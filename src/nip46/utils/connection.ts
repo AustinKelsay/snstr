@@ -18,6 +18,8 @@ export function buildConnectionString(options: BuildConnectionStringOptions): st
 
 import { NIP46ConnectionError } from "../types";
 import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
+import { isValidPublicKeyFormat } from "../../nip44";
+import { isValidRelayUrl } from "../../nip19";
 
 /**
  * Parse a bunker or nostrconnect connection string.
@@ -34,13 +36,16 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     const type = url.protocol === "bunker:" ? "bunker" : "nostrconnect";
     const pubkey = url.hostname;
 
-    if (!pubkey || pubkey.length !== 64) {
+    if (!isValidPublicKeyFormat(pubkey)) {
       throw new NIP46ConnectionError(
         "Invalid signer public key in connection string",
       );
     }
 
-    const relays = url.searchParams.getAll("relay");
+    const relays = url
+      .searchParams
+      .getAll("relay")
+      .filter(isValidRelayUrl);
     const secret = url.searchParams.get("secret") || undefined;
     const permissions = url.searchParams.get("perms")?.split(",");
 

@@ -7,6 +7,7 @@ import {
   NostrEoseMessage,
 } from "../types/protocol";
 import { validateEvent } from "../nip01/event";
+import { isValidPublicKeyFormat } from "../nip44";
 
 /* ================ [ Configuration ] ================ */
 
@@ -660,11 +661,7 @@ class ClientSession {
       return false;
     }
 
-    if (
-      !event.pubkey ||
-      typeof event.pubkey !== "string" ||
-      event.pubkey.length !== 64
-    ) {
+    if (!isValidPublicKeyFormat(event.pubkey)) {
       this.log.debug("NIP-46 validation failed: invalid pubkey");
       return false;
     }
@@ -691,8 +688,7 @@ class ClientSession {
         tag.length >= 2 &&
         tag[0] === "p" &&
         typeof tag[1] === "string" &&
-        tag[1].length === 64 &&
-        /^[0-9a-f]{64}$/.test(tag[1]),
+        isValidPublicKeyFormat(tag[1]),
     );
 
     if (!hasPTag) {

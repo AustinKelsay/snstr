@@ -8,6 +8,7 @@ import {
 } from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { decrypt as decryptNIP04 } from "../nip04";
+import { isValidRelayUrl } from "../nip19";
 import {
   createSignedEvent,
   createTextNote,
@@ -148,6 +149,9 @@ export class Nostr {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
     }
+    if (!isValidRelayUrl(url)) {
+      throw new Error(`Invalid relay URL: ${url}`);
+    }
 
     if (this.relays.has(url)) {
       return this.relays.get(url)!;
@@ -196,6 +200,9 @@ export class Nostr {
     // Re-use the same normalisation logic as addRelay()
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
+    }
+    if (!isValidRelayUrl(url)) {
+      return undefined;
     }
     return this.relays.get(url);
   }

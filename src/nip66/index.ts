@@ -10,6 +10,7 @@
 import { NostrEvent } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
 import { createEvent } from "../nip01/event";
+import { isValidRelayUrl } from "../nip19";
 
 import {
   RelayDiscoveryEventOptions,
@@ -61,17 +62,9 @@ export function createRelayDiscoveryEvent(
   if (!options.relay || typeof options.relay !== "string" || options.relay.trim() === "") {
     throw new Error("Valid relay URL is required");
   }
-  
-  // Validate relay URL format (basic WebSocket URL validation)
-  if (!options.relay.startsWith("ws://") && !options.relay.startsWith("wss://")) {
-    throw new Error("Relay URL must start with ws:// or wss://");
-  }
-  
-  // Validate URL format more thoroughly
-  try {
-    new URL(options.relay);
-  } catch {
-    throw new Error("Relay URL must be a valid URL");
+
+  if (!isValidRelayUrl(options.relay)) {
+    throw new Error("Relay URL must start with ws:// or wss:// and be valid");
   }
   
   // Validate RTT values (must be non-negative numbers if provided)

@@ -13,6 +13,7 @@ import {
   Bech32Result,
   SimpleBech32Result,
 } from "./types";
+import { isValidRelayUrl } from "./secure";
 
 // Re-export types
 export * from "./types";
@@ -33,23 +34,7 @@ const MAX_TLV_ENTRIES = 20; // Max number of TLV entries to prevent DoS (reduced
  * No credentials are allowed in URLs
  */
 export function validateRelayUrl(url: string): boolean {
-  try {
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      return false;
-    }
-
-    // Use URL constructor to validate the URL format
-    const parsedUrl = new URL(url);
-
-    // Check for credentials in the URL (username or password)
-    if (parsedUrl.username || parsedUrl.password) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return isValidRelayUrl(url);
 }
 
 /**

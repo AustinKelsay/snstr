@@ -6,6 +6,7 @@ import {
   PublishResponse,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
+import { isValidRelayUrl } from "../nip19";
 
 export class RelayPool {
   private relays: Map<string, Relay> = new Map();
@@ -22,13 +23,16 @@ export class RelayPool {
    */
   private normalizeRelayUrl(url: string): string {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      return `wss://${url}`;
+      url = `wss://${url}`;
     }
-    return url;
+    return isValidRelayUrl(url) ? url : "";
   }
 
   public addRelay(url: string, options?: RelayConnectionOptions): Relay {
     url = this.normalizeRelayUrl(url);
+    if (!url) {
+      throw new Error("Invalid relay URL");
+    }
     let relay = this.relays.get(url);
     if (!relay) {
       relay = new Relay(url, options || this.relayOptions);
@@ -39,6 +43,7 @@ export class RelayPool {
 
   public removeRelay(url: string): void {
     url = this.normalizeRelayUrl(url);
+    if (!url) return;
     const relay = this.relays.get(url);
     if (relay) {
       relay.disconnect();
@@ -57,6 +62,7 @@ export class RelayPool {
       relayUrls.forEach((url) => {
         // Normalize URL to match the key used in the map
         url = this.normalizeRelayUrl(url);
+        if (!url) return;
         const relay = this.relays.get(url);
         if (relay) relay.disconnect();
       });

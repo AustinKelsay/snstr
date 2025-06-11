@@ -2,6 +2,8 @@
 
 import { NostrEvent, ContactsEvent } from "../types/nostr";
 import { getUnixTime } from "../utils/time";
+import { isValidPublicKeyFormat } from "../nip44";
+import { isValidRelayUrl } from "../nip19";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
 // Adjust the import path if necessary.
 
@@ -91,21 +93,19 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
   }
 
   const parsedContacts: Contact[] = [];
-  const pubkeyRegex = /^[0-9a-fA-F]{64}$/; // Regex for 64 hex characters
-  const relayUrlRegex = /^(wss?:\/\/).+/; // Regex for ws:// or wss://
+  // Use shared validators for pubkeys and relay URLs
 
   for (const tag of event.tags) {
     if (
       tag[0] === "p" &&
       typeof tag[1] === "string" &&
-      pubkeyRegex.test(tag[1]) // Enhanced pubkey validation
+      isValidPublicKeyFormat(tag[1])
     ) {
       const contact: Contact = {
         pubkey: tag[1],
       };
       if (typeof tag[2] === "string" && tag[2].length > 0) {
-        if (relayUrlRegex.test(tag[2])) {
-          // Relay URL validation
+        if (isValidRelayUrl(tag[2])) {
           contact.relayUrl = tag[2];
         } else {
           console.warn("Invalid relay URL:", tag[2]);

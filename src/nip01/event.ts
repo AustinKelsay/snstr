@@ -14,6 +14,7 @@ import { encrypt as encryptNIP04 } from "../nip04";
 import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
+import { isValidPrivateKey, isValidPublicKeyFormat } from "../nip44";
 import { getUnixTime } from "../utils/time";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
@@ -142,7 +143,7 @@ export function createEvent(
   template: EventTemplate,
   pubkey: string,
 ): UnsignedEvent {
-  if (!pubkey || typeof pubkey !== "string") {
+  if (!isValidPublicKeyFormat(pubkey)) {
     throw new NostrValidationError("Invalid pubkey", "pubkey");
   }
 
@@ -171,12 +172,7 @@ export async function createSignedEvent(
   event: UnsignedEvent,
   privateKey: string,
 ): Promise<NostrEvent> {
-  if (
-    !privateKey ||
-    typeof privateKey !== "string" ||
-    privateKey.length !== 64 ||
-    !/^[0-9a-fA-F]+$/.test(privateKey)
-  ) {
+  if (!isValidPrivateKey(privateKey)) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -222,12 +218,7 @@ export function createTextNote(
     );
   }
 
-  if (
-    !privateKey ||
-    typeof privateKey !== "string" ||
-    privateKey.length !== 64 ||
-    !/^[0-9a-fA-F]+$/.test(privateKey)
-  ) {
+  if (!isValidPrivateKey(privateKey)) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -273,12 +264,7 @@ export async function createDirectMessage(
     );
   }
 
-  if (
-    !privateKey ||
-    typeof privateKey !== "string" ||
-    privateKey.length !== 64 ||
-    !/^[0-9a-fA-F]+$/.test(privateKey)
-  ) {
+  if (!isValidPrivateKey(privateKey)) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -326,10 +312,7 @@ export function createMetadataEvent(
   }
 
   if (
-    !privateKey ||
-    typeof privateKey !== "string" ||
-    privateKey.length !== 64 ||
-    !/^[0-9a-fA-F]+$/.test(privateKey)
+    !isValidPrivateKey(privateKey)
   ) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
@@ -384,12 +367,7 @@ export function createAddressableEvent(
     );
   }
 
-  if (
-    !privateKey ||
-    typeof privateKey !== "string" ||
-    privateKey.length !== 64 ||
-    !/^[0-9a-fA-F]+$/.test(privateKey)
-  ) {
+  if (!isValidPrivateKey(privateKey)) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -593,7 +571,6 @@ export async function validateEvent(
 
   // 6. Validate content format based on kind
   if (validateContent) {
-    const hex64Regex = /^[0-9a-fA-F]{64}$/; // Define reusable regex for 64-char hex strings
 
     switch (event.kind) {
       case NostrKind.Metadata:
@@ -620,19 +597,14 @@ export async function validateEvent(
         // Tags should conform to: ["p", <pubkey_hex>, <recommended_relay_url_or_empty_string>, <petname_or_empty_string>]
         // General tag validation (if enabled) ensures all tag items are strings.
 
-        // const pubkeyRegexNIP02 = /^[0-9a-fA-F]{64}$/; // This will be replaced by hex64Regex
-        // Basic regex for ws:// or wss:// URLs. NIP-02 doesn't specify strict URL validation beyond the scheme.
-        // const relayUrlRegexNIP02 = /^(wss?:\/\/).+/i; // Removed local regex
-
         for (const tag of event.tags) {
           if (tag[0] === "p") {
             // 1. Validate pubkey (tag[1])
             if (
               tag.length < 2 ||
               typeof tag[1] !== "string" ||
-              !hex64Regex.test(tag[1])
+              !isValidPublicKeyFormat(tag[1])
             ) {
-              // Use hex64Regex
               throw new NostrValidationError(
                 `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a 64-character hex. Received: '${tag[1]}'.`,
                 "tags",
@@ -713,7 +685,7 @@ export async function validateEvent(
         if (
           pTag.length < 2 ||
           typeof pTag[1] !== "string" ||
-          !hex64Regex.test(pTag[1])
+          !isValidPublicKeyFormat(pTag[1])
         ) {
           throw new NostrValidationError(
             `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a 64-character hex string. Received: '${pTag[1]}'.`,
