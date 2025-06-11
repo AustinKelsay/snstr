@@ -56,7 +56,7 @@ import {
   RelayDebugOptions,
   MetricsCollectorOptions,
   WebSocketReadyState 
-} from '../types/nostr';
+} from 'snstr';
 
 // Configure advanced reconnection strategy
 const reconnectionStrategy: ReconnectionStrategy = {
@@ -117,7 +117,7 @@ if ((relay as any).ws.readyState === WebSocketReadyState.OPEN) {
 ### Handling NostrEvents with NostrKind
 
 ```typescript
-import { NostrEvent, NostrKind } from '../types/nostr';
+import { NostrEvent, NostrKind } from 'snstr';
 
 function processEvent(event: NostrEvent) {
   console.log(`Event kind: ${event.kind}, from: ${event.pubkey.slice(0, 8)}...`);
@@ -151,7 +151,7 @@ function processEvent(event: NostrEvent) {
 ### Creating Filters
 
 ```typescript
-import { Filter, NostrKind } from '../types/nostr';
+import { Filter, NostrKind } from 'snstr';
 
 // Query recent text notes from specific authors
 const textNotesFilter: Filter = {
@@ -179,8 +179,7 @@ const customTagFilter: Filter = {
 ### Subscribing to Events
 
 ```typescript
-import { Filter, SubscriptionOptions } from '../types/nostr';
-import { Relay } from '../nip01/relay';
+import { Filter, SubscriptionOptions, Relay } from 'snstr';
 
 async function subscribeWithOptions(relay: Relay) {
   // Connect to the relay
@@ -224,8 +223,7 @@ async function subscribeWithOptions(relay: Relay) {
 ### Using Publish Options and Responses
 
 ```typescript
-import { NostrEvent, PublishOptions, PublishResponse } from '../types/nostr';
-import { Relay } from '../nip01/relay';
+import { NostrEvent, PublishOptions, PublishResponse, Relay } from 'snstr';
 
 async function publishWithOptions(relay: Relay, event: NostrEvent) {
   // With default options (waits for acknowledgment)
@@ -251,7 +249,7 @@ async function publishWithOptions(relay: Relay, event: NostrEvent) {
 ### Working with Relay Capabilities
 
 ```typescript
-import { RelayCapabilities, RelayInfo } from '../types/nostr';
+import { RelayCapabilities, RelayInfo } from 'snstr';
 
 // Parse relay information document
 function parseRelayCapabilities(info: RelayInfo): RelayCapabilities {
@@ -302,8 +300,7 @@ function adaptToRelayCapabilities(capabilities: RelayCapabilities) {
 ### Working with Relay Groups
 
 ```typescript
-import { RelayGroup, RelayStatus, NostrEvent } from '../types/nostr';
-import { Relay } from '../nip01/relay';
+import { RelayGroup, RelayStatus, NostrEvent, Relay } from 'snstr';
 
 async function useRelayGroups() {
   // Define a relay group
@@ -361,7 +358,7 @@ async function useRelayGroups() {
 ### Using the Message Statistics
 
 ```typescript
-import { RelayMessageStats } from '../types/nostr';
+import { RelayMessageStats } from 'snstr';
 
 // Initialize message stats for a relay
 function createMessageStats(): RelayMessageStats {
@@ -436,10 +433,10 @@ To extend the existing types with additional NIPs, you can use TypeScript's decl
 
 ```typescript
 // Example: Adding custom event kind to NostrKind enum
-import { NostrKind } from '../types/nostr';
+import { NostrKind } from 'snstr';
 
 // Extend the enum
-declare module '../types/nostr' {
+declare module 'snstr' {
   export enum NostrKind {
     // Add custom event kinds
     LongFormArticle = 30023,

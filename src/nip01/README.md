@@ -19,7 +19,7 @@ NIP-01 is the foundational specification for Nostr, outlining the basic protocol
 ### Creating and Publishing Events
 
 ```typescript
-import { Nostr } from '../nip01/nostr';
+import { Nostr } from 'snstr';
 
 // Initialize client with relays
 const client = new Nostr(['wss://relay.nostr.band']);
@@ -40,7 +40,7 @@ console.log(`Published event with ID: ${event.id}`);
 ### Subscribing to Events
 
 ```typescript
-import { Nostr, RelayEvent } from '../nip01/nostr';
+import { Nostr, RelayEvent } from 'snstr';
 
 const client = new Nostr(['wss://relay.nostr.band']);
 
@@ -67,7 +67,8 @@ client.unsubscribe(subIds);
 ### Working with Events Directly
 
 ```typescript
-import { createEvent, validateEvent } from '../nip01/event';
+import { createEvent } from 'snstr';
+import { validateEvent } from 'snstr/nip01/event';
 
 // Create an event
 const event = createEvent({
@@ -120,7 +121,7 @@ The relay connection includes:
 ### Custom Event Handlers
 
 ```typescript
-import { Nostr, RelayEvent } from '../nip01/nostr';
+import { Nostr, RelayEvent } from 'snstr';
 
 const client = new Nostr(['wss://relay.nostr.band']);
 
@@ -145,7 +146,7 @@ client.on(RelayEvent.Notice, (relay, message) => {
 ### Custom Filters
 
 ```typescript
-import { Nostr } from '../nip01/nostr';
+import { Nostr } from 'snstr';
 
 const client = new Nostr(['wss://relay.nostr.band']);
 await client.connectToRelays();

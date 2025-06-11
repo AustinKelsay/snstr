@@ -18,7 +18,7 @@ NIP-11 defines a standard way for relays to publish information about their capa
 ### Fetching Relay Information
 
 ```typescript
-import { fetchRelayInformation } from 'snstr/nip11';
+import { fetchRelayInformation } from 'snstr';
 
 async function getRelayInfo() {
   const relayInfo = await fetchRelayInformation('wss://relay.example.com');
@@ -78,7 +78,7 @@ Here's an example of what the relay information JSON structure might look like:
 ### Checking for NIP Support
 
 ```typescript
-import { relaySupportsNIPs } from 'snstr/nip11';
+import { relaySupportsNIPs } from 'snstr';
 
 async function checkRelayCompatibility() {
   // Check if relay supports NIP-01, NIP-02, and NIP-04
@@ -95,7 +95,7 @@ async function checkRelayCompatibility() {
 ### Getting Payment Information
 
 ```typescript
-import { getRelayPaymentInfo, relayRequiresPayment } from 'snstr/nip11';
+import { getRelayPaymentInfo, relayRequiresPayment } from 'snstr';
 
 async function checkPaymentRequirements() {
   const requiresPayment = await relayRequiresPayment('wss://relay.example.com');
@@ -112,7 +112,7 @@ async function checkPaymentRequirements() {
 ### Working with Fee Schedules
 
 ```typescript
-import { fetchRelayInformation, RelayFees } from 'snstr/nip11';
+import { fetchRelayInformation, RelayFees } from 'snstr';
 
 async function checkRelayFees() {
   const relayInfo = await fetchRelayInformation('wss://relay.example.com');

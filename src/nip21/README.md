@@ -15,8 +15,11 @@ NIP‑21 defines a simple URI scheme `nostr:`. The path component is any NIP‑1
 ## Basic Usage
 
 ```typescript
-import { encodePublicKey } from "snstr";
-import { encodeNostrURI, decodeNostrURI } from "snstr/nip21";
+import {
+  encodePublicKey,
+  encodeNostrURI,
+  decodeNostrURI,
+} from "snstr";
 
 const npub = encodePublicKey(
   "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d",

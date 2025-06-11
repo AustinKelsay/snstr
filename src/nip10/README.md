@@ -15,7 +15,7 @@ NIP‑10 introduces marked `e` tags for replies and `q` tags for quoting other e
 ## Basic Usage
 
 ```typescript
-import { createReplyTags, createQuoteTag, parseThreadReferences } from 'snstr/nip10';
+import { createReplyTags, createQuoteTag, parseThreadReferences } from 'snstr';
 
 const eTags = createReplyTags(
   { id: rootId, relay: 'wss://relay.example.com' },
