@@ -167,9 +167,10 @@ function unpad(padded: Uint8Array): string {
 /**
  * Validate if a string is a valid hex format public key
  * As per NIP-44 spec, pubkey must be a valid non-zero secp256k1 curve point
+ * Must be lowercase hex as per Nostr conventions
  */
 export function isValidPublicKeyFormat(publicKey: string): boolean {
-  return /^[0-9a-f]{64}$/i.test(publicKey);
+  return /^[0-9a-f]{64}$/.test(publicKey);
 }
 
 /**
@@ -177,8 +178,8 @@ export function isValidPublicKeyFormat(publicKey: string): boolean {
  * A valid private key must be a 32-byte hex string with a value less than the curve order
  */
 export function isValidPrivateKey(privateKey: string): boolean {
-  // Check format: must be 64 hex characters
-  if (!/^[0-9a-f]{64}$/i.test(privateKey)) {
+  // Check format: must be 64 hex characters (lowercase only)
+  if (!/^[0-9a-f]{64}$/.test(privateKey)) {
     return false;
   }
 

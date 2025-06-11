@@ -436,18 +436,12 @@ export async function validateEvent(
     }
     if (!isValidPublicKeyFormat(event.pubkey)) {
       throw new NostrValidationError(
-        "Invalid pubkey: must be a 64-character hex string",
-        "pubkey",
-        event,
-      );
-    }
-    if (event.pubkey !== event.pubkey.toLowerCase()) {
-      throw new NostrValidationError(
         "Invalid pubkey: must be a 64-character lowercase hex string",
         "pubkey",
         event,
       );
     }
+
 
     // Check signature exists
     if (
@@ -609,7 +603,7 @@ export async function validateEvent(
               !isValidPublicKeyFormat(tag[1])
             ) {
               throw new NostrValidationError(
-                `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a 64-character hex. Received: '${tag[1]}'.`,
+                `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a 64-character lowercase hex. Received: '${tag[1]}'.`,
                 "tags",
                 event,
               );

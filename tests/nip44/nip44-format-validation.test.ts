@@ -20,9 +20,9 @@ describe("NIP-44 Format Validation", () => {
       ).toBe(true);
       expect(
         isValidPublicKeyFormat(
-          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
+          "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
         ),
-      ).toBe(true); // Test case-insensitivity
+      ).toBe(true); // Test lowercase hex
     });
 
     it("should return false for invalid public key formats", () => {
@@ -42,6 +42,12 @@ describe("NIP-44 Format Validation", () => {
       expect(
         isValidPublicKeyFormat(
           "000000000000000000000000000000000000000000000000000000000000000g",
+        ),
+      ).toBe(false);
+      // Uppercase hex (should be rejected)
+      expect(
+        isValidPublicKeyFormat(
+          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
         ),
       ).toBe(false);
       // Empty string
@@ -77,7 +83,7 @@ describe("NIP-44 Format Validation", () => {
       // A large, but valid private key (just under the curve order)
       expect(
         isValidPrivateKey(
-          "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364140",
+          "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140",
         ),
       ).toBe(true); // (Order - 1)
     });
@@ -101,6 +107,12 @@ describe("NIP-44 Format Validation", () => {
           "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff0g",
         ),
       ).toBe(false);
+      // Uppercase hex (should be rejected)
+      expect(
+        isValidPrivateKey(
+          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
+        ),
+      ).toBe(false);
       // Empty string
       expect(isValidPrivateKey("")).toBe(false);
     });
@@ -115,13 +127,13 @@ describe("NIP-44 Format Validation", () => {
       // Key equal to the curve order (N)
       expect(
         isValidPrivateKey(
-          "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+          "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
         ),
       ).toBe(false);
       // Key greater than the curve order
       expect(
         isValidPrivateKey(
-          "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364142",
+          "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142",
         ),
       ).toBe(false);
     });
