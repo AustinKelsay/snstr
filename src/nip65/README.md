@@ -40,9 +40,13 @@ Convenience helpers that extract just the relay URLs intended for reading or wri
 ## Usage Example
 
 ```ts
-import { createRelayListEvent, parseRelayList, getReadRelays } from "snstr/nip65";
+import {
+  createRelayListEvent,
+  parseRelayList,
+  getReadRelays,
+} from "snstr";
 import { createSignedEvent } from "snstr/nip01/event";
-import { generateKeypair } from "snstr/utils/crypto";
+import { generateKeypair } from "snstr";
 
 (async () => {
   const keys = await generateKeypair();

@@ -15,8 +15,7 @@ Relays that support NIP-50 interpret the `search` string and return matching eve
 ## Basic Usage
 
 ```typescript
-import { Nostr } from 'snstr';
-import { createSearchFilter } from 'snstr/nip50';
+import { Nostr, createSearchFilter } from 'snstr';
 
 const client = new Nostr(['wss://relay.example.com']);
 await client.connectToRelays();
