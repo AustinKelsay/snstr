@@ -109,6 +109,72 @@ export class Nostr {
     }
   }
 
+  /**
+   * Preprocesses a relay URL before normalization and validation.
+   * Adds wss:// prefix only to URLs without any scheme.
+   * Throws an error for URLs with incompatible schemes.
+   * 
+   * @param url - The input URL string to preprocess
+   * @returns The preprocessed URL with appropriate scheme
+   * @throws Error if URL has an incompatible scheme
+   */
+  private preprocessRelayUrl(url: string): string {
+    if (!url || typeof url !== "string") {
+      throw new Error("URL must be a non-empty string");
+    }
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      throw new Error("URL cannot be empty or whitespace only");
+    }
+
+    // Check if URL already has a scheme - but be more precise about what constitutes a scheme
+    // A scheme must be followed by :// for URLs, not just :
+    const schemePattern = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//;
+    const schemeMatch = trimmedUrl.match(schemePattern);
+    
+    if (schemeMatch) {
+      const scheme = schemeMatch[1].toLowerCase();
+      // If it has a scheme, it must be ws or wss (case insensitive)
+      if (scheme === "ws" || scheme === "wss") {
+        return trimmedUrl;
+      } else {
+        throw new Error(
+          `Invalid relay URL scheme: "${scheme}://". ` +
+          `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
+          `Got: "${trimmedUrl}"`
+        );
+      }
+    } else {
+             // Check for URLs that might have a port (like "domain.com:8080")
+       // These should not be treated as having a scheme
+       const hasPort = /^[^:/]+:\d+/.test(trimmedUrl);
+      if (hasPort) {
+        // It's likely a hostname with port, add wss:// prefix
+        return `wss://${trimmedUrl}`;
+      }
+      
+      // Check if there's a colon but not in a valid scheme format
+      const colonIndex = trimmedUrl.indexOf(':');
+      if (colonIndex !== -1) {
+        // There's a colon, but not in a valid scheme format
+        const beforeColon = trimmedUrl.substring(0, colonIndex);
+        
+        // If it looks like a scheme attempt (single word before colon), reject it
+        if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(beforeColon) && !hasPort) {
+          throw new Error(
+            `Invalid relay URL scheme: "${beforeColon}://". ` +
+            `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
+            `Got: "${trimmedUrl}"`
+          );
+        }
+      }
+      
+      // No scheme detected, add wss:// prefix
+      return `wss://${trimmedUrl}`;
+    }
+  }
+
   // Helper function to create the event handler wrapper
   private _createRelayEventHandler(
     relayUrl: string,
@@ -162,9 +228,7 @@ export class Nostr {
   }
 
   public addRelay(url: string): Relay {
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
-    }
+    url = this.preprocessRelayUrl(url);
     url = this.normalizeRelayUrl(url);
     if (!isValidRelayUrl(url)) {
       throw new Error(`Invalid relay URL: ${url}`);
@@ -215,9 +279,7 @@ export class Nostr {
 
   public getRelay(url: string): Relay | undefined {
     // Re-use the same normalisation logic as addRelay()
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
-    }
+    url = this.preprocessRelayUrl(url);
     url = this.normalizeRelayUrl(url);
     if (!isValidRelayUrl(url)) {
       return undefined;
@@ -227,9 +289,7 @@ export class Nostr {
 
   public removeRelay(url: string): void {
     // Re-use the same normalisation logic as addRelay() and getRelay()
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
-    }
+    url = this.preprocessRelayUrl(url);
     url = this.normalizeRelayUrl(url);
     if (!isValidRelayUrl(url)) {
       return;

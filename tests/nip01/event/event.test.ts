@@ -266,7 +266,7 @@ describe("Event Creation and Signing", () => {
       const content = "Secret message";
       
       await expect(
-        createDirectMessage(content, null as any, privateKey),
+        createDirectMessage(content, null as unknown as string, privateKey),
       ).rejects.toThrow(
         new NostrValidationError(
           "Invalid recipient public key: must be a 64-character lowercase hex string",
@@ -275,7 +275,7 @@ describe("Event Creation and Signing", () => {
       );
 
       await expect(
-        createDirectMessage(content, undefined as any, privateKey),
+        createDirectMessage(content, undefined as unknown as string, privateKey),
       ).rejects.toThrow(
         new NostrValidationError(
           "Invalid recipient public key: must be a 64-character lowercase hex string",

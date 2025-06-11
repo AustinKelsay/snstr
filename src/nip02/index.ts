@@ -110,7 +110,7 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
       seenPubkeys.add(normalizedPubkey);
 
       const contact: Contact = {
-        pubkey: tag[1],
+        pubkey: normalizedPubkey,
       };
       if (typeof tag[2] === "string" && tag[2].length > 0) {
         if (isValidRelayUrl(tag[2])) {

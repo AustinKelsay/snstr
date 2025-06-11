@@ -34,7 +34,13 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
   try {
     const url = new URL(str);
     const type = url.protocol === "bunker:" ? "bunker" : "nostrconnect";
-    const pubkey = url.hostname;
+    
+    // Extract pubkey from original string to preserve case for validation
+    // Match pattern: protocol://pubkey?params or protocol://pubkey
+    const protocolPrefix = type === "bunker" ? "bunker://" : "nostrconnect://";
+    const afterProtocol = str.slice(protocolPrefix.length);
+    const queryStart = afterProtocol.indexOf("?");
+    const pubkey = queryStart === -1 ? afterProtocol : afterProtocol.slice(0, queryStart);
 
     if (!isValidPublicKeyFormat(pubkey)) {
       throw new NIP46ConnectionError(
