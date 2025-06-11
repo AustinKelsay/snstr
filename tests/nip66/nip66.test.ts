@@ -42,11 +42,14 @@ type TestRelayMonitorOptions = {
  * Tests for NIP-66 relay discovery utilities
  */
 
+// Valid test pubkey (64-character hex string)
+const validPubkey = "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
+
 describe("NIP-66", () => {
   test("createRelayDiscoveryEvent should create proper event", () => {
     const event = createRelayDiscoveryEvent(
       { relay: "wss://relay.example.com", rttOpen: 100 },
-      "pubkey",
+      validPubkey,
     );
     expect(event.kind).toBe(RELAY_DISCOVERY_KIND);
     expect(event.tags).toContainEqual(["d", "wss://relay.example.com"]);
@@ -60,14 +63,14 @@ describe("NIP-66", () => {
         network: "clearnet",
         supportedNips: [1],
       },
-      "pubkey",
+      validPubkey,
     );
 
     const parsed = parseRelayDiscoveryEvent({
       ...event,
       id: "1",
       sig: "sig",
-      pubkey: "pubkey",
+      pubkey: validPubkey,
     });
 
     expect(parsed?.relay).toBe("wss://relay.example.com");
@@ -78,7 +81,7 @@ describe("NIP-66", () => {
   test("createRelayMonitorAnnouncement should create announcement", () => {
     const event = createRelayMonitorAnnouncement(
       { frequency: 3600, checks: ["ws"] },
-      "pubkey",
+      validPubkey,
     );
     expect(event.kind).toBe(RELAY_MONITOR_KIND);
     expect(event.tags).toContainEqual(["frequency", "3600"]);
@@ -86,8 +89,6 @@ describe("NIP-66", () => {
   });
 
   describe("Type alias behavior and data transformation", () => {
-    const validPubkey = "validpubkey123";
-
     test("supportedNips should accept both numbers and strings (NipNumber type)", () => {
       const mixedNips: NipNumber[] = [1, "2", 4, "17"];
       
@@ -211,8 +212,6 @@ describe("NIP-66", () => {
   });
 
   describe("Validation for createRelayDiscoveryEvent", () => {
-    const validPubkey = "validpubkey123";
-
     test("should throw error for missing options", () => {
       expect(() => createRelayDiscoveryEvent(null as unknown as RelayDiscoveryEventOptions, validPubkey)).toThrow("Options object is required");
       expect(() => createRelayDiscoveryEvent(undefined as unknown as RelayDiscoveryEventOptions, validPubkey)).toThrow("Options object is required");
@@ -231,7 +230,7 @@ describe("NIP-66", () => {
       expect(() => createRelayDiscoveryEvent({ relay: "   " }, validPubkey)).toThrow("Valid relay URL is required");
       expect(() => createRelayDiscoveryEvent({ relay: null } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("Valid relay URL is required");
       expect(() => createRelayDiscoveryEvent({ relay: "http://example.com" }, validPubkey)).toThrow("Relay URL must start with ws:// or wss://");
-      expect(() => createRelayDiscoveryEvent({ relay: "wss://invalid url" }, validPubkey)).toThrow("Relay URL must be a valid URL");
+      expect(() => createRelayDiscoveryEvent({ relay: "wss://invalid url" }, validPubkey)).toThrow("Relay URL must start with ws:// or wss:// and be valid");
     });
 
     test("should throw error for invalid RTT values", () => {
@@ -316,8 +315,6 @@ describe("NIP-66", () => {
   });
 
   describe("Validation for createRelayMonitorAnnouncement", () => {
-    const validPubkey = "validpubkey123";
-
     test("should throw error for missing options", () => {
       expect(() => createRelayMonitorAnnouncement(null as unknown as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("Options object is required");
       expect(() => createRelayMonitorAnnouncement(undefined as unknown as RelayMonitorAnnouncementOptions, validPubkey)).toThrow("Options object is required");
