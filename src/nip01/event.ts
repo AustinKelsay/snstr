@@ -257,9 +257,9 @@ export async function createDirectMessage(
     );
   }
 
-  if (!recipientPubkey || typeof recipientPubkey !== "string") {
+  if (!isValidPublicKeyFormat(recipientPubkey)) {
     throw new NostrValidationError(
-      "Invalid recipient public key",
+      "Invalid recipient public key: must be a 64-character lowercase hex string",
       "recipientPubkey",
     );
   }

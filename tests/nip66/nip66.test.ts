@@ -229,7 +229,7 @@ describe("NIP-66", () => {
         expect(() => createRelayDiscoveryEvent({ relay: "" }, validPubkey)).toThrow("Valid relay URL is required");
         expect(() => createRelayDiscoveryEvent({ relay: "   " }, validPubkey)).toThrow("Valid relay URL is required");
         expect(() => createRelayDiscoveryEvent({ relay: null } as TestRelayDiscoveryOptions as RelayDiscoveryEventOptions, validPubkey)).toThrow("Valid relay URL is required");
-        expect(() => createRelayDiscoveryEvent({ relay: "http://example.com" }, validPubkey)).toThrow("Relay URL must start with ws:// or wss://");
+        expect(() => createRelayDiscoveryEvent({ relay: "http://example.com" }, validPubkey)).toThrow("Relay URL must start with ws:// or wss:// and be valid");
         expect(() => createRelayDiscoveryEvent({ relay: "wss://invalid url" }, validPubkey)).toThrow(
           "Relay URL must start with ws:// or wss:// and be valid"
         );

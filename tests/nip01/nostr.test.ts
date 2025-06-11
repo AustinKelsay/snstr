@@ -58,7 +58,9 @@ describe("Nostr Client", () => {
 
       // This test verifies the relay was added but doesn't need to connect
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(additionalRelay)).toBe(true);
+      // URL normalization adds a trailing slash if pathname is empty
+      const normalizedRelay = "ws://localhost:3556/";
+      expect(relays.has(normalizedRelay)).toBe(true);
     });
 
     test("should connect to relays", async () => {
@@ -93,7 +95,9 @@ describe("Nostr Client", () => {
       client.removeRelay(relayUrl);
 
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(relayUrl)).toBe(false);
+      // URL normalization adds a trailing slash if pathname is empty
+      const normalizedRelayUrl = `${relayUrl}/`;
+      expect(relays.has(normalizedRelayUrl)).toBe(false);
     });
   });
 

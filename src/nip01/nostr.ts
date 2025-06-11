@@ -93,6 +93,22 @@ export class Nostr {
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
+  /**
+   * Normalize a relay URL by lowercasing only the scheme and host,
+   * while preserving the case of path, query, and fragment parts.
+   * This is the correct behavior per URL standards.
+   */
+  private normalizeRelayUrl(url: string): string {
+    try {
+      const parsedUrl = new URL(url);
+      // Reconstruct with lowercase scheme and host, but preserve path/query/fragment case
+      return `${parsedUrl.protocol.toLowerCase()}//${parsedUrl.host.toLowerCase()}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    } catch {
+      // If URL parsing fails, return the original URL (it will fail validation anyway)
+      return url;
+    }
+  }
+
   // Helper function to create the event handler wrapper
   private _createRelayEventHandler(
     relayUrl: string,
@@ -149,7 +165,7 @@ export class Nostr {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
     }
-    url = url.toLowerCase();
+    url = this.normalizeRelayUrl(url);
     if (!isValidRelayUrl(url)) {
       throw new Error(`Invalid relay URL: ${url}`);
     }
@@ -202,7 +218,7 @@ export class Nostr {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
     }
-    url = url.toLowerCase();
+    url = this.normalizeRelayUrl(url);
     if (!isValidRelayUrl(url)) {
       return undefined;
     }
@@ -210,6 +226,15 @@ export class Nostr {
   }
 
   public removeRelay(url: string): void {
+    // Re-use the same normalisation logic as addRelay() and getRelay()
+    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
+      url = `wss://${url}`;
+    }
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      return;
+    }
+    
     const relay = this.relays.get(url);
     if (relay) {
       relay.disconnect();

@@ -1477,4 +1477,6 @@ describe("Relay", () => {
       expect(retrievedKind10002?.id).toBe(relayEvent.id);
     });
   });
+
+
 });

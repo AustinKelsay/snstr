@@ -238,6 +238,51 @@ describe("Event Creation and Signing", () => {
       expect(signedEvent.id).toBeDefined();
       expect(signedEvent.sig).toBeDefined();
     });
+
+    it("should throw NostrValidationError for invalid recipient pubkey", async () => {
+      const content = "Secret message";
+      const invalidPubkeys = [
+        "", // Empty string
+        "invalidpubkey", // Too short
+        "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789", // Uppercase hex
+        "123456789012345678901234567890123456789012345678901234567890123X", // Invalid character
+        "123456789012345678901234567890123456789012345678901234567890123456", // Too long
+        "12345678901234567890123456789012345678901234567890123456789012", // Too short by one
+      ];
+
+      for (const invalidPubkey of invalidPubkeys) {
+        await expect(
+          createDirectMessage(content, invalidPubkey, privateKey),
+        ).rejects.toThrow(
+          new NostrValidationError(
+            "Invalid recipient public key: must be a 64-character lowercase hex string",
+            "recipientPubkey",
+          ),
+        );
+      }
+    });
+
+    it("should throw NostrValidationError for missing or null recipient pubkey", async () => {
+      const content = "Secret message";
+      
+      await expect(
+        createDirectMessage(content, null as any, privateKey),
+      ).rejects.toThrow(
+        new NostrValidationError(
+          "Invalid recipient public key: must be a 64-character lowercase hex string",
+          "recipientPubkey",
+        ),
+      );
+
+      await expect(
+        createDirectMessage(content, undefined as any, privateKey),
+      ).rejects.toThrow(
+        new NostrValidationError(
+          "Invalid recipient public key: must be a 64-character lowercase hex string",
+          "recipientPubkey",
+        ),
+      );
+    });
   });
 
   describe("createMetadataEvent", () => {
