@@ -102,11 +102,12 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
       typeof tag[1] === "string" &&
       isValidPublicKeyFormat(tag[1])
     ) {
-      // Skip duplicate pubkeys
-      if (seenPubkeys.has(tag[1])) {
+      // Skip duplicate pubkeys (normalize to lowercase for consistent deduplication)
+      const normalizedPubkey = tag[1].toLowerCase();
+      if (seenPubkeys.has(normalizedPubkey)) {
         continue;
       }
-      seenPubkeys.add(tag[1]);
+      seenPubkeys.add(normalizedPubkey);
 
       const contact: Contact = {
         pubkey: tag[1],
