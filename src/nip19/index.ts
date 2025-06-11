@@ -38,9 +38,6 @@ export function validateRelayUrl(url: string): boolean {
   return isValidRelayUrl(url);
 }
 
-// Re-export the primary validation function
-export { isValidRelayUrl } from "./secure";
-
 /**
  * Helper function to safely encode using bech32 with a higher limit
  */
