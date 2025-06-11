@@ -166,12 +166,23 @@ function unpad(padded: Uint8Array): string {
 
 /**
  * Validate if a string is a valid hex format public key
- * As per NIP-44 spec, pubkey must be a valid non-zero secp256k1 curve point
- * Must be lowercase hex as per Nostr conventions
+ * This function only validates the FORMAT (64 lowercase hex characters)
+ * and does NOT validate if the hex string represents a valid curve point.
+ * For cryptographic validation, use a separate function.
  */
 export function isValidPublicKeyFormat(publicKey: string): boolean {
   // Check format: must be 64 hex characters (lowercase only)
-  if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+  return /^[0-9a-f]{64}$/.test(publicKey);
+}
+
+/**
+ * Validate if a hex string represents a valid point on the secp256k1 curve
+ * This function does cryptographic validation in addition to format validation.
+ * Use this when you need to ensure the public key is actually usable for cryptographic operations.
+ */
+export function isValidPublicKeyPoint(publicKey: string): boolean {
+  // First check format
+  if (!isValidPublicKeyFormat(publicKey)) {
     return false;
   }
 
@@ -249,7 +260,7 @@ export function getSharedSecret(
   }
 
   // Validate public key - must be a valid x-coordinate on the curve
-  if (!isValidPublicKeyFormat(publicKey)) {
+  if (!isValidPublicKeyPoint(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -529,7 +540,7 @@ export function encrypt(
   options?: { version?: number },
 ): string {
   // Validate keys
-  if (!isValidPublicKeyFormat(publicKey)) {
+  if (!isValidPublicKeyPoint(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -794,7 +805,7 @@ export function decrypt(
   publicKey: string,
 ): string {
   // Validate keys
-  if (!isValidPublicKeyFormat(publicKey)) {
+  if (!isValidPublicKeyPoint(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -836,3 +847,5 @@ export function decrypt(
     throw new Error("NIP-44: Failed to decrypt message");
   }
 }
+
+
