@@ -24,4 +24,3 @@ export function createSearchFilter(
   return { ...other, search: query } as Filter;
 }
 
-export default { createSearchFilter };
