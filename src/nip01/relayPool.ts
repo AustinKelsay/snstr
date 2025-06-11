@@ -21,33 +21,33 @@ export class RelayPool {
    * Normalize a relay URL by adding wss:// prefix if missing
    * This ensures consistent URL keys in the relay map
    */
-  private normalizeRelayUrl(url: string): string {
+  private normalizeRelayUrl(url: string): string | undefined {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
     }
-    return isValidRelayUrl(url) ? url : "";
+    return isValidRelayUrl(url) ? url : undefined;
   }
 
   public addRelay(url: string, options?: RelayConnectionOptions): Relay {
-    url = this.normalizeRelayUrl(url);
-    if (!url) {
+    const normalizedUrl = this.normalizeRelayUrl(url);
+    if (!normalizedUrl) {
       throw new Error("Invalid relay URL");
     }
-    let relay = this.relays.get(url);
+    let relay = this.relays.get(normalizedUrl);
     if (!relay) {
-      relay = new Relay(url, options || this.relayOptions);
-      this.relays.set(url, relay);
+      relay = new Relay(normalizedUrl, options || this.relayOptions);
+      this.relays.set(normalizedUrl, relay);
     }
     return relay;
   }
 
   public removeRelay(url: string): void {
-    url = this.normalizeRelayUrl(url);
-    if (!url) return;
-    const relay = this.relays.get(url);
+    const normalizedUrl = this.normalizeRelayUrl(url);
+    if (!normalizedUrl) return;
+    const relay = this.relays.get(normalizedUrl);
     if (relay) {
       relay.disconnect();
-      this.relays.delete(url);
+      this.relays.delete(normalizedUrl);
     }
   }
 
@@ -57,13 +57,17 @@ export class RelayPool {
     return relay;
   }
 
+  /**
+   * Close relay connections. Invalid relay URLs are ignored.
+   * @param relayUrls Optional array of relay URLs to close. If not provided, all relays are closed.
+   */
   public close(relayUrls?: string[]): void {
     if (relayUrls) {
       relayUrls.forEach((url) => {
         // Normalize URL to match the key used in the map
-        url = this.normalizeRelayUrl(url);
-        if (!url) return;
-        const relay = this.relays.get(url);
+        const normalizedUrl = this.normalizeRelayUrl(url);
+        if (!normalizedUrl) return;
+        const relay = this.relays.get(normalizedUrl);
         if (relay) relay.disconnect();
       });
     } else {

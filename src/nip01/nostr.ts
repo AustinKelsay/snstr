@@ -149,6 +149,7 @@ export class Nostr {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
     }
+    url = url.toLowerCase();
     if (!isValidRelayUrl(url)) {
       throw new Error(`Invalid relay URL: ${url}`);
     }
@@ -201,6 +202,7 @@ export class Nostr {
     if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
       url = `wss://${url}`;
     }
+    url = url.toLowerCase();
     if (!isValidRelayUrl(url)) {
       return undefined;
     }

@@ -427,20 +427,23 @@ export async function validateEvent(
     }
 
     // Check pubkey exists and is valid hex
-    if (
-      !event.pubkey ||
-      typeof event.pubkey !== "string" ||
-      event.pubkey.length !== 64
-    ) {
+    if (!event.pubkey || typeof event.pubkey !== "string") {
       throw new NostrValidationError(
-        "Invalid or missing pubkey: must be a 64-character hex string",
+        "Invalid or missing pubkey: must be a string",
+        "pubkey",
+        event,
+      );
+    }
+    if (!isValidPublicKeyFormat(event.pubkey)) {
+      throw new NostrValidationError(
+        "Invalid pubkey: must be a 64-character hex string",
         "pubkey",
         event,
       );
     }
     if (event.pubkey !== event.pubkey.toLowerCase()) {
       throw new NostrValidationError(
-        "Invalid pubkey: must be lowercase hex",
+        "Invalid pubkey: must be a 64-character lowercase hex string",
         "pubkey",
         event,
       );

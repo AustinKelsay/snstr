@@ -93,6 +93,7 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
   }
 
   const parsedContacts: Contact[] = [];
+  const seenPubkeys = new Set<string>();
   // Use shared validators for pubkeys and relay URLs
 
   for (const tag of event.tags) {
@@ -101,6 +102,12 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
       typeof tag[1] === "string" &&
       isValidPublicKeyFormat(tag[1])
     ) {
+      // Skip duplicate pubkeys
+      if (seenPubkeys.has(tag[1])) {
+        continue;
+      }
+      seenPubkeys.add(tag[1]);
+
       const contact: Contact = {
         pubkey: tag[1],
       };

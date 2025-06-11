@@ -435,7 +435,7 @@ describe("Event Creation and Signing", () => {
           }),
         ).rejects.toThrow(
           new NostrValidationError(
-            "Invalid pubkey: must be lowercase hex",
+            "Invalid pubkey: must be a 64-character lowercase hex string",
             "pubkey",
           ),
         );

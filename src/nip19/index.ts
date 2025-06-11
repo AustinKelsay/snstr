@@ -32,10 +32,14 @@ const MAX_TLV_ENTRIES = 20; // Max number of TLV entries to prevent DoS (reduced
  * Validates a relay URL format
  * Relay URLs must start with wss:// or ws:// and contain a valid hostname
  * No credentials are allowed in URLs
+ * @deprecated Use isValidRelayUrl from './secure' instead
  */
 export function validateRelayUrl(url: string): boolean {
   return isValidRelayUrl(url);
 }
+
+// Re-export the primary validation function
+export { isValidRelayUrl } from "./secure";
 
 /**
  * Helper function to safely encode using bech32 with a higher limit
