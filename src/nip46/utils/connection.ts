@@ -36,22 +36,17 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     const type = url.protocol === "bunker:" ? "bunker" : "nostrconnect";
     
     // Extract pubkey from original string to preserve case for validation
-    // Match pattern: protocol://pubkey?params or protocol://pubkey#fragment or protocol://pubkey
-    // Find the earliest occurrence of either '?' (query) or '#' (fragment) to properly delimit the pubkey
+    // Match pattern: protocol://pubkey?params or protocol://pubkey#fragment or protocol://pubkey/path or protocol://pubkey
+    // Find the earliest occurrence of '/', '?' (query), or '#' (fragment) to properly delimit the pubkey
     const protocolPrefix = type === "bunker" ? "bunker://" : "nostrconnect://";
     const afterProtocol = str.slice(protocolPrefix.length);
+    const pathStart = afterProtocol.indexOf("/");
     const queryStart = afterProtocol.indexOf("?");
     const fragmentStart = afterProtocol.indexOf("#");
     
-    // Find the earliest delimiter (query or fragment), or use the entire string if neither exists
-    let delimiterStart = -1;
-    if (queryStart !== -1 && fragmentStart !== -1) {
-      delimiterStart = Math.min(queryStart, fragmentStart);
-    } else if (queryStart !== -1) {
-      delimiterStart = queryStart;
-    } else if (fragmentStart !== -1) {
-      delimiterStart = fragmentStart;
-    }
+    // Find the earliest delimiter (path, query, or fragment), or use the entire string if none exist
+    const delimiters = [pathStart, queryStart, fragmentStart].filter(pos => pos !== -1);
+    const delimiterStart = delimiters.length > 0 ? Math.min(...delimiters) : -1;
     
     const pubkey = delimiterStart === -1 ? afterProtocol : afterProtocol.slice(0, delimiterStart);
 

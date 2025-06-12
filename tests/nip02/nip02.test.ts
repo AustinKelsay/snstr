@@ -453,6 +453,10 @@ describe("NIP-02: Contact Lists", () => {
       const duplicateContact = contacts.find(c => c.pubkey === duplicatePubkey);
       expect(duplicateContact?.petname).toBe("First Entry");
       expect(duplicateContact?.relayUrl).toBe("ws://relay1.com");
+      
+      // Verify that the duplicate entry's data is NOT present in contacts array
+      expect(contacts.some(c => c.petname === "Duplicate Entry")).toBe(false);
+      expect(contacts.some(c => c.relayUrl === "ws://relay3.com")).toBe(false);
     });
 
     it("should properly handle case normalization in duplicate detection (robustness test)", () => {

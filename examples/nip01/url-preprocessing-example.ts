@@ -99,7 +99,8 @@ const invalidInputs: (string | null | undefined | number)[] = [
 
 invalidInputs.forEach((input, index) => {
   try {
-    nostr.addRelay(input as string);
+    // @ts-expect-error Testing invalid non-string inputs
+    nostr.addRelay(input);
     console.log(`   → Invalid input ${index + 1}: UNEXPECTED SUCCESS`);
   } catch (error) {
     console.log(`   → Invalid input ${index + 1}: CORRECTLY REJECTED`);
