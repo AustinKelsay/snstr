@@ -4,6 +4,7 @@ import { NostrEvent, ContactsEvent } from "../types/nostr";
 import { getUnixTime } from "../utils/time";
 import { isValidPublicKeyFormat } from "../nip44";
 import { isValidRelayUrl } from "../nip19";
+import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
 // Adjust the import path if necessary.
 
@@ -97,13 +98,16 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
   // Use shared validators for pubkeys and relay URLs
 
   for (const tag of event.tags) {
-    if (
-      tag[0] === "p" &&
-      typeof tag[1] === "string" &&
-      isValidPublicKeyFormat(tag[1])
-    ) {
-      // Skip duplicate pubkeys (normalize to lowercase for consistent deduplication)
+    if (tag[0] === "p" && typeof tag[1] === "string") {
+      // Normalize to lowercase first to accept legacy uppercase pubkeys
       const normalizedPubkey = tag[1].toLowerCase();
+
+      // Validate hex format on the normalized key
+      if (!isValidPublicKeyFormat(normalizedPubkey)) {
+        continue; // Skip invalid keys
+      }
+
+      // Skip duplicate pubkeys (normalize to lowercase for consistent deduplication)
       if (seenPubkeys.has(normalizedPubkey)) {
         continue;
       }
@@ -113,12 +117,15 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
         pubkey: normalizedPubkey,
       };
       if (typeof tag[2] === "string" && tag[2].length > 0) {
-        // Trim and canonicalize the relay URL to handle whitespace and ensure consistent validation
+        // Trim and canonicalize the relay URL (lowercase scheme + host) for consistency
         const trimmedRelayUrl = tag[2].trim();
-        if (trimmedRelayUrl.length > 0 && isValidRelayUrl(trimmedRelayUrl)) {
-          contact.relayUrl = trimmedRelayUrl;
-        } else {
-          console.warn("Invalid relay URL:", tag[2]);
+        if (trimmedRelayUrl.length > 0) {
+          const canonicalUrl = canonicalizeRelayUrl(trimmedRelayUrl);
+          if (isValidRelayUrl(canonicalUrl)) {
+            contact.relayUrl = canonicalUrl;
+          } else {
+            console.warn("Invalid relay URL:", tag[2]);
+          }
         }
       }
       if (typeof tag[3] === "string" && tag[3].length > 0) {

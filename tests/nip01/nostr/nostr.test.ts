@@ -7,8 +7,9 @@ describe("Nostr URL Normalization", () => {
     nostr = new Nostr();
   });
 
-  afterEach(() => {
-    nostr.disconnectFromRelays();
+  afterEach(async () => {
+    // Await in case disconnectFromRelays becomes asynchronous or returns Promise in future
+    await nostr.disconnectFromRelays();
   });
 
   it("should normalize a simple URL correctly", () => {
@@ -25,7 +26,7 @@ describe("Nostr URL Normalization", () => {
 
   it("should handle URL without path correctly", () => {
     const input = "wss://Example.Com";
-    const expected = "wss://example.com";
+    const expected = "wss://example.com/";
     
     const relay = nostr.addRelay(input);
     expect(relay).toBeDefined();

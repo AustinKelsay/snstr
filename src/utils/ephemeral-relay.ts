@@ -656,11 +656,6 @@ class ClientSession {
   // Method to validate NIP-46 events
   async validateNIP46Event(event: SignedEvent): Promise<boolean> {
     // Check required fields exist with proper types
-    if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
-      this.log.debug("NIP-46 validation failed: invalid id");
-      return false;
-    }
-
     if (!isValidPublicKeyFormat(event.pubkey)) {
       this.log.debug("NIP-46 validation failed: invalid pubkey");
       return false;
@@ -727,6 +722,12 @@ class ClientSession {
         "NIP-46 validation failed: error during signature verification",
         error,
       );
+      return false;
+    }
+
+    // Validate event.id: must be 64-char lowercase hex similar to pubkey validation
+    if (!isValidPublicKeyFormat(event.id)) {
+      this.log.debug("NIP-46 validation failed: invalid id format");
       return false;
     }
 

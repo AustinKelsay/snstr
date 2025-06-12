@@ -15,6 +15,10 @@ import {
   createDirectMessage,
   createMetadataEvent,
 } from "./event";
+import {
+  preprocessRelayUrl as preprocessRelayUrlUtil,
+  normalizeRelayUrl as normalizeRelayUrlUtil,
+} from "../utils/relayUrl";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -99,14 +103,8 @@ export class Nostr {
    * This is the correct behavior per URL standards.
    */
   private normalizeRelayUrl(url: string): string {
-    try {
-      const parsedUrl = new URL(url);
-      // Reconstruct with lowercase scheme and host, but preserve path/query/fragment case
-      return `${parsedUrl.protocol.toLowerCase()}//${parsedUrl.host.toLowerCase()}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
-    } catch {
-      // If URL parsing fails, return the original URL (it will fail validation anyway)
-      return url;
-    }
+    // Delegate to shared utility for consistent canonicalisation
+    return normalizeRelayUrlUtil(url);
   }
 
   /**
@@ -119,64 +117,8 @@ export class Nostr {
    * @throws Error if URL has an incompatible scheme
    */
   private preprocessRelayUrl(url: string): string {
-    if (!url || typeof url !== "string") {
-      throw new Error("URL must be a non-empty string");
-    }
-
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl) {
-      throw new Error("URL cannot be empty or whitespace only");
-    }
-
-    // Check if URL already has a scheme - but be more precise about what constitutes a scheme
-    // A scheme must be followed by :// for URLs, not just :
-    const schemePattern = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//;
-    const schemeMatch = trimmedUrl.match(schemePattern);
-    
-    if (schemeMatch) {
-      const scheme = schemeMatch[1].toLowerCase();
-      // If it has a scheme, it must be ws or wss (case insensitive)
-      // Note: Non-standard schemes such as ws+unix:// are intentionally disallowed
-      // to avoid ambiguity and maintain protocol consistency with WebSocket standards
-      if (scheme === "ws" || scheme === "wss") {
-        return trimmedUrl;
-      } else {
-        throw new Error(
-          `Invalid relay URL scheme: "${scheme}://". ` +
-          `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
-          `Got: "${trimmedUrl}"`
-        );
-      }
-    } else {
-      // Check for URLs that might have a port (like "domain.com:8080" or "[2001:db8::1]:443")
-      // These should not be treated as having a scheme
-      // IPv4/domain with port: domain.com:8080
-      // IPv6 with port: [2001:db8::1]:443
-      const hasPort = /^(?:[^:/]+:\d+|\[[0-9a-fA-F:]+\]:\d+)$/.test(trimmedUrl);
-      if (hasPort) {
-        // It's likely a hostname with port, add wss:// prefix
-        return `wss://${trimmedUrl}`;
-      }
-      
-      // Check if there's a colon but not in a valid scheme format
-      const colonIndex = trimmedUrl.indexOf(':');
-      if (colonIndex !== -1) {
-        // There's a colon, but not in a valid scheme format
-        const beforeColon = trimmedUrl.substring(0, colonIndex);
-        
-        // If it looks like a scheme attempt (single word before colon), reject it
-        if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(beforeColon) && !hasPort) {
-          throw new Error(
-            `Invalid relay URL scheme: "${beforeColon}://". ` +
-            `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
-            `Got: "${trimmedUrl}"`
-          );
-        }
-      }
-      
-      // No scheme detected, add wss:// prefix
-      return `wss://${trimmedUrl}`;
-    }
+    // Delegate to shared utility for consistent preprocessing
+    return preprocessRelayUrlUtil(url);
   }
 
   // Helper function to create the event handler wrapper

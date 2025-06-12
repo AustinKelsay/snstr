@@ -7,6 +7,10 @@ import {
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 import { isValidRelayUrl } from "../nip19";
+import {
+  preprocessRelayUrl as preprocessRelayUrlUtil,
+  normalizeRelayUrl as normalizeRelayUrlUtil,
+} from "../utils/relayUrl";
 
 export class RelayPool {
   private relays: Map<string, Relay> = new Map();
@@ -27,62 +31,8 @@ export class RelayPool {
    * @throws Error if URL has an incompatible scheme
    */
   private preprocessRelayUrl(url: string): string {
-    if (!url || typeof url !== "string") {
-      throw new Error("URL must be a non-empty string");
-    }
-
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl) {
-      throw new Error("URL cannot be empty or whitespace only");
-    }
-
-    // Check if URL already has a scheme - but be more precise about what constitutes a scheme
-    // A scheme must be followed by :// for URLs, not just :
-    const schemePattern = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//;
-    const schemeMatch = trimmedUrl.match(schemePattern);
-    
-    if (schemeMatch) {
-      const scheme = schemeMatch[1].toLowerCase();
-      // If it has a scheme, it must be ws or wss (case insensitive)
-      if (scheme === "ws" || scheme === "wss") {
-        return trimmedUrl;
-      } else {
-        throw new Error(
-          `Invalid relay URL scheme: "${scheme}://". ` +
-          `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
-          `Got: "${trimmedUrl}"`
-        );
-      }
-    } else {
-      // Check for URLs that might have a port (like "domain.com:8080" or "[2001:db8::1]:443")
-      // These should not be treated as having a scheme
-      // IPv4/domain with port: domain.com:8080
-      // IPv6 with port: [2001:db8::1]:443
-      const hasPort = /^(?:[^:/]+:\d+|\[[0-9a-fA-F:]+\]:\d+)$/.test(trimmedUrl);
-      if (hasPort) {
-        // It's likely a hostname with port, add wss:// prefix
-        return `wss://${trimmedUrl}`;
-      }
-      
-      // Check if there's a colon but not in a valid scheme format
-      const colonIndex = trimmedUrl.indexOf(':');
-      if (colonIndex !== -1) {
-        // There's a colon, but not in a valid scheme format
-        const beforeColon = trimmedUrl.substring(0, colonIndex);
-        
-        // If it looks like a scheme attempt (single word before colon), reject it
-        if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(beforeColon) && !hasPort) {
-          throw new Error(
-            `Invalid relay URL scheme: "${beforeColon}://". ` +
-            `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
-            `Got: "${trimmedUrl}"`
-          );
-        }
-      }
-      
-      // No scheme detected, add wss:// prefix
-      return `wss://${trimmedUrl}`;
-    }
+    // Delegate to shared utility for consistent preprocessing
+    return preprocessRelayUrlUtil(url);
   }
 
   /**
@@ -94,35 +44,10 @@ export class RelayPool {
    */
   private normalizeRelayUrl(url: string): string | undefined {
     try {
-      // First preprocess the URL to handle scheme validation and addition
-      const preprocessedUrl = this.preprocessRelayUrl(url);
-      
-      // Then normalize case for scheme and host while preserving path/query case
-      const parsedUrl = new URL(preprocessedUrl);
-      
-      // Construct the normalized URL, being careful about the path
-      let normalizedUrl = `${parsedUrl.protocol.toLowerCase()}//${parsedUrl.host.toLowerCase()}`;
-      
-      // Only add pathname if it's not just "/" (which is the default for URLs without a path)
-      if (parsedUrl.pathname && parsedUrl.pathname !== "/") {
-        normalizedUrl += parsedUrl.pathname;
-      }
-      
-      // Add search and hash if they exist
-      if (parsedUrl.search) {
-        normalizedUrl += parsedUrl.search;
-      }
-      if (parsedUrl.hash) {
-        normalizedUrl += parsedUrl.hash;
-      }
-      
-      // Finally validate the URL
+      const normalizedUrl = normalizeRelayUrlUtil(url);
       return isValidRelayUrl(normalizedUrl) ? normalizedUrl : undefined;
     } catch (error) {
-      // If preprocessing fails (invalid scheme), we can optionally log it
       if (error instanceof Error && error.message.includes("Invalid relay URL scheme")) {
-        // For RelayPool, we might want to be more lenient and just return undefined
-        // instead of throwing, so the caller can decide how to handle it
         console.warn(`RelayPool: ${error.message}`);
       }
       return undefined;

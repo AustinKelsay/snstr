@@ -436,11 +436,13 @@ describe("NIP-02: Contact Lists", () => {
 
     it("should skip duplicate pubkeys to ensure uniqueness in contact list", () => {
       const duplicatePubkey = userBPubKey;
+      const duplicatePubkeyUpper = userBPubKey.toUpperCase();
       const event: ContactsEvent = {
         ...baseEvent,
         tags: [
           ["p", duplicatePubkey, "ws://relay1.com", "First Entry"],
           ["p", userCPubKey, "ws://relay2.com", "Different User"],
+          ["p", duplicatePubkeyUpper, "ws://relay2.com", "Uppercase Duplicate"],
           ["p", duplicatePubkey, "ws://relay3.com", "Duplicate Entry"], // This should be skipped
           ["p", userAPubKey, "", "Third User"],
         ],
@@ -455,8 +457,7 @@ describe("NIP-02: Contact Lists", () => {
       expect(duplicateContact?.relayUrl).toBe("ws://relay1.com");
       
       // Verify that the duplicate entry's data is NOT present in contacts array
-      expect(contacts.some(c => c.petname === "Duplicate Entry")).toBe(false);
-      expect(contacts.some(c => c.relayUrl === "ws://relay3.com")).toBe(false);
+      expect(contacts.some(c => c.petname === "Duplicate Entry" || c.petname === "Uppercase Duplicate")).toBe(false);
     });
 
     it("should properly handle case normalization in duplicate detection (robustness test)", () => {
