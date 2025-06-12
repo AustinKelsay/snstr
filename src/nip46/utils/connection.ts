@@ -36,11 +36,24 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     const type = url.protocol === "bunker:" ? "bunker" : "nostrconnect";
     
     // Extract pubkey from original string to preserve case for validation
-    // Match pattern: protocol://pubkey?params or protocol://pubkey
+    // Match pattern: protocol://pubkey?params or protocol://pubkey#fragment or protocol://pubkey
+    // Find the earliest occurrence of either '?' (query) or '#' (fragment) to properly delimit the pubkey
     const protocolPrefix = type === "bunker" ? "bunker://" : "nostrconnect://";
     const afterProtocol = str.slice(protocolPrefix.length);
     const queryStart = afterProtocol.indexOf("?");
-    const pubkey = queryStart === -1 ? afterProtocol : afterProtocol.slice(0, queryStart);
+    const fragmentStart = afterProtocol.indexOf("#");
+    
+    // Find the earliest delimiter (query or fragment), or use the entire string if neither exists
+    let delimiterStart = -1;
+    if (queryStart !== -1 && fragmentStart !== -1) {
+      delimiterStart = Math.min(queryStart, fragmentStart);
+    } else if (queryStart !== -1) {
+      delimiterStart = queryStart;
+    } else if (fragmentStart !== -1) {
+      delimiterStart = fragmentStart;
+    }
+    
+    const pubkey = delimiterStart === -1 ? afterProtocol : afterProtocol.slice(0, delimiterStart);
 
     if (!isValidPublicKeyFormat(pubkey)) {
       throw new NIP46ConnectionError(

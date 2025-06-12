@@ -44,6 +44,55 @@ function validateGeohash(geohash: string | undefined): void {
 }
 
 /**
+ * Canonicalize a relay URL by lowercasing the scheme and host parts
+ * This ensures consistent formatting and prevents duplicate entries due to case differences
+ * @param url - The relay URL to canonicalize
+ * @returns The canonicalized URL with lowercase scheme and host
+ */
+function canonicalizeRelayUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    
+    // Lowercase the scheme and host for consistency
+    urlObj.protocol = urlObj.protocol.toLowerCase();
+    urlObj.hostname = urlObj.hostname.toLowerCase();
+    
+    // Build the canonicalized URL manually to avoid URL constructor quirks
+    let canonicalized = `${urlObj.protocol}//${urlObj.hostname}`;
+    
+    // Add port if it's not the default port for the scheme
+    const isDefaultPort = (urlObj.protocol === 'wss:' && urlObj.port === '443') ||
+                         (urlObj.protocol === 'ws:' && urlObj.port === '80') ||
+                         urlObj.port === '';
+    
+    if (!isDefaultPort) {
+      canonicalized += `:${urlObj.port}`;
+    }
+    
+    // Add pathname if it's not just "/"
+    if (urlObj.pathname && urlObj.pathname !== '/') {
+      canonicalized += urlObj.pathname;
+    }
+    
+    // Add search params if they exist
+    if (urlObj.search) {
+      canonicalized += urlObj.search;
+    }
+    
+    // Add hash if it exists
+    if (urlObj.hash) {
+      canonicalized += urlObj.hash;
+    }
+    
+    return canonicalized;
+  } catch {
+    // If URL parsing fails, return the original string
+    // The validation will catch invalid URLs later
+    return url;
+  }
+}
+
+/**
  * Create a relay discovery event (kind 30166)
  */
 export function createRelayDiscoveryEvent(
@@ -63,10 +112,14 @@ export function createRelayDiscoveryEvent(
     throw new Error("Valid relay URL is required");
   }
 
-  // Trim and normalize the relay URL
+  // Trim and canonicalize the relay URL to ensure consistent formatting
   const trimmedRelay = options.relay.trim();
+  
+  // Canonicalize the relay URL by lowercasing scheme and host
+  // This prevents duplicate entries due to case differences (e.g., WSS://RELAY.COM vs wss://relay.com)
+  const canonicalizedRelay = canonicalizeRelayUrl(trimmedRelay);
 
-  if (!isValidRelayUrl(trimmedRelay)) {
+  if (!isValidRelayUrl(canonicalizedRelay)) {
     throw new Error("Relay URL must start with ws:// or wss:// and be valid");
   }
   
@@ -194,7 +247,7 @@ export function createRelayDiscoveryEvent(
     }
   }
   
-  const tags: string[][] = [["d", trimmedRelay]];
+  const tags: string[][] = [["d", canonicalizedRelay]];
 
   if (options.network) tags.push(["n", options.network]);
   if (options.relayType) tags.push(["T", options.relayType]);

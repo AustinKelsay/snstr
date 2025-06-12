@@ -113,8 +113,10 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
         pubkey: normalizedPubkey,
       };
       if (typeof tag[2] === "string" && tag[2].length > 0) {
-        if (isValidRelayUrl(tag[2])) {
-          contact.relayUrl = tag[2];
+        // Trim and canonicalize the relay URL to handle whitespace and ensure consistent validation
+        const trimmedRelayUrl = tag[2].trim();
+        if (trimmedRelayUrl.length > 0 && isValidRelayUrl(trimmedRelayUrl)) {
+          contact.relayUrl = trimmedRelayUrl;
         } else {
           console.warn("Invalid relay URL:", tag[2]);
         }

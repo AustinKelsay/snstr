@@ -166,19 +166,52 @@ function unpad(padded: Uint8Array): string {
 
 /**
  * Validate if a string is a valid hex format public key
- * This function only validates the FORMAT (64 lowercase hex characters)
- * and does NOT validate if the hex string represents a valid curve point.
- * For cryptographic validation, use a separate function.
+ * This function validates the FORMAT (64 lowercase hex characters) and
+ * rejects problematic edge cases that are cryptographically invalid.
+ * It does NOT validate if the hex string represents a valid curve point.
+ * For full cryptographic validation, use isValidPublicKeyPoint.
  */
 export function isValidPublicKeyFormat(publicKey: string): boolean {
   // Check format: must be 64 hex characters (lowercase only)
-  return /^[0-9a-f]{64}$/.test(publicKey);
+  if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+    return false;
+  }
+  
+  // Reject problematic edge cases that are invalid for cryptographic use
+  
+  // All zeros - invalid public key (point at infinity)
+  if (publicKey === "0000000000000000000000000000000000000000000000000000000000000000") {
+    return false;
+  }
+  
+  // All 'f's - invalid public key (field prime - 1, not a valid x-coordinate)
+  if (publicKey === "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") {
+    return false;
+  }
+  
+  // secp256k1 field prime: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
+  // Any value >= field prime is invalid as an x-coordinate
+  try {
+    const keyValue = BigInt("0x" + publicKey);
+    const fieldPrime = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
+    if (keyValue >= fieldPrime) {
+      return false;
+    }
+  } catch {
+    // If BigInt conversion fails, it's not a valid hex string anyway
+    return false;
+  }
+  
+  return true;
 }
 
 /**
  * Validate if a hex string represents a valid point on the secp256k1 curve
  * This function does cryptographic validation in addition to format validation.
  * Use this when you need to ensure the public key is actually usable for cryptographic operations.
+ * 
+ * This implementation uses efficient point validation instead of expensive ECDH operations,
+ * significantly improving performance while maintaining the same validation behavior.
  */
 export function isValidPublicKeyPoint(publicKey: string): boolean {
   // First check format
@@ -187,16 +220,20 @@ export function isValidPublicKeyPoint(publicKey: string): boolean {
   }
 
   try {
-    // For Nostr x-only public keys, we need to try both possible y-coordinates
-    // to verify the x-coordinate represents a valid point on the secp256k1 curve
+    // For Nostr x-only public keys, we need to check if the x-coordinate
+    // represents a valid point on the secp256k1 curve.
+    // We try both possible y-coordinates (even and odd) efficiently using
+    // ProjectivePoint.fromHex which validates curve membership without
+    // performing expensive ECDH operations.
+    
+    // Try with '02' prefix (compressed point with even y-coordinate)
     try {
-      // Try with '02' prefix (even y-coordinate)
-      secp256k1.getSharedSecret("0000000000000000000000000000000000000000000000000000000000000001", "02" + publicKey);
+      secp256k1.ProjectivePoint.fromHex("02" + publicKey);
       return true;
     } catch {
+      // Try with '03' prefix (compressed point with odd y-coordinate)
       try {
-        // Try with '03' prefix (odd y-coordinate)
-        secp256k1.getSharedSecret("0000000000000000000000000000000000000000000000000000000000000001", "03" + publicKey);
+        secp256k1.ProjectivePoint.fromHex("03" + publicKey);
         return true;
       } catch {
         return false;

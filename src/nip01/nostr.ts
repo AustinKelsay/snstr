@@ -136,6 +136,8 @@ export class Nostr {
     if (schemeMatch) {
       const scheme = schemeMatch[1].toLowerCase();
       // If it has a scheme, it must be ws or wss (case insensitive)
+      // Note: Non-standard schemes such as ws+unix:// are intentionally disallowed
+      // to avoid ambiguity and maintain protocol consistency with WebSocket standards
       if (scheme === "ws" || scheme === "wss") {
         return trimmedUrl;
       } else {
@@ -146,9 +148,11 @@ export class Nostr {
         );
       }
     } else {
-             // Check for URLs that might have a port (like "domain.com:8080")
-       // These should not be treated as having a scheme
-       const hasPort = /^[^:/]+:\d+/.test(trimmedUrl);
+      // Check for URLs that might have a port (like "domain.com:8080" or "[2001:db8::1]:443")
+      // These should not be treated as having a scheme
+      // IPv4/domain with port: domain.com:8080
+      // IPv6 with port: [2001:db8::1]:443
+      const hasPort = /^(?:[^:/]+:\d+|\[[0-9a-fA-F:]+\]:\d+)$/.test(trimmedUrl);
       if (hasPort) {
         // It's likely a hostname with port, add wss:// prefix
         return `wss://${trimmedUrl}`;
