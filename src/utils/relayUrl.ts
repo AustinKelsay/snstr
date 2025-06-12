@@ -62,10 +62,17 @@ export function normalizeRelayUrl(url: string): string {
   const preprocessed = preprocessRelayUrl(url);
   const parsed = new URL(preprocessed);
 
-  // Always include the pathname to preserve trailing slash for root paths
-  const pathnamePart = parsed.pathname; // Includes "/" or any other path
+  // For the root path ("/"), most libraries omit the trailing slash in their
+  // canonical representation (e.g. `wss://example.com`).  Only keep the
+  // pathname when it is not exactly "/".
 
-  let normalized = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${pathnamePart}`;
+  const includePathname = parsed.pathname && parsed.pathname !== "/";
+
+  let normalized = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}`;
+
+  if (includePathname) {
+    normalized += parsed.pathname;
+  }
 
   if (parsed.search) {
     normalized += parsed.search;

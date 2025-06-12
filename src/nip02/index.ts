@@ -120,11 +120,26 @@ export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
         // Trim and canonicalize the relay URL (lowercase scheme + host) for consistency
         const trimmedRelayUrl = tag[2].trim();
         if (trimmedRelayUrl.length > 0) {
-          const canonicalUrl = canonicalizeRelayUrl(trimmedRelayUrl);
-          if (isValidRelayUrl(canonicalUrl)) {
-            contact.relayUrl = canonicalUrl;
-          } else {
+          // Require the tag value itself to include a valid ws:// or wss:// scheme.
+          // This prevents "naked" hostnames from being auto-upgraded and accepted.
+          const hasWebSocketScheme = /^wss?:\/\//i.test(trimmedRelayUrl);
+
+          if (!hasWebSocketScheme) {
+            // Treat as invalid and keep relayUrl undefined but retain petname.
             console.warn("Invalid relay URL:", tag[2]);
+          } else {
+            let canonicalUrl: string | undefined;
+            try {
+              canonicalUrl = canonicalizeRelayUrl(trimmedRelayUrl);
+            } catch {
+              canonicalUrl = undefined;
+            }
+
+            if (canonicalUrl && isValidRelayUrl(canonicalUrl)) {
+              contact.relayUrl = canonicalUrl;
+            } else {
+              console.warn("Invalid relay URL:", tag[2]);
+            }
           }
         }
       }

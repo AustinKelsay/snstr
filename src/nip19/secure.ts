@@ -85,11 +85,16 @@ export function isValidRelayUrl(url: RelayUrl): boolean {
 
     // Ensure the host doesn't contain any suspicious characters
     // Only allow: alphanumeric, dots, hyphens, and brackets (for IPv6)
-    const hostnameWithoutIPv6 = parsedUrl.hostname.replace(/^\[.*\]$/, ""); // Remove IPv6 brackets for checking
+    const hostnameWithoutIPv6 = parsedUrl.hostname.replace(/^\[|]$/g, "");
     if (
       !/^[a-zA-Z0-9.-]*$/.test(hostnameWithoutIPv6) &&
       !parsedUrl.hostname.startsWith("[")
     ) {
+      return false;
+    }
+
+    // Additional sanity: disallow empty hostname (should never happen with URL parser)
+    if (hostnameWithoutIPv6.length === 0) {
       return false;
     }
 
