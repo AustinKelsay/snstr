@@ -11,6 +11,7 @@ import { NostrEvent } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
 import { createEvent } from "../nip01/event";
 import { isValidRelayUrl } from "../nip19";
+import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../utils/relayUrl";
 
 import {
   RelayDiscoveryEventOptions,
@@ -44,53 +45,13 @@ function validateGeohash(geohash: string | undefined): void {
 }
 
 /**
- * Canonicalize a relay URL by lowercasing the scheme and host parts
+ * Canonicalize a relay URL using the shared utility for consistent formatting
  * This ensures consistent formatting and prevents duplicate entries due to case differences
  * @param url - The relay URL to canonicalize
  * @returns The canonicalized URL with lowercase scheme and host
  */
 function canonicalizeRelayUrl(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    
-    // Lowercase the scheme and host for consistency
-    urlObj.protocol = urlObj.protocol.toLowerCase();
-    urlObj.hostname = urlObj.hostname.toLowerCase();
-    
-    // Build the canonicalized URL manually to avoid URL constructor quirks
-    // For IPv6 addresses, the hostname already includes brackets, so we don't need to add them
-    let canonicalized = `${urlObj.protocol}//${urlObj.hostname}`;
-    
-    // Add port if it's not the default port for the scheme
-    const isDefaultPort = (urlObj.protocol === 'wss:' && urlObj.port === '443') ||
-                         (urlObj.protocol === 'ws:' && urlObj.port === '80') ||
-                         urlObj.port === '';
-    
-    if (!isDefaultPort) {
-      canonicalized += `:${urlObj.port}`;
-    }
-    
-    // Add pathname (including "/" if it was explicitly in the original URL)
-    if (urlObj.pathname) {
-      canonicalized += urlObj.pathname;
-    }
-    
-    // Add search params if they exist
-    if (urlObj.search) {
-      canonicalized += urlObj.search;
-    }
-    
-    // Add hash if it exists
-    if (urlObj.hash) {
-      canonicalized += urlObj.hash;
-    }
-    
-    return canonicalized;
-  } catch {
-    // If URL parsing fails, return the original string
-    // The validation will catch invalid URLs later
-    return url;
-  }
+  return normalizeRelayUrlUtil(url);
 }
 
 /**

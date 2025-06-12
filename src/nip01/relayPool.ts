@@ -6,7 +6,6 @@ import {
   PublishResponse,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
-import { isValidRelayUrl } from "../nip19";
 import {
   preprocessRelayUrl as preprocessRelayUrlUtil,
   normalizeRelayUrl as normalizeRelayUrlUtil,
@@ -40,25 +39,15 @@ export class RelayPool {
    * This ensures consistent URL keys in the relay map and prevents duplicates.
    * 
    * @param url - The input URL string to normalize
-   * @returns The canonicalized URL if valid, otherwise undefined
+   * @returns The canonicalized URL
+   * @throws Error if the URL is invalid (from normalizeRelayUrlUtil)
    */
-  private normalizeRelayUrl(url: string): string | undefined {
-    try {
-      const normalizedUrl = normalizeRelayUrlUtil(url);
-      return isValidRelayUrl(normalizedUrl) ? normalizedUrl : undefined;
-    } catch (error) {
-      if (error instanceof Error && error.message.includes("Invalid relay URL scheme")) {
-        console.warn(`RelayPool: ${error.message}`);
-      }
-      return undefined;
-    }
+  private normalizeRelayUrl(url: string): string {
+    return normalizeRelayUrlUtil(url);
   }
 
   public addRelay(url: string, options?: RelayConnectionOptions): Relay {
     const normalizedUrl = this.normalizeRelayUrl(url);
-    if (!normalizedUrl) {
-      throw new Error("Invalid relay URL");
-    }
     let relay = this.relays.get(normalizedUrl);
     if (!relay) {
       relay = new Relay(normalizedUrl, options || this.relayOptions);
@@ -68,12 +57,16 @@ export class RelayPool {
   }
 
   public removeRelay(url: string): void {
-    const normalizedUrl = this.normalizeRelayUrl(url);
-    if (!normalizedUrl) return;
-    const relay = this.relays.get(normalizedUrl);
-    if (relay) {
-      relay.disconnect();
-      this.relays.delete(normalizedUrl);
+    try {
+      const normalizedUrl = this.normalizeRelayUrl(url);
+      const relay = this.relays.get(normalizedUrl);
+      if (relay) {
+        relay.disconnect();
+        this.relays.delete(normalizedUrl);
+      }
+    } catch {
+      // Invalid URL, nothing to remove
+      return;
     }
   }
 
@@ -90,11 +83,14 @@ export class RelayPool {
   public close(relayUrls?: string[]): void {
     if (relayUrls) {
       relayUrls.forEach((url) => {
-        // Normalize URL to match the key used in the map
-        const normalizedUrl = this.normalizeRelayUrl(url);
-        if (!normalizedUrl) return;
-        const relay = this.relays.get(normalizedUrl);
-        if (relay) relay.disconnect();
+        try {
+          // Normalize URL to match the key used in the map
+          const normalizedUrl = this.normalizeRelayUrl(url);
+          const relay = this.relays.get(normalizedUrl);
+          if (relay) relay.disconnect();
+        } catch {
+          // Invalid URL, skip it
+        }
       });
     } else {
       this.relays.forEach((relay) => relay.disconnect());

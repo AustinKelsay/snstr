@@ -103,21 +103,8 @@ export class Nostr {
    * This is the correct behavior per URL standards.
    */
   private normalizeRelayUrl(url: string): string {
-    // Delegate to shared utility for base canonicalisation
-    const normalized = normalizeRelayUrlUtil(url);
-
-    // Historical behaviour in this client keeps a trailing slash for root paths
-    // (e.g. "wss://example.com/"). Some test fixtures rely on this.
-    try {
-      const parsed = new URL(normalized);
-      if (parsed.pathname === "/" && !normalized.endsWith("/")) {
-        return normalized + "/";
-      }
-    } catch {
-      // If URL parsing fails just return as is (it will be rejected later)
-    }
-
-    return normalized;
+    // Delegate to shared utility for consistent canonicalization
+    return normalizeRelayUrlUtil(url);
   }
 
   /**

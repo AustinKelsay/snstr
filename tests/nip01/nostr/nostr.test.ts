@@ -26,7 +26,7 @@ describe("Nostr URL Normalization", () => {
 
   it("should handle URL without path correctly", () => {
     const input = "wss://Example.Com";
-    const expected = "wss://example.com/";
+    const expected = "wss://example.com";
     
     const relay = nostr.addRelay(input);
     expect(relay).toBeDefined();

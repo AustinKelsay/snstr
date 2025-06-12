@@ -219,29 +219,23 @@ export function isValidPublicKeyPoint(publicKey: string): boolean {
     return false;
   }
 
-  try {
-    // For Nostr x-only public keys, we need to check if the x-coordinate
-    // represents a valid point on the secp256k1 curve.
-    // We try both possible y-coordinates (even and odd) efficiently using
-    // ProjectivePoint.fromHex which validates curve membership without
-    // performing expensive ECDH operations.
-    
-    // Try with '02' prefix (compressed point with even y-coordinate)
+  // For Nostr x-only public keys, we need to check if the x-coordinate
+  // represents a valid point on the secp256k1 curve.
+  // We try both possible y-coordinates (even and odd) efficiently using
+  // ProjectivePoint.fromHex which validates curve membership without
+  // performing expensive ECDH operations.
+  
+  const prefixes = ['02', '03'];
+  for (const prefix of prefixes) {
     try {
-      secp256k1.ProjectivePoint.fromHex("02" + publicKey);
+      secp256k1.ProjectivePoint.fromHex(prefix + publicKey);
       return true;
     } catch {
-      // Try with '03' prefix (compressed point with odd y-coordinate)
-      try {
-        secp256k1.ProjectivePoint.fromHex("03" + publicKey);
-        return true;
-      } catch {
-        return false;
-      }
+      // Continue to next prefix
     }
-  } catch {
-    return false;
   }
+  
+  return false;
 }
 
 /**
