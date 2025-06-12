@@ -255,7 +255,7 @@ describe("Event Creation and Signing", () => {
           createDirectMessage(content, invalidPubkey, privateKey),
         ).rejects.toThrow(
           new NostrValidationError(
-            "Invalid recipient public key: must be a 64-character lowercase hex string",
+            "Invalid recipient public key: must be a valid secp256k1 curve point",
             "recipientPubkey",
           ),
         );
@@ -269,7 +269,7 @@ describe("Event Creation and Signing", () => {
         createDirectMessage(content, null as unknown as string, privateKey),
       ).rejects.toThrow(
         new NostrValidationError(
-          "Invalid recipient public key: must be a 64-character lowercase hex string",
+          "Invalid recipient public key: must be a valid secp256k1 curve point",
           "recipientPubkey",
         ),
       );
@@ -278,7 +278,7 @@ describe("Event Creation and Signing", () => {
         createDirectMessage(content, undefined as unknown as string, privateKey),
       ).rejects.toThrow(
         new NostrValidationError(
-          "Invalid recipient public key: must be a 64-character lowercase hex string",
+          "Invalid recipient public key: must be a valid secp256k1 curve point",
           "recipientPubkey",
         ),
       );

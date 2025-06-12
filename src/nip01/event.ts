@@ -14,7 +14,7 @@ import { encrypt as encryptNIP04 } from "../nip04";
 import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
-import { isValidPrivateKey, isValidPublicKeyFormat } from "../nip44";
+import { isValidPrivateKey, isValidPublicKeyFormat, isValidPublicKeyPoint } from "../nip44";
 import { getUnixTime } from "../utils/time";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
@@ -257,9 +257,9 @@ export async function createDirectMessage(
     );
   }
 
-  if (!isValidPublicKeyFormat(recipientPubkey)) {
+  if (!isValidPublicKeyPoint(recipientPubkey)) {
     throw new NostrValidationError(
-      "Invalid recipient public key: must be a 64-character lowercase hex string",
+      "Invalid recipient public key: must be a valid secp256k1 curve point",
       "recipientPubkey",
     );
   }

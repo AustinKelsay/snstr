@@ -52,7 +52,7 @@ describe("NIP-66", () => {
       validPubkey,
     );
     expect(event.kind).toBe(RELAY_DISCOVERY_KIND);
-    expect(event.tags).toContainEqual(["d", "wss://relay.example.com"]);
+    expect(event.tags).toContainEqual(["d", "wss://relay.example.com/"]);
     expect(event.tags).toContainEqual(["rtt-open", "100"]);
   });
 
@@ -73,7 +73,7 @@ describe("NIP-66", () => {
       pubkey: validPubkey,
     });
 
-    expect(parsed?.relay).toBe("wss://relay.example.com");
+    expect(parsed?.relay).toBe("wss://relay.example.com/");
     expect(parsed?.network).toBe("clearnet");
     expect(parsed?.supportedNips).toContain("1");
   });
@@ -184,7 +184,7 @@ describe("NIP-66", () => {
       expect(parsed?.kinds).toEqual(["0", "1", "3", "10000"]);
       expect(parsed?.network).toBe("clearnet");
       expect(parsed?.relayType).toBe("paid");
-      expect(parsed?.relay).toBe("wss://relay.example.com");
+      expect(parsed?.relay).toBe("wss://relay.example.com/");
     });
 
     test("type aliases should be exported and usable", () => {

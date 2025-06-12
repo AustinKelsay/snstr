@@ -58,6 +58,7 @@ function canonicalizeRelayUrl(url: string): string {
     urlObj.hostname = urlObj.hostname.toLowerCase();
     
     // Build the canonicalized URL manually to avoid URL constructor quirks
+    // For IPv6 addresses, the hostname already includes brackets, so we don't need to add them
     let canonicalized = `${urlObj.protocol}//${urlObj.hostname}`;
     
     // Add port if it's not the default port for the scheme
@@ -69,8 +70,8 @@ function canonicalizeRelayUrl(url: string): string {
       canonicalized += `:${urlObj.port}`;
     }
     
-    // Add pathname if it's not just "/"
-    if (urlObj.pathname && urlObj.pathname !== '/') {
+    // Add pathname (including "/" if it was explicitly in the original URL)
+    if (urlObj.pathname) {
       canonicalized += urlObj.pathname;
     }
     

@@ -54,9 +54,11 @@ export class RelayPool {
         );
       }
     } else {
-      // Check for URLs that might have a port (like "domain.com:8080")
+      // Check for URLs that might have a port (like "domain.com:8080" or "[2001:db8::1]:443")
       // These should not be treated as having a scheme
-      const hasPort = /^[^:/]+:\d+/.test(trimmedUrl);
+      // IPv4/domain with port: domain.com:8080
+      // IPv6 with port: [2001:db8::1]:443
+      const hasPort = /^(?:[^:/]+:\d+|\[[0-9a-fA-F:]+\]:\d+)$/.test(trimmedUrl);
       if (hasPort) {
         // It's likely a hostname with port, add wss:// prefix
         return `wss://${trimmedUrl}`;
