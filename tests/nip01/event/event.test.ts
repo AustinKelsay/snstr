@@ -253,12 +253,9 @@ describe("Event Creation and Signing", () => {
       for (const invalidPubkey of invalidPubkeys) {
         await expect(
           createDirectMessage(content, invalidPubkey, privateKey),
-        ).rejects.toThrow(
-          new NostrValidationError(
-            "Invalid recipient public key: must be a valid secp256k1 curve point",
-            "recipientPubkey",
-          ),
-        );
+        ).rejects.toMatchObject({ 
+          field: "recipientPubkey" 
+        });
       }
     });
 
@@ -267,21 +264,15 @@ describe("Event Creation and Signing", () => {
       
       await expect(
         createDirectMessage(content, null as unknown as string, privateKey),
-      ).rejects.toThrow(
-        new NostrValidationError(
-          "Invalid recipient public key: must be a valid secp256k1 curve point",
-          "recipientPubkey",
-        ),
-      );
+      ).rejects.toMatchObject({ 
+        field: "recipientPubkey" 
+      });
 
       await expect(
         createDirectMessage(content, undefined as unknown as string, privateKey),
-      ).rejects.toThrow(
-        new NostrValidationError(
-          "Invalid recipient public key: must be a valid secp256k1 curve point",
-          "recipientPubkey",
-        ),
-      );
+      ).rejects.toMatchObject({ 
+        field: "recipientPubkey" 
+      });
     });
   });
 

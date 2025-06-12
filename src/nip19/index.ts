@@ -13,7 +13,6 @@ import {
   Bech32Result,
   SimpleBech32Result,
 } from "./types";
-import { isValidRelayUrl } from "./secure";
 
 // Re-export types
 export * from "./types";
@@ -882,5 +881,6 @@ export function decode(bech32Str: Bech32String): DecodedEntity {
   }
 }
 
-// Export security utilities
+// Export security utilities  
+import { isValidRelayUrl } from "./secure";
 export * from "./secure";

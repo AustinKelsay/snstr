@@ -160,6 +160,69 @@ export const testUtils = {
     // Access the internal cache with a more explicit casting approach
     (relay as unknown as { _cache: NostrEvent[] })._cache = [];
   },
+
+  /**
+   * Normalize a relay URL for testing purposes
+   * This replicates the URL normalization logic from the Nostr class
+   * for use in test assertions.
+   */
+  normalizeRelayUrl: (url: string): string => {
+    // First preprocess the URL (add wss:// if needed)
+    let processedUrl = url;
+    if (!url || typeof url !== "string") {
+      throw new Error("URL must be a non-empty string");
+    }
+
+    const trimmedUrl = url.trim();
+    if (!trimmedUrl) {
+      throw new Error("URL cannot be empty or whitespace only");
+    }
+
+    // Check if URL already has a scheme
+    const schemePattern = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//;
+    const schemeMatch = trimmedUrl.match(schemePattern);
+    
+    if (schemeMatch) {
+      const scheme = schemeMatch[1].toLowerCase();
+      if (scheme === "ws" || scheme === "wss") {
+        processedUrl = trimmedUrl;
+      } else {
+        throw new Error(
+          `Invalid relay URL scheme: "${scheme}://". ` +
+          `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
+          `Got: "${trimmedUrl}"`
+        );
+      }
+    } else {
+      // Check for URLs that might have a port
+      const hasPort = /^(?:[^:/]+:\d+|\[[0-9a-fA-F:]+\]:\d+)$/.test(trimmedUrl);
+      if (hasPort) {
+        processedUrl = `wss://${trimmedUrl}`;
+      } else {
+        // Check if there's a colon but not in a valid scheme format
+        const colonIndex = trimmedUrl.indexOf(':');
+        if (colonIndex !== -1) {
+          const beforeColon = trimmedUrl.substring(0, colonIndex);
+          if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(beforeColon) && !hasPort) {
+            throw new Error(
+              `Invalid relay URL scheme: "${beforeColon}://". ` +
+              `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
+              `Got: "${trimmedUrl}"`
+            );
+          }
+        }
+        processedUrl = `wss://${trimmedUrl}`;
+      }
+    }
+
+    // Then normalize the URL
+    try {
+      const parsedUrl = new URL(processedUrl);
+      return `${parsedUrl.protocol.toLowerCase()}//${parsedUrl.host.toLowerCase()}${parsedUrl.pathname}${parsedUrl.search}${parsedUrl.hash}`;
+    } catch {
+      return processedUrl;
+    }
+  },
 };
 
 /**
