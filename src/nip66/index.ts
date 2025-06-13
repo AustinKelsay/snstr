@@ -79,7 +79,22 @@ export function createRelayDiscoveryEvent(
   
   // Canonicalize the relay URL by lowercasing scheme and host
   // This prevents duplicate entries due to case differences (e.g., WSS://RELAY.COM vs wss://relay.com)
-  const canonicalizedRelay = canonicalizeRelayUrl(trimmedRelay);
+  let canonicalizedRelay: string;
+  try {
+    canonicalizedRelay = canonicalizeRelayUrl(trimmedRelay);
+  } catch (error) {
+    // If canonicalization fails, preserve descriptive error messages or throw consistent fallback
+    if (error instanceof Error && (
+      error.message.includes("Invalid relay URL scheme") ||
+      error.message.includes("Invalid URL format") ||
+      error.message.includes("security validation")
+    )) {
+      // Re-throw specific validation errors to maintain descriptive error messages
+      throw error;
+    }
+    // For other unexpected errors, throw consistent validation error
+    throw new Error("Relay URL must start with ws:// or wss:// and be valid");
+  }
 
   if (!isValidRelayUrl(canonicalizedRelay)) {
     throw new Error("Relay URL must start with ws:// or wss:// and be valid");

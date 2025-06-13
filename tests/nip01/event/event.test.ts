@@ -485,8 +485,9 @@ describe("Event Creation and Signing", () => {
       });
 
       it("should throw NostrValidationError for an invalid curve point", async () => {
-        // Test with a hex string that is not a valid curve point
-        const invalidPubkey = "b2".repeat(32); // This is valid hex but not a valid curve point
+        // Test with a hex string that passes format validation but is not a valid curve point
+        // Using a value just below the field prime that is not a valid x-coordinate
+        const invalidPubkey = "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"; // This passes format but fails curve point validation
         const event = { ...baseEvent, pubkey: invalidPubkey };
         await expect(
           validateEvent(event, {

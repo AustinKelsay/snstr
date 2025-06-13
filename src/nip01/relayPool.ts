@@ -7,7 +7,6 @@ import {
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 import {
-  preprocessRelayUrl as preprocessRelayUrlUtil,
   normalizeRelayUrl as normalizeRelayUrlUtil,
 } from "../utils/relayUrl";
 
@@ -18,20 +17,6 @@ export class RelayPool {
   constructor(relayUrls: string[] = [], options?: { relayOptions?: RelayConnectionOptions }) {
     this.relayOptions = options?.relayOptions;
     relayUrls.forEach((url) => this.addRelay(url));
-  }
-
-  /**
-   * Preprocesses a relay URL before normalization and validation.
-   * Adds wss:// prefix only to URLs without any scheme.
-   * Throws an error for URLs with incompatible schemes.
-   * 
-   * @param url - The input URL string to preprocess
-   * @returns The preprocessed URL with appropriate scheme
-   * @throws Error if URL has an incompatible scheme
-   */
-  private preprocessRelayUrl(url: string): string {
-    // Delegate to shared utility for consistent preprocessing
-    return preprocessRelayUrlUtil(url);
   }
 
   /**
@@ -68,17 +53,21 @@ export class RelayPool {
     return relay;
   }
 
-  public removeRelay(url: string): void {
+  public removeRelay(url: string): boolean {
     try {
       const normalizedUrl = this.normalizeRelayUrl(url);
       const relay = this.relays.get(normalizedUrl);
       if (relay) {
         relay.disconnect();
         this.relays.delete(normalizedUrl);
+        return true;
       }
-    } catch {
-      // Invalid URL, nothing to remove
-      return;
+      return false; // No relay found to remove
+    } catch (error) {
+      // Log the error for debugging purposes
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Failed to remove relay "${url}":`, errorMessage);
+      return false;
     }
   }
 
@@ -100,8 +89,10 @@ export class RelayPool {
           const normalizedUrl = this.normalizeRelayUrl(url);
           const relay = this.relays.get(normalizedUrl);
           if (relay) relay.disconnect();
-        } catch {
-          // Invalid URL, skip it
+        } catch (error) {
+          // Log the error for debugging purposes, but continue processing other URLs
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.warn(`Failed to close relay "${url}":`, errorMessage);
         }
       });
     } else {

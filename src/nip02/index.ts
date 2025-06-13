@@ -173,21 +173,21 @@ export function parseContactsFromEvent(
   };
 
   // Use shared validators for pubkeys and relay URLs
-  for (const tag of event.tags) {
+  event.tags.forEach((tag, tagIndex) => {
     if (tag[0] === "p" && typeof tag[1] === "string") {
       // Normalize to lowercase first to accept legacy uppercase pubkeys
       const normalizedPubkey = tag[1].toLowerCase();
 
       // Validate hex format on the normalized key
       if (!isValidPublicKeyFormat(normalizedPubkey)) {
-        addWarning('invalid_pubkey', `Invalid public key format: ${tag[1]}`, tag[1], { tagIndex: event.tags.indexOf(tag) });
-        continue; // Skip invalid keys
+        addWarning('invalid_pubkey', `Invalid public key format: ${tag[1]}`, tag[1], { tagIndex });
+        return; // Skip invalid keys
       }
 
       // Skip duplicate pubkeys (normalize to lowercase for consistent deduplication)
       if (seenPubkeys.has(normalizedPubkey)) {
-        addWarning('duplicate_pubkey', `Duplicate public key: ${normalizedPubkey}`, normalizedPubkey, { tagIndex: event.tags.indexOf(tag) });
-        continue;
+        addWarning('duplicate_pubkey', `Duplicate public key: ${normalizedPubkey}`, normalizedPubkey, { tagIndex });
+        return;
       }
       seenPubkeys.add(normalizedPubkey);
 
@@ -207,7 +207,7 @@ export function parseContactsFromEvent(
             // Treat as invalid and keep relayUrl undefined but retain petname.
             addWarning('invalid_relay_url', `Invalid relay URL (missing ws/wss scheme): ${tag[2]}`, tag[2], { 
               pubkey: normalizedPubkey, 
-              tagIndex: event.tags.indexOf(tag) 
+              tagIndex 
             });
           } else {
             let canonicalUrl: string | undefined;
@@ -222,7 +222,7 @@ export function parseContactsFromEvent(
             } else {
               addWarning('invalid_relay_url', `Invalid relay URL (failed validation): ${tag[2]}`, tag[2], { 
                 pubkey: normalizedPubkey, 
-                tagIndex: event.tags.indexOf(tag) 
+                tagIndex 
               });
             }
           }
@@ -235,7 +235,7 @@ export function parseContactsFromEvent(
       
       parsedContacts.push(contact);
     }
-  }
+  });
   
   if (options.returnWarnings) {
     return { contacts: parsedContacts, warnings };

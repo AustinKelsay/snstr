@@ -434,17 +434,41 @@ describe("NIP-02: Contact Lists", () => {
       expect(contacts.length).toBe(4);
     });
 
+    it("should filter out invalid pubkey formats", () => {
+      const validPubkey = userBPubKey;
+      const invalidUppercasePubkey = userBPubKey.toUpperCase();
+      const event: ContactsEvent = {
+        ...baseEvent,
+        tags: [
+          ["p", validPubkey, "ws://relay1.com", "Valid Entry"],
+          ["p", userCPubKey, "ws://relay2.com", "Another Valid User"],
+          ["p", invalidUppercasePubkey, "ws://relay3.com", "Invalid Uppercase"], // This should be filtered out
+          ["p", userAPubKey, "", "Third Valid User"],
+        ],
+        content: "",
+      };
+      const contacts = parseContactsFromEvent(event);
+      expect(contacts.length).toBe(3); // Should only include 3 valid pubkeys
+      
+      // Verify that the invalid uppercase pubkey is not present
+      expect(contacts.some(c => c.petname === "Invalid Uppercase")).toBe(false);
+      
+      // Verify that all valid entries are present
+      expect(contacts.some(c => c.petname === "Valid Entry")).toBe(true);
+      expect(contacts.some(c => c.petname === "Another Valid User")).toBe(true);
+      expect(contacts.some(c => c.petname === "Third Valid User")).toBe(true);
+    });
+
     it("should skip duplicate pubkeys to ensure uniqueness in contact list", () => {
       const duplicatePubkey = userBPubKey;
-      const duplicatePubkeyUpper = userBPubKey.toUpperCase();
       const event: ContactsEvent = {
         ...baseEvent,
         tags: [
           ["p", duplicatePubkey, "ws://relay1.com", "First Entry"],
           ["p", userCPubKey, "ws://relay2.com", "Different User"],
-          ["p", duplicatePubkeyUpper, "ws://relay2.com", "Uppercase Duplicate"],
-          ["p", duplicatePubkey, "ws://relay3.com", "Duplicate Entry"], // This should be skipped
+          ["p", duplicatePubkey, "ws://relay3.com", "Duplicate Entry"], // This should be skipped as duplicate
           ["p", userAPubKey, "", "Third User"],
+          ["p", duplicatePubkey, "ws://relay4.com", "Another Duplicate"], // This should also be skipped
         ],
         content: "",
       };
@@ -456,8 +480,13 @@ describe("NIP-02: Contact Lists", () => {
       expect(duplicateContact?.petname).toBe("First Entry");
       expect(duplicateContact?.relayUrl).toBe("ws://relay1.com");
       
-      // Verify that the duplicate entry's data is NOT present in contacts array
-      expect(contacts.some(c => c.petname === "Duplicate Entry" || c.petname === "Uppercase Duplicate")).toBe(false);
+      // Verify that the duplicate entries' data is NOT present in contacts array
+      expect(contacts.some(c => c.petname === "Duplicate Entry")).toBe(false);
+      expect(contacts.some(c => c.petname === "Another Duplicate")).toBe(false);
+      
+      // Verify that other unique contacts are present
+      expect(contacts.some(c => c.pubkey === userCPubKey)).toBe(true);
+      expect(contacts.some(c => c.pubkey === userAPubKey)).toBe(true);
     });
 
     it("should properly handle case normalization in duplicate detection (robustness test)", () => {
