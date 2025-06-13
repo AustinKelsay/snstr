@@ -10,6 +10,18 @@ import {
   normalizeRelayUrl as normalizeRelayUrlUtil,
 } from "../utils/relayUrl";
 
+/**
+ * Result enum for removeRelay operations to provide clear error diagnostics
+ */
+export enum RemoveRelayResult {
+  /** The relay was successfully removed */
+  Removed = "removed",
+  /** No relay was found with the given URL */
+  NotFound = "not_found", 
+  /** The provided URL is invalid and cannot be normalized */
+  InvalidUrl = "invalid_url"
+}
+
 export class RelayPool {
   private relays: Map<string, Relay> = new Map();
   private relayOptions?: RelayConnectionOptions;
@@ -53,21 +65,36 @@ export class RelayPool {
     return relay;
   }
 
-  public removeRelay(url: string): boolean {
+  public removeRelay(url: string): RemoveRelayResult {
+    let normalizedUrl: string;
+    
+    // First, attempt to normalize the URL - this is where input validation errors occur
     try {
-      const normalizedUrl = this.normalizeRelayUrl(url);
-      const relay = this.relays.get(normalizedUrl);
-      if (relay) {
-        relay.disconnect();
-        this.relays.delete(normalizedUrl);
-        return true;
-      }
-      return false; // No relay found to remove
+      normalizedUrl = this.normalizeRelayUrl(url);
     } catch (error) {
-      // Log the error for debugging purposes
+      // URL normalization failed - this is a user input error, not a programmer bug
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.warn(`Failed to remove relay "${url}":`, errorMessage);
-      return false;
+      console.warn(`Invalid relay URL "${url}":`, errorMessage);
+      return RemoveRelayResult.InvalidUrl;
+    }
+    
+    // Check if the relay exists in our pool
+    const relay = this.relays.get(normalizedUrl);
+    if (!relay) {
+      return RemoveRelayResult.NotFound;
+    }
+    
+    // Relay exists, disconnect and remove it
+    // Note: relay.disconnect() handles errors internally and doesn't throw
+    try {
+      relay.disconnect();
+      this.relays.delete(normalizedUrl);
+      return RemoveRelayResult.Removed;
+    } catch (error) {
+      // This should be rare since disconnect() handles errors internally,
+      // but if it does occur, it's likely a programmer bug and should be re-thrown
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unexpected error during relay removal for "${url}": ${errorMessage}`);
     }
   }
 

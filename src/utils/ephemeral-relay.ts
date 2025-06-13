@@ -7,29 +7,22 @@ import {
   NostrEoseMessage,
 } from "../types/protocol";
 import { validateEvent } from "../nip01/event";
-import { isValidPublicKeyFormat } from "../nip44";
+import { isValidPublicKeyPoint } from "../nip44";
 
 /**
- * Validates a 32-byte hex string (64 characters).
- * Unlike isValidPublicKeyFormat, this accepts both uppercase and lowercase hex.
- * Used for validating event IDs and other 32-byte hex values.
- * 
- * @param hex - The hex string to validate
- * @returns True if the string is a valid 64-character hex string
+ * Validates if a string is a valid 32-byte hex string (case-insensitive).
+ * Unlike isValidPublicKeyPoint, this accepts both uppercase and lowercase hex.
  */
 function isValid32ByteHex(hex: string): boolean {
-  return typeof hex === "string" && /^[0-9a-fA-F]{64}$/.test(hex);
+  return /^[0-9a-fA-F]{64}$/.test(hex);
 }
 
 /**
- * Validates a 64-byte hex string (128 characters).
- * Used for validating Nostr signatures.
- * 
- * @param hex - The hex string to validate
- * @returns True if the string is a valid 128-character hex string
+ * Validates if a string is a valid 64-byte hex string (case-insensitive).
+ * Unlike isValidPublicKeyPoint, this accepts both uppercase and lowercase hex.
  */
 function isValid64ByteHex(hex: string): boolean {
-  return typeof hex === "string" && /^[0-9a-fA-F]{128}$/.test(hex);
+  return /^[0-9a-fA-F]{128}$/.test(hex);
 }
 
 /* ================ [ Configuration ] ================ */
@@ -679,7 +672,7 @@ class ClientSession {
   // Method to validate NIP-46 events
   async validateNIP46Event(event: SignedEvent): Promise<boolean> {
     // Check required fields exist with proper types
-    if (!isValidPublicKeyFormat(event.pubkey)) {
+    if (!isValidPublicKeyPoint(event.pubkey)) {
       this.log.debug("NIP-46 validation failed: invalid pubkey");
       return false;
     }
@@ -706,7 +699,7 @@ class ClientSession {
         tag.length >= 2 &&
         tag[0] === "p" &&
         typeof tag[1] === "string" &&
-        isValidPublicKeyFormat(tag[1]),
+        isValidPublicKeyPoint(tag[1]),
     );
 
     if (!hasPTag) {

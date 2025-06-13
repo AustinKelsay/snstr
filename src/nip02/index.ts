@@ -2,7 +2,7 @@
 
 import { NostrEvent, ContactsEvent } from "../types/nostr";
 import { getUnixTime } from "../utils/time";
-import { isValidPublicKeyFormat } from "../nip44";
+import { isValidPublicKeyPoint } from "../nip44";
 import { isValidRelayUrl } from "../nip19";
 import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
@@ -178,9 +178,9 @@ export function parseContactsFromEvent(
       // Normalize to lowercase first to accept legacy uppercase pubkeys
       const normalizedPubkey = tag[1].toLowerCase();
 
-      // Validate hex format on the normalized key
-      if (!isValidPublicKeyFormat(normalizedPubkey)) {
-        addWarning('invalid_pubkey', `Invalid public key format: ${tag[1]}`, tag[1], { tagIndex });
+      // Validate that the public key is a valid curve point on secp256k1
+      if (!isValidPublicKeyPoint(normalizedPubkey)) {
+        addWarning('invalid_pubkey', `Invalid public key (not a valid curve point): ${tag[1]}`, tag[1], { tagIndex });
         return; // Skip invalid keys
       }
 
