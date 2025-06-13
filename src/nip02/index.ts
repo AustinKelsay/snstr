@@ -168,7 +168,11 @@ export function parseContactsFromEvent(
     const warning: ParseWarning = { type, message, value, context };
     warnings.push(warning);
     if (options.logger) {
-      options.logger.warn(message, { value, context });
+      try {
+        options.logger.warn(message, { value, context });
+      } catch {
+        // Ignore logger errors to prevent parsing from being aborted
+      }
     }
   };
 

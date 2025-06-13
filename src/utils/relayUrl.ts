@@ -1,13 +1,34 @@
 import { isValidRelayUrl } from "../nip19";
 
 /**
+ * Custom error class for relay URL validation errors
+ */
+export class RelayUrlValidationError extends Error {
+  /** The type of validation error */
+  readonly errorType: 'scheme' | 'format' | 'security' | 'construction';
+  /** The invalid URL that caused the error */
+  readonly invalidUrl?: string;
+
+  constructor(
+    message: string,
+    errorType: 'scheme' | 'format' | 'security' | 'construction',
+    invalidUrl?: string,
+  ) {
+    super(message);
+    this.name = "RelayUrlValidationError";
+    this.errorType = errorType;
+    this.invalidUrl = invalidUrl;
+  }
+}
+
+/**
  * Preprocesses a relay URL before normalization and validation.
  * Adds wss:// prefix only to URLs without any scheme.
  * Throws an error for URLs with incompatible schemes.
  */
 export function preprocessRelayUrl(url: string): string {
   if (!url || typeof url !== "string") {
-    throw new Error("URL must be a non-empty string");
+    throw new RelayUrlValidationError("URL must be a non-empty string", 'format');
   }
 
   let trimmedUrl = url.trim();
@@ -19,7 +40,7 @@ export function preprocessRelayUrl(url: string): string {
   }
 
   if (!trimmedUrl) {
-    throw new Error("URL cannot be empty or whitespace only");
+    throw new RelayUrlValidationError("URL cannot be empty or whitespace only", 'format');
   }
   // Detect an existing scheme of the form <scheme>://
   const schemePattern = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//;
@@ -30,10 +51,12 @@ export function preprocessRelayUrl(url: string): string {
     if (scheme === "ws" || scheme === "wss") {
       return trimmedUrl;
     }
-    throw new Error(
+    throw new RelayUrlValidationError(
       `Invalid relay URL scheme: "${scheme}://". ` +
         `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
         `Got: "${trimmedUrl}"`,
+      'scheme',
+      trimmedUrl,
     );
   }
 
@@ -42,28 +65,37 @@ export function preprocessRelayUrl(url: string): string {
     try {
       const originalParsed = new URL(trimmedUrl);
       if (originalParsed.protocol !== 'ws:' && originalParsed.protocol !== 'wss:') {
-        throw new Error(
+        throw new RelayUrlValidationError(
           `Invalid relay URL scheme: "${originalParsed.protocol}//". ` +
             `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
             `Got: "${trimmedUrl}"`,
+          'scheme',
+          trimmedUrl,
         );
       }
       return trimmedUrl; // Return original URL with valid scheme
     } catch (urlError) {
-      throw new Error(
+      throw new RelayUrlValidationError(
         `Invalid URL format: "${trimmedUrl}". ` +
-          `Unable to parse the provided URL.`
+          `Unable to parse the provided URL.`,
+        'format',
+        trimmedUrl,
       );
     }
   }
 
   // No scheme in input, so try to construct a valid URL with wss:// prefix
+  // First split the input into host and path/query/fragment parts
+  const firstSlashIndex = trimmedUrl.indexOf('/');
+  const hostPortPart = firstSlashIndex === -1 ? trimmedUrl : trimmedUrl.substring(0, firstSlashIndex);
+  const pathQueryFragmentPart = firstSlashIndex === -1 ? '' : trimmedUrl.substring(firstSlashIndex);
+  
   // Handle IPv6 addresses by properly separating port and applying brackets correctly
-  let hostPart = trimmedUrl;
+  let hostPart = hostPortPart;
   let portPart = '';
   
   // Check if this looks like an IPv6 address without brackets
-  if (hostPart.includes(':') && !hostPart.startsWith('[') && !hostPart.includes('/')) {
+  if (hostPart.includes(':') && !hostPart.startsWith('[')) {
     // For IPv6 addresses with ports, we need to separate the port first
     // A port is typically the last segment after the final colon that's all digits
     const lastColonIndex = hostPart.lastIndexOf(':');
@@ -107,17 +139,19 @@ export function preprocessRelayUrl(url: string): string {
     }
   }
 
-  // Reconstruct the host with port if it was separated
-  const fullHost = hostPart + portPart;
+  // Reconstruct the full URL
+  const fullHost = hostPart + portPart + pathQueryFragmentPart;
   const testUrl = `wss://${fullHost}`;
   
   try {
     new URL(testUrl);
     return testUrl;
   } catch (urlError) {
-    throw new Error(
+    throw new RelayUrlValidationError(
       `Invalid URL format: "${trimmedUrl}". ` +
-        `Unable to construct a valid WebSocket URL.`
+        `Unable to construct a valid WebSocket URL.`,
+      'construction',
+      trimmedUrl,
     );
   }
 }
@@ -152,9 +186,11 @@ export function normalizeRelayUrl(url: string): string {
 
   // Validate the normalized URL for security before returning
   if (!isValidRelayUrl(normalized)) {
-    throw new Error(
+    throw new RelayUrlValidationError(
       `Normalized URL failed security validation: "${normalized}". ` +
-        `The URL may contain invalid characters or unsafe patterns.`
+        `The URL may contain invalid characters or unsafe patterns.`,
+      'security',
+      normalized,
     );
   }
 

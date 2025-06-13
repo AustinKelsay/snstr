@@ -11,7 +11,7 @@ import { NostrEvent } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
 import { createEvent } from "../nip01/event";
 import { isValidRelayUrl } from "../nip19";
-import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../utils/relayUrl";
+import { normalizeRelayUrl as normalizeRelayUrlUtil, RelayUrlValidationError } from "../utils/relayUrl";
 
 import {
   RelayDiscoveryEventOptions,
@@ -83,12 +83,8 @@ export function createRelayDiscoveryEvent(
   try {
     canonicalizedRelay = canonicalizeRelayUrl(trimmedRelay);
   } catch (error) {
-    // If canonicalization fails, preserve descriptive error messages or throw consistent fallback
-    if (error instanceof Error && (
-      error.message.includes("Invalid relay URL scheme") ||
-      error.message.includes("Invalid URL format") ||
-      error.message.includes("security validation")
-    )) {
+    // If canonicalization fails, check error type instead of message content
+    if (error instanceof RelayUrlValidationError) {
       // Re-throw specific validation errors to maintain descriptive error messages
       throw error;
     }

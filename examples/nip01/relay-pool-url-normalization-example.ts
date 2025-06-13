@@ -65,7 +65,7 @@ const invalidInputs = ["", "   ", null, undefined];
 
 invalidInputs.forEach(input => {
   try {
-    pool.addRelay(input as string);
+    pool.addRelay(input as unknown as string);
     console.log(`→ ${JSON.stringify(input)}: UNEXPECTEDLY ACCEPTED`);
   } catch (error) {
     console.log(`→ ${JSON.stringify(input)}: REJECTED - Invalid relay URL`);
