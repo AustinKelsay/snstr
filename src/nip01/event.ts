@@ -16,34 +16,10 @@ import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
 import { isValidPrivateKey, isValidPublicKeyFormat, isValidPublicKeyPoint } from "../nip44";
 import { getUnixTime } from "../utils/time";
-import { secp256k1 } from "@noble/curves/secp256k1";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 
-/**
- * Validates that a hex string represents a valid point on the secp256k1 curve
- * This performs explicit curve membership validation using the secp256k1 library
- * 
- * @param publicKeyHex - 64-character hex string representing the x-coordinate
- * @returns true if the x-coordinate represents a valid curve point, false otherwise
- */
-function isValidCurvePoint(publicKeyHex: string): boolean {
-  // For Nostr x-only public keys, we need to check if the x-coordinate
-  // represents a valid point on the secp256k1 curve.
-  // We try both possible y-coordinates (even and odd) using ProjectivePoint.fromHex
-  
-  const prefixes = ['02', '03']; // Even and odd y-coordinate prefixes
-  for (const prefix of prefixes) {
-    try {
-      secp256k1.ProjectivePoint.fromHex(prefix + publicKeyHex);
-      return true; // Found a valid point with this prefix
-    } catch {
-      // Continue to next prefix
-    }
-  }
-  
-  return false; // No valid point found with either prefix
-}
+
 
 /**
  * Custom error class for Nostr event validation errors
@@ -178,7 +154,7 @@ export function createEvent(
   }
 
   // Then validate that it represents a valid point on the secp256k1 curve
-  if (!isValidCurvePoint(pubkey)) {
+  if (!isValidPublicKeyPoint(pubkey)) {
     throw new NostrValidationError(
       "Invalid pubkey: not a valid point on the secp256k1 curve",
       "pubkey"

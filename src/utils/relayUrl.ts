@@ -37,32 +37,57 @@ export function preprocessRelayUrl(url: string): string {
     );
   }
 
-  // Handle hostnames with explicit port (example.com:8080 or [::1]:443)
-  const hasPort = /^(?:[^:/]+:\d+|\[[0-9a-fA-F:]+\]:\d+)$/.test(trimmedUrl);
-  if (hasPort) {
-    return `wss://${trimmedUrl}`;
-  }
-
-  // Reject anything that looks like a scheme but is not ws/wss
-  const colonIndex = trimmedUrl.indexOf(":");
-  if (colonIndex !== -1) {
-    const beforeColon = trimmedUrl.substring(0, colonIndex);
-    if (/^[a-zA-Z][a-zA-Z0-9+.-]*$/.test(beforeColon) && !hasPort) {
+  // Check if input already has a scheme and validate it
+  if (trimmedUrl.includes('://')) {
+    try {
+      const originalParsed = new URL(trimmedUrl);
+      if (originalParsed.protocol !== 'ws:' && originalParsed.protocol !== 'wss:') {
+        throw new Error(
+          `Invalid relay URL scheme: "${originalParsed.protocol}//". ` +
+            `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
+            `Got: "${trimmedUrl}"`,
+        );
+      }
+      return trimmedUrl; // Return original URL with valid scheme
+    } catch (urlError) {
       throw new Error(
-        `Invalid relay URL scheme: "${beforeColon}://". ` +
-          `Relay URLs must use WebSocket protocols (ws:// or wss://). ` +
-          `Got: "${trimmedUrl}"`,
+        `Invalid URL format: "${trimmedUrl}". ` +
+          `Unable to parse the provided URL.`
       );
     }
   }
 
-  // Default case – prepend secure WebSocket scheme
-  return `wss://${trimmedUrl}`;
+  // No scheme in input, so try to construct a valid URL with wss:// prefix
+  // Handle IPv6 addresses by adding brackets if needed
+  let hostPart = trimmedUrl;
+  
+  // Check if this looks like an IPv6 address without brackets
+  if (hostPart.includes(':') && !hostPart.startsWith('[') && !hostPart.includes('/')) {
+    // Try to parse as IPv6 - if it contains multiple colons and no slash, it's likely IPv6
+    const colonCount = (hostPart.match(/:/g) || []).length;
+    if (colonCount > 1) {
+      // Looks like IPv6, add brackets
+      hostPart = `[${hostPart}]`;
+    }
+  }
+
+  const testUrl = `wss://${hostPart}`;
+  
+  try {
+    new URL(testUrl);
+    return testUrl;
+  } catch (urlError) {
+    throw new Error(
+      `Invalid URL format: "${trimmedUrl}". ` +
+        `Unable to construct a valid WebSocket URL.`
+    );
+  }
 }
 
 /**
  * Canonicalises a relay URL by lowercasing scheme & host and removing the root pathname.
  * Path, query and fragment parts keep their case.
+ * Validates the normalized URL for security and throws an error if invalid.
  */
 export function normalizeRelayUrl(url: string): string {
   const preprocessed = preprocessRelayUrl(url);
@@ -85,6 +110,14 @@ export function normalizeRelayUrl(url: string): string {
   }
   if (parsed.hash) {
     normalized += parsed.hash;
+  }
+
+  // Validate the normalized URL for security before returning
+  if (!isValidRelayUrl(normalized)) {
+    throw new Error(
+      `Normalized URL failed security validation: "${normalized}". ` +
+        `The URL may contain invalid characters or unsafe patterns.`
+    );
   }
 
   return normalized;
