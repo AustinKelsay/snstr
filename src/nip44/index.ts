@@ -172,6 +172,10 @@ function unpad(padded: Uint8Array): string {
  * For full cryptographic validation, use isValidPublicKeyPoint.
  */
 export function isValidPublicKeyFormat(publicKey: string): boolean {
+// secp256k1 field prime (P) as BigInt, defined once
+const FIELD_PRIME = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
+
+export function isValidPublicKeyFormat(publicKey: string): boolean {
   // Check format: must be 64 hex characters (lowercase only)
   if (!/^[0-9a-f]{64}$/.test(publicKey)) {
     return false;
@@ -189,12 +193,10 @@ export function isValidPublicKeyFormat(publicKey: string): boolean {
     return false;
   }
   
-  // secp256k1 field prime: FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
-  // Any value >= field prime is invalid as an x-coordinate
+  // Any value ≥ field prime is invalid as an x-coordinate
   try {
     const keyValue = BigInt("0x" + publicKey);
-    const fieldPrime = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
-    if (keyValue >= fieldPrime) {
+    if (keyValue >= FIELD_PRIME) {
       return false;
     }
   } catch {
