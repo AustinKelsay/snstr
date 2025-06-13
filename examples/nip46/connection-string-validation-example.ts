@@ -129,7 +129,7 @@ const edgeCases = [
   }
 ];
 
-edgeCases.forEach(({ name, connectionString, shouldFail }) => {
+for (const { name, connectionString, shouldFail } of edgeCases) {
   try {
     const result = parseConnectionString(connectionString);
     if (shouldFail) {
@@ -144,7 +144,7 @@ edgeCases.forEach(({ name, connectionString, shouldFail }) => {
       console.log(`   → ${name}: ERROR - Should have succeeded but failed: ${(error as Error).message}`);
     }
   }
-});
+}
 
 console.log("\n=== Summary ===");
 console.log("The fix ensures that:");

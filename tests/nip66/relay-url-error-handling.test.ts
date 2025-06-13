@@ -5,13 +5,8 @@ describe("NIP-66 Relay URL Error Handling", () => {
   const testPubkey = "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
 
   test("should re-throw RelayUrlValidationError for scheme validation errors", () => {
-    expect(() => {
-      createRelayDiscoveryEvent({
-        relay: "http://example.com",
-      }, testPubkey);
-    }).toThrow(RelayUrlValidationError);
+    expect.assertions(3);
 
-    // Verify it's specifically a scheme error
     try {
       createRelayDiscoveryEvent({
         relay: "http://example.com",
