@@ -1,6 +1,9 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
-import { encrypt, decrypt } from "../nip04";
+import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
+import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
+import { getUnixTime } from "../utils/time";
+import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 import {
   NIP46Request,
   NIP46Response,
@@ -12,8 +15,6 @@ import {
   NIP46Method,
 } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
-import { createSignedEvent, UnsignedEvent } from "../nip01/event";
-import { getUnixTime } from "../utils/time";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -222,7 +223,7 @@ export class SimpleNIP46Bunker {
 
       // Decrypt with the signer's private key and client's public key
       try {
-        const decrypted = decrypt(
+        const decrypted = decryptNIP44(
           event.content,
           this.signerKeys.privateKey,
           event.pubkey,
@@ -490,8 +491,8 @@ export class SimpleNIP46Bunker {
     const [recipient, plaintext] = request.params;
 
     try {
-      // Encrypt the message
-      const encrypted = encrypt(plaintext, this.userKeys.privateKey, recipient);
+      // Encrypt the message using NIP-04
+      const encrypted = encryptNIP04(plaintext, this.userKeys.privateKey, recipient);
 
       this.logger.debug(`NIP-04 encryption successful`);
 
@@ -535,8 +536,8 @@ export class SimpleNIP46Bunker {
     const [sender, ciphertext] = request.params;
 
     try {
-      // Decrypt the message
-      const decrypted = decrypt(ciphertext, this.userKeys.privateKey, sender);
+      // Decrypt the message using NIP-04
+      const decrypted = decryptNIP04(ciphertext, this.userKeys.privateKey, sender);
 
       this.logger.debug(`NIP-04 decryption successful`);
 
@@ -565,7 +566,7 @@ export class SimpleNIP46Bunker {
       );
 
       // Encrypt the response with the signer's private key and client's public key
-      const encrypted = encrypt(
+      const encrypted = encryptNIP44(
         JSON.stringify(response),
         this.signerKeys.privateKey,
         clientPubkey,

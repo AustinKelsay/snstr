@@ -399,6 +399,11 @@ describe("Event Creation and Signing", () => {
     const publicKey = getPublicKey(privateKey);
     const baseTime = Math.floor(Date.now() / 1000);
 
+    // Generate a second valid key pair for testing
+    const alternativePrivateKey = 
+      "2222222222222222222222222222222222222222222222222222222222222222";
+    const alternativePublicKey = getPublicKey(alternativePrivateKey);
+
     let baseEvent: NostrEvent;
 
     beforeEach(async () => {
@@ -453,7 +458,8 @@ describe("Event Creation and Signing", () => {
     // Test for 'pubkey'
     describe("event.pubkey validation", () => {
       it("should pass with a valid lowercase hex pubkey", async () => {
-        const event = { ...baseEvent, pubkey: "b2".repeat(32) }; // ensure lowercase
+        // Use a real valid pubkey instead of "b2".repeat(32)
+        const event = { ...baseEvent, pubkey: alternativePublicKey };
         await expect(
           validateEvent(event, {
             validateSignatures: false,
@@ -463,7 +469,8 @@ describe("Event Creation and Signing", () => {
       });
 
       it("should throw NostrValidationError for an uppercase hex pubkey", async () => {
-        const event = { ...baseEvent, pubkey: "B2".repeat(32) };
+        // Use an uppercase version of a valid pubkey
+        const event = { ...baseEvent, pubkey: alternativePublicKey.toUpperCase() };
         await expect(
           validateEvent(event, {
             validateSignatures: false,
@@ -471,7 +478,24 @@ describe("Event Creation and Signing", () => {
           }),
         ).rejects.toThrow(
           new NostrValidationError(
-            "Invalid pubkey: must be a 64-character lowercase hex string",
+            "Invalid pubkey: must be lowercase hex",
+            "pubkey",
+          ),
+        );
+      });
+
+      it("should throw NostrValidationError for an invalid curve point", async () => {
+        // Test with a hex string that is not a valid curve point
+        const invalidPubkey = "b2".repeat(32); // This is valid hex but not a valid curve point
+        const event = { ...baseEvent, pubkey: invalidPubkey };
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).rejects.toThrow(
+          new NostrValidationError(
+            "Invalid pubkey: must be a valid secp256k1 curve point",
             "pubkey",
           ),
         );

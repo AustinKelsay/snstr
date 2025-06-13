@@ -12,13 +12,24 @@ import { isValidPublicKeyFormat } from "../nip44";
 /**
  * Validates a 32-byte hex string (64 characters).
  * Unlike isValidPublicKeyFormat, this accepts both uppercase and lowercase hex.
- * Used for validating event IDs, signatures, and other 32-byte hex values.
+ * Used for validating event IDs and other 32-byte hex values.
  * 
  * @param hex - The hex string to validate
  * @returns True if the string is a valid 64-character hex string
  */
 function isValid32ByteHex(hex: string): boolean {
   return typeof hex === "string" && /^[0-9a-fA-F]{64}$/.test(hex);
+}
+
+/**
+ * Validates a 64-byte hex string (128 characters).
+ * Used for validating Nostr signatures.
+ * 
+ * @param hex - The hex string to validate
+ * @returns True if the string is a valid 128-character hex string
+ */
+function isValid64ByteHex(hex: string): boolean {
+  return typeof hex === "string" && /^[0-9a-fA-F]{128}$/.test(hex);
 }
 
 /* ================ [ Configuration ] ================ */
@@ -715,7 +726,7 @@ class ClientSession {
     if (
       !event.sig ||
       typeof event.sig !== "string" ||
-      !isValid32ByteHex(event.sig)
+      !isValid64ByteHex(event.sig)
     ) {
       this.log.debug("NIP-46 validation failed: invalid signature");
       return false;

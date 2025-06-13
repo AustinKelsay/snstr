@@ -472,6 +472,34 @@ export async function validateEvent(
         event,
       );
     }
+
+    // First check basic format validation (hex format and case)
+    if (!isValidPublicKeyFormat(event.pubkey)) {
+      // Check for uppercase to provide specific error message
+      if (/^[0-9A-F]{64}$/.test(event.pubkey)) {
+        throw new NostrValidationError(
+          "Invalid pubkey: must be lowercase hex",
+          "pubkey",
+          event,
+        );
+      }
+      // Check length
+      if (event.pubkey.length !== 64) {
+        throw new NostrValidationError(
+          "Invalid pubkey: must be 64 characters long",
+          "pubkey",
+          event,
+        );
+      }
+      // Generic format error
+      throw new NostrValidationError(
+        "Invalid pubkey: must be a 64-character lowercase hex string",
+        "pubkey",
+        event,
+      );
+    }
+
+    // Then check if it represents a valid curve point
     if (!isValidPublicKeyPoint(event.pubkey)) {
       throw new NostrValidationError(
         "Invalid pubkey: must be a valid secp256k1 curve point",
@@ -479,7 +507,6 @@ export async function validateEvent(
         event,
       );
     }
-
 
     // Check signature exists
     if (
