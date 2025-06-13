@@ -19,8 +19,8 @@ export function buildConnectionString(options: BuildConnectionStringOptions): st
 import { NIP46ConnectionError } from "../types";
 import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
 import { isValidPublicKeyFormat } from "../../nip44";
-import { isValidRelayUrl } from "../../nip19";
-
+-import { isValidRelayUrl } from "../../nip19";
++import { isValidRelayUrl } from "../../utils/relayUrl";
 /**
  * Parse a bunker or nostrconnect connection string.
  */
