@@ -16,8 +16,34 @@ import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
 import { isValidPrivateKey, isValidPublicKeyFormat, isValidPublicKeyPoint } from "../nip44";
 import { getUnixTime } from "../utils/time";
+import { secp256k1 } from "@noble/curves/secp256k1";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
+
+/**
+ * Validates that a hex string represents a valid point on the secp256k1 curve
+ * This performs explicit curve membership validation using the secp256k1 library
+ * 
+ * @param publicKeyHex - 64-character hex string representing the x-coordinate
+ * @returns true if the x-coordinate represents a valid curve point, false otherwise
+ */
+function isValidCurvePoint(publicKeyHex: string): boolean {
+  // For Nostr x-only public keys, we need to check if the x-coordinate
+  // represents a valid point on the secp256k1 curve.
+  // We try both possible y-coordinates (even and odd) using ProjectivePoint.fromHex
+  
+  const prefixes = ['02', '03']; // Even and odd y-coordinate prefixes
+  for (const prefix of prefixes) {
+    try {
+      secp256k1.ProjectivePoint.fromHex(prefix + publicKeyHex);
+      return true; // Found a valid point with this prefix
+    } catch {
+      // Continue to next prefix
+    }
+  }
+  
+  return false; // No valid point found with either prefix
+}
 
 /**
  * Custom error class for Nostr event validation errors
@@ -143,8 +169,20 @@ export function createEvent(
   template: EventTemplate,
   pubkey: string,
 ): UnsignedEvent {
+  // First validate the format (64-character lowercase hex)
   if (!isValidPublicKeyFormat(pubkey)) {
-    throw new NostrValidationError("Invalid pubkey", "pubkey");
+    throw new NostrValidationError(
+      "Invalid pubkey format: must be a 64-character lowercase hex string",
+      "pubkey"
+    );
+  }
+
+  // Then validate that it represents a valid point on the secp256k1 curve
+  if (!isValidCurvePoint(pubkey)) {
+    throw new NostrValidationError(
+      "Invalid pubkey: not a valid point on the secp256k1 curve",
+      "pubkey"
+    );
   }
 
   if (template.kind === undefined) {
@@ -434,9 +472,9 @@ export async function validateEvent(
         event,
       );
     }
-    if (!isValidPublicKeyFormat(event.pubkey)) {
+    if (!isValidPublicKeyPoint(event.pubkey)) {
       throw new NostrValidationError(
-        "Invalid pubkey: must be a 64-character lowercase hex string",
+        "Invalid pubkey: must be a valid secp256k1 curve point",
         "pubkey",
         event,
       );
@@ -600,10 +638,10 @@ export async function validateEvent(
             if (
               tag.length < 2 ||
               typeof tag[1] !== "string" ||
-              !isValidPublicKeyFormat(tag[1])
+              !isValidPublicKeyPoint(tag[1])
             ) {
               throw new NostrValidationError(
-                `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a 64-character lowercase hex. Received: '${tag[1]}'.`,
+                `Invalid NIP-02 'p' tag: Pubkey at tag[1] is missing, not a string, or not a valid secp256k1 curve point. Received: '${tag[1]}'.`,
                 "tags",
                 event,
               );
@@ -682,10 +720,10 @@ export async function validateEvent(
         if (
           pTag.length < 2 ||
           typeof pTag[1] !== "string" ||
-          !isValidPublicKeyFormat(pTag[1])
+          !isValidPublicKeyPoint(pTag[1])
         ) {
           throw new NostrValidationError(
-            `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a 64-character hex string. Received: '${pTag[1]}'.`,
+            `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a valid secp256k1 curve point. Received: '${pTag[1]}'.`,
             "tags",
             event,
           );

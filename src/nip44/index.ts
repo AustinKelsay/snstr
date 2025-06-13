@@ -171,7 +171,6 @@ function unpad(padded: Uint8Array): string {
  * It does NOT validate if the hex string represents a valid curve point.
  * For full cryptographic validation, use isValidPublicKeyPoint.
  */
-export function isValidPublicKeyFormat(publicKey: string): boolean {
 // secp256k1 field prime (P) as BigInt, defined once
 const FIELD_PRIME = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
 

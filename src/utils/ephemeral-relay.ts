@@ -9,6 +9,18 @@ import {
 import { validateEvent } from "../nip01/event";
 import { isValidPublicKeyFormat } from "../nip44";
 
+/**
+ * Validates a 32-byte hex string (64 characters).
+ * Unlike isValidPublicKeyFormat, this accepts both uppercase and lowercase hex.
+ * Used for validating event IDs, signatures, and other 32-byte hex values.
+ * 
+ * @param hex - The hex string to validate
+ * @returns True if the string is a valid 64-character hex string
+ */
+function isValid32ByteHex(hex: string): boolean {
+  return typeof hex === "string" && /^[0-9a-fA-F]{64}$/.test(hex);
+}
+
 /* ================ [ Configuration ] ================ */
 
 const HOST = "ws://localhost";
@@ -703,7 +715,7 @@ class ClientSession {
     if (
       !event.sig ||
       typeof event.sig !== "string" ||
-      event.sig.length !== 128
+      !isValid32ByteHex(event.sig)
     ) {
       this.log.debug("NIP-46 validation failed: invalid signature");
       return false;
@@ -725,8 +737,8 @@ class ClientSession {
       return false;
     }
 
-    // Validate event.id: must be 64-char lowercase hex similar to pubkey validation
-    if (!isValidPublicKeyFormat(event.id)) {
+    // Validate event.id: must be 64-char hex (case-insensitive)
+    if (!isValid32ByteHex(event.id)) {
       this.log.debug("NIP-46 validation failed: invalid id format");
       return false;
     }

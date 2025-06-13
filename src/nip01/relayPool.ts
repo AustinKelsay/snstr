@@ -40,10 +40,22 @@ export class RelayPool {
    * 
    * @param url - The input URL string to normalize
    * @returns The canonicalized URL
-   * @throws Error if the URL is invalid (from normalizeRelayUrlUtil)
+   * @throws Error if the URL is invalid or normalization fails
    */
   private normalizeRelayUrl(url: string): string {
-    return normalizeRelayUrlUtil(url);
+    const normalizedUrl = normalizeRelayUrlUtil(url);
+    
+    // Guard against unexpected undefined/null return values or invalid types
+    if (normalizedUrl === undefined || normalizedUrl === null || typeof normalizedUrl !== 'string') {
+      throw new Error(`Failed to normalize relay URL "${url}": received invalid result`);
+    }
+    
+    // Additional safeguard: ensure the result is a non-empty string
+    if (normalizedUrl.length === 0) {
+      throw new Error(`Failed to normalize relay URL "${url}": received empty string`);
+    }
+    
+    return normalizedUrl;
   }
 
   public addRelay(url: string, options?: RelayConnectionOptions): Relay {
