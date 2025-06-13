@@ -10,11 +10,17 @@ export function preprocessRelayUrl(url: string): string {
     throw new Error("URL must be a non-empty string");
   }
 
-  const trimmedUrl = url.trim();
+  let trimmedUrl = url.trim();
+
+  // Handle scheme-relative URLs ("//example.com") by removing the slashes
+  // so that the normal fallback of `wss://` works as intended.
+  if (trimmedUrl.startsWith("//")) {
+    trimmedUrl = trimmedUrl.slice(2);
+  }
+
   if (!trimmedUrl) {
     throw new Error("URL cannot be empty or whitespace only");
   }
-
   // Detect an existing scheme of the form <scheme>://
   const schemePattern = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//;
   const schemeMatch = trimmedUrl.match(schemePattern);
