@@ -525,7 +525,7 @@ export class Relay {
     if (options.autoClose && options.eoseTimeout && options.eoseTimeout > 0) {
       subscription.eoseTimer = setTimeout(() => {
         this.unsubscribe(id);
-      }, options.eoseTimeout);
+      }, options.eoseTimeout) as unknown as number;
     }
 
     this.subscriptions.set(id, subscription);

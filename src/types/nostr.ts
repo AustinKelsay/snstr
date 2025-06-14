@@ -114,7 +114,7 @@ export type Subscription = {
   /** Options supplied when creating the subscription */
   options?: SubscriptionOptions;
   /** Internal timer used for EOSE timeout */
-  eoseTimer?: ReturnType<typeof setTimeout>;
+  eoseTimer?: number;
 };
 
 /**
