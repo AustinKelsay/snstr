@@ -6,11 +6,17 @@ This directory contains example code demonstrating how to use the SNSTR library 
 
 All examples can be run using npm scripts. Here's how to use them:
 
+**Note**: The custom WebSocket example requires installing the `ws` package first:
 ```bash
+npm install ws @types/ws
+```
+
+````bash
 # Basic usage examples
 npm run example                # Basic usage with ephemeral relay
 npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
+npm run example:custom-websocket # Use a custom WebSocket implementation (requires 'ws' package)
 
 # Crypto examples
 npm run example:crypto         # Cryptography examples (key generation, signing, verification)
@@ -21,7 +27,9 @@ npm run example:nip01:event:addressable    # Addressable events (kinds 30000-399
 npm run example:nip01:event:replaceable    # Replaceable events (kinds 0, 3, 10000-19999)
 npm run example:nip01:relay:connection     # Relay connection with timeout handling
 npm run example:nip01:relay:reconnect      # Relay reconnection with exponential backoff
+npm run example:nip01:relay:pool           # RelayPool multi-relay demo
 npm run example:nip01:relay:filters        # Filter type examples
+npm run example:nip01:relay:auto-close     # Subscription auto-unsubscribe example
 npm run example:nip01:validation           # NIP-01 validation flow
 
 # NIP-02 Examples (Contact Lists)
@@ -54,7 +62,7 @@ npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
 npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
 npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
-```
+````
 
 ## NIP-07 Examples
 
@@ -153,7 +161,9 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `/relay` - Relay-related examples
     - `relay-connection.ts` - Connection management with error handling and timeout configuration
     - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
+    - `relay-pool.ts` - Manage multiple relays with RelayPool
     - `filter-types.ts` - Filter type examples for event retrieval optimization
+    - `auto-unsubscribe-example.ts` - Demonstrates automatic subscription cleanup
 - `/client` - Client-related examples
   - `validation-flow.ts` - NIP-01 validation flow for event verification
 - `/nip02` - [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) (Contact Lists) examples

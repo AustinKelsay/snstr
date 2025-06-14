@@ -3,7 +3,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { createMetadataEvent } from "../../src/nip01/event";
-import { getNostrInternals, asTestRelay } from "../types";
+import { getNostrInternals, asTestRelay, testUtils } from "../types";
 
 // Use ephemeral relay for all tests
 const RELAY_TEST_PORT = 3555;
@@ -58,7 +58,8 @@ describe("Nostr Client", () => {
 
       // This test verifies the relay was added but doesn't need to connect
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(additionalRelay)).toBe(true);
+      const normalizedRelay = testUtils.normalizeRelayUrl(additionalRelay);
+      expect(relays.has(normalizedRelay)).toBe(true);
     });
 
     test("should connect to relays", async () => {
@@ -93,7 +94,8 @@ describe("Nostr Client", () => {
       client.removeRelay(relayUrl);
 
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(relayUrl)).toBe(false);
+      const normalizedRelayUrl = testUtils.normalizeRelayUrl(relayUrl);
+      expect(relays.has(normalizedRelayUrl)).toBe(false);
     });
   });
 
@@ -269,6 +271,26 @@ describe("Nostr Client", () => {
       expect(() => {
         client.unsubscribe(subIds);
       }).not.toThrow();
+    });
+
+    test("should forward autoClose option to relays", async () => {
+      await client.connectToRelays();
+
+      const subIds = client.subscribe(
+        [{ kinds: [1] }],
+        () => {},
+        undefined,
+        { autoClose: true },
+      );
+
+      const relayMap = getNostrInternals(client).relays as Map<string, Relay>;
+      const relay = Array.from(relayMap.values())[0] as Relay;
+
+      expect(relay.getSubscriptionIds().has(subIds[0])).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(relay.getSubscriptionIds().size).toBe(0);
     });
 
     // Add test for unsubscribeAll() method

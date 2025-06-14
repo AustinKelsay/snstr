@@ -8,6 +8,66 @@
 import { ProfileData, EventData, AddressData, RelayUrl } from "./types";
 
 /**
+ * Validates if a hostname is valid according to RFC standards
+ * - Must not be empty
+ * - Must not exceed 255 characters total
+ * - Each label must be 1-63 characters
+ * - Labels must not start or end with hyphens
+ * - Labels must contain only alphanumeric characters and hyphens
+ * - Must not have consecutive dots
+ * - Must not start or end with dots
+ * - Must have at least one label (no bare TLD restriction for flexibility)
+ */
+function isValidHostname(hostname: string): boolean {
+  // Basic checks
+  if (!hostname || typeof hostname !== "string") {
+    return false;
+  }
+
+  // Check total length (RFC 1035: 255 characters max)
+  if (hostname.length > 255) {
+    return false;
+  }
+
+  // Check for leading or trailing dots
+  if (hostname.startsWith(".") || hostname.endsWith(".")) {
+    return false;
+  }
+
+  // Check for consecutive dots
+  if (hostname.includes("..")) {
+    return false;
+  }
+
+  // Split into labels and validate each
+  const labels = hostname.split(".");
+  
+  // Must have at least one label
+  if (labels.length === 0) {
+    return false;
+  }
+
+  for (const label of labels) {
+    // Each label must be 1-63 characters (RFC 1035)
+    if (label.length === 0 || label.length > 63) {
+      return false;
+    }
+
+    // Labels must not start or end with hyphens (RFC 1035)
+    if (label.startsWith("-") || label.endsWith("-")) {
+      return false;
+    }
+
+    // Labels must contain only alphanumeric characters and hyphens
+    if (!/^[a-zA-Z0-9-]+$/.test(label)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Validates if a relay URL is safe to use
  * - Must start with wss:// or ws://
  * - Must be a valid URL
@@ -84,12 +144,23 @@ export function isValidRelayUrl(url: RelayUrl): boolean {
     }
 
     // Ensure the host doesn't contain any suspicious characters
-    // Only allow: alphanumeric, dots, hyphens, and brackets (for IPv6)
-    const hostnameWithoutIPv6 = parsedUrl.hostname.replace(/^\[.*\]$/, ""); // Remove IPv6 brackets for checking
-    if (
-      !/^[a-zA-Z0-9.-]*$/.test(hostnameWithoutIPv6) &&
-      !parsedUrl.hostname.startsWith("[")
-    ) {
+    // Handle IPv6 addresses (bracketed) and regular hostnames separately
+    if (parsedUrl.hostname.startsWith("[") && parsedUrl.hostname.endsWith("]")) {
+      // IPv6 literal - brackets are required and content can contain colons
+      // We trust the URL parser's validation for IPv6 format
+      const ipv6Content = parsedUrl.hostname.slice(1, -1);
+      if (ipv6Content.length === 0) {
+        return false; // Empty brackets not allowed
+      }
+    } else {
+      // Regular hostname - validate with strict hostname rules
+      if (!isValidHostname(parsedUrl.hostname)) {
+        return false;
+      }
+    }
+
+    // Additional sanity: disallow empty hostname (should never happen with URL parser)
+    if (parsedUrl.hostname.length === 0) {
       return false;
     }
 

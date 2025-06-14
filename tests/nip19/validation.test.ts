@@ -138,8 +138,9 @@ describe("NIP-19: Validation and Edge Cases", () => {
 
   describe("Size Limits", () => {
     test("should enforce maximum relay URL length in encodeEvent", () => {
-      // Create a long relay URL that's below the threshold (512 chars)
-      const longButValidRelayUrl = "wss://" + "a".repeat(480) + ".example.com";
+      // Create a long relay URL that's below the 512 char threshold but respects hostname limits
+      // Use a path to make the URL long while keeping hostname valid (< 255 chars)
+      const longButValidRelayUrl = "wss://valid-hostname.example.com/" + "a".repeat(450);
 
       const eventWithValidRelay = {
         id: "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d",
@@ -149,8 +150,8 @@ describe("NIP-19: Validation and Edge Cases", () => {
       // Should work with a long but valid URL
       expect(() => encodeEvent(eventWithValidRelay)).not.toThrow();
 
-      // Now create a relay URL that exceeds the max length
-      const veryLongRelayUrl = "wss://" + "a".repeat(1000) + ".example.com";
+      // Now create a relay URL that exceeds the 512 char max length
+      const veryLongRelayUrl = "wss://valid-hostname.example.com/" + "a".repeat(480);
 
       const eventWithTooLongRelay = {
         id: "5c04292b1080052d593c561c62a92f1cfda739cc14e9e8c26765165ee3a29b7d",

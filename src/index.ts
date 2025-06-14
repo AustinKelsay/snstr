@@ -1,6 +1,8 @@
 // Export client classes
 export { Nostr } from "./nip01/nostr";
 export { Relay } from "./nip01/relay";
+export { useWebSocketImplementation, resetWebSocketImplementation } from "./utils/websocket";
+export { RelayPool } from "./nip01/relayPool";
 
 // Export types from nip01/nostr.ts (Callback types)
 export type {

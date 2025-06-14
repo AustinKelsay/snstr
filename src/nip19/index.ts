@@ -31,25 +31,10 @@ const MAX_TLV_ENTRIES = 20; // Max number of TLV entries to prevent DoS (reduced
  * Validates a relay URL format
  * Relay URLs must start with wss:// or ws:// and contain a valid hostname
  * No credentials are allowed in URLs
+ * @deprecated Use isValidRelayUrl from './secure' instead. Will be removed in next major version.
  */
 export function validateRelayUrl(url: string): boolean {
-  try {
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      return false;
-    }
-
-    // Use URL constructor to validate the URL format
-    const parsedUrl = new URL(url);
-
-    // Check for credentials in the URL (username or password)
-    if (parsedUrl.username || parsedUrl.password) {
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    return false;
-  }
+  return isValidRelayUrl(url);
 }
 
 /**
@@ -405,7 +390,7 @@ export function encodeProfile(data: ProfileData): Bech32String {
       }
 
       // Validate relay URL format
-      if (!validateRelayUrl(relay)) {
+      if (!isValidRelayUrl(relay)) {
         throw new Error(`Invalid relay URL: ${relay}`);
       }
 
@@ -464,7 +449,7 @@ export function decodeProfile(nprofile: Bech32String): ProfileData {
         relays.push(relay);
 
         // Warn about invalid relay URLs but still include them
-        if (!validateRelayUrl(relay)) {
+        if (!isValidRelayUrl(relay)) {
           console.warn(
             `Warning: Invalid relay URL format found while decoding: ${relay}`,
           );
@@ -521,7 +506,7 @@ export function encodeEvent(data: EventData): Bech32String {
       }
 
       // Validate relay URL format
-      if (!validateRelayUrl(relay)) {
+      if (!isValidRelayUrl(relay)) {
         throw new Error(`Invalid relay URL: ${relay}`);
       }
 
@@ -593,7 +578,7 @@ export function decodeEvent(nevent: Bech32String): EventData {
         relays.push(relay);
 
         // Warn about invalid relay URLs but still include them
-        if (!validateRelayUrl(relay)) {
+        if (!isValidRelayUrl(relay)) {
           console.warn(
             `Warning: Invalid relay URL format found while decoding: ${relay}`,
           );
@@ -675,7 +660,7 @@ export function encodeAddress(data: AddressData): Bech32String {
       }
 
       // Validate relay URL format
-      if (!validateRelayUrl(relay)) {
+      if (!isValidRelayUrl(relay)) {
         throw new Error(`Invalid relay URL: ${relay}`);
       }
 
@@ -751,7 +736,7 @@ export function decodeAddress(naddr: Bech32String): AddressData {
         relays.push(relay);
 
         // Warn about invalid relay URLs but still include them
-        if (!validateRelayUrl(relay)) {
+        if (!isValidRelayUrl(relay)) {
           console.warn(
             `Warning: Invalid relay URL format found while decoding: ${relay}`,
           );
@@ -896,5 +881,6 @@ export function decode(bech32Str: Bech32String): DecodedEntity {
   }
 }
 
-// Export security utilities
+// Export security utilities  
+import { isValidRelayUrl } from "./secure";
 export * from "./secure";

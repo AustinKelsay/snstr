@@ -38,6 +38,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - Identity verification with NIP-05 DNS-based identifiers
 - Browser extension integration via NIP-07
 - Remote signing capability via NIP-46
+- Automatic subscription cleanup with `autoClose` option
 - Lightning Zaps integration via NIP-57
 - Threaded conversations via NIP-10
 - Wallet connection via NIP-47
@@ -105,6 +106,8 @@ async function main() {
     (event, relay) => {
       console.log(`Received event from ${relay}:`, event);
     },
+    undefined,
+    { autoClose: true, eoseTimeout: 5000 },
   );
 
   // Cleanup
@@ -118,6 +121,29 @@ main().catch(console.error);
 ```
 
 For more examples including encryption, relay management, and NIP-specific features, see the [examples directory](./examples/README.md).
+
+### Custom WebSocket Implementation
+
+SNSTR relies on `websocket-polyfill` when running in Node.js. If you want to provide your own `WebSocket` class (for example when using a different runtime), you can set it with `useWebSocketImplementation`:
+
+```typescript
+-import { useWebSocketImplementation } from "snstr/utils/websocket";
++import { useWebSocketImplementation } from "snstr";
+import WS from "isomorphic-ws";
+
+useWebSocketImplementation(WS);
+```
+
+**Note**: To run the custom WebSocket example (`npm run example:custom-websocket`), you need to install a WebSocket package first:
+
+```bash
+# Install the ws package (used in the example)
+npm install ws
+npm install --save-dev @types/ws
+
+# Or use isomorphic-ws for cross-platform compatibility
+npm install isomorphic-ws
+```
 
 ## Documentation
 
@@ -166,6 +192,7 @@ npm run example:nip01:event:ordering      # Event ordering demonstration
 npm run example:nip01:event:addressable   # Addressable events
 npm run example:nip01:event:replaceable   # Replaceable events
 npm run example:nip01:relay:connection    # Relay connection management
+npm run example:nip01:relay:pool         # RelayPool multi-relay demo
 npm run example:nip01:relay:filters       # Filter types
 npm run example:nip01:relay:reconnect     # Relay reconnection
 npm run example:nip01:validation          # NIP-01 validation flow
@@ -283,6 +310,7 @@ npm run example:nip01:event:ordering     # Event ordering demonstration
 npm run example:nip01:event:addressable  # Addressable events
 npm run example:nip01:event:replaceable  # Replaceable events
 npm run example:nip01:relay:connection   # Relay connection management
+npm run example:nip01:relay:pool        # RelayPool multi-relay demo
 npm run example:nip01:relay:filters      # Filter types
 npm run example:nip01:relay:reconnect    # Relay reconnection
 npm run example:nip01:validation         # NIP-01 validation flow

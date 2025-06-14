@@ -111,6 +111,10 @@ export type Subscription = {
   onEvent: (event: NostrEvent) => void;
   /** Optional callback function called when relay sends EOSE (End of Stored Events) */
   onEOSE?: () => void;
+  /** Options supplied when creating the subscription */
+  options?: SubscriptionOptions;
+  /** Internal timer used for EOSE timeout */
+  eoseTimer?: ReturnType<typeof setTimeout>;
 };
 
 /**
@@ -189,6 +193,8 @@ export interface SubscriptionOptions {
   skipEose?: boolean;
   /** Timeout in milliseconds for EOSE (0 for no timeout) */
   eoseTimeout?: number;
+  /** Automatically unsubscribe when EOSE is received or timeout fires */
+  autoClose?: boolean;
   /** Whether this subscription should be ephemeral (not stored) */
   ephemeral?: boolean;
 }
