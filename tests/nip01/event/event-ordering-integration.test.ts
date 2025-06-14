@@ -5,6 +5,7 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
+import { useWebSocketImplementation, resetWebSocketImplementation } from "../../../src/utils/websocket";
 import { jest } from "@jest/globals";
 
 /**
@@ -63,6 +64,7 @@ describe("Relay Event Ordering Integration", () => {
     global.WebSocket = jest.fn(
       () => mockSocketInstance,
     ) as unknown as typeof WebSocket;
+    useWebSocketImplementation(global.WebSocket as unknown as typeof WebSocket);
 
     // Create a relay with a 50ms buffer flush delay
     relay = new Relay("wss://test-relay.com", { bufferFlushDelay: 50 });
@@ -77,6 +79,7 @@ describe("Relay Event Ordering Integration", () => {
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
+    resetWebSocketImplementation();
     if (relay) {
       relay.disconnect();
     }

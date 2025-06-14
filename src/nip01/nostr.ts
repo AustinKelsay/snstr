@@ -1,13 +1,24 @@
 import { Relay } from "./relay";
-import { NostrEvent, Filter, RelayEvent, ParsedOkReason } from "../types/nostr";
+import {
+  NostrEvent,
+  Filter,
+  RelayEvent,
+  ParsedOkReason,
+  SubscriptionOptions,
+} from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { decrypt as decryptNIP04 } from "../nip04";
+import { isValidRelayUrl } from "../nip19";
 import {
   createSignedEvent,
   createTextNote,
   createDirectMessage,
   createMetadataEvent,
 } from "./event";
+import {
+  preprocessRelayUrl as preprocessRelayUrlUtil,
+  normalizeRelayUrl as normalizeRelayUrlUtil,
+} from "../utils/relayUrl";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -86,6 +97,30 @@ export class Nostr {
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
+  /**
+   * Normalize a relay URL by lowercasing only the scheme and host,
+   * while preserving the case of path, query, and fragment parts.
+   * This is the correct behavior per URL standards.
+   */
+  private normalizeRelayUrl(url: string): string {
+    // Delegate to shared utility for consistent canonicalization
+    return normalizeRelayUrlUtil(url);
+  }
+
+  /**
+   * Preprocesses a relay URL before normalization and validation.
+   * Adds wss:// prefix only to URLs without any scheme.
+   * Throws an error for URLs with incompatible schemes.
+   * 
+   * @param url - The input URL string to preprocess
+   * @returns The preprocessed URL with appropriate scheme
+   * @throws Error if URL has an incompatible scheme
+   */
+  private preprocessRelayUrl(url: string): string {
+    // Delegate to shared utility for consistent preprocessing
+    return preprocessRelayUrlUtil(url);
+  }
+
   // Helper function to create the event handler wrapper
   private _createRelayEventHandler(
     relayUrl: string,
@@ -139,8 +174,10 @@ export class Nostr {
   }
 
   public addRelay(url: string): Relay {
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
+    url = this.preprocessRelayUrl(url);
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      throw new Error(`Invalid relay URL: ${url}`);
     }
 
     if (this.relays.has(url)) {
@@ -188,13 +225,22 @@ export class Nostr {
 
   public getRelay(url: string): Relay | undefined {
     // Re-use the same normalisation logic as addRelay()
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
+    url = this.preprocessRelayUrl(url);
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      return undefined;
     }
     return this.relays.get(url);
   }
 
   public removeRelay(url: string): void {
+    // Re-use the same normalisation logic as addRelay() and getRelay()
+    url = this.preprocessRelayUrl(url);
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      return;
+    }
+    
     const relay = this.relays.get(url);
     if (relay) {
       relay.disconnect();
@@ -408,6 +454,7 @@ export class Nostr {
     filters: Filter[],
     onEvent: (event: NostrEvent, relay: string) => void,
     onEOSE?: () => void,
+    options: SubscriptionOptions = {},
   ): string[] {
     const subscriptionIds: string[] = [];
 
@@ -416,6 +463,7 @@ export class Nostr {
         filters,
         (event) => onEvent(event, url),
         onEOSE,
+        options,
       );
       subscriptionIds.push(id);
     });
@@ -438,6 +486,81 @@ export class Nostr {
       // Close each subscription properly
       subscriptionIds.forEach((id) => relay.unsubscribe(id));
     });
+  }
+
+  /**
+   * Collect events matching the given filters from all connected relays.
+   *
+   * @param filters Array of filters to apply
+   * @param options Optional max wait time in milliseconds (defaults to 5000ms if not provided)
+   * @returns Promise resolving to all received events
+   */
+  public async fetchMany(
+    filters: Filter[],
+    options?: { maxWait?: number },
+  ): Promise<NostrEvent[]> {
+    if (this.relays.size === 0) return [];
+
+    return new Promise((resolve) => {
+      const events: NostrEvent[] = [];
+      let eoseCount = 0;
+      let isCleanedUp = false;
+
+      const subIds = this.subscribe(
+        filters,
+        (event) => {
+          events.push(event);
+        },
+        () => {
+          eoseCount++;
+          if (eoseCount >= this.relays.size) {
+            cleanup();
+          }
+        },
+      );
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const cleanup = () => {
+        if (isCleanedUp) return; // Prevent multiple cleanup executions
+        isCleanedUp = true;
+        
+        if (timeoutId) clearTimeout(timeoutId);
+        this.unsubscribe(subIds);
+        resolve(events);
+      };
+
+      // Set default timeout if none provided to ensure Promise always resolves
+      const maxWait = options?.maxWait ?? 5000;
+      if (maxWait > 0) {
+        timeoutId = setTimeout(cleanup, maxWait);
+      }
+    });
+  }
+
+  /**
+   * Retrieve the newest single event matching the filters from all relays.
+   *
+   * @param filters Filters to apply (limit will be forced to 1)
+   * @param options Optional max wait time in milliseconds
+   * @returns The newest matching event or null
+   */
+  public async fetchOne(
+    filters: Filter[],
+    options?: { maxWait?: number },
+  ): Promise<NostrEvent | null> {
+    const limitedFilters = filters.map((f) => ({ ...f, limit: 1 }));
+    const events = await this.fetchMany(limitedFilters, options);
+
+    if (events.length === 0) return null;
+
+    events.sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return b.created_at - a.created_at;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    return events[0];
   }
 
   // Define overloads for each event type with proper parameter typing

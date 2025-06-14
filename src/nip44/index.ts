@@ -166,10 +166,77 @@ function unpad(padded: Uint8Array): string {
 
 /**
  * Validate if a string is a valid hex format public key
- * As per NIP-44 spec, pubkey must be a valid non-zero secp256k1 curve point
+ * This function validates the FORMAT (64 lowercase hex characters) and
+ * rejects problematic edge cases that are cryptographically invalid.
+ * It does NOT validate if the hex string represents a valid curve point.
+ * For full cryptographic validation, use isValidPublicKeyPoint.
  */
+// secp256k1 field prime (P) as BigInt, defined once
+const FIELD_PRIME = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
+
 export function isValidPublicKeyFormat(publicKey: string): boolean {
-  return /^[0-9a-f]{64}$/i.test(publicKey);
+  // Check format: must be 64 hex characters (lowercase only)
+  if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+    return false;
+  }
+  
+  // Reject problematic edge cases that are invalid for cryptographic use
+  
+  // All zeros - invalid public key (point at infinity)
+  if (publicKey === "0000000000000000000000000000000000000000000000000000000000000000") {
+    return false;
+  }
+  
+  // All 'f's - invalid public key (field prime - 1, not a valid x-coordinate)
+  if (publicKey === "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") {
+    return false;
+  }
+  
+  // Any value ≥ field prime is invalid as an x-coordinate
+  try {
+    const keyValue = BigInt("0x" + publicKey);
+    if (keyValue >= FIELD_PRIME) {
+      return false;
+    }
+  } catch {
+    // If BigInt conversion fails, it's not a valid hex string anyway
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Validate if a hex string represents a valid point on the secp256k1 curve
+ * This function does cryptographic validation in addition to format validation.
+ * Use this when you need to ensure the public key is actually usable for cryptographic operations.
+ * 
+ * This implementation uses efficient point validation instead of expensive ECDH operations,
+ * significantly improving performance while maintaining the same validation behavior.
+ */
+export function isValidPublicKeyPoint(publicKey: string): boolean {
+  // First check format
+  if (!isValidPublicKeyFormat(publicKey)) {
+    return false;
+  }
+
+  // For Nostr x-only public keys, we need to check if the x-coordinate
+  // represents a valid point on the secp256k1 curve.
+  // We try both possible y-coordinates (even and odd) efficiently using
+  // ProjectivePoint.fromHex which validates curve membership without
+  // performing expensive ECDH operations.
+  
+  const prefixes = ['02', '03'];
+  for (const prefix of prefixes) {
+    try {
+      secp256k1.ProjectivePoint.fromHex(prefix + publicKey);
+      return true;
+    } catch {
+      // Continue to next prefix
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -177,8 +244,8 @@ export function isValidPublicKeyFormat(publicKey: string): boolean {
  * A valid private key must be a 32-byte hex string with a value less than the curve order
  */
 export function isValidPrivateKey(privateKey: string): boolean {
-  // Check format: must be 64 hex characters
-  if (!/^[0-9a-f]{64}$/i.test(privateKey)) {
+  // Check format: must be 64 hex characters (lowercase only)
+  if (!/^[0-9a-f]{64}$/.test(privateKey)) {
     return false;
   }
 
@@ -225,7 +292,7 @@ export function getSharedSecret(
   }
 
   // Validate public key - must be a valid x-coordinate on the curve
-  if (!isValidPublicKeyFormat(publicKey)) {
+  if (!isValidPublicKeyPoint(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -505,7 +572,7 @@ export function encrypt(
   options?: { version?: number },
 ): string {
   // Validate keys
-  if (!isValidPublicKeyFormat(publicKey)) {
+  if (!isValidPublicKeyPoint(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -770,7 +837,7 @@ export function decrypt(
   publicKey: string,
 ): string {
   // Validate keys
-  if (!isValidPublicKeyFormat(publicKey)) {
+  if (!isValidPublicKeyPoint(publicKey)) {
     throw new Error(
       "NIP-44: Invalid public key format. Expected 64-character hex string.",
     );
@@ -812,3 +879,5 @@ export function decrypt(
     throw new Error("NIP-44: Failed to decrypt message");
   }
 }
+
+

@@ -2,6 +2,9 @@
 
 import { NostrEvent, ContactsEvent } from "../types/nostr";
 import { getUnixTime } from "../utils/time";
+import { isValidPublicKeyPoint } from "../nip44";
+import { isValidRelayUrl } from "../nip19";
+import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
 // Adjust the import path if necessary.
 
@@ -25,6 +28,59 @@ export interface Contact {
   relayUrl?: string;
   /** An optional petname for the followed user. */
   petname?: string;
+}
+
+/**
+ * Context information for warnings that provides additional details about where the warning occurred.
+ */
+export interface WarningContext {
+  /** The index of the tag in the event.tags array where the warning occurred. */
+  tagIndex?: number;
+  /** The public key associated with the warning (for relay URL warnings). */
+  pubkey?: string;
+  /** Additional metadata that might be relevant for debugging. */
+  metadata?: Record<string, string | number | boolean>;
+}
+
+/**
+ * Warning message for invalid data encountered during parsing.
+ */
+export interface ParseWarning {
+  /** The type of warning. */
+  type: 'invalid_relay_url' | 'invalid_pubkey' | 'duplicate_pubkey';
+  /** Human-readable warning message. */
+  message: string;
+  /** The invalid value that triggered the warning. */
+  value: string;
+  /** Additional context about where the warning occurred. */
+  context?: WarningContext;
+}
+
+/**
+ * Result of parsing contacts from an event.
+ */
+export interface ParseContactsResult {
+  /** Successfully parsed contacts. */
+  contacts: Contact[];
+  /** Warnings encountered during parsing. */
+  warnings: ParseWarning[];
+}
+
+/**
+ * Data that can be logged alongside warning messages.
+ */
+export interface LogData {
+  /** The invalid value that triggered the warning. */
+  value: string;
+  /** Additional context about where the warning occurred. */
+  context?: WarningContext;
+}
+
+/**
+ * Optional logger interface for handling warnings externally.
+ */
+export interface Logger {
+  warn(message: string, data?: LogData): void;
 }
 
 /**
@@ -81,41 +137,129 @@ export function createContactListEvent(
  * Parses a NIP-02 contact list event (kind 3) to extract the list of contacts.
  *
  * @param event The contact list event (must be kind 3).
- * @returns An array of `Contact` objects.
+ * @param options Optional configuration for parsing behavior.
+ * @param options.logger Optional logger to handle warnings externally.
+ * @param options.returnWarnings If true, returns an object with contacts and warnings. Default: false.
+ * @returns An array of `Contact` objects, or a `ParseContactsResult` object if returnWarnings is true.
  * @throws Error if the event is not a valid kind 3 event.
  */
-export function parseContactsFromEvent(event: ContactsEvent): Contact[] {
+export function parseContactsFromEvent(
+  event: ContactsEvent,
+  options?: { logger?: Logger; returnWarnings?: false }
+): Contact[];
+export function parseContactsFromEvent(
+  event: ContactsEvent,
+  options: { logger?: Logger; returnWarnings: true }
+): ParseContactsResult;
+export function parseContactsFromEvent(
+  event: ContactsEvent,
+  options: { logger?: Logger; returnWarnings?: boolean } = {}
+): Contact[] | ParseContactsResult {
   // Assuming ContactsEvent is suitable
   if (event.kind !== 3) {
     throw new Error("Invalid event: Expected kind 3 for contact list.");
   }
 
   const parsedContacts: Contact[] = [];
-  const pubkeyRegex = /^[0-9a-fA-F]{64}$/; // Regex for 64 hex characters
-  const relayUrlRegex = /^(wss?:\/\/).+/; // Regex for ws:// or wss://
+  const warnings: ParseWarning[] = [];
+  const seenPubkeys = new Set<string>();
+  
+  const addWarning = (type: ParseWarning['type'], message: string, value: string, context?: WarningContext) => {
+    const warning: ParseWarning = { type, message, value, context };
+    warnings.push(warning);
+    if (options.logger) {
+      try {
+        options.logger.warn(message, { value, context });
+      } catch {
+        // Ignore logger errors to prevent parsing from being aborted
+      }
+    }
+  };
 
-  for (const tag of event.tags) {
-    if (
-      tag[0] === "p" &&
-      typeof tag[1] === "string" &&
-      pubkeyRegex.test(tag[1]) // Enhanced pubkey validation
-    ) {
+  // Use shared validators for pubkeys and relay URLs
+  event.tags.forEach((tag, tagIndex) => {
+    if (tag[0] === "p" && typeof tag[1] === "string") {
+      // Normalize to lowercase first to accept legacy uppercase pubkeys
+      const normalizedPubkey = tag[1].toLowerCase();
+
+      // Validate that the public key is a valid curve point on secp256k1
+      if (!isValidPublicKeyPoint(normalizedPubkey)) {
+        addWarning('invalid_pubkey', `Invalid public key (not a valid curve point): ${tag[1]}`, tag[1], { tagIndex });
+        return; // Skip invalid keys
+      }
+
+      // Skip duplicate pubkeys (normalize to lowercase for consistent deduplication)
+      if (seenPubkeys.has(normalizedPubkey)) {
+        addWarning('duplicate_pubkey', `Duplicate public key: ${normalizedPubkey}`, normalizedPubkey, { tagIndex });
+        return;
+      }
+      seenPubkeys.add(normalizedPubkey);
+
       const contact: Contact = {
-        pubkey: tag[1],
+        pubkey: normalizedPubkey,
       };
+      
       if (typeof tag[2] === "string" && tag[2].length > 0) {
-        if (relayUrlRegex.test(tag[2])) {
-          // Relay URL validation
-          contact.relayUrl = tag[2];
-        } else {
-          console.warn("Invalid relay URL:", tag[2]);
+        // Trim and canonicalize the relay URL (lowercase scheme + host) for consistency
+        const trimmedRelayUrl = tag[2].trim();
+        if (trimmedRelayUrl.length > 0) {
+          // Require the tag value itself to include a valid ws:// or wss:// scheme.
+          // This prevents "naked" hostnames from being auto-upgraded and accepted.
+          const hasWebSocketScheme = /^wss?:\/\//i.test(trimmedRelayUrl);
+
+          if (!hasWebSocketScheme) {
+            // Treat as invalid and keep relayUrl undefined but retain petname.
+            addWarning('invalid_relay_url', `Invalid relay URL (missing ws/wss scheme): ${tag[2]}`, tag[2], { 
+              pubkey: normalizedPubkey, 
+              tagIndex 
+            });
+          } else {
+            let canonicalUrl: string | undefined;
+            try {
+              canonicalUrl = canonicalizeRelayUrl(trimmedRelayUrl);
+            } catch {
+              canonicalUrl = undefined;
+            }
+
+            if (canonicalUrl && isValidRelayUrl(canonicalUrl)) {
+              contact.relayUrl = canonicalUrl;
+            } else {
+              addWarning('invalid_relay_url', `Invalid relay URL (failed validation): ${tag[2]}`, tag[2], { 
+                pubkey: normalizedPubkey, 
+                tagIndex 
+              });
+            }
+          }
         }
       }
+      
       if (typeof tag[3] === "string" && tag[3].length > 0) {
         contact.petname = tag[3];
       }
+      
       parsedContacts.push(contact);
     }
+  });
+  
+  if (options.returnWarnings) {
+    return { contacts: parsedContacts, warnings };
   }
+  
   return parsedContacts;
+}
+
+/**
+ * Parses a NIP-02 contact list event with detailed warnings.
+ * This is a convenience function that always returns warnings.
+ *
+ * @param event The contact list event (must be kind 3).
+ * @param logger Optional logger to handle warnings externally.
+ * @returns A `ParseContactsResult` object containing contacts and warnings.
+ * @throws Error if the event is not a valid kind 3 event.
+ */
+export function parseContactsFromEventWithWarnings(
+  event: ContactsEvent,
+  logger?: Logger
+): ParseContactsResult {
+  return parseContactsFromEvent(event, { logger, returnWarnings: true });
 }

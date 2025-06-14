@@ -3,11 +3,40 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { createMetadataEvent } from "../../src/nip01/event";
-import { getNostrInternals, asTestRelay } from "../types";
+import { getNostrInternals, asTestRelay, testUtils } from "../types";
 
 // Use ephemeral relay for all tests
 const RELAY_TEST_PORT = 3555;
 let ephemeralRelay: NostrRelay;
+
+/**
+ * Helper function to create an ephemeral relay on a free port assigned by the OS
+ */
+async function createEphemeralRelay(): Promise<NostrRelay> {
+  const relay = new NostrRelay(0); // Use port 0 to get a free port from OS
+  await relay.start();
+  return relay;
+}
+
+/**
+ * Helper function to wait for a condition with polling instead of fixed timeout
+ */
+async function waitForCondition(
+  condition: () => boolean | Promise<boolean>,
+  timeoutMs: number = 5000,
+  intervalMs: number = 10
+): Promise<void> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    if (await condition()) {
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  
+  throw new Error(`Condition not met within ${timeoutMs}ms timeout`);
+}
 
 describe("Nostr Client", () => {
   // Setup ephemeral relay for tests
@@ -58,7 +87,8 @@ describe("Nostr Client", () => {
 
       // This test verifies the relay was added but doesn't need to connect
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(additionalRelay)).toBe(true);
+      const normalizedRelay = testUtils.normalizeRelayUrl(additionalRelay);
+      expect(relays.has(normalizedRelay)).toBe(true);
     });
 
     test("should connect to relays", async () => {
@@ -81,8 +111,8 @@ describe("Nostr Client", () => {
 
       client.disconnectFromRelays();
 
-      // Give time for the disconnect event to fire
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for disconnect event with polling instead of fixed timeout
+      await waitForCondition(() => disconnectCount > 0, 1000);
 
       // Our improved relay.ts implementation fires one disconnect event per relay
       expect(disconnectCount).toBeGreaterThan(0);
@@ -93,7 +123,8 @@ describe("Nostr Client", () => {
       client.removeRelay(relayUrl);
 
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(relayUrl)).toBe(false);
+      const normalizedRelayUrl = testUtils.normalizeRelayUrl(relayUrl);
+      expect(relays.has(normalizedRelayUrl)).toBe(false);
     });
   });
 
@@ -271,6 +302,26 @@ describe("Nostr Client", () => {
       }).not.toThrow();
     });
 
+    test("should forward autoClose option to relays", async () => {
+      await client.connectToRelays();
+
+      const subIds = client.subscribe(
+        [{ kinds: [1] }],
+        () => {},
+        undefined,
+        { autoClose: true },
+      );
+
+      const relayMap = getNostrInternals(client).relays as Map<string, Relay>;
+      const relay = Array.from(relayMap.values())[0] as Relay;
+
+      expect(relay.getSubscriptionIds().has(subIds[0])).toBe(true);
+
+      await new Promise((r) => setTimeout(r, 100));
+
+      expect(relay.getSubscriptionIds().size).toBe(0);
+    });
+
     // Add test for unsubscribeAll() method
     test("should properly close all subscriptions with unsubscribeAll", async () => {
       // Start ephemeral relay
@@ -315,6 +366,142 @@ describe("Nostr Client", () => {
       client.disconnectFromRelays();
       await mockRelay.close();
       unsubscribeSpy.mockRestore();
+    });
+  });
+
+  describe("Fetch helpers", () => {
+    test("fetchMany should return empty array when no relays", async () => {
+      const emptyClient = new Nostr();
+      const events = await emptyClient.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+      expect(events).toEqual([]);
+    });
+
+    test("fetchMany should retrieve events matching a filter", async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      await client.publishTextNote("note-one");
+      await client.publishTextNote("note-two");
+
+      // Wait for the relay to store the events, using polling
+      await waitForCondition(async () => {
+        const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        return events.length >= 2;
+      }, 2000);
+
+      const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 500 });
+
+      const contents = events.map((e) => e.content);
+      expect(contents).toEqual(expect.arrayContaining(["note-one", "note-two"]));
+    });
+
+    test("fetchOne should return the newest event", async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      await client.publishTextNote("first-note");
+      
+      // Wait for the first event to be stored
+      await waitForCondition(async () => {
+        const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        return events.length >= 1;
+      }, 2000);
+      
+      // Ensure we get a different timestamp by waiting at least 1 second
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      await client.publishTextNote("second-note");
+
+      // Wait for the second event to be stored
+      await waitForCondition(async () => {
+        const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        return events.length >= 2;
+      }, 2000);
+
+      const event = await client.fetchOne([{ kinds: [1] }], { maxWait: 500 });
+
+      expect(event).not.toBeNull();
+      expect(event?.content).toBe("second-note");
+    });
+
+    test("fetchMany should collect events from multiple relays and clean up", async () => {
+      const relayA = await createEphemeralRelay();
+      const relayB = await createEphemeralRelay();
+
+      const multi = new Nostr([relayA.url, relayB.url]);
+      await multi.generateKeys();
+      await multi.connectToRelays();
+
+      await multi.publishTextNote("multi-note");
+      
+      // Wait for events to be stored and available, using polling
+      await waitForCondition(async () => {
+        const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        return events.length >= 2; // Should get the event from both relays
+      }, 2000);
+
+      const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 500 });
+      expect(events.length).toBeGreaterThanOrEqual(2);
+
+      // ensure subscriptions cleaned up
+      getNostrInternals(multi).relays.forEach((relay) => {
+        const testRelay = asTestRelay(relay as Relay);
+        expect(testRelay.getSubscriptionIds().size).toBe(0);
+      });
+
+      multi.disconnectFromRelays();
+      await relayA.close();
+      await relayB.close();
+    });
+
+    test("fetchOne should return newest event across relays", async () => {
+      const relayA = await createEphemeralRelay();
+      const relayB = await createEphemeralRelay();
+
+      const multi = new Nostr([relayA.url, relayB.url]);
+      await multi.generateKeys();
+      await multi.connectToRelays();
+
+      await multi.publishTextNote("old-note");
+      
+      // Wait for first event to be stored, using polling
+      await waitForCondition(async () => {
+        const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        return events.length >= 2; // Should get the event from both relays
+      }, 2000);
+      
+      // Ensure we get a different timestamp by waiting at least 1 second
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      await multi.publishTextNote("new-note");
+
+      // Wait for second event to be stored, using polling
+      await waitForCondition(async () => {
+        const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        return events.length >= 4; // Should get both events from both relays
+      }, 2000);
+
+      const latest = await multi.fetchOne([{ kinds: [1] }], { maxWait: 500 });
+      expect(latest?.content).toBe("new-note");
+
+      multi.disconnectFromRelays();
+      await relayA.close();
+      await relayB.close();
+    });
+
+    test("fetchMany should use default timeout when none provided", async () => {
+      // This test ensures our fix prevents hanging when no maxWait is provided
+      const emptyClient = new Nostr(["ws://nonexistent.relay"]);
+      
+      const startTime = Date.now();
+      // Should resolve with empty array after default timeout (5000ms)
+      const events = await emptyClient.fetchMany([{ kinds: [1] }]);
+      const endTime = Date.now();
+      
+      expect(events).toEqual([]);
+      // Should have waited approximately the default timeout
+      expect(endTime - startTime).toBeGreaterThan(4900); // Allow some tolerance
+      expect(endTime - startTime).toBeLessThan(5500); // But not too much more
     });
   });
 });

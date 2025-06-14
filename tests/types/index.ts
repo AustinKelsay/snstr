@@ -7,6 +7,7 @@ import {
   Subscription
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/relayUrl";
 
 /**
  * Interface for mocking a Relay in tests
@@ -159,6 +160,15 @@ export const testUtils = {
   clearRelayCache: (relay: NostrRelay): void => {
     // Access the internal cache with a more explicit casting approach
     (relay as unknown as { _cache: NostrEvent[] })._cache = [];
+  },
+
+  /**
+   * Normalize a relay URL for testing purposes
+   * Uses the shared utility to ensure consistent normalization behavior
+   * across the codebase.
+   */
+  normalizeRelayUrl: (url: string): string => {
+    return normalizeRelayUrlUtil(url);
   },
 };
 

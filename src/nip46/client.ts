@@ -4,13 +4,12 @@ import { getUnixTime } from "../utils/time";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
+import { parseConnectionString } from "./utils/connection";
 import {
   NIP46Method,
   NIP46Request,
   NIP46Response,
   NIP46ClientOptions,
-  NIP46ConnectionInfo,
-  NIP46Metadata,
   NIP46EncryptionResult,
   NIP46Error,
   NIP46ConnectionError,
@@ -165,7 +164,7 @@ export class NostrRemoteSignerClient {
       if (this.debug) console.log("[NIP46 CLIENT] Connected to relays");
 
       // Parse connection info
-      const connectionInfo = this.parseConnectionString(connectionString);
+      const connectionInfo = parseConnectionString(connectionString);
       this.signerPubkey = connectionInfo.pubkey;
       if (this.debug) {
         console.log("[NIP46 CLIENT] Signer pubkey:", this.signerPubkey);
@@ -308,50 +307,6 @@ export class NostrRemoteSignerClient {
     }
   }
 
-  /**
-   * Parse a connection string into connection info
-   */
-  private parseConnectionString(str: string): NIP46ConnectionInfo {
-    if (!str.startsWith("bunker://") && !str.startsWith("nostrconnect://")) {
-      throw new NIP46ConnectionError(
-        "Invalid connection string format. Must start with bunker:// or nostrconnect://",
-      );
-    }
-
-    try {
-      const url = new URL(str);
-      const type = url.protocol === "bunker:" ? "bunker" : "nostrconnect";
-
-      // Extract the pubkey from the hostname
-      const pubkey = url.hostname;
-
-      if (!pubkey || pubkey.length !== 64) {
-        throw new NIP46ConnectionError(
-          "Invalid signer public key in connection string",
-        );
-      }
-
-      const relays = url.searchParams.getAll("relay");
-      const secret = url.searchParams.get("secret") || undefined;
-      const permissions = url.searchParams.get("perms")?.split(",");
-
-      const metadata: NIP46Metadata = {};
-      if (url.searchParams.has("name"))
-        metadata.name = url.searchParams.get("name")!;
-      if (url.searchParams.has("url"))
-        metadata.url = url.searchParams.get("url")!;
-      if (url.searchParams.has("image"))
-        metadata.image = url.searchParams.get("image")!;
-
-      return { type, pubkey, relays, secret, permissions, metadata };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      throw new NIP46ConnectionError(
-        `Failed to parse connection string: ${errorMessage}`,
-      );
-    }
-  }
 
   /**
    * Disconnect from the remote signer

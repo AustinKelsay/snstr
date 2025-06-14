@@ -2,10 +2,11 @@ import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
 import { getUnixTime } from "../utils/time";
-import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
+import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { createSignedEvent } from "../nip01/event";
 import { generateRequestId } from "./utils/request-response";
 import { Logger, LogLevel } from "./utils/logger";
+import { parseConnectionString } from "./utils/connection";
 import {
   NIP46KeyPair,
   NIP46UnsignedEventData,
@@ -71,21 +72,10 @@ export class SimpleNIP46Client {
    */
   async connect(connectionString: string): Promise<string> {
     try {
-      // Parse connection string (bunker://PUBKEY?relay=...)
-      const url = new URL(connectionString);
-      this.signerPubkey = url.hostname;
+      // Parse connection string and validate
+      const info = parseConnectionString(connectionString);
+      this.signerPubkey = info.pubkey;
       this.logger.info(`Connecting to signer: ${this.signerPubkey}`);
-
-      // Validate signer pubkey format
-      if (
-        !this.signerPubkey ||
-        this.signerPubkey.length !== 64 ||
-        !/^[0-9a-fA-F]{64}$/.test(this.signerPubkey)
-      ) {
-        throw new NIP46ConnectionError(
-          `Invalid signer pubkey: ${this.signerPubkey}`,
-        );
-      }
 
       // Generate client keypair
       this.clientKeys = await generateKeypair();
@@ -325,7 +315,7 @@ export class SimpleNIP46Client {
 
       // Encrypt and send the request
       try {
-        const encrypted = encryptNIP04(
+        const encrypted = encryptNIP44(
           JSON.stringify(request),
           this.clientKeys.privateKey,
           this.signerPubkey,
@@ -410,8 +400,8 @@ export class SimpleNIP46Client {
     }
 
     try {
-      // Decrypt the content
-      const decrypted = decryptNIP04(
+      // Decrypt the content using NIP-44
+      const decrypted = decryptNIP44(
         event.content,
         this.clientKeys.privateKey,
         event.pubkey,

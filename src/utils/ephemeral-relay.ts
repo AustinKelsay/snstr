@@ -7,6 +7,23 @@ import {
   NostrEoseMessage,
 } from "../types/protocol";
 import { validateEvent } from "../nip01/event";
+import { isValidPublicKeyPoint } from "../nip44";
+
+/**
+ * Validates if a string is a valid 32-byte hex string (case-insensitive).
+ * Unlike isValidPublicKeyPoint, this accepts both uppercase and lowercase hex.
+ */
+function isValid32ByteHex(hex: string): boolean {
+  return /^[0-9a-fA-F]{64}$/.test(hex);
+}
+
+/**
+ * Validates if a string is a valid 64-byte hex string (case-insensitive).
+ * Unlike isValidPublicKeyPoint, this accepts both uppercase and lowercase hex.
+ */
+function isValid64ByteHex(hex: string): boolean {
+  return /^[0-9a-fA-F]{128}$/.test(hex);
+}
 
 /* ================ [ Configuration ] ================ */
 
@@ -45,6 +62,7 @@ export class NostrRelay {
   private _cache: SignedEvent[];
   private _isClosing: boolean = false;
   private _purgeTimer: NodeJS.Timeout | null = null;
+  private _actualPort: number | null = null;
 
   public conn: number;
 
@@ -56,6 +74,7 @@ export class NostrRelay {
     this._subs = new Map();
     this._wss = null;
     this.conn = 0;
+    this._actualPort = null;
   }
 
   get cache() {
@@ -67,7 +86,8 @@ export class NostrRelay {
   }
 
   get url() {
-    return `${HOST}:${this._port}`;
+    const port = this._actualPort || this._port;
+    return `${HOST}:${port}`;
   }
 
   get wss() {
@@ -81,8 +101,6 @@ export class NostrRelay {
     this._wss = new WebSocketServer({ port: this._port });
     this._isClosing = false;
 
-    DEBUG && console.log("[ relay ] running on port:", this._port);
-
     this.wss.on("connection", (socket) => {
       const instance = new ClientSession(this, socket);
 
@@ -95,6 +113,14 @@ export class NostrRelay {
 
     return new Promise<NostrRelay>((res) => {
       this.wss.on("listening", () => {
+        // Capture the actual assigned port when port 0 was used
+        const address = this.wss.address();
+        if (address && typeof address === 'object' && 'port' in address) {
+          this._actualPort = address.port;
+        }
+        
+        DEBUG && console.log("[ relay ] running on port:", this._actualPort || this._port);
+        
         if (this._purge !== null) {
           DEBUG &&
             console.log(
@@ -655,16 +681,7 @@ class ClientSession {
   // Method to validate NIP-46 events
   async validateNIP46Event(event: SignedEvent): Promise<boolean> {
     // Check required fields exist with proper types
-    if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
-      this.log.debug("NIP-46 validation failed: invalid id");
-      return false;
-    }
-
-    if (
-      !event.pubkey ||
-      typeof event.pubkey !== "string" ||
-      event.pubkey.length !== 64
-    ) {
+    if (!isValidPublicKeyPoint(event.pubkey)) {
       this.log.debug("NIP-46 validation failed: invalid pubkey");
       return false;
     }
@@ -691,8 +708,7 @@ class ClientSession {
         tag.length >= 2 &&
         tag[0] === "p" &&
         typeof tag[1] === "string" &&
-        tag[1].length === 64 &&
-        /^[0-9a-f]{64}$/.test(tag[1]),
+        isValidPublicKeyPoint(tag[1]),
     );
 
     if (!hasPTag) {
@@ -712,7 +728,7 @@ class ClientSession {
     if (
       !event.sig ||
       typeof event.sig !== "string" ||
-      event.sig.length !== 128
+      !isValid64ByteHex(event.sig)
     ) {
       this.log.debug("NIP-46 validation failed: invalid signature");
       return false;
@@ -731,6 +747,12 @@ class ClientSession {
         "NIP-46 validation failed: error during signature verification",
         error,
       );
+      return false;
+    }
+
+    // Validate event.id: must be 64-char hex (case-insensitive)
+    if (!isValid32ByteHex(event.id)) {
+      this.log.debug("NIP-46 validation failed: invalid id format");
       return false;
     }
 

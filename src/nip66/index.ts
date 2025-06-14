@@ -10,6 +10,8 @@
 import { NostrEvent } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
 import { createEvent } from "../nip01/event";
+import { isValidRelayUrl } from "../nip19";
+import { normalizeRelayUrl as normalizeRelayUrlUtil, RelayUrlValidationError } from "../utils/relayUrl";
 
 import {
   RelayDiscoveryEventOptions,
@@ -43,6 +45,16 @@ function validateGeohash(geohash: string | undefined): void {
 }
 
 /**
+ * Canonicalize a relay URL using the shared utility for consistent formatting
+ * This ensures consistent formatting and prevents duplicate entries due to case differences
+ * @param url - The relay URL to canonicalize
+ * @returns The canonicalized URL with lowercase scheme and host
+ */
+function canonicalizeRelayUrl(url: string): string {
+  return normalizeRelayUrlUtil(url);
+}
+
+/**
  * Create a relay discovery event (kind 30166)
  */
 export function createRelayDiscoveryEvent(
@@ -61,17 +73,27 @@ export function createRelayDiscoveryEvent(
   if (!options.relay || typeof options.relay !== "string" || options.relay.trim() === "") {
     throw new Error("Valid relay URL is required");
   }
+
+  // Trim and canonicalize the relay URL to ensure consistent formatting
+  const trimmedRelay = options.relay.trim();
   
-  // Validate relay URL format (basic WebSocket URL validation)
-  if (!options.relay.startsWith("ws://") && !options.relay.startsWith("wss://")) {
-    throw new Error("Relay URL must start with ws:// or wss://");
-  }
-  
-  // Validate URL format more thoroughly
+  // Canonicalize the relay URL by lowercasing scheme and host
+  // This prevents duplicate entries due to case differences (e.g., WSS://RELAY.COM vs wss://relay.com)
+  let canonicalizedRelay: string;
   try {
-    new URL(options.relay);
-  } catch {
-    throw new Error("Relay URL must be a valid URL");
+    canonicalizedRelay = canonicalizeRelayUrl(trimmedRelay);
+  } catch (error) {
+    // If canonicalization fails, check error type instead of message content
+    if (error instanceof RelayUrlValidationError) {
+      // Re-throw specific validation errors to maintain descriptive error messages
+      throw error;
+    }
+    // For other unexpected errors, throw consistent validation error
+    throw new Error("Relay URL must start with ws:// or wss:// and be valid");
+  }
+
+  if (!isValidRelayUrl(canonicalizedRelay)) {
+    throw new Error("Relay URL must start with ws:// or wss:// and be valid");
   }
   
   // Validate RTT values (must be non-negative numbers if provided)
@@ -198,7 +220,7 @@ export function createRelayDiscoveryEvent(
     }
   }
   
-  const tags: string[][] = [["d", options.relay]];
+  const tags: string[][] = [["d", canonicalizedRelay]];
 
   if (options.network) tags.push(["n", options.network]);
   if (options.relayType) tags.push(["T", options.relayType]);

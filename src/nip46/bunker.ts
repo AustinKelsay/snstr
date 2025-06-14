@@ -18,6 +18,7 @@ import {
   NIP46ConnectionError,
   NIP46EncryptionError,
 } from "./types";
+import { buildConnectionString } from "./utils/connection";
 
 export class NostrRemoteSignerBunker {
   private nostr: Nostr;
@@ -745,17 +746,11 @@ export class NostrRemoteSignerBunker {
   }
 
   getConnectionString(): string {
-    const params = new URLSearchParams();
-
-    if (this.options.relays) {
-      this.options.relays.forEach((relay) => params.append("relay", relay));
-    }
-
-    if (this.options.secret) {
-      params.append("secret", this.options.secret);
-    }
-
-    return `bunker://${this.signerKeypair.publicKey}?${params.toString()}`;
+    return buildConnectionString({
+      pubkey: this.signerKeypair.publicKey,
+      relays: this.options.relays,
+      secret: this.options.secret,
+    });
   }
 
   async publishMetadata(

@@ -1,5 +1,5 @@
 import { NostrEvent } from "../types/nostr";
-import { validateRelayUrl } from "../nip19/index";
+import { isValidRelayUrl } from "../nip19/secure";
 import { getUnixTime } from "../utils/time";
 
 /** Relay list entry describing read/write preferences */
@@ -33,7 +33,7 @@ export function createRelayListEvent(
 
   for (const r of relays) {
     // skip entries with missing or invalid URL
-    if (!r.url || !validateRelayUrl(r.url)) {
+    if (!r.url || !isValidRelayUrl(r.url)) {
       if (!r.url) {
         console.warn("Skipping relay entry with missing URL", r);
       } else {
