@@ -296,4 +296,6 @@ describe("RelayPool", () => {
     
     expect(() => sub.close()).not.toThrow();
   });
+
+
 });

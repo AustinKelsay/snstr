@@ -194,7 +194,7 @@ export class RelayPool {
       if (isClosed) return;
       eoseCount++;
       const successfulRelays = relays.length - failedRelays.length;
-      if (eoseCount === successfulRelays && onEOSE && successfulRelays > 0) {
+      if (eoseCount === successfulRelays && onEOSE) {
         try {
           onEOSE();
         } catch (eoseError) {
@@ -237,6 +237,16 @@ export class RelayPool {
         }
       }
     });
+
+    // If all relays failed, trigger onEOSE immediately to prevent hanging
+    const successfulRelays = relays.length - failedRelays.length;
+    if (successfulRelays === 0 && onEOSE && !isClosed) {
+      try {
+        onEOSE();
+      } catch (eoseError) {
+        console.warn('Error in EOSE callback (all relays failed):', eoseError);
+      }
+    }
 
     // Immediate close function that doesn't wait for connections
     const immediateClose = () => {
