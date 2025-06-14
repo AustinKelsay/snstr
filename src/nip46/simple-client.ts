@@ -77,6 +77,18 @@ export class SimpleNIP46Client {
       this.signerPubkey = info.pubkey;
       this.logger.info(`Connecting to signer: ${this.signerPubkey}`);
 
+      // Add relays from connection string to the client
+      if (info.relays && info.relays.length > 0) {
+        this.logger.debug(`Adding relays from connection string: ${info.relays.join(', ')}`);
+        info.relays.forEach(relay => {
+          try {
+            this.nostr.addRelay(relay);
+          } catch (error) {
+            this.logger.warn(`Failed to add relay ${relay}:`, error instanceof Error ? error.message : String(error));
+          }
+        });
+      }
+
       // Generate client keypair
       this.clientKeys = await generateKeypair();
       this.logger.debug(
