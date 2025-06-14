@@ -18,6 +18,8 @@ export function buildConnectionString(options: BuildConnectionStringOptions): st
 
 import { NIP46ConnectionError } from "../types";
 import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
+import { isValidPublicKeyFormat } from "../../nip44";
+import { isValidRelayUrl } from "../../nip19";
 
 /**
  * Parse a bunker or nostrconnect connection string.
@@ -29,18 +31,38 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     );
   }
 
+  // Determine connection type and extract pubkey first before URL parsing
+  const type = str.startsWith("bunker://") ? "bunker" : "nostrconnect";
+  const protocolPrefix = type === "bunker" ? "bunker://" : "nostrconnect://";
+  const afterProtocol = str.slice(protocolPrefix.length);
+  
+  // Extract pubkey from original string to preserve case for validation
+  // Match pattern: protocol://pubkey?params or protocol://pubkey#fragment or protocol://pubkey/path or protocol://pubkey
+  // Find the earliest occurrence of '/', '?' (query), or '#' (fragment) to properly delimit the pubkey
+  const pathStart = afterProtocol.indexOf("/");
+  const queryStart = afterProtocol.indexOf("?");
+  const fragmentStart = afterProtocol.indexOf("#");
+  
+  // Find the earliest delimiter (path, query, or fragment), or use the entire string if none exist
+  const delimiters = [pathStart, queryStart, fragmentStart].filter(pos => pos !== -1);
+  const delimiterStart = delimiters.length > 0 ? Math.min(...delimiters) : -1;
+  
+  const pubkey = delimiterStart === -1 ? afterProtocol : afterProtocol.slice(0, delimiterStart);
+
+  // Validate pubkey before proceeding with URL parsing
+  if (!isValidPublicKeyFormat(pubkey)) {
+    throw new NIP46ConnectionError(
+      "Invalid signer public key in connection string",
+    );
+  }
+
   try {
     const url = new URL(str);
-    const type = url.protocol === "bunker:" ? "bunker" : "nostrconnect";
-    const pubkey = url.hostname;
 
-    if (!pubkey || pubkey.length !== 64) {
-      throw new NIP46ConnectionError(
-        "Invalid signer public key in connection string",
-      );
-    }
-
-    const relays = url.searchParams.getAll("relay");
+    const relays = url
+      .searchParams
+      .getAll("relay")
+      .filter(isValidRelayUrl);
     const secret = url.searchParams.get("secret") || undefined;
     const permissions = url.searchParams.get("perms")?.split(",");
 

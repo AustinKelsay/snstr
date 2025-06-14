@@ -6,6 +6,21 @@ import {
   PublishResponse,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
+import {
+  normalizeRelayUrl as normalizeRelayUrlUtil,
+} from "../utils/relayUrl";
+
+/**
+ * Result enum for removeRelay operations to provide clear error diagnostics
+ */
+export enum RemoveRelayResult {
+  /** The relay was successfully removed */
+  Removed = "removed",
+  /** No relay was found with the given URL */
+  NotFound = "not_found", 
+  /** The provided URL is invalid and cannot be normalized */
+  InvalidUrl = "invalid_url"
+}
 
 export class RelayPool {
   private relays: Map<string, Relay> = new Map();
@@ -17,32 +32,69 @@ export class RelayPool {
   }
 
   /**
-   * Normalize a relay URL by adding wss:// prefix if missing
-   * This ensures consistent URL keys in the relay map
+   * Normalize a relay URL by preprocessing, case normalizing, and validating.
+   * This ensures consistent URL keys in the relay map and prevents duplicates.
+   * 
+   * @param url - The input URL string to normalize
+   * @returns The canonicalized URL
+   * @throws Error if the URL is invalid or normalization fails
    */
   private normalizeRelayUrl(url: string): string {
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      return `wss://${url}`;
+    const normalizedUrl = normalizeRelayUrlUtil(url);
+    
+    // Guard against unexpected undefined/null return values or invalid types
+    if (normalizedUrl === undefined || normalizedUrl === null || typeof normalizedUrl !== 'string') {
+      throw new Error(`Failed to normalize relay URL "${url}": received invalid result`);
     }
-    return url;
+    
+    // Additional safeguard: ensure the result is a non-empty string
+    if (normalizedUrl.length === 0) {
+      throw new Error(`Failed to normalize relay URL "${url}": received empty string`);
+    }
+    
+    return normalizedUrl;
   }
 
   public addRelay(url: string, options?: RelayConnectionOptions): Relay {
-    url = this.normalizeRelayUrl(url);
-    let relay = this.relays.get(url);
+    const normalizedUrl = this.normalizeRelayUrl(url);
+    let relay = this.relays.get(normalizedUrl);
     if (!relay) {
-      relay = new Relay(url, options || this.relayOptions);
-      this.relays.set(url, relay);
+      relay = new Relay(normalizedUrl, options || this.relayOptions);
+      this.relays.set(normalizedUrl, relay);
     }
     return relay;
   }
 
-  public removeRelay(url: string): void {
-    url = this.normalizeRelayUrl(url);
-    const relay = this.relays.get(url);
-    if (relay) {
+  public removeRelay(url: string): RemoveRelayResult {
+    let normalizedUrl: string;
+    
+    // First, attempt to normalize the URL - this is where input validation errors occur
+    try {
+      normalizedUrl = this.normalizeRelayUrl(url);
+    } catch (error) {
+      // URL normalization failed - this is a user input error, not a programmer bug
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.warn(`Invalid relay URL "${url}":`, errorMessage);
+      return RemoveRelayResult.InvalidUrl;
+    }
+    
+    // Check if the relay exists in our pool
+    const relay = this.relays.get(normalizedUrl);
+    if (!relay) {
+      return RemoveRelayResult.NotFound;
+    }
+    
+    // Relay exists, disconnect and remove it
+    // Note: relay.disconnect() handles errors internally and doesn't throw
+    try {
       relay.disconnect();
-      this.relays.delete(url);
+      this.relays.delete(normalizedUrl);
+      return RemoveRelayResult.Removed;
+    } catch (error) {
+      // This should be rare since disconnect() handles errors internally,
+      // but if it does occur, it's likely a programmer bug and should be re-thrown
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new Error(`Unexpected error during relay removal for "${url}": ${errorMessage}`);
     }
   }
 
@@ -52,13 +104,23 @@ export class RelayPool {
     return relay;
   }
 
+  /**
+   * Close relay connections. Invalid relay URLs are ignored.
+   * @param relayUrls Optional array of relay URLs to close. If not provided, all relays are closed.
+   */
   public close(relayUrls?: string[]): void {
     if (relayUrls) {
       relayUrls.forEach((url) => {
-        // Normalize URL to match the key used in the map
-        url = this.normalizeRelayUrl(url);
-        const relay = this.relays.get(url);
-        if (relay) relay.disconnect();
+        try {
+          // Normalize URL to match the key used in the map
+          const normalizedUrl = this.normalizeRelayUrl(url);
+          const relay = this.relays.get(normalizedUrl);
+          if (relay) relay.disconnect();
+        } catch (error) {
+          // Log the error for debugging purposes, but continue processing other URLs
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.warn(`Failed to close relay "${url}":`, errorMessage);
+        }
       });
     } else {
       this.relays.forEach((relay) => relay.disconnect());

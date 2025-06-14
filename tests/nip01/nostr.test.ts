@@ -3,7 +3,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { createMetadataEvent } from "../../src/nip01/event";
-import { getNostrInternals, asTestRelay } from "../types";
+import { getNostrInternals, asTestRelay, testUtils } from "../types";
 
 // Use ephemeral relay for all tests
 const RELAY_TEST_PORT = 3555;
@@ -58,7 +58,8 @@ describe("Nostr Client", () => {
 
       // This test verifies the relay was added but doesn't need to connect
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(additionalRelay)).toBe(true);
+      const normalizedRelay = testUtils.normalizeRelayUrl(additionalRelay);
+      expect(relays.has(normalizedRelay)).toBe(true);
     });
 
     test("should connect to relays", async () => {
@@ -93,7 +94,8 @@ describe("Nostr Client", () => {
       client.removeRelay(relayUrl);
 
       const relays = getNostrInternals(client).relays;
-      expect(relays.has(relayUrl)).toBe(false);
+      const normalizedRelayUrl = testUtils.normalizeRelayUrl(relayUrl);
+      expect(relays.has(normalizedRelayUrl)).toBe(false);
     });
   });
 

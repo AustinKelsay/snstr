@@ -8,12 +8,17 @@ import {
 } from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { decrypt as decryptNIP04 } from "../nip04";
+import { isValidRelayUrl } from "../nip19";
 import {
   createSignedEvent,
   createTextNote,
   createDirectMessage,
   createMetadataEvent,
 } from "./event";
+import {
+  preprocessRelayUrl as preprocessRelayUrlUtil,
+  normalizeRelayUrl as normalizeRelayUrlUtil,
+} from "../utils/relayUrl";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -92,6 +97,30 @@ export class Nostr {
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
+  /**
+   * Normalize a relay URL by lowercasing only the scheme and host,
+   * while preserving the case of path, query, and fragment parts.
+   * This is the correct behavior per URL standards.
+   */
+  private normalizeRelayUrl(url: string): string {
+    // Delegate to shared utility for consistent canonicalization
+    return normalizeRelayUrlUtil(url);
+  }
+
+  /**
+   * Preprocesses a relay URL before normalization and validation.
+   * Adds wss:// prefix only to URLs without any scheme.
+   * Throws an error for URLs with incompatible schemes.
+   * 
+   * @param url - The input URL string to preprocess
+   * @returns The preprocessed URL with appropriate scheme
+   * @throws Error if URL has an incompatible scheme
+   */
+  private preprocessRelayUrl(url: string): string {
+    // Delegate to shared utility for consistent preprocessing
+    return preprocessRelayUrlUtil(url);
+  }
+
   // Helper function to create the event handler wrapper
   private _createRelayEventHandler(
     relayUrl: string,
@@ -145,8 +174,10 @@ export class Nostr {
   }
 
   public addRelay(url: string): Relay {
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
+    url = this.preprocessRelayUrl(url);
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      throw new Error(`Invalid relay URL: ${url}`);
     }
 
     if (this.relays.has(url)) {
@@ -194,13 +225,22 @@ export class Nostr {
 
   public getRelay(url: string): Relay | undefined {
     // Re-use the same normalisation logic as addRelay()
-    if (!url.startsWith("wss://") && !url.startsWith("ws://")) {
-      url = `wss://${url}`;
+    url = this.preprocessRelayUrl(url);
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      return undefined;
     }
     return this.relays.get(url);
   }
 
   public removeRelay(url: string): void {
+    // Re-use the same normalisation logic as addRelay() and getRelay()
+    url = this.preprocessRelayUrl(url);
+    url = this.normalizeRelayUrl(url);
+    if (!isValidRelayUrl(url)) {
+      return;
+    }
+    
     const relay = this.relays.get(url);
     if (relay) {
       relay.disconnect();

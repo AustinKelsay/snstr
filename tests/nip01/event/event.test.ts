@@ -238,6 +238,42 @@ describe("Event Creation and Signing", () => {
       expect(signedEvent.id).toBeDefined();
       expect(signedEvent.sig).toBeDefined();
     });
+
+    it("should throw NostrValidationError for invalid recipient pubkey", async () => {
+      const content = "Secret message";
+      const invalidPubkeys = [
+        "", // Empty string
+        "invalidpubkey", // Too short
+        "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789", // Uppercase hex
+        "123456789012345678901234567890123456789012345678901234567890123X", // Invalid character
+        "123456789012345678901234567890123456789012345678901234567890123456", // Too long
+        "12345678901234567890123456789012345678901234567890123456789012", // Too short by one
+      ];
+
+      for (const invalidPubkey of invalidPubkeys) {
+        await expect(
+          createDirectMessage(content, invalidPubkey, privateKey),
+        ).rejects.toMatchObject({ 
+          field: "recipientPubkey" 
+        });
+      }
+    });
+
+    it("should throw NostrValidationError for missing or null recipient pubkey", async () => {
+      const content = "Secret message";
+      
+      await expect(
+        createDirectMessage(content, null as unknown as string, privateKey),
+      ).rejects.toMatchObject({ 
+        field: "recipientPubkey" 
+      });
+
+      await expect(
+        createDirectMessage(content, undefined as unknown as string, privateKey),
+      ).rejects.toMatchObject({ 
+        field: "recipientPubkey" 
+      });
+    });
   });
 
   describe("createMetadataEvent", () => {
@@ -363,6 +399,11 @@ describe("Event Creation and Signing", () => {
     const publicKey = getPublicKey(privateKey);
     const baseTime = Math.floor(Date.now() / 1000);
 
+    // Generate a second valid key pair for testing
+    const alternativePrivateKey = 
+      "2222222222222222222222222222222222222222222222222222222222222222";
+    const alternativePublicKey = getPublicKey(alternativePrivateKey);
+
     let baseEvent: NostrEvent;
 
     beforeEach(async () => {
@@ -417,7 +458,8 @@ describe("Event Creation and Signing", () => {
     // Test for 'pubkey'
     describe("event.pubkey validation", () => {
       it("should pass with a valid lowercase hex pubkey", async () => {
-        const event = { ...baseEvent, pubkey: "b2".repeat(32) }; // ensure lowercase
+        // Use a real valid pubkey instead of "b2".repeat(32)
+        const event = { ...baseEvent, pubkey: alternativePublicKey };
         await expect(
           validateEvent(event, {
             validateSignatures: false,
@@ -427,7 +469,8 @@ describe("Event Creation and Signing", () => {
       });
 
       it("should throw NostrValidationError for an uppercase hex pubkey", async () => {
-        const event = { ...baseEvent, pubkey: "B2".repeat(32) };
+        // Use an uppercase version of a valid pubkey
+        const event = { ...baseEvent, pubkey: alternativePublicKey.toUpperCase() };
         await expect(
           validateEvent(event, {
             validateSignatures: false,
@@ -436,6 +479,24 @@ describe("Event Creation and Signing", () => {
         ).rejects.toThrow(
           new NostrValidationError(
             "Invalid pubkey: must be lowercase hex",
+            "pubkey",
+          ),
+        );
+      });
+
+      it("should throw NostrValidationError for an invalid curve point", async () => {
+        // Test with a hex string that passes format validation but is not a valid curve point
+        // Using a value just below the field prime that is not a valid x-coordinate
+        const invalidPubkey = "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"; // This passes format but fails curve point validation
+        const event = { ...baseEvent, pubkey: invalidPubkey };
+        await expect(
+          validateEvent(event, {
+            validateSignatures: false,
+            validateIds: false,
+          }),
+        ).rejects.toThrow(
+          new NostrValidationError(
+            "Invalid pubkey: must be a valid secp256k1 curve point",
             "pubkey",
           ),
         );
