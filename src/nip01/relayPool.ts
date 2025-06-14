@@ -175,9 +175,9 @@ export class RelayPool {
     onEOSE?: () => void,
   ): Promise<{ close: () => void }> {
     const subscriptions: { relay: Relay; id: string; ready: boolean }[] = [];
-    const failedRelays: string[] = [];
     let eoseCount = 0;
     let isClosed = false;
+    let successfulRelayCount = 0;
 
     // Safe event handler that catches and logs errors
     const safeOnEvent = (event: NostrEvent, relayUrl: string) => {
@@ -189,12 +189,40 @@ export class RelayPool {
       }
     };
 
-    // Safe EOSE handler
+    // Track subscription promises individually to handle partial failures
+    const subscriptionPromises = relays.map(async (url): Promise<{ success: true; url: string; relay: Relay } | { success: false; url: string; error: string }> => {
+      try {
+        const relay = await this.ensureRelay(url);
+        // We'll set up the subscription with EOSE handler after we know the final count
+        return { success: true, url, relay };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`Failed to subscribe to relay ${url}:`, errorMessage);
+        return { success: false, url, error: errorMessage };
+      }
+    });
+
+    // Wait for all subscription attempts to complete (success or failure)
+    const results = await Promise.allSettled(subscriptionPromises);
+    
+    // Process results to determine successful relays
+    const successfulRelays: { url: string; relay: Relay }[] = [];
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value.success) {
+        successfulRelays.push({ url: result.value.url, relay: result.value.relay });
+      } else if (result.status === 'rejected') {
+        console.warn(`Unexpected error subscribing to ${relays[index]}:`, result.reason);
+      }
+    });
+
+    // Now we know the exact count of successful relays
+    successfulRelayCount = successfulRelays.length;
+
+    // Safe EOSE handler - now created with accurate successful relay count
     const safeOnEOSE = () => {
       if (isClosed) return;
       eoseCount++;
-      const successfulRelays = relays.length - failedRelays.length;
-      if (eoseCount === successfulRelays && onEOSE) {
+      if (eoseCount === successfulRelayCount && onEOSE) {
         try {
           onEOSE();
         } catch (eoseError) {
@@ -203,10 +231,9 @@ export class RelayPool {
       }
     };
 
-    // Track subscription promises individually to handle partial failures
-    const subscriptionPromises = relays.map(async (url) => {
+    // Now create subscriptions with the correct EOSE handler
+    successfulRelays.forEach(({ url, relay }) => {
       try {
-        const relay = await this.ensureRelay(url);
         const id = relay.subscribe(
           filters,
           (ev) => safeOnEvent(ev, url),
@@ -216,31 +243,15 @@ export class RelayPool {
         // Mark as ready and add to subscriptions
         const subscription = { relay, id, ready: true };
         subscriptions.push(subscription);
-        return { success: true, url, subscription };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`Failed to subscribe to relay ${url}:`, errorMessage);
-        failedRelays.push(url);
-        return { success: false, url, error: errorMessage };
-      }
-    });
-
-    // Wait for all subscription attempts to complete (success or failure)
-    const results = await Promise.allSettled(subscriptionPromises);
-    
-    // Process results and log any additional errors
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.warn(`Unexpected error subscribing to ${relays[index]}:`, result.reason);
-        if (!failedRelays.includes(relays[index])) {
-          failedRelays.push(relays[index]);
-        }
+        console.warn(`Failed to create subscription for relay ${url}:`, error);
+        // Decrease successful count since this relay actually failed
+        successfulRelayCount--;
       }
     });
 
     // If all relays failed, trigger onEOSE immediately to prevent hanging
-    const successfulRelays = relays.length - failedRelays.length;
-    if (successfulRelays === 0 && onEOSE && !isClosed) {
+    if (successfulRelayCount === 0 && onEOSE && !isClosed) {
       try {
         onEOSE();
       } catch (eoseError) {
