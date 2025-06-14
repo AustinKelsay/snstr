@@ -43,7 +43,7 @@ describe("useWebSocketImplementation", () => {
       globalThis.WebSocket = originalGlobalWebSocket;
     } else {
       // If there was no original WebSocket, remove it from globalThis
-      delete (globalThis as any).WebSocket;
+      delete (globalThis as { WebSocket?: typeof WebSocket }).WebSocket;
     }
     
     resetWebSocketImplementation();

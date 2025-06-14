@@ -747,7 +747,11 @@ export class NostrRemoteSignerBunker {
 
   getConnectionString(): string {
     // Filter out undefined values to ensure clean connection string
-    const connectionOptions: any = {
+    const connectionOptions: {
+      pubkey: string;
+      relays?: string[];
+      secret?: string;
+    } = {
       pubkey: this.signerKeypair.publicKey,
     };
     
