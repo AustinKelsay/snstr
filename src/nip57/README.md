@@ -27,7 +27,7 @@ The protocol supports both standard zaps (signed by the sender) and anonymous za
 The library provides an in-memory relay implementation for testing and development:
 
 ```typescript
-import { NostrRelay } from 'snstr/utils/ephemeral-relay';
+import { NostrRelay } from '../utils/ephemeral-relay';
 
 // Create an ephemeral relay on port 3000
 // Optional: purge events every 60 seconds

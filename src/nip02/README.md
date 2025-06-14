@@ -28,7 +28,7 @@ import {
   Contact,
   Logger,
 } from './index';
-import { NostrEvent /*, signEvent */ } from '../types/nostr'; // Assuming signEvent and NostrEvent types
+import { NostrEvent /*, signEvent */ } from 'snstr'; // Assuming signEvent and NostrEvent types
 
 // Example: Creating a contact list event
 const myContacts: Contact[] = [

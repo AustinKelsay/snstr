@@ -13,8 +13,11 @@ This module implements a basic version of [NIP-17](https://github.com/nostr-prot
 ## Basic Usage
 
 ```typescript
-import { createDirectMessage, decryptDirectMessage } from 'snstr/nip17';
-import { generateKeypair } from 'snstr';
+import {
+  createDirectMessage,
+  decryptDirectMessage,
+  generateKeypair,
+} from 'snstr';
 
 const alice = await generateKeypair();
 const bob = await generateKeypair();
