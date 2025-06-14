@@ -24,27 +24,31 @@ async function main() {
   await client.generateKeys();
   await client.connectToRelays();
 
-  console.log("Publishing sample events...");
-  await client.publishTextNote("first note");
-  await new Promise((r) => setTimeout(r, 1000));
-  await client.publishTextNote("second note");
+  try {
+    console.log("Publishing sample events...");
+    await client.publishTextNote("first note");
+    await new Promise((r) => setTimeout(r, 1000));
+    await client.publishTextNote("second note");
 
-  // wait for relays to store events
-  await new Promise((r) => setTimeout(r, 200));
+    // wait for relays to store events
+    await new Promise((r) => setTimeout(r, 200));
 
-  console.log("Fetching all events using fetchMany...");
-  const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 500 });
-  console.log(`Received ${events.length} events`);
+    console.log("Fetching all events using fetchMany...");
+    const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 500 });
+    console.log(`Received ${events.length} events`);
 
-  console.log("Fetching newest event using fetchOne...");
-  const latest = await client.fetchOne([{ kinds: [1] }], { maxWait: 500 });
-  if (latest) {
-    console.log(`Latest note: ${latest.content}`);
+    console.log("Fetching newest event using fetchOne...");
+    const latest = await client.fetchOne([{ kinds: [1] }], { maxWait: 500 });
+    if (latest) {
+      console.log(`Latest note: ${latest.content}`);
+    }
+  } finally {
+    // Ensure resources are always cleaned up, even if an exception occurs
+    console.log("Cleaning up resources...");
+    client.disconnectFromRelays();
+    await relayA.close();
+    await relayB.close();
   }
-
-  client.disconnectFromRelays();
-  await relayA.close();
-  await relayB.close();
 }
 
 main().catch((err) => {
