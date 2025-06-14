@@ -27,12 +27,25 @@ class MockWebSocket {
 }
 
 describe("useWebSocketImplementation", () => {
+  let originalGlobalWebSocket: typeof WebSocket | undefined;
+
   beforeEach(() => {
+    // Save the original globalThis.WebSocket before each test
+    originalGlobalWebSocket = globalThis.WebSocket;
+    
     MockWebSocket.instances.length = 0;
     useWebSocketImplementation(MockWebSocket as unknown as typeof WebSocket);
   });
 
   afterEach(() => {
+    // Restore the original globalThis.WebSocket after each test
+    if (originalGlobalWebSocket) {
+      globalThis.WebSocket = originalGlobalWebSocket;
+    } else {
+      // If there was no original WebSocket, remove it from globalThis
+      delete (globalThis as any).WebSocket;
+    }
+    
     resetWebSocketImplementation();
   });
 

@@ -28,7 +28,15 @@ export class RelayPool {
 
   constructor(relayUrls: string[] = [], options?: { relayOptions?: RelayConnectionOptions }) {
     this.relayOptions = options?.relayOptions;
-    relayUrls.forEach((url) => this.addRelay(url));
+    relayUrls.forEach((url) => {
+      try {
+        this.addRelay(url);
+      } catch (error) {
+        // Log the error but continue processing remaining URLs
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`Failed to add relay "${url}" during pool construction:`, errorMessage);
+      }
+    });
   }
 
   /**
@@ -55,12 +63,38 @@ export class RelayPool {
     return normalizedUrl;
   }
 
+  /**
+   * Add a relay to the pool or update an existing relay's configuration.
+   * 
+   * @param url - The relay URL to add
+   * @param options - Connection options for the relay
+   * @returns The relay instance (new or existing)
+   * 
+   * Note: If the relay already exists, most options will be merged into the existing
+   * relay's configuration. However, `bufferFlushDelay` can only be set during
+   * relay construction and will be ignored for existing relays.
+   */
   public addRelay(url: string, options?: RelayConnectionOptions): Relay {
     const normalizedUrl = this.normalizeRelayUrl(url);
     let relay = this.relays.get(normalizedUrl);
     if (!relay) {
       relay = new Relay(normalizedUrl, options || this.relayOptions);
       this.relays.set(normalizedUrl, relay);
+    } else if (options) {
+      // Merge the new options into the existing relay's configuration
+      if (options.connectionTimeout !== undefined) {
+        relay.setConnectionTimeout(options.connectionTimeout);
+      }
+      if (options.autoReconnect !== undefined) {
+        relay.setAutoReconnect(options.autoReconnect);
+      }
+      if (options.maxReconnectAttempts !== undefined) {
+        relay.setMaxReconnectAttempts(options.maxReconnectAttempts);
+      }
+      if (options.maxReconnectDelay !== undefined) {
+        relay.setMaxReconnectDelay(options.maxReconnectDelay);
+      }
+      // Note: bufferFlushDelay cannot be updated after construction as it requires internal state changes
     }
     return relay;
   }

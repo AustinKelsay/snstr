@@ -8,6 +8,66 @@
 import { ProfileData, EventData, AddressData, RelayUrl } from "./types";
 
 /**
+ * Validates if a hostname is valid according to RFC standards
+ * - Must not be empty
+ * - Must not exceed 255 characters total
+ * - Each label must be 1-63 characters
+ * - Labels must not start or end with hyphens
+ * - Labels must contain only alphanumeric characters and hyphens
+ * - Must not have consecutive dots
+ * - Must not start or end with dots
+ * - Must have at least one label (no bare TLD restriction for flexibility)
+ */
+function isValidHostname(hostname: string): boolean {
+  // Basic checks
+  if (!hostname || typeof hostname !== "string") {
+    return false;
+  }
+
+  // Check total length (RFC 1035: 255 characters max)
+  if (hostname.length > 255) {
+    return false;
+  }
+
+  // Check for leading or trailing dots
+  if (hostname.startsWith(".") || hostname.endsWith(".")) {
+    return false;
+  }
+
+  // Check for consecutive dots
+  if (hostname.includes("..")) {
+    return false;
+  }
+
+  // Split into labels and validate each
+  const labels = hostname.split(".");
+  
+  // Must have at least one label
+  if (labels.length === 0) {
+    return false;
+  }
+
+  for (const label of labels) {
+    // Each label must be 1-63 characters (RFC 1035)
+    if (label.length === 0 || label.length > 63) {
+      return false;
+    }
+
+    // Labels must not start or end with hyphens (RFC 1035)
+    if (label.startsWith("-") || label.endsWith("-")) {
+      return false;
+    }
+
+    // Labels must contain only alphanumeric characters and hyphens
+    if (!/^[a-zA-Z0-9-]+$/.test(label)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Validates if a relay URL is safe to use
  * - Must start with wss:// or ws://
  * - Must be a valid URL
@@ -93,8 +153,8 @@ export function isValidRelayUrl(url: RelayUrl): boolean {
         return false; // Empty brackets not allowed
       }
     } else {
-      // Regular hostname - only allow alphanumeric, dots, and hyphens
-      if (!/^[a-zA-Z0-9.-]*$/.test(parsedUrl.hostname)) {
+      // Regular hostname - validate with strict hostname rules
+      if (!isValidHostname(parsedUrl.hostname)) {
         return false;
       }
     }

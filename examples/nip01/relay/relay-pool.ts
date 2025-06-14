@@ -70,6 +70,12 @@ async function main() {
   const receivedWithErrors: Record<string, NostrEvent[]> = {};
   let eoseWithErrorsReceived = false;
 
+  // Create a promise that resolves when EOSE callback fires
+  let eoseCallbackResolver: (() => void) | null = null;
+  const eoseCallbackPromise = new Promise<void>((resolve) => {
+    eoseCallbackResolver = resolve;
+  });
+
   // Add a non-existent relay to test error handling
   const mixedRelays = [...relayUrls, "ws://localhost:9999"];
   
@@ -84,6 +90,10 @@ async function main() {
     () => {
       eoseWithErrorsReceived = true;
       console.log("EOSE from available relays (some relays failed)");
+      // Resolve the promise to signal EOSE callback completion
+      if (eoseCallbackResolver) {
+        eoseCallbackResolver();
+      }
     },
   );
 
@@ -95,10 +105,18 @@ async function main() {
   const immediateCloseTime = Date.now() - immediateCloseStart;
   console.log(`Subscription closed immediately in ${immediateCloseTime}ms`);
 
+  // Wait for EOSE callback to complete before reading the flag
+  await Promise.race([
+    eoseCallbackPromise,
+    new Promise<void>((resolve) => setTimeout(resolve, 100)) // Timeout fallback
+  ]);
+
   // Demonstrate that the subscription continues to work despite some relay failures
   if (eoseWithErrorsReceived) {
     const workingRelayCount = Object.keys(receivedWithErrors).length;
     console.log(`Successfully subscribed to ${workingRelayCount} out of ${mixedRelays.length} relays`);
+  } else {
+    console.log("EOSE callback did not complete within timeout");
   }
 
   console.log("\nDemonstrating querySync - fetching recent events...");

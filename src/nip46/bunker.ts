@@ -746,11 +746,22 @@ export class NostrRemoteSignerBunker {
   }
 
   getConnectionString(): string {
-    return buildConnectionString({
+    // Filter out undefined values to ensure clean connection string
+    const connectionOptions: any = {
       pubkey: this.signerKeypair.publicKey,
-      relays: this.options.relays,
-      secret: this.options.secret,
-    });
+    };
+    
+    // Only include relays if they exist and are not empty
+    if (this.options.relays && this.options.relays.length > 0) {
+      connectionOptions.relays = this.options.relays;
+    }
+    
+    // Only include secret if it exists
+    if (this.options.secret) {
+      connectionOptions.secret = this.options.secret;
+    }
+    
+    return buildConnectionString(connectionOptions);
   }
 
   async publishMetadata(

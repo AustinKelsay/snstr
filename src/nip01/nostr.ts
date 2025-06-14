@@ -18,6 +18,7 @@ import {
 import {
   preprocessRelayUrl as preprocessRelayUrlUtil,
   normalizeRelayUrl as normalizeRelayUrlUtil,
+  RelayUrlValidationError,
 } from "../utils/relayUrl";
 
 // Types for Nostr.on() callbacks (user-provided)
@@ -225,26 +226,44 @@ export class Nostr {
 
   public getRelay(url: string): Relay | undefined {
     // Re-use the same normalisation logic as addRelay()
-    url = this.preprocessRelayUrl(url);
-    url = this.normalizeRelayUrl(url);
-    if (!isValidRelayUrl(url)) {
+    try {
+      url = this.preprocessRelayUrl(url);
+      url = this.normalizeRelayUrl(url);
+      if (!isValidRelayUrl(url)) {
+        return undefined;
+      }
+      return this.relays.get(url);
+    } catch (error) {
+      // Handle RelayUrlValidationError and other URL processing errors gracefully
+      if (error instanceof RelayUrlValidationError) {
+        return undefined;
+      }
+      // For other unexpected errors, also return undefined for graceful handling
       return undefined;
     }
-    return this.relays.get(url);
   }
 
   public removeRelay(url: string): void {
     // Re-use the same normalisation logic as addRelay() and getRelay()
-    url = this.preprocessRelayUrl(url);
-    url = this.normalizeRelayUrl(url);
-    if (!isValidRelayUrl(url)) {
+    try {
+      url = this.preprocessRelayUrl(url);
+      url = this.normalizeRelayUrl(url);
+      if (!isValidRelayUrl(url)) {
+        return;
+      }
+      
+      const relay = this.relays.get(url);
+      if (relay) {
+        relay.disconnect();
+        this.relays.delete(url);
+      }
+    } catch (error) {
+      // Handle RelayUrlValidationError and other URL processing errors gracefully
+      if (error instanceof RelayUrlValidationError) {
+        return; // Silently ignore invalid URLs as intended
+      }
+      // For other unexpected errors, also return void for graceful handling
       return;
-    }
-    
-    const relay = this.relays.get(url);
-    if (relay) {
-      relay.disconnect();
-      this.relays.delete(url);
     }
   }
 

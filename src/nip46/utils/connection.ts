@@ -13,7 +13,8 @@ export function buildConnectionString(options: BuildConnectionStringOptions): st
   if (options.secret) {
     params.append("secret", options.secret);
   }
-  return `bunker://${options.pubkey}?${params.toString()}`;
+  const queryString = params.toString();
+  return `bunker://${options.pubkey}${queryString ? `?${queryString}` : ''}`;
 }
 
 import { NIP46ConnectionError } from "../types";
