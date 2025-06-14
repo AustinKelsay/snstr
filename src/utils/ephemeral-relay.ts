@@ -62,6 +62,7 @@ export class NostrRelay {
   private _cache: SignedEvent[];
   private _isClosing: boolean = false;
   private _purgeTimer: NodeJS.Timeout | null = null;
+  private _actualPort: number | null = null;
 
   public conn: number;
 
@@ -73,6 +74,7 @@ export class NostrRelay {
     this._subs = new Map();
     this._wss = null;
     this.conn = 0;
+    this._actualPort = null;
   }
 
   get cache() {
@@ -84,7 +86,8 @@ export class NostrRelay {
   }
 
   get url() {
-    return `${HOST}:${this._port}`;
+    const port = this._actualPort || this._port;
+    return `${HOST}:${port}`;
   }
 
   get wss() {
@@ -98,8 +101,6 @@ export class NostrRelay {
     this._wss = new WebSocketServer({ port: this._port });
     this._isClosing = false;
 
-    DEBUG && console.log("[ relay ] running on port:", this._port);
-
     this.wss.on("connection", (socket) => {
       const instance = new ClientSession(this, socket);
 
@@ -112,6 +113,14 @@ export class NostrRelay {
 
     return new Promise<NostrRelay>((res) => {
       this.wss.on("listening", () => {
+        // Capture the actual assigned port when port 0 was used
+        const address = this.wss.address();
+        if (address && typeof address === 'object' && 'port' in address) {
+          this._actualPort = address.port;
+        }
+        
+        DEBUG && console.log("[ relay ] running on port:", this._actualPort || this._port);
+        
         if (this._purge !== null) {
           DEBUG &&
             console.log(
