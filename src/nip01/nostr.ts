@@ -511,7 +511,7 @@ export class Nostr {
    * Collect events matching the given filters from all connected relays.
    *
    * @param filters Array of filters to apply
-   * @param options Optional max wait time in milliseconds
+   * @param options Optional max wait time in milliseconds (defaults to 5000ms if not provided)
    * @returns Promise resolving to all received events
    */
   public async fetchMany(
@@ -523,6 +523,7 @@ export class Nostr {
     return new Promise((resolve) => {
       const events: NostrEvent[] = [];
       let eoseCount = 0;
+      let isCleanedUp = false;
 
       const subIds = this.subscribe(
         filters,
@@ -537,15 +538,20 @@ export class Nostr {
         },
       );
 
-      let timeoutId: NodeJS.Timeout | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
       const cleanup = () => {
+        if (isCleanedUp) return; // Prevent multiple cleanup executions
+        isCleanedUp = true;
+        
         if (timeoutId) clearTimeout(timeoutId);
         this.unsubscribe(subIds);
         resolve(events);
       };
 
-      if (options?.maxWait && options.maxWait > 0) {
-        timeoutId = setTimeout(cleanup, options.maxWait);
+      // Set default timeout if none provided to ensure Promise always resolves
+      const maxWait = options?.maxWait ?? 5000;
+      if (maxWait > 0) {
+        timeoutId = setTimeout(cleanup, maxWait);
       }
     });
   }

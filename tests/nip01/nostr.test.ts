@@ -488,6 +488,21 @@ describe("Nostr Client", () => {
       await relayA.close();
       await relayB.close();
     });
+
+    test("fetchMany should use default timeout when none provided", async () => {
+      // This test ensures our fix prevents hanging when no maxWait is provided
+      const emptyClient = new Nostr(["ws://nonexistent.relay"]);
+      
+      const startTime = Date.now();
+      // Should resolve with empty array after default timeout (5000ms)
+      const events = await emptyClient.fetchMany([{ kinds: [1] }]);
+      const endTime = Date.now();
+      
+      expect(events).toEqual([]);
+      // Should have waited approximately the default timeout
+      expect(endTime - startTime).toBeGreaterThan(4900); // Allow some tolerance
+      expect(endTime - startTime).toBeLessThan(5500); // But not too much more
+    });
   });
 });
 
