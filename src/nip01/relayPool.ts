@@ -208,15 +208,13 @@ export class RelayPool {
     });
 
     // Wait for all subscription attempts to complete (success or failure)
-    const results = await Promise.allSettled(subscriptionPromises);
+    const results = await Promise.all(subscriptionPromises);
     
     // Process results to determine successful relays
     const successfulRelays: { url: string; relay: Relay }[] = [];
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled' && result.value.success) {
-        successfulRelays.push({ url: result.value.url, relay: result.value.relay });
-      } else if (result.status === 'rejected') {
-        console.warn(`Unexpected error subscribing to ${relays[index]}:`, result.reason);
+    results.forEach((result) => {
+      if (result.success) {
+        successfulRelays.push({ url: result.url, relay: result.relay });
       }
     });
 
@@ -227,7 +225,7 @@ export class RelayPool {
     const safeOnEOSE = () => {
       if (isClosed || eoseSent) return;
       eoseCount++;
-      if (eoseCount === successfulRelayCount && onEOSE) {
+      if (eoseCount >= successfulRelayCount && onEOSE) {
         try {
           eoseSent = true;
           onEOSE();
@@ -255,7 +253,7 @@ export class RelayPool {
         if (successfulRelayCount > 0) {
           successfulRelayCount--;
           // Check if we've now reached the condition where EOSE should be called
-          if (eoseCount === successfulRelayCount && onEOSE && !isClosed && !eoseSent) {
+          if (eoseCount >= successfulRelayCount && onEOSE && !isClosed && !eoseSent) {
             try {
               eoseSent = true;
               onEOSE();
