@@ -1,7 +1,7 @@
 {
   "name": "snstr",
   "version": "0.1.0",
-  "description": "Simple Nostr Software Toolkit for Retards",
+  "description": "Simple Nostr Software Toolkit for Relays - A comprehensive TypeScript library for Nostr protocol implementation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -78,6 +78,7 @@
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
     "example:nip09": "ts-node examples/nip09/deletion-request.ts",
+    "example:nip10": "echo '🧵 NIP-10: Text Notes and Threads - See examples/nip10/README.md for documentation'",
     "example:nip07": "cd examples/nip07 && npm install && npm run build && npm start",
     "example:nip07:build": "cd examples/nip07 && npm install && npm run build",
     "example:nip07:dm": "ts-node examples/nip07/direct-message.ts",
@@ -88,6 +89,7 @@
     "example:nip19:validation": "ts-node examples/nip19/validation-example.ts",
     "example:nip19:security": "ts-node examples/nip19/nip19-security.ts",
     "example:nip19:demo": "ts-node examples/nip19/nip19-demo.ts",
+    "example:nip21": "ts-node examples/nip21/nip21-demo.ts",
     "example:nip44": "ts-node examples/nip44/nip44-demo.ts",
     "example:nip44:js": "node examples/nip44/nip44-demo.js",
     "example:nip44:version-compat": "ts-node examples/nip44/nip44-version-compatibility.ts",

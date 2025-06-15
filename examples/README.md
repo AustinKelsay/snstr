@@ -63,6 +63,18 @@ npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
 npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
 npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
+
+### NIP-10: Text Notes and Threads
+
+```bash
+npm run example:nip10          # Threading and reply management
+```
+
+### NIP-21: URI Scheme
+
+```bash
+npm run example:nip21          # URI scheme for nostr entities
+```
 ````
 
 ## NIP-07 Examples
@@ -215,6 +227,7 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
   - `search-demo.ts` - Basic search filter usage
 - `/nip66` - [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) (Relay Discovery and Liveness Monitoring)
   - `nip66-demo.ts` - Relay discovery and monitoring demo
+  - `README.md` - Documentation for NIP-66 examples
 
 ## Building Examples
 

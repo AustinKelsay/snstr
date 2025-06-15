@@ -34,6 +34,18 @@ export {
   getEventHash,
 } from "./nip01/event";
 
+// Export NIP-02 utilities
+export {
+  createContactListEvent,
+  parseContactsFromEvent,
+  parseContactsFromEventWithWarnings,
+  Contact,
+  ContactListEvent,
+  ParseContactsResult,
+  ParseWarning,
+  Logger,
+} from "./nip02";
+
 // Export NIP-04 utilities
 export {
   encrypt as encryptNIP04,
