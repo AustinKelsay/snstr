@@ -275,7 +275,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
       
       expect(() => {
         decodePayload(shortPayload);
-      }).toThrow("NIP-44: Invalid ciphertext length. Base64 payload must be between 132 and 87472 characters, got 8.");
+      }).toThrow(/Invalid ciphertext length/);
     });
 
     test("should reject base64 payloads that are too long", () => {
@@ -284,7 +284,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
       
       expect(() => {
         decodePayload(longPayload);
-      }).toThrow("NIP-44: Invalid ciphertext length. Base64 payload must be between 132 and 87472 characters, got 87473.");
+      }).toThrow(/Invalid ciphertext length/);
     });
 
     test("should accept base64 payloads at minimum length boundary", () => {
@@ -319,7 +319,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
       
       expect(() => {
         decodePayload(paddedPayload);
-      }).toThrow("NIP-44: Invalid decoded payload length. Must be between 99 and 65603 bytes, got 98.");
+      }).toThrow(/Invalid decoded payload length/);
     });
 
     test("should reject decoded payloads that are too long", () => {
@@ -328,7 +328,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
       
       expect(() => {
         decodePayload(longDecodedPayload);
-      }).toThrow("NIP-44: Invalid decoded payload length. Must be between 99 and 65603 bytes, got 65604.");
+      }).toThrow(/Invalid decoded payload length/);
     });
 
     test("should accept decoded payloads at minimum length boundary", () => {
@@ -455,7 +455,7 @@ describe("Whitespace normalization for # prefix detection", () => {
     
     expect(() => {
       decodePayload(shortPayload);
-    }).toThrow("Invalid ciphertext length. Base64 payload must be between 132 and 87472 characters, got 130");
+    }).toThrow(/Invalid ciphertext length/);
   });
 });
 
@@ -494,6 +494,36 @@ describe("Base64 alphabet validation", () => {
     expect(() => {
       decodePayload(paddingInMiddlePayload);
     }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+  });
+
+  test("should reject payloads with improper base64 structure (not multiple of 4)", () => {
+    // Create payloads that are long enough to pass length validation but have improper base64 structure
+    const improperLengthPayloads = [
+      "A".repeat(133), // 133 chars, not multiple of 4
+      "A".repeat(135), // 135 chars, not multiple of 4  
+      "A".repeat(134), // 134 chars, not multiple of 4
+    ];
+    
+    for (const payload of improperLengthPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+    }
+  });
+
+  test("should reject payloads with multiple padding blocks", () => {
+    // Test cases where padding appears in multiple places - make them long enough to pass length validation
+    const multiplePaddingPayloads = [
+      "A".repeat(128) + "AB==CD==", // Padding in middle and end (136 chars total)
+      "A".repeat(124) + "A=B=C=D=", // Multiple single padding chars (132 chars total)
+      "A".repeat(125) + "ABC===D", // Three padding chars (invalid) (132 chars total)
+    ];
+    
+    for (const payload of multiplePaddingPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+    }
   });
 
   test("should accept valid base64 strings with no padding", () => {

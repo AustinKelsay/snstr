@@ -69,7 +69,11 @@ function base64Encode(bytes: Uint8Array): string {
 function base64Decode(str: string): Uint8Array {
   // Validate base64 alphabet before decoding to prevent silent acceptance of malformed strings
   // Base64 alphabet: A-Z, a-z, 0-9, +, / with optional padding (=) at the end
-  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(str)) {
+  // Enforce proper base64 structure:
+  // - String length must be multiple of 4 (including padding)
+  // - Padding characters '=' can only appear at the end, either as '=' or '=='
+  // - No padding characters allowed in the middle of the string
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(str)) {
     throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
   }
   
