@@ -97,7 +97,7 @@ import { parseDeletionTargets } from 'snstr';
 const targets = parseDeletionTargets(deletionEvent);
 console.log(targets);
 // {
-//   eventIds: ['<event-id-1>', '<event-id-2>'],
+//   ids: ['<event-id-1>', '<event-id-2>'],
 //   addresses: ['30023:<pubkey>:article'],
 //   kinds: [1, 6]
 // }
