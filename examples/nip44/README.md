@@ -52,6 +52,17 @@ The [`nip44-test-vector.ts`](./nip44-test-vector.ts) example:
 - Demonstrates NIP-44 version handling for encryption (v0/v1 attempts fail as specified, v2 succeeds) and decryption.
 - Provides detailed examination of specific vectors for debugging
 
+### Compliance Demonstration
+
+The [`nip44-compliance-demo.ts`](./nip44-compliance-demo.ts) example:
+
+- Demonstrates strict NIP-44 specification compliance
+- Tests # prefix detection for non-base64 encoding
+- Validates base64 payload length bounds (132 to 87,472 characters)
+- Validates decoded payload length bounds (99 to 65,603 bytes)
+- Shows proper error handling for invalid inputs
+- Verifies boundary cases work correctly
+
 ## Running the Examples
 
 To run the examples:
@@ -65,6 +76,9 @@ npm run example:nip44:version-compat
 
 # Run the test vector verification
 npm run example:nip44:test-vector
+
+# Run the compliance demonstration
+npm run example:nip44:compliance
 ```
 
 ## Key Concepts
@@ -76,6 +90,7 @@ npm run example:nip44:test-vector
 - **Proper Key Derivation**: Uses HKDF instead of raw ECDH output for better security
 - **Constant-Time Operations**: Prevents timing attacks during cryptographic operations
 - **Comprehensive Validation**: Thorough input validation and error handling
+- **Strict Compliance**: Full adherence to NIP-44 specification requirements
 
 ## Security Improvements Over NIP-04
 

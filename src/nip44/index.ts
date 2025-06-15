@@ -35,13 +35,13 @@ const MAX_SUPPORTED_VERSION = 2;
 // NIP-44 (Decryption, point 2) specifies for v0/v1 decryption:
 // "The `message_nonce` is 32 bytes, `mac` is 32 bytes."
 // This implementation uses these mandated sizes for v0/v1 decryption.
-const NONCE_SIZE_V0 = 32;
-const NONCE_SIZE_V1 = 32;
-const NONCE_SIZE_V2 = 32;
+export const NONCE_SIZE_V0 = 32;
+export const NONCE_SIZE_V1 = 32;
+export const NONCE_SIZE_V2 = 32;
 
-const MAC_SIZE_V0 = 32;
-const MAC_SIZE_V1 = 32;
-const MAC_SIZE_V2 = 32;
+export const MAC_SIZE_V0 = 32;
+export const MAC_SIZE_V1 = 32;
+export const MAC_SIZE_V2 = 32;
 
 const KEY_SIZE = 32; // 32-byte key for ChaCha20 (consistent across versions)
 const MIN_PLAINTEXT_SIZE = 1;
@@ -49,6 +49,13 @@ const MAX_PLAINTEXT_SIZE = 65535; // 64KB - 1
 
 // Payload format constants
 const VERSION_BYTE_SIZE = 1;
+
+// NIP-44 payload length limits (from specification)
+const MIN_BASE64_PAYLOAD_LENGTH = 132;  // Minimum base64 payload length
+const MAX_BASE64_PAYLOAD_LENGTH = 87472; // Maximum base64 payload length  
+const MIN_DECODED_PAYLOAD_LENGTH = 99;   // Minimum decoded payload length
+const MAX_DECODED_PAYLOAD_LENGTH = 65603; // Maximum decoded payload length
+
 // MIN_CIPHERTEXT_SIZE and MIN_PAYLOAD_SIZE will now depend on the version, so they are calculated dynamically.
 // const MIN_CIPHERTEXT_SIZE = VERSION_BYTE_SIZE + NONCE_SIZE + 1; // Version + nonce + at least 1 byte
 // const MIN_PAYLOAD_SIZE = MIN_CIPHERTEXT_SIZE + MAC_SIZE;
@@ -59,7 +66,22 @@ function base64Encode(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64");
 }
 
+// Base64 validation regex - compiled once for efficiency
+// Base64 alphabet: A-Z, a-z, 0-9, +, / with optional padding (=) at the end
+// Enforce proper base64 structure:
+// - String must be non-empty (either 4-char groups OR padded ending)
+// - String length must be multiple of 4 (including padding)
+// - Padding characters '=' can only appear at the end, either as '=' or '=='
+// - No padding characters allowed in the middle of the string
+// - Empty strings are rejected by requiring at least one valid ending pattern
+const BASE64_VALIDATION_REGEX = /^(?:(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)$/;
+
 function base64Decode(str: string): Uint8Array {
+  // Validate base64 alphabet before decoding to prevent silent acceptance of malformed strings
+  if (!BASE64_VALIDATION_REGEX.test(str)) {
+    throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
+  }
+  
   return new Uint8Array(Buffer.from(str, "base64"));
 }
 
@@ -652,23 +674,49 @@ export function decodePayload(payload: string): {
   ciphertext: Uint8Array;
   mac: Uint8Array;
 } {
-  // Basic validation before decoding
-  // Smallest possible payload: 1 (version) + NONCE_SIZE_V0 (assuming it's smallest) + 1 (min ciphertext) + MAC_SIZE_V0
-  const minDynamicPayloadSize = 1 + NONCE_SIZE_V0 + 1 + MAC_SIZE_V0;
-  const minDynamicBase64Length = Math.ceil((minDynamicPayloadSize * 4) / 3);
+  // NIP-44 Decryption Step 1: Normalize payload and check for non-base64 encoding (# prefix)
+  // Trim whitespace and newlines to prevent bypass of # prefix detection
+  const raw = payload.trim();
+  if (raw.length > 0 && raw[0] === '#') {
+    throw new Error("NIP-44: Unsupported version (non-base64 encoding detected)");
+  }
 
-  if (payload.length < minDynamicBase64Length) {
+  // NIP-44 Decryption Step 2: Validate base64 payload length bounds
+  if (raw.length < MIN_BASE64_PAYLOAD_LENGTH) {
     throw new Error(
-      `NIP-44: Invalid ciphertext length. Minimum base64 length is ${minDynamicBase64Length}, got ${payload.length}.`,
+      `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${raw.length}.`,
+    );
+  }
+  
+  if (raw.length > MAX_BASE64_PAYLOAD_LENGTH) {
+    throw new Error(
+      `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${raw.length}.`,
     );
   }
 
-  // Decode the base64 payload
+  // Decode the base64 payload using the normalized (trimmed) version
   let data: Uint8Array;
   try {
-    data = base64Decode(payload);
+    data = base64Decode(raw);
   } catch (error) {
+    // Re-throw the specific error from base64Decode (e.g., alphabet validation)
+    if (error instanceof Error && error.message.includes("NIP-44:")) {
+      throw error;
+    }
     throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
+  }
+
+  // Validate decoded payload length bounds
+  if (data.length < MIN_DECODED_PAYLOAD_LENGTH) {
+    throw new Error(
+      `NIP-44: Invalid decoded payload length. Must be between ${MIN_DECODED_PAYLOAD_LENGTH} and ${MAX_DECODED_PAYLOAD_LENGTH} bytes, got ${data.length}.`,
+    );
+  }
+  
+  if (data.length > MAX_DECODED_PAYLOAD_LENGTH) {
+    throw new Error(
+      `NIP-44: Invalid decoded payload length. Must be between ${MIN_DECODED_PAYLOAD_LENGTH} and ${MAX_DECODED_PAYLOAD_LENGTH} bytes, got ${data.length}.`,
+    );
   }
 
   // Extract version byte

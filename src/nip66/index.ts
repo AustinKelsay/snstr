@@ -594,11 +594,3 @@ export function parseRelayMonitorAnnouncement(
   return data;
 }
 
-export default {
-  RELAY_DISCOVERY_KIND,
-  RELAY_MONITOR_KIND,
-  createRelayDiscoveryEvent,
-  parseRelayDiscoveryEvent,
-  createRelayMonitorAnnouncement,
-  parseRelayMonitorAnnouncement,
-};

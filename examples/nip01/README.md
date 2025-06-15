@@ -59,10 +59,10 @@ npm run example:nip01:validation  # Located in examples/client/validation-flow.t
 
 - `/relay` - Relay-related examples
 
-  - `relay-connection.ts` - Connection management with error handling and timeout configuration
+  - `relay-connection-example.ts` - Connection management with error handling and timeout configuration
   - `filter-types.ts` - Different filter types for subscription and event retrieval
   - `auto-unsubscribe-example.ts` - Automatic subscription cleanup on EOSE or timeout
-  - `relay-query.ts` - Pooled event queries with fetchMany/fetchOne
+  - `relay-query-example.ts` - Pooled event queries with fetchMany/fetchOne
   - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
   - `relay-pool.ts` - Manage multiple relays with RelayPool
 

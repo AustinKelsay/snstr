@@ -159,22 +159,48 @@ The following scripts should be maintained for running tests:
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest tests/integration.test.ts",
+    
+    // NIP-01 Core Tests
     "test:nip01": "jest tests/nip01",
     "test:nip01:event": "jest tests/nip01/event",
     "test:nip01:relay": "jest tests/nip01/relay",
-    "test:nostr": "jest tests/nip01/nostr.test.ts",
     "test:event": "jest tests/nip01/event/event.test.ts",
+    "test:event:ordering": "jest tests/nip01/event/event-ordering.test.ts",
+    "test:event:addressable": "jest tests/nip01/event/addressable-events.test.ts",
+    "test:event:all": "jest tests/nip01/event",
+    "test:nostr": "jest tests/nip01/nostr.test.ts",
     "test:relay": "jest tests/nip01/relay",
+    "test:nip01:relay:connection": "jest tests/nip01/relay/relay.test.ts",
+    "test:nip01:relay:filter": "jest tests/nip01/relay/filters.test.ts",
+    "test:nip01:relay:reconnect": "jest tests/nip01/relay/relay-reconnect.test.ts",
+    "test:nip01:relay:pool": "jest tests/nip01/relay/relayPool.test.ts",
+    "test:crypto:core": "jest tests/utils/crypto.test.ts",
+    
+    // NIP-specific Tests
+    "test:nip02": "jest tests/nip02",
     "test:nip04": "jest tests/nip04",
     "test:nip05": "jest tests/nip05",
-    "test:nip09": "jest tests/nip09",
     "test:nip07": "jest tests/nip07",
+    "test:nip09": "jest tests/nip09",
+    "test:nip10": "jest tests/nip10",
     "test:nip11": "jest tests/nip11",
+    "test:nip17": "jest tests/nip17",
     "test:nip19": "jest tests/nip19",
+    "test:nip21": "jest tests/nip21",
     "test:nip44": "jest tests/nip44",
     "test:nip46": "jest tests/nip46",
     "test:nip47": "jest tests/nip47",
-    "test:nip57": "jest tests/nip57"
+    "test:nip50": "jest tests/nip50",
+    "test:nip57": "jest tests/nip57",
+    "test:nip65": "jest tests/nip65",
+    "test:nip66": "jest tests/nip66",
+    
+    // Test Groups
+    "test:all": "npm test",
+    "test:core": "jest tests/nip01",
+    "test:crypto": "jest tests/utils/crypto.test.ts tests/nip04 tests/nip44",
+    "test:identity": "jest tests/nip05 tests/nip07 tests/nip19",
+    "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57"
   }
 }
 ```

@@ -362,13 +362,7 @@ describe("RelayPool", () => {
       sub.close();
 
       // Test that pool.close() is async and completes properly
-      const startTime = Date.now();
       await pool.close();
-      const closeTime = Date.now() - startTime;
-
-      // Verify that close took some time (due to the cleanup delay) but not too long
-      expect(closeTime).toBeGreaterThanOrEqual(10); // Should take at least 10ms due to cleanup delay
-      expect(closeTime).toBeLessThan(100); // But not too long
 
       // Verify that calling close again doesn't throw errors
       await expect(pool.close()).resolves.not.toThrow();

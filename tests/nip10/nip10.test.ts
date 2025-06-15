@@ -13,12 +13,12 @@ describe("NIP-10 utilities", () => {
     );
     expect(tags).toEqual([
       ["e", "root", "wss://relay", "root"],
-      ["e", "reply", "reply"],
+      ["e", "reply", "", "reply"],
     ]);
   });
 
-  test("createQuoteTag should build q tag", () => {
-    expect(createQuoteTag({ id: "abc" })).toEqual(["q", "abc"]);
+  test("createQuoteTag should build e tag with mention marker", () => {
+    expect(createQuoteTag({ id: "abc" })).toEqual(["e", "abc", "", "mention"]);
   });
 
   test("parseThreadReferences handles marked tags", () => {
@@ -31,7 +31,7 @@ describe("NIP-10 utilities", () => {
       tags: [
         ["e", "root", "", "root", "pub1"],
         ["e", "reply", "", "reply", "pub2"],
-        ["q", "quote", "relay"],
+        ["e", "quote", "relay", "mention"],
       ],
       sig: "sig",
     };
@@ -65,7 +65,7 @@ describe("NIP-10 utilities", () => {
 
   test("createReplyTags should build only root tag when no reply", () => {
     expect(createReplyTags({ id: "root" })).toEqual([
-      ["e", "root", "root"],
+      ["e", "root", "", "root"],
     ]);
   });
 
@@ -82,7 +82,7 @@ describe("NIP-10 utilities", () => {
 
   test("createQuoteTag should include all fields when present", () => {
     expect(createQuoteTag({ id: "abc", relay: "wss://relay", pubkey: "pub" })).toEqual([
-      "q", "abc", "wss://relay", "pub"
+      "e", "abc", "wss://relay", "mention", "pub"
     ]);
   });
 
@@ -97,7 +97,7 @@ describe("NIP-10 utilities", () => {
         ["e", "root", "", "root"],
         ["e", "reply", "", "reply"],
         ["e", "mention"],
-        ["q", "quote", "wss://relay", "pub"],
+        ["e", "quote", "wss://relay", "mention", "pub"],
       ],
       sig: "s",
     };

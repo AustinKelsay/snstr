@@ -249,7 +249,7 @@ function safelyDecodeEntity(bech32Str) {
 const safeEntity = safelyDecodeEntity(bech32String);
 ```
 
-For a complete example, see [security-example.ts](../../examples/nip19/security-example.ts). 
+For a complete example, see [nip19-security.ts](../../examples/nip19/nip19-security.ts). 
 
 ## TypeScript Types
 
