@@ -77,7 +77,7 @@ For detailed information on each implementation, see the corresponding directori
 npm install snstr
 
 # For now, clone and build locally:
-git clone https://github.com/plebdev/snstr.git
+git clone https://github.com/AustinKelsay/snstr.git
 cd snstr
 npm install
 npm run build

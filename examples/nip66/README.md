@@ -6,7 +6,7 @@ This directory contains examples for [NIP-66: Relay Discovery and Liveness Monit
 
 NIP-66 defines two event kinds for relay discovery and monitoring:
 - **Kind 10166**: Relay discovery events that announce relay metadata
-- **Kind 10166**: Relay monitor announcements that track relay availability
+- **Kind 10167**: Relay monitor announcements that track relay availability
 
 ## Running the Examples
 
