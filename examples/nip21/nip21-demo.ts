@@ -104,8 +104,9 @@ const invalidURIs = [
     try {
       const result = decodeNostrURI(uri);
       console.log(`✅ ${uri} -> ${JSON.stringify(result)}`);
-    } catch (error: any) {
-      console.log(`❌ ${uri} -> Error: ${error.message}`);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`❌ ${uri} -> Error: ${message}`);
     }
   });
 
