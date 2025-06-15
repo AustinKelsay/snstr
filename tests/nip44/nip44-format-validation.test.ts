@@ -1,4 +1,11 @@
-import { isValidPublicKeyFormat, isValidPublicKeyPoint, isValidPrivateKey, decodePayload } from "../../src/nip44";
+import { 
+  isValidPublicKeyFormat, 
+  isValidPublicKeyPoint, 
+  isValidPrivateKey, 
+  decodePayload,
+  NONCE_SIZE_V0,
+  MAC_SIZE_V0
+} from "../../src/nip44";
 
 describe("NIP-44 Format Validation", () => {
   describe("isValidPublicKeyFormat", () => {
@@ -294,8 +301,8 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // This should pass length validation and successfully decode (version 0 is supported for decryption)
       const result = decodePayload(minLengthPayload);
       expect(result.version).toBe(0);
-      expect(result.nonce).toHaveLength(32);
-      expect(result.mac).toHaveLength(32);
+      expect(result.nonce).toHaveLength(NONCE_SIZE_V0);
+      expect(result.mac).toHaveLength(MAC_SIZE_V0);
       expect(result.ciphertext.length).toBeGreaterThan(0);
     });
 
@@ -338,8 +345,8 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // This should pass length validation and successfully decode (version 0 is supported for decryption)
       const result = decodePayload(minDecodedPayload);
       expect(result.version).toBe(0);
-      expect(result.nonce).toHaveLength(32);
-      expect(result.mac).toHaveLength(32);
+      expect(result.nonce).toHaveLength(NONCE_SIZE_V0);
+      expect(result.mac).toHaveLength(MAC_SIZE_V0);
       expect(result.ciphertext.length).toBeGreaterThan(0);
     });
 
@@ -350,8 +357,8 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // This should pass length validation and successfully decode (version 0 is supported for decryption)
       const result = decodePayload(maxDecodedPayload);
       expect(result.version).toBe(0);
-      expect(result.nonce).toHaveLength(32);
-      expect(result.mac).toHaveLength(32);
+      expect(result.nonce).toHaveLength(NONCE_SIZE_V0);
+      expect(result.mac).toHaveLength(MAC_SIZE_V0);
       expect(result.ciphertext.length).toBeGreaterThan(0);
     });
   });

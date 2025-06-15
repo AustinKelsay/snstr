@@ -35,13 +35,13 @@ const MAX_SUPPORTED_VERSION = 2;
 // NIP-44 (Decryption, point 2) specifies for v0/v1 decryption:
 // "The `message_nonce` is 32 bytes, `mac` is 32 bytes."
 // This implementation uses these mandated sizes for v0/v1 decryption.
-const NONCE_SIZE_V0 = 32;
-const NONCE_SIZE_V1 = 32;
-const NONCE_SIZE_V2 = 32;
+export const NONCE_SIZE_V0 = 32;
+export const NONCE_SIZE_V1 = 32;
+export const NONCE_SIZE_V2 = 32;
 
-const MAC_SIZE_V0 = 32;
-const MAC_SIZE_V1 = 32;
-const MAC_SIZE_V2 = 32;
+export const MAC_SIZE_V0 = 32;
+export const MAC_SIZE_V1 = 32;
+export const MAC_SIZE_V2 = 32;
 
 const KEY_SIZE = 32; // 32-byte key for ChaCha20 (consistent across versions)
 const MIN_PLAINTEXT_SIZE = 1;
