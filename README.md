@@ -28,6 +28,8 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 
 - Event creation and signing with comprehensive validation
 - Relay connections with automatic reconnect
+- **RelayPool for multi-relay management** - Efficient connection pooling, automatic failover, and batch operations
+- **Cross-relay event querying** - `fetchMany()` and `fetchOne()` methods for aggregated event retrieval
 - Filter-based subscriptions
 - Support for replaceable events (kinds 0, 3, 10000-19999)
 - Support for addressable events (kinds 30000-39999)
@@ -119,6 +121,22 @@ async function main() {
     { autoClose: true, eoseTimeout: 5000 },
   );
 
+  // Query events from all relays
+  const manyEvents = await client.fetchMany(
+    [{ kinds: [1], authors: ["pubkey"], limit: 10 }],
+    { maxWait: 5000 }
+  );
+  console.log(`Found ${manyEvents.length} events`);
+
+  // Get the most recent event from all relays
+  const latestEvent = await client.fetchOne(
+    [{ kinds: [1], authors: ["pubkey"] }],
+    { maxWait: 3000 }
+  );
+  if (latestEvent) {
+    console.log("Latest event:", latestEvent.content);
+  }
+
   // Cleanup
   setTimeout(() => {
     client.unsubscribe(subIds);
@@ -127,6 +145,100 @@ async function main() {
 }
 
 main().catch(console.error);
+```
+
+### Using RelayPool for Multi-Relay Management
+
+```typescript
+import { RelayPool, generateKeys, createEvent } from "snstr";
+
+async function relayPoolExample() {
+  // Initialize RelayPool with multiple relays
+  const pool = new RelayPool([
+    "wss://relay.nostr.band",
+    "wss://nos.lol", 
+    "wss://relay.damus.io"
+  ]);
+
+  // Generate keypair
+  const keys = await generateKeys();
+
+  // Publish to multiple relays simultaneously
+  const event = createEvent({
+    kind: 1,
+    content: "Hello from RelayPool!",
+    tags: [],
+    privateKey: keys.privateKey
+  });
+
+  const publishPromises = pool.publish(
+    ["wss://relay.nostr.band", "wss://nos.lol"], 
+    event
+  );
+  const results = await Promise.all(publishPromises);
+
+  // Subscribe across multiple relays with automatic failover
+  const subscription = await pool.subscribe(
+    ["wss://relay.nostr.band", "wss://nos.lol", "wss://relay.damus.io"],
+    [{ kinds: [1], limit: 10 }],
+    (event, relayUrl) => {
+      console.log(`Event from ${relayUrl}:`, event.content);
+    },
+    () => {
+      console.log("All relays finished sending stored events");
+    }
+  );
+
+  // Query events synchronously from multiple relays
+  const events = await pool.querySync(
+    ["wss://relay.nostr.band", "wss://nos.lol"],
+    { kinds: [1], limit: 5 },
+    { timeout: 10000 }
+  );
+  console.log(`Retrieved ${events.length} events`);
+
+  // Cleanup
+  subscription.close();
+  await pool.close();
+}
+
+relayPoolExample().catch(console.error);
+```
+
+### Event Querying with fetchMany and fetchOne
+
+```typescript
+import { Nostr } from "snstr";
+
+async function queryExample() {
+  const client = new Nostr(["wss://relay.nostr.band", "wss://nos.lol"]);
+  await client.connectToRelays();
+
+  // Fetch multiple events from all connected relays
+  const events = await client.fetchMany(
+    [
+      { kinds: [1], authors: ["pubkey1", "pubkey2"], limit: 20 },
+      { kinds: [0], authors: ["pubkey1"] } // Profile metadata
+    ],
+    { maxWait: 5000 } // Wait up to 5 seconds
+  );
+  
+  console.log(`Retrieved ${events.length} events from all relays`);
+  
+  // Fetch the most recent single event
+  const latestNote = await client.fetchOne(
+    [{ kinds: [1], authors: ["pubkey1"] }],
+    { maxWait: 3000 }
+  );
+  
+  if (latestNote) {
+    console.log("Latest note:", latestNote.content);
+  }
+
+  client.disconnectFromRelays();
+}
+
+queryExample().catch(console.error);
 ```
 
 For more examples including encryption, relay management, and NIP-specific features, see the [examples directory](./examples/README.md).
