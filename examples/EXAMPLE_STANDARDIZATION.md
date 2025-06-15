@@ -189,7 +189,7 @@ The current package.json includes comprehensive scripts for all examples:
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
     "example:nip07": "cd examples/nip07 && npm install && npm run build && npm start",
     "example:nip09": "ts-node examples/nip09/deletion-request.ts",
-    "example:nip10": "echo '🧵 NIP-10: Text Notes and Threads - See examples/nip10/README.md'",
+    "example:nip10": "ts-node examples/nip10/nip10-demo.ts",
     "example:nip11": "ts-node examples/nip11/relay-info-example.ts",
     "example:nip17": "ts-node examples/nip17/nip17-demo.ts",
     "example:nip19": "ts-node examples/nip19/nip19-demo.ts",
