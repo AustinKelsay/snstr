@@ -185,9 +185,9 @@ class MinimalNIP46Client {
       try {
         const json = JSON.stringify(request);
         const encrypted = encryptNIP04(
-          json,
           this.clientKeys.privateKey,
           this.signerPubkey,
+          json,
         );
 
         // Create and send event
@@ -251,9 +251,9 @@ class MinimalNIP46Client {
       // Decrypt content
       try {
         const decrypted = decryptNIP04(
-          event.content,
           this.clientKeys.privateKey,
           this.signerPubkey,
+          event.content,
         );
 
         // Parse response
@@ -351,9 +351,9 @@ class MinimalNIP46Bunker {
       // Decrypt content
       try {
         const decrypted = decryptNIP04(
-          event.content,
           this.signerKeys.privateKey,
           event.pubkey,
+          event.content,
         );
 
         // Parse request
@@ -456,9 +456,9 @@ class MinimalNIP46Bunker {
       // Encrypt the response
       const json = JSON.stringify(response);
       const encrypted = encryptNIP04(
-        json,
         this.signerKeys.privateKey,
         clientPubkey,
+        json,
       );
 
       // Create and send event
