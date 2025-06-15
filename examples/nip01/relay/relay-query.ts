@@ -45,7 +45,7 @@ async function main() {
   } finally {
     // Ensure resources are always cleaned up, even if an exception occurs
     console.log("Cleaning up resources...");
-    client.disconnectFromRelays();
+    await client.disconnectFromRelays();
     await relayA.close();
     await relayB.close();
   }
