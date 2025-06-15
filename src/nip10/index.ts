@@ -123,8 +123,3 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
   return { root, reply, mentions, quotes };
 }
 
-export default {
-  createReplyTags,
-  createQuoteTag,
-  parseThreadReferences,
-};

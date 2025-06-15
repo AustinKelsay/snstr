@@ -48,4 +48,3 @@ export function decodeNostrURI(uri: string): DecodedEntity {
   return decode(entity);
 }
 
-export default { encodeNostrURI, decodeNostrURI };

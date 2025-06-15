@@ -24,7 +24,6 @@ src/nip01/
 ├── event.ts           # Event creation, validation, and utility functions
 ├── nostr.ts           # Main Nostr client implementation 
 ├── relay.ts           # Relay connection and subscription management
-├── relay-connection.ts # WebSocket connection handling
 └── README.md          # Documentation
 ```
 

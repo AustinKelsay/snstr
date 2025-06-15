@@ -379,7 +379,6 @@ npm run format
   - `event.ts`: Event creation, validation, and utilities
   - `nostr.ts`: Main Nostr client implementation
   - `relay.ts`: Relay connection and subscription management
-  - `relay-connection.ts`: WebSocket connection handling
 - **Examples**: Organized by NIP in `examples/nipXX` directories
   - NIP-01 examples further divided into `event/` and `relay/` subdirectories
   - Client-specific examples in `examples/client`
