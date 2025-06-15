@@ -48,18 +48,18 @@ async function main() {
 
     // Alice encrypts the message using her private key and Bob's public key
     const encryptedMessage = await encryptNIP04(
-      message,
       aliceKeypair.privateKey,
       bobKeypair.publicKey,
+      message,
     );
     console.log(`\nEncrypted message: ${encryptedMessage}`);
 
     // Bob receives the message and decrypts it using his private key and Alice's public key
     console.log("\nBob decrypts the message...");
     const decryptedMessage = await decryptNIP04(
-      encryptedMessage,
       bobKeypair.privateKey,
       aliceKeypair.publicKey,
+      encryptedMessage,
     );
     console.log(`Decrypted message: "${decryptedMessage}"`);
 
@@ -67,9 +67,9 @@ async function main() {
     console.log("\nEve tries to decrypt the message...");
     try {
       const eveDecryption = await decryptNIP04(
-        encryptedMessage,
         eveKeypair.privateKey,
         aliceKeypair.publicKey,
+        encryptedMessage,
       );
       console.log(`Eve decrypted: "${eveDecryption}"`);
     } catch (error) {

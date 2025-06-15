@@ -492,7 +492,18 @@ export class SimpleNIP46Bunker {
 
     try {
       // Encrypt the message using NIP-04
-      const encrypted = encryptNIP04(plaintext, this.userKeys.privateKey, recipient);
+      let encrypted: string;
+      try {
+        encrypted = await encryptNIP04(this.userKeys.privateKey, recipient, plaintext);
+      } catch (encryptError) {
+        const encryptErrorMessage =
+          encryptError instanceof Error ? encryptError.message : String(encryptError);
+        this.logger.error(`NIP-04 encryption failed: ${encryptErrorMessage}`);
+        return createErrorResponse(
+          request.id,
+          `NIP-04 encryption failed: ${encryptErrorMessage}`,
+        );
+      }
 
       this.logger.debug(`NIP-04 encryption successful`);
 
@@ -537,7 +548,18 @@ export class SimpleNIP46Bunker {
 
     try {
       // Decrypt the message using NIP-04
-      const decrypted = decryptNIP04(ciphertext, this.userKeys.privateKey, sender);
+      let decrypted: string;
+      try {
+        decrypted = await decryptNIP04(this.userKeys.privateKey, sender, ciphertext);
+      } catch (decryptError) {
+        const decryptErrorMessage =
+          decryptError instanceof Error ? decryptError.message : String(decryptError);
+        this.logger.error(`NIP-04 decryption failed: ${decryptErrorMessage}`);
+        return createErrorResponse(
+          request.id,
+          `NIP-04 decryption failed: ${decryptErrorMessage}`,
+        );
+      }
 
       this.logger.debug(`NIP-04 decryption successful`);
 

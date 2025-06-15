@@ -584,17 +584,17 @@ export class NostrRemoteSignerBunker {
       switch (request.method) {
         case NIP46Method.NIP04_ENCRYPT:
           result = encryptNIP04(
-            content,
             this.userKeypair.privateKey,
             thirdPartyPubkey,
+            content,
           );
           break;
 
         case NIP46Method.NIP04_DECRYPT:
           result = decryptNIP04(
-            content,
             this.userKeypair.privateKey,
             thirdPartyPubkey,
+            content,
           );
           break;
 
@@ -687,18 +687,18 @@ export class NostrRemoteSignerBunker {
           );
         } else {
           encryptedContent = encryptNIP04(
-            jsonResponse,
             this.signerKeypair.privateKey,
             clientPubkey,
+            jsonResponse,
           );
         }
       } catch (error) {
         // Fallback to the other encryption method
         if (clientEncryption === "nip44") {
           encryptedContent = encryptNIP04(
-            jsonResponse,
             this.signerKeypair.privateKey,
             clientPubkey,
+            jsonResponse,
           );
 
           // Update client preference
@@ -747,7 +747,11 @@ export class NostrRemoteSignerBunker {
 
   getConnectionString(): string {
     // Filter out undefined values to ensure clean connection string
-    const connectionOptions: any = {
+    const connectionOptions: {
+      pubkey: string;
+      relays?: string[];
+      secret?: string;
+    } = {
       pubkey: this.signerKeypair.publicKey,
     };
     
@@ -835,9 +839,9 @@ export class NostrRemoteSignerBunker {
         };
       } else {
         const decrypted = decryptNIP04(
-          content,
           this.signerKeypair.privateKey,
           authorPubkey,
+          content,
         );
         return {
           success: true,
@@ -850,9 +854,9 @@ export class NostrRemoteSignerBunker {
       try {
         if (this.preferredEncryption === "nip44") {
           const decrypted = decryptNIP04(
-            content,
             this.signerKeypair.privateKey,
             authorPubkey,
+            content,
           );
           return {
             success: true,

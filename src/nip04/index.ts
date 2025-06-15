@@ -61,9 +61,9 @@ export function getSharedSecret(
  * WARNING: NIP-04 encryption has known security issues. For better security, use NIP-44.
  */
 export function encrypt(
-  message: string,
   privateKey: string,
   publicKey: string,
+  message: string,
 ): string {
   try {
     // Get shared secret (X coordinate of the shared point)
@@ -115,9 +115,9 @@ function isValidBase64(str: string): boolean {
  * WARNING: NIP-04 encryption has known security issues. For better security, use NIP-44.
  */
 export function decrypt(
-  encryptedMessage: string,
   privateKey: string,
   publicKey: string,
+  encryptedMessage: string,
 ): string {
   try {
     // Validate input is a string

@@ -17,8 +17,8 @@ import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import type { NostrEvent } from "../../../src/types/nostr";
 
 async function main() {
-  const relayPort = 3355;
-  const ephemeralRelay = new NostrRelay(relayPort);
+  // Use port 0 to let the OS assign an available ephemeral port
+  const ephemeralRelay = new NostrRelay(0);
   await ephemeralRelay.start();
   console.log(`Ephemeral relay running at ${ephemeralRelay.url}`);
 

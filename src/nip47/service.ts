@@ -292,9 +292,9 @@ export class NostrWalletService {
 
       try {
         decryptedContent = decryptNIP04(
-          event.content,
           this.privkey,
           requesterClientPubkey,
+          event.content,
         );
         console.log(
           "Successfully decrypted content: ",
@@ -427,9 +427,9 @@ export class NostrWalletService {
 
     // Always encrypt with sender's private key and receiver's public key
     const encryptedContent = encryptNIP04(
-      JSON.stringify(response),
       this.privkey,
       clientPubkey,
+      JSON.stringify(response),
     );
 
     unsignedEvent.content = encryptedContent;
@@ -781,9 +781,9 @@ export class NostrWalletService {
 
     // Always encrypt with sender's private key and receiver's public key
     const encryptedContent = encryptNIP04(
-      JSON.stringify(notificationObj),
       this.privkey,
       clientPubkey,
+      JSON.stringify(notificationObj),
     );
 
     unsignedEvent.content = encryptedContent;

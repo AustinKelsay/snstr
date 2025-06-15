@@ -142,7 +142,7 @@ export class RelayPool {
    * Close relay connections. Invalid relay URLs are ignored.
    * @param relayUrls Optional array of relay URLs to close. If not provided, all relays are closed.
    */
-  public close(relayUrls?: string[]): void {
+  public async close(relayUrls?: string[]): Promise<void> {
     if (relayUrls) {
       relayUrls.forEach((url) => {
         try {
@@ -159,6 +159,10 @@ export class RelayPool {
     } else {
       this.relays.forEach((relay) => relay.disconnect());
     }
+    
+    // Add a small delay to ensure WebSocket connections have time to close properly
+    // This helps prevent Jest open handle warnings
+    await new Promise(resolve => setTimeout(resolve, 10));
   }
 
   public publish(relays: string[], event: NostrEvent, options?: PublishOptions): Promise<PublishResponse>[] {
@@ -175,9 +179,10 @@ export class RelayPool {
     onEOSE?: () => void,
   ): Promise<{ close: () => void }> {
     const subscriptions: { relay: Relay; id: string; ready: boolean }[] = [];
-    const failedRelays: string[] = [];
     let eoseCount = 0;
     let isClosed = false;
+    let successfulRelayCount = 0;
+    let eoseSent = false;
 
     // Safe event handler that catches and logs errors
     const safeOnEvent = (event: NostrEvent, relayUrl: string) => {
@@ -189,13 +194,40 @@ export class RelayPool {
       }
     };
 
-    // Safe EOSE handler
+    // Track subscription promises individually to handle partial failures
+    const subscriptionPromises = relays.map(async (url): Promise<{ success: true; url: string; relay: Relay } | { success: false; url: string; error: string }> => {
+      try {
+        const relay = await this.ensureRelay(url);
+        // We'll set up the subscription with EOSE handler after we know the final count
+        return { success: true, url, relay };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`Failed to subscribe to relay ${url}:`, errorMessage);
+        return { success: false, url, error: errorMessage };
+      }
+    });
+
+    // Wait for all subscription attempts to complete (success or failure)
+    const results = await Promise.all(subscriptionPromises);
+    
+    // Process results to determine successful relays
+    const successfulRelays: { url: string; relay: Relay }[] = [];
+    results.forEach((result) => {
+      if (result.success) {
+        successfulRelays.push({ url: result.url, relay: result.relay });
+      }
+    });
+
+    // Now we know the exact count of successful relays
+    successfulRelayCount = successfulRelays.length;
+
+    // Safe EOSE handler - now created with accurate successful relay count
     const safeOnEOSE = () => {
-      if (isClosed) return;
+      if (isClosed || eoseSent) return;
       eoseCount++;
-      const successfulRelays = relays.length - failedRelays.length;
-      if (eoseCount === successfulRelays && onEOSE && successfulRelays > 0) {
+      if (eoseCount >= successfulRelayCount && onEOSE) {
         try {
+          eoseSent = true;
           onEOSE();
         } catch (eoseError) {
           console.warn('Error in EOSE callback:', eoseError);
@@ -203,10 +235,9 @@ export class RelayPool {
       }
     };
 
-    // Track subscription promises individually to handle partial failures
-    const subscriptionPromises = relays.map(async (url) => {
+    // Now create subscriptions with the correct EOSE handler
+    successfulRelays.forEach(({ url, relay }) => {
       try {
-        const relay = await this.ensureRelay(url);
         const id = relay.subscribe(
           filters,
           (ev) => safeOnEvent(ev, url),
@@ -216,27 +247,33 @@ export class RelayPool {
         // Mark as ready and add to subscriptions
         const subscription = { relay, id, ready: true };
         subscriptions.push(subscription);
-        return { success: true, url, subscription };
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`Failed to subscribe to relay ${url}:`, errorMessage);
-        failedRelays.push(url);
-        return { success: false, url, error: errorMessage };
-      }
-    });
-
-    // Wait for all subscription attempts to complete (success or failure)
-    const results = await Promise.allSettled(subscriptionPromises);
-    
-    // Process results and log any additional errors
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.warn(`Unexpected error subscribing to ${relays[index]}:`, result.reason);
-        if (!failedRelays.includes(relays[index])) {
-          failedRelays.push(relays[index]);
+        console.warn(`Failed to create subscription for relay ${url}:`, error);
+        // Decrease successful count since this relay actually failed, but prevent going negative
+        if (successfulRelayCount > 0) {
+          successfulRelayCount--;
+          // Check if we've now reached the condition where EOSE should be called
+          if (eoseCount >= successfulRelayCount && onEOSE && !isClosed && !eoseSent) {
+            try {
+              eoseSent = true;
+              onEOSE();
+            } catch (eoseError) {
+              console.warn('Error in EOSE callback (after subscription failure):', eoseError);
+            }
+          }
         }
       }
     });
+
+    // If all relays failed, trigger onEOSE immediately to prevent hanging
+    if (successfulRelayCount === 0 && onEOSE && !isClosed && !eoseSent) {
+      try {
+        eoseSent = true;
+        onEOSE();
+      } catch (eoseError) {
+        console.warn('Error in EOSE callback (all relays failed):', eoseError);
+      }
+    }
 
     // Immediate close function that doesn't wait for connections
     const immediateClose = () => {

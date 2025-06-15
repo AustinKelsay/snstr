@@ -287,9 +287,9 @@ export async function createDirectMessage(
   try {
     // Encrypt the content using NIP-04
     const encryptedContent = await encryptNIP04(
-      content,
       privateKey,
       recipientPubkey,
+      content,
     );
 
     return {

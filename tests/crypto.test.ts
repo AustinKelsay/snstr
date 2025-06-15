@@ -131,16 +131,16 @@ describe("Crypto Utilities", () => {
 
       // Alice encrypts message for Bob
       const encrypted = encryptNIP04(
-        originalMessage,
         alicePrivateKey,
         bobPublicKey,
+        originalMessage,
       );
 
       // Check encrypted format
       expect(encrypted).toContain("?iv=");
 
       // Bob decrypts message from Alice
-      const decrypted = decryptNIP04(encrypted, bobPrivateKey, alicePublicKey);
+      const decrypted = decryptNIP04(bobPrivateKey, alicePublicKey, encrypted);
 
       expect(decrypted).toEqual(originalMessage);
     });
@@ -148,9 +148,9 @@ describe("Crypto Utilities", () => {
     test("decryption should fail with wrong keys", async () => {
       const originalMessage = "This is a secret message!";
       const encrypted = encryptNIP04(
-        originalMessage,
         alicePrivateKey,
         bobPublicKey,
+        originalMessage,
       );
 
       // Generate an unrelated keypair
@@ -159,7 +159,7 @@ describe("Crypto Utilities", () => {
 
       // Eve tries to decrypt with her key
       expect(() =>
-        decryptNIP04(encrypted, evePrivateKey, alicePublicKey),
+        decryptNIP04(evePrivateKey, alicePublicKey, encrypted),
       ).toThrow(NIP04DecryptionError);
     });
 
@@ -173,27 +173,27 @@ describe("Crypto Utilities", () => {
 
       // Alice encrypts for Bob
       const encryptedForBob = encryptNIP04(
-        message,
         alicePrivateKey,
         bobPublicKey,
+        message,
       );
 
       // Alice encrypts same message for Charlie
       const encryptedForCharlie = encryptNIP04(
-        message,
         alicePrivateKey,
         charliePublicKey,
+        message,
       );
 
       // The two encrypted messages should be different
       expect(encryptedForBob).not.toBe(encryptedForCharlie);
 
       // But both should decrypt to the original message by their intended recipient
-      expect(decryptNIP04(encryptedForBob, bobPrivateKey, alicePublicKey)).toBe(
+      expect(decryptNIP04(bobPrivateKey, alicePublicKey, encryptedForBob)).toBe(
         message,
       );
       expect(
-        decryptNIP04(encryptedForCharlie, charliePrivateKey, alicePublicKey),
+        decryptNIP04(charliePrivateKey, alicePublicKey, encryptedForCharlie),
       ).toBe(message);
     });
 
@@ -209,11 +209,11 @@ describe("Crypto Utilities", () => {
       ];
 
       testMessages.forEach((message) => {
-        const encrypted = encryptNIP04(message, alicePrivateKey, bobPublicKey);
+        const encrypted = encryptNIP04(alicePrivateKey, bobPublicKey, message);
         const decrypted = decryptNIP04(
-          encrypted,
           bobPrivateKey,
           alicePublicKey,
+          encrypted,
         );
         expect(decrypted).toBe(message);
       });
@@ -221,7 +221,7 @@ describe("Crypto Utilities", () => {
 
     test("decryption should fail on tampered messages", () => {
       const message = "This is a secure message";
-      const encrypted = encryptNIP04(message, alicePrivateKey, bobPublicKey);
+      const encrypted = encryptNIP04(alicePrivateKey, bobPublicKey, message);
 
       // Tamper with the message by changing a character in the encrypted part
       const parts = encrypted.split("?iv=");
@@ -230,7 +230,7 @@ describe("Crypto Utilities", () => {
 
       // Decryption should throw an error
       expect(() =>
-        decryptNIP04(tampered, bobPrivateKey, alicePublicKey),
+        decryptNIP04(bobPrivateKey, alicePublicKey, tampered),
       ).toThrow(NIP04DecryptionError);
     });
   });

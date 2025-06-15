@@ -598,9 +598,9 @@ export class NostrRemoteSignerClient {
               "[NIP46 CLIENT] NIP-44 encryption failed, falling back to NIP-04",
             );
           encryptedContent = encryptNIP04(
-            jsonStr,
             this.clientKeypair.privateKey,
             this.signerPubkey,
+            jsonStr,
           );
           this.preferredEncryption = "nip04";
           if (this.debug)
@@ -611,9 +611,9 @@ export class NostrRemoteSignerClient {
           if (this.debug)
             console.log("[NIP46 CLIENT] Attempting NIP-04 encryption");
           encryptedContent = encryptNIP04(
-            jsonStr,
             this.clientKeypair.privateKey,
             this.signerPubkey,
+            jsonStr,
           );
           if (this.debug)
             console.log("[NIP46 CLIENT] NIP-04 encryption successful");
@@ -824,9 +824,9 @@ export class NostrRemoteSignerClient {
         };
       } else {
         const decrypted = decryptNIP04(
-          content,
           this.clientKeypair.privateKey,
           authorPubkey,
+          content,
         );
         return {
           success: true,
@@ -839,9 +839,9 @@ export class NostrRemoteSignerClient {
       try {
         if (this.preferredEncryption === "nip44") {
           const decrypted = decryptNIP04(
-            content,
             this.clientKeypair.privateKey,
             authorPubkey,
+            content,
           );
           this.preferredEncryption = "nip04"; // Switch preference for future messages
           return {

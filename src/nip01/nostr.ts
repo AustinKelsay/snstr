@@ -442,7 +442,7 @@ export class Nostr {
 
     // Decrypt the message using our private key and the sender's pubkey
     try {
-      return decryptNIP04(event.content, this.privateKey, senderPubkey);
+      return decryptNIP04(this.privateKey, senderPubkey, event.content);
     } catch (error) {
       console.error("Failed to decrypt message:", error);
       throw new Error(
@@ -505,6 +505,81 @@ export class Nostr {
       // Close each subscription properly
       subscriptionIds.forEach((id) => relay.unsubscribe(id));
     });
+  }
+
+  /**
+   * Collect events matching the given filters from all connected relays.
+   *
+   * @param filters Array of filters to apply
+   * @param options Optional max wait time in milliseconds (defaults to 5000ms if not provided)
+   * @returns Promise resolving to all received events
+   */
+  public async fetchMany(
+    filters: Filter[],
+    options?: { maxWait?: number },
+  ): Promise<NostrEvent[]> {
+    if (this.relays.size === 0) return [];
+
+    return new Promise((resolve) => {
+      const eventsMap = new Map<string, NostrEvent>();
+      let eoseCount = 0;
+      let isCleanedUp = false;
+
+      const subIds = this.subscribe(
+        filters,
+        (event) => {
+          eventsMap.set(event.id, event);
+        },
+        () => {
+          eoseCount++;
+          if (eoseCount >= this.relays.size) {
+            cleanup();
+          }
+        },
+      );
+
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+      const cleanup = () => {
+        if (isCleanedUp) return; // Prevent multiple cleanup executions
+        isCleanedUp = true;
+        
+        if (timeoutId) clearTimeout(timeoutId);
+        this.unsubscribe(subIds);
+        resolve(Array.from(eventsMap.values()));
+      };
+
+      // Set default timeout if none provided to ensure Promise always resolves
+      const maxWait = options?.maxWait ?? 5000;
+      if (maxWait > 0) {
+        timeoutId = setTimeout(cleanup, maxWait);
+      }
+    });
+  }
+
+  /**
+   * Retrieve the newest single event matching the filters from all relays.
+   *
+   * @param filters Filters to apply (limit will be forced to 1)
+   * @param options Optional max wait time in milliseconds
+   * @returns The newest matching event or null
+   */
+  public async fetchOne(
+    filters: Filter[],
+    options?: { maxWait?: number },
+  ): Promise<NostrEvent | null> {
+    const limitedFilters = filters.map((f) => ({ ...f, limit: 1 }));
+    const events = await this.fetchMany(limitedFilters, options);
+
+    if (events.length === 0) return null;
+
+    events.sort((a, b) => {
+      if (a.created_at !== b.created_at) {
+        return b.created_at - a.created_at;
+      }
+      return a.id.localeCompare(b.id);
+    });
+
+    return events[0];
   }
 
   // Define overloads for each event type with proper parameter typing

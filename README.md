@@ -194,6 +194,7 @@ npm run example:nip01:event:replaceable   # Replaceable events
 npm run example:nip01:relay:connection    # Relay connection management
 npm run example:nip01:relay:pool         # RelayPool multi-relay demo
 npm run example:nip01:relay:filters       # Filter types
+npm run example:nip01:relay:query         # Pooled event queries
 npm run example:nip01:relay:reconnect     # Relay reconnection
 npm run example:nip01:validation          # NIP-01 validation flow
 
@@ -312,6 +313,7 @@ npm run example:nip01:event:replaceable  # Replaceable events
 npm run example:nip01:relay:connection   # Relay connection management
 npm run example:nip01:relay:pool        # RelayPool multi-relay demo
 npm run example:nip01:relay:filters      # Filter types
+npm run example:nip01:relay:query        # Pooled event queries
 npm run example:nip01:relay:reconnect    # Relay reconnection
 npm run example:nip01:validation         # NIP-01 validation flow
 
