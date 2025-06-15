@@ -10,7 +10,9 @@ This directory contains tests for the NIP-44 (Versioned Encryption) implementati
 - ✅ HMAC authentication and tampering detection
 - ✅ Error handling for invalid inputs
 - ✅ NIP-44 specification compliance (# prefix detection, length validation)
-- ✅ Payload format validation and boundary testing
+- ✅ Payload format validation and boundary testing  
+- ✅ Base64 alphabet validation to prevent malformed input acceptance
+- ✅ Whitespace normalization to prevent security bypass attacks
 - ✅ Cross-platform compatibility (browser and Node.js)
 
 ## Running the Tests

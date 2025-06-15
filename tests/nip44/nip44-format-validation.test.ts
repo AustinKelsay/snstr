@@ -356,3 +356,173 @@ describe("NIP-44 decodePayload compliance tests", () => {
     });
   });
 });
+
+describe("Whitespace normalization for # prefix detection", () => {
+  test("should reject payloads with # prefix after leading spaces", () => {
+    const spacePrefixedPayloads = [
+      " #invalid-payload",
+      "  #invalid-payload", 
+      "   #invalid-payload"
+    ];
+    
+    for (const payload of spacePrefixedPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
+    }
+  });
+
+  test("should reject payloads with # prefix after leading tabs", () => {
+    const tabPrefixedPayloads = [
+      "\t#invalid-payload",
+      "\t\t#invalid-payload",
+      "\t \t#invalid-payload"
+    ];
+    
+    for (const payload of tabPrefixedPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
+    }
+  });
+
+  test("should reject payloads with # prefix after leading newlines", () => {
+    const newlinePrefixedPayloads = [
+      "\n#invalid-payload",
+      "\r\n#invalid-payload",
+      "\n\n#invalid-payload",
+      "\r#invalid-payload"
+    ];
+    
+    for (const payload of newlinePrefixedPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
+    }
+  });
+
+  test("should reject payloads with # prefix after mixed whitespace", () => {
+    const mixedWhitespacePrefixedPayloads = [
+      " \t#invalid-payload",
+      "\n \t#invalid-payload",
+      " \r\n\t #invalid-payload",
+      "\t\n \r#invalid-payload"
+    ];
+    
+    for (const payload of mixedWhitespacePrefixedPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
+    }
+  });
+
+  test("should handle valid payloads with leading/trailing whitespace", () => {
+    const validPayloadCore = "A".repeat(132);
+    const whitespacePaddedPayloads = [
+      " " + validPayloadCore,
+      validPayloadCore + " ",
+      " " + validPayloadCore + " ",
+      "\t" + validPayloadCore + "\t",
+      "\n" + validPayloadCore + "\n"
+    ];
+    
+    for (const payload of whitespacePaddedPayloads) {
+      // Should not throw # prefix error (may fail at later validation steps)
+      expect(() => {
+        decodePayload(payload);
+      }).not.toThrow("Unsupported version (non-base64 encoding detected)");
+    }
+  });
+
+  test("should handle empty payload after trimming", () => {
+    const emptyAfterTrimPayloads = [
+      "   ",
+      "\t\t",
+      "\n\n",
+      " \t\n\r "
+    ];
+    
+    for (const payload of emptyAfterTrimPayloads) {
+      expect(() => {
+        decodePayload(payload);
+      }).toThrow("Invalid ciphertext length"); // Should fail length validation, not # prefix
+    }
+  });
+
+  test("should use trimmed length for length validation", () => {
+    // Create a payload that's too short after trimming
+    const shortPayload = " " + "A".repeat(130) + " "; // 132 chars total, but 130 after trim
+    
+    expect(() => {
+      decodePayload(shortPayload);
+    }).toThrow("Invalid ciphertext length. Base64 payload must be between 132 and 87472 characters, got 130");
+  });
+});
+
+describe("Base64 alphabet validation", () => {
+  test("should reject payloads with invalid base64 characters", () => {
+    const invalidChars = ["@", "!", "%", "~", " ", "\n", "\t"];
+    
+    for (const char of invalidChars) {
+      const invalidPayload = "ABC" + char + "DEF" + "A".repeat(125); // Make it long enough to pass length checks
+      
+      expect(() => {
+        decodePayload(invalidPayload);
+      }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+    }
+  });
+
+  test("should reject payloads with unicode characters", () => {
+    const unicodePayload = "ABC🚀DEF" + "A".repeat(125);
+    
+    expect(() => {
+      decodePayload(unicodePayload);
+    }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+  });
+
+  test("should reject payloads with excessive padding", () => {
+    const excessivePaddingPayload = "A".repeat(129) + "==="; // 132 chars with 3 padding chars
+    
+    expect(() => {
+      decodePayload(excessivePaddingPayload);
+    }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+  });
+
+  test("should reject payloads with padding in the middle", () => {
+    const paddingInMiddlePayload = "ABC=DEF" + "A".repeat(125);
+    
+    expect(() => {
+      decodePayload(paddingInMiddlePayload);
+    }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
+  });
+
+  test("should accept valid base64 strings with no padding", () => {
+    const validPayload = "A".repeat(132);  // All valid chars, no padding
+    
+    // Should not throw base64 alphabet error (may fail at later validation steps)
+    expect(() => {
+      decodePayload(validPayload);
+    }).not.toThrow("Invalid base64 alphabet");
+  });
+
+  test("should accept valid base64 strings with proper padding", () => {
+    const validPayload1 = "A".repeat(131) + "=";  // 1 padding char
+    const validPayload2 = "A".repeat(130) + "=="; // 2 padding chars
+    
+    // Should not throw base64 alphabet error (may fail at later validation steps)
+    for (const payload of [validPayload1, validPayload2]) {
+      expect(() => {
+        decodePayload(payload);
+      }).not.toThrow("Invalid base64 alphabet");
+    }
+  });
+
+  test("should accept all valid base64 alphabet characters", () => {
+    // Test with a string containing all valid base64 characters
+    const allValidChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" + "A".repeat(68);
+    
+    expect(() => {
+      decodePayload(allValidChars);
+    }).not.toThrow("Invalid base64 alphabet");
+  });
+});

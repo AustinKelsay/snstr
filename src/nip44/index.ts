@@ -67,6 +67,12 @@ function base64Encode(bytes: Uint8Array): string {
 }
 
 function base64Decode(str: string): Uint8Array {
+  // Validate base64 alphabet before decoding to prevent silent acceptance of malformed strings
+  // Base64 alphabet: A-Z, a-z, 0-9, +, / with optional padding (=) at the end
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(str)) {
+    throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
+  }
+  
   return new Uint8Array(Buffer.from(str, "base64"));
 }
 
@@ -659,29 +665,35 @@ export function decodePayload(payload: string): {
   ciphertext: Uint8Array;
   mac: Uint8Array;
 } {
-  // NIP-44 Decryption Step 1: Check for non-base64 encoding (# prefix)
-  if (payload.length > 0 && payload[0] === '#') {
+  // NIP-44 Decryption Step 1: Normalize payload and check for non-base64 encoding (# prefix)
+  // Trim whitespace and newlines to prevent bypass of # prefix detection
+  const raw = payload.trim();
+  if (raw.length > 0 && raw[0] === '#') {
     throw new Error("NIP-44: Unsupported version (non-base64 encoding detected)");
   }
 
   // NIP-44 Decryption Step 2: Validate base64 payload length bounds
-  if (payload.length < MIN_BASE64_PAYLOAD_LENGTH) {
+  if (raw.length < MIN_BASE64_PAYLOAD_LENGTH) {
     throw new Error(
-      `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${payload.length}.`,
+      `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${raw.length}.`,
     );
   }
   
-  if (payload.length > MAX_BASE64_PAYLOAD_LENGTH) {
+  if (raw.length > MAX_BASE64_PAYLOAD_LENGTH) {
     throw new Error(
-      `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${payload.length}.`,
+      `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${raw.length}.`,
     );
   }
 
-  // Decode the base64 payload
+  // Decode the base64 payload using the normalized (trimmed) version
   let data: Uint8Array;
   try {
-    data = base64Decode(payload);
+    data = base64Decode(raw);
   } catch (error) {
+    // Re-throw the specific error from base64Decode (e.g., alphabet validation)
+    if (error instanceof Error && error.message.includes("NIP-44:")) {
+      throw error;
+    }
     throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
   }
 

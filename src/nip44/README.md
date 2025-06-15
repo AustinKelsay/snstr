@@ -187,7 +187,9 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 ### Decryption Process
 
 1. **Input Validation** (NIP-44 spec section "Decryption" step 1)
+   - Normalize payload by trimming whitespace to prevent bypass attacks
    - Check for non-base64 encoding (# prefix detection)
+   - Validate base64 alphabet (A-Z, a-z, 0-9, +, / with optional padding)
    - Validate base64 payload length (132 to 87,472 characters)
    - Validate decoded payload length (99 to 65,603 bytes)
 
@@ -212,8 +214,10 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 The implementation includes comprehensive error handling that:
 - Validates all inputs (key formats, nonce size, message length)
 - Checks payload format and version with strict NIP-44 compliance
-- Validates payload length bounds (base64 and decoded)
+- Validates payload length bounds (base64 and decoded) 
 - Detects non-base64 encoding (# prefix) as per NIP-44 specification
+- Validates base64 alphabet to prevent malformed string acceptance
+- Normalizes input by trimming whitespace to prevent security bypasses
 - Provides informative error messages that help diagnose issues
 - Properly handles authentication failures with constant-time comparison
 - Includes version information in error messages for better debugging
