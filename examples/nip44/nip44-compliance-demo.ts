@@ -1,7 +1,7 @@
-#!/usr/bin/env npx tsx
-
 /**
  * NIP-44 Compliance Demo
+ * 
+ * Run this demo with: npx tsx examples/nip44/nip44-compliance-demo.ts
  * 
  * This example demonstrates the strict NIP-44 specification compliance
  * features implemented in the decodePayload function, including:
