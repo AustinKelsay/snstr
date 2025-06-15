@@ -177,7 +177,7 @@ async function main() {
   console.log('["e", "<parent_id>", "<relay>", "reply", "<parent_pubkey>"]');
   console.log();
   console.log("Quote/Mention:");
-  console.log('["q", "<event_id>", "<relay>", "<pubkey>"]');
+  console.log('["e", "<event_id>", "<relay>", "mention", "<pubkey>"]');
   console.log();
 
   // 7. Show best practices
@@ -185,7 +185,7 @@ async function main() {
   console.log("✅ Simple reply structure for basic threads");
   console.log("✅ Complex reply structure for nested threads");
   console.log("✅ Proper pubkey references for thread reconstruction");
-  console.log("✅ Quote tags with relay hints");
+  console.log("✅ Quote tags with mention markers and relay hints");
   console.log("✅ Thread parsing and reference extraction");
   console.log("✅ Graceful handling of different thread patterns");
   console.log();

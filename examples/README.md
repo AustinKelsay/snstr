@@ -172,7 +172,7 @@ npm run example:advanced      # Run nip46 and nip47:error-handling examples
     - `addressable-events.ts` - Addressable events (kinds 30000-39999) with semantic content addressing
     - `replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) with update mechanisms
   - `/relay` - Relay-related examples
-    - `relay-connection.ts` - Connection management with error handling and timeout configuration
+    - `relay-connection-example.ts` - Connection management with error handling and timeout configuration
     - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
     - `relay-pool.ts` - Manage multiple relays with RelayPool
     - `filter-types.ts` - Filter type examples for event retrieval optimization

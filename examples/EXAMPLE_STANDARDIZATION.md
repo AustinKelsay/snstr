@@ -19,7 +19,7 @@ examples/
 │   │   ├── addressable-events.ts  # Addressable events examples
 │   │   └── replaceable-events.ts  # Replaceable events examples
 │   └── relay/                 # Relay-related examples
-│       ├── relay-connection.ts    # Connection management examples
+│       ├── relay-connection-example.ts    # Connection management examples
 │       ├── filter-types-example.ts        # Filter type examples
 │       ├── relay-reconnect-example.ts     # Reconnection examples
 │       └── relay-pool-example.ts          # Multi-relay pool examples
@@ -154,7 +154,7 @@ Each example file should:
 ## Standardized File Naming
 
 - `basic-example.ts`: Simple implementation of core functionality
-- `[feature]-example.ts`: Example focusing on a specific feature (e.g., `relay-connection.ts`)
+- `[feature]-example.ts`: Example focusing on a specific feature (e.g., `relay-connection-example.ts`)
 - `[feature]-demo.ts`: Interactive demo of a specific feature (e.g., `event-ordering-demo.ts`)
 - `advanced-example.ts`: More complex implementation
 
@@ -175,7 +175,7 @@ The current package.json includes comprehensive scripts for all examples:
     "example:nip01:event:ordering": "ts-node examples/nip01/event/event-ordering-demo.ts",
     "example:nip01:event:addressable": "ts-node examples/nip01/event/addressable-events.ts",
     "example:nip01:event:replaceable": "ts-node examples/nip01/event/replaceable-events.ts",
-    "example:nip01:relay:connection": "ts-node examples/nip01/relay/relay-connection.ts",
+    "example:nip01:relay:connection": "ts-node examples/nip01/relay/relay-connection-example.ts",
     "example:nip01:relay:filters": "ts-node examples/nip01/relay/filter-types-example.ts",
     "example:nip01:relay:auto-close": "ts-node examples/nip01/relay/auto-unsubscribe-example.ts",
     "example:nip01:relay:query": "ts-node examples/nip01/relay/relay-query-example.ts",

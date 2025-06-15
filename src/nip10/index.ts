@@ -22,7 +22,7 @@ export interface ThreadReferences {
   reply?: ThreadPointer;
   /** Other mentioned events */
   mentions: ThreadPointer[];
-  /** Quoted events using q tags */
+  /** Quoted events using e tags with mention markers */
   quotes: ThreadPointer[];
 }
 
@@ -63,12 +63,13 @@ export function createReplyTags(
   return tags;
 }
 
-/** Create a "q" tag for quoting an event */
+/** Create an "e" tag with "mention" marker for quoting an event */
 export function createQuoteTag(pointer: ThreadPointer): string[] {
-  const tag = ["q", pointer.id];
+  const tag = ["e", pointer.id];
   if (pointer.relay) {
     tag.push(pointer.relay);
   }
+  tag.push("mention");
   if (pointer.pubkey) {
     tag.push(pointer.pubkey);
   }
@@ -76,16 +77,16 @@ export function createQuoteTag(pointer: ThreadPointer): string[] {
 }
 
 /**
- * Parse thread references (e and q tags) from an event. Handles both
+ * Parse thread references (e tags) from an event. Handles both
  * marked and deprecated positional e tags.
  */
 export function parseThreadReferences(event: NostrEvent): ThreadReferences {
   const eTags = event.tags.filter((t) => t[0] === "e");
-  const qTags = event.tags.filter((t) => t[0] === "q");
 
   let root: ThreadPointer | undefined;
   let reply: ThreadPointer | undefined;
   const mentions: ThreadPointer[] = [];
+  const quotes: ThreadPointer[] = [];
   const unmarked: ThreadPointer[] = [];
 
   for (const tag of eTags) {
@@ -96,6 +97,8 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       root = { id, relay: relayValue, pubkey: pubkeyValue };
     } else if (marker === "reply") {
       reply = { id, relay: relayValue, pubkey: pubkeyValue };
+    } else if (marker === "mention") {
+      quotes.push({ id, relay: relayValue, pubkey: pubkeyValue });
     } else {
       unmarked.push({ id, relay: relayValue, pubkey: pubkeyValue });
     }
@@ -113,12 +116,6 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
   } else {
     mentions.push(...unmarked);
   }
-
-  const quotes: ThreadPointer[] = qTags.map((tag) => ({
-    id: tag[1],
-    relay: tag[2] || undefined,
-    pubkey: tag[3] === "" ? undefined : tag[3],
-  }));
 
   return { root, reply, mentions, quotes };
 }
