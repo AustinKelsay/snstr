@@ -287,7 +287,8 @@ describe("NIP-44 decodePayload compliance tests", () => {
 
     test("should reject base64 payloads that are too long", () => {
       // Generate a valid base64 string that's longer than 87,472 characters
-      const longPayload = "A".repeat(87473); // 87,473 characters, exceeds limit
+      // Use 87,476 (divisible by 4) to ensure proper base64 format for testing length validation
+      const longPayload = "A".repeat(87476); // 87,476 characters, exceeds limit and is valid base64 format
       
       expect(() => {
         decodePayload(longPayload);
