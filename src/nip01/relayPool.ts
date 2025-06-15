@@ -245,8 +245,18 @@ export class RelayPool {
         subscriptions.push(subscription);
       } catch (error) {
         console.warn(`Failed to create subscription for relay ${url}:`, error);
-        // Decrease successful count since this relay actually failed
-        successfulRelayCount--;
+        // Decrease successful count since this relay actually failed, but prevent going negative
+        if (successfulRelayCount > 0) {
+          successfulRelayCount--;
+          // Check if we've now reached the condition where EOSE should be called
+          if (eoseCount === successfulRelayCount && onEOSE && !isClosed) {
+            try {
+              onEOSE();
+            } catch (eoseError) {
+              console.warn('Error in EOSE callback (after subscription failure):', eoseError);
+            }
+          }
+        }
       }
     });
 

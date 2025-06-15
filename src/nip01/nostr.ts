@@ -521,14 +521,14 @@ export class Nostr {
     if (this.relays.size === 0) return [];
 
     return new Promise((resolve) => {
-      const events: NostrEvent[] = [];
+      const eventsMap = new Map<string, NostrEvent>();
       let eoseCount = 0;
       let isCleanedUp = false;
 
       const subIds = this.subscribe(
         filters,
         (event) => {
-          events.push(event);
+          eventsMap.set(event.id, event);
         },
         () => {
           eoseCount++;
@@ -545,7 +545,7 @@ export class Nostr {
         
         if (timeoutId) clearTimeout(timeoutId);
         this.unsubscribe(subIds);
-        resolve(events);
+        resolve(Array.from(eventsMap.values()));
       };
 
       // Set default timeout if none provided to ensure Promise always resolves

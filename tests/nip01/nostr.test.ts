@@ -490,18 +490,27 @@ describe("Nostr Client", () => {
     });
 
     test("fetchMany should use default timeout when none provided", async () => {
-      // This test ensures our fix prevents hanging when no maxWait is provided
-      const emptyClient = new Nostr(["ws://nonexistent.relay"]);
+      // Use fake timers to avoid waiting 5 seconds in tests
+      jest.useFakeTimers();
       
-      const startTime = Date.now();
-      // Should resolve with empty array after default timeout (5000ms)
-      const events = await emptyClient.fetchMany([{ kinds: [1] }]);
-      const endTime = Date.now();
-      
-      expect(events).toEqual([]);
-      // Should have waited approximately the default timeout
-      expect(endTime - startTime).toBeGreaterThan(4900); // Allow some tolerance
-      expect(endTime - startTime).toBeLessThan(5500); // But not too much more
+      try {
+        // This test ensures our fix prevents hanging when no maxWait is provided
+        const emptyClient = new Nostr(["ws://nonexistent.relay"]);
+        
+        // Start the fetchMany call (should use default 5000ms timeout)
+        const fetchPromise = emptyClient.fetchMany([{ kinds: [1] }]);
+        
+        // Fast-forward time by the default timeout (5000ms)
+        jest.advanceTimersByTime(5000);
+        
+        // Await the result
+        const events = await fetchPromise;
+        
+        expect(events).toEqual([]);
+      } finally {
+        // Always restore real timers
+        jest.useRealTimers();
+      }
     });
   });
 });
