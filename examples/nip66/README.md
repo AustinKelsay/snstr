@@ -22,6 +22,12 @@ npm run example:nip66
 - Extracting relay URLs and capabilities
 - Working with relay metadata like supported NIPs
 
+### Relay Monitoring (`nip66-demo.ts`)
+- Creating relay monitor announcements for tracking availability
+- Publishing relay status updates with uptime metrics
+- Monitoring relay health and performance indicators
+- Using monitor announcements to track relay liveness
+
 ### Key Concepts Demonstrated
 
 1. **Relay Discovery Events**: Creating events that announce relay existence and capabilities

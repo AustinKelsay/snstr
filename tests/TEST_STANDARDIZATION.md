@@ -174,7 +174,7 @@ The following scripts should be maintained for running tests:
     "test:nip01:relay:filter": "jest tests/nip01/relay/filters.test.ts",
     "test:nip01:relay:reconnect": "jest tests/nip01/relay/relay-reconnect.test.ts",
     "test:nip01:relay:pool": "jest tests/nip01/relay/relayPool.test.ts",
-    "test:crypto:core": "jest tests/crypto.test.ts",
+    "test:crypto:core": "jest tests/utils/crypto.test.ts",
     
     // NIP-specific Tests
     "test:nip02": "jest tests/nip02",
@@ -198,7 +198,7 @@ The following scripts should be maintained for running tests:
     // Test Groups
     "test:all": "npm test",
     "test:core": "jest tests/nip01",
-    "test:crypto": "jest tests/crypto.test.ts tests/nip04 tests/nip44",
+    "test:crypto": "jest tests/utils/crypto.test.ts tests/nip04 tests/nip44",
     "test:identity": "jest tests/nip05 tests/nip07 tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57"
   }

@@ -4,13 +4,13 @@ import {
   signEvent,
   verifySignature,
   sha256Hex,
-} from "../src/utils/crypto";
+} from "../../src/utils/crypto";
 import {
   encrypt as encryptNIP04,
   decrypt as decryptNIP04,
   getSharedSecret as getNIP04SharedSecret,
   NIP04DecryptionError,
-} from "../src/nip04";
+} from "../../src/nip04";
 
 describe("Crypto Utilities", () => {
   describe("sha256", () => {

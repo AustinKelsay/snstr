@@ -78,7 +78,7 @@
     "example:nip04": "ts-node examples/nip04/direct-message.ts",
     "example:nip05": "ts-node examples/nip05/nip05-demo.ts",
     "example:nip09": "ts-node examples/nip09/deletion-request.ts",
-    "example:nip10": "echo '🧵 NIP-10: Text Notes and Threads - See examples/nip10/README.md for documentation'",
+    "example:nip10": "ts-node examples/nip10/nip10-demo.ts",
     "example:nip07": "cd examples/nip07 && npm install && npm run build && npm start",
     "example:nip07:build": "cd examples/nip07 && npm install && npm run build",
     "example:nip07:dm": "ts-node examples/nip07/direct-message.ts",

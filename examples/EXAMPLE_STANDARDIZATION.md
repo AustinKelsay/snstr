@@ -9,9 +9,9 @@ Each NIP implementation should have a corresponding examples directory following
 ```
 examples/
 ├── README.md                  # Main README for all examples
-├── basic-usage.ts             # Core functionality demo
+├── basic-example.ts           # Core functionality demo
 ├── crypto-demo.ts             # Cryptography examples
-├── custom-websocket.ts        # WebSocket customization example
+├── custom-websocket-example.ts # WebSocket customization example
 ├── nip01/                     # NIP-01 specific examples
 │   ├── README.md              # Documentation for NIP-01 examples
 │   ├── event/                 # Event-related examples
@@ -20,9 +20,9 @@ examples/
 │   │   └── replaceable-events.ts  # Replaceable events examples
 │   └── relay/                 # Relay-related examples
 │       ├── relay-connection.ts    # Connection management examples
-│       ├── filter-types.ts        # Filter type examples
-│       ├── relay-reconnect.ts     # Reconnection examples
-│       └── relay-pool.ts          # Multi-relay pool examples
+│       ├── filter-types-example.ts        # Filter type examples
+│       ├── relay-reconnect-example.ts     # Reconnection examples
+│       └── relay-pool-example.ts          # Multi-relay pool examples
 ├── nip02/                     # Contact Lists
 │   ├── README.md
 │   └── nip02-demo.ts
@@ -165,10 +165,10 @@ The current package.json includes comprehensive scripts for all examples:
 ```json
 {
   "scripts": {
-    "example": "ts-node examples/basic-usage.ts",
-    "example:verbose": "VERBOSE=true ts-node examples/basic-usage.ts",
-    "example:debug": "DEBUG=true ts-node examples/basic-usage.ts",
-    "example:custom-websocket": "ts-node examples/custom-websocket.ts",
+    "example": "ts-node examples/basic-example.ts",
+    "example:verbose": "VERBOSE=true ts-node examples/basic-example.ts",
+    "example:debug": "DEBUG=true ts-node examples/basic-example.ts",
+    "example:custom-websocket": "ts-node examples/custom-websocket-example.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
     
     "// NIP-01 Examples": "-------------- NIP-01 Examples --------------",
@@ -176,11 +176,11 @@ The current package.json includes comprehensive scripts for all examples:
     "example:nip01:event:addressable": "ts-node examples/nip01/event/addressable-events.ts",
     "example:nip01:event:replaceable": "ts-node examples/nip01/event/replaceable-events.ts",
     "example:nip01:relay:connection": "ts-node examples/nip01/relay/relay-connection.ts",
-    "example:nip01:relay:filters": "ts-node examples/nip01/relay/filter-types.ts",
+    "example:nip01:relay:filters": "ts-node examples/nip01/relay/filter-types-example.ts",
     "example:nip01:relay:auto-close": "ts-node examples/nip01/relay/auto-unsubscribe-example.ts",
-    "example:nip01:relay:query": "ts-node examples/nip01/relay/relay-query.ts",
-    "example:nip01:relay:reconnect": "ts-node examples/nip01/relay/relay-reconnect.ts",
-    "example:nip01:relay:pool": "ts-node examples/nip01/relay/relay-pool.ts",
+    "example:nip01:relay:query": "ts-node examples/nip01/relay/relay-query-example.ts",
+    "example:nip01:relay:reconnect": "ts-node examples/nip01/relay/relay-reconnect-example.ts",
+    "example:nip01:relay:pool": "ts-node examples/nip01/relay/relay-pool-example.ts",
     "example:nip01:validation": "ts-node examples/client/validation-flow.ts",
     
     "// All NIPs": "-------------- All NIP Examples --------------",
