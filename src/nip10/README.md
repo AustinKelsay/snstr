@@ -134,7 +134,7 @@ function buildThreadTree(events) {
 
 ## API Reference
 
-### `createReplyTags(root: EventReference, reply?: EventReference): Tag[]`
+### `createReplyTags(root: ThreadPointer, reply?: ThreadPointer): Tag[]`
 
 Creates proper `e` tags for replying in a thread.
 
@@ -164,7 +164,7 @@ const threadTags = createReplyTags(
 // ]
 ```
 
-### `createQuoteTag(event: EventReference): Tag`
+### `createQuoteTag(event: ThreadPointer): Tag`
 
 Creates an `e` tag with a `mention` marker for quoting an event.
 
@@ -186,10 +186,10 @@ const quoteTag = createQuoteTag({ id: quotedEventId, relay: 'wss://relay.com' })
 Parses thread information from an event.
 
 **Returns:** Object containing:
-- `root?: EventReference` - Root event of the thread
-- `reply?: EventReference` - Direct reply target
-- `quotes: EventReference[]` - Quoted events
-- `mentions: string[]` - Mentioned pubkeys from `p` tags
+- `root?: ThreadPointer` - Root event of the thread
+- `reply?: ThreadPointer` - Direct reply target
+- `quotes: ThreadPointer[]` - Quoted events
+- `mentions: ThreadPointer[]` - Other mentioned events (unmarked e tags)
 
 ## Thread Patterns
 
