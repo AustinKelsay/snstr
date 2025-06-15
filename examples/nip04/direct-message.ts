@@ -52,9 +52,9 @@ async function main() {
     // Alice encrypts a message for Bob using NIP-04
     console.log("\nAlice encrypting message for Bob...");
     const encryptedMessage = encrypt(
-      message,
       bytesToHex(alicePrivateKey),
       bobPublicKey,
+      message,
     );
     console.log(`Encrypted message: ${encryptedMessage}`);
 
@@ -74,9 +74,9 @@ async function main() {
     // Bob decrypts the message from Alice using NIP-04
     console.log("\nBob decrypting message from Alice...");
     const decryptedMessage = decrypt(
-      encryptedMessage,
       bytesToHex(bobPrivateKey),
       alicePublicKey,
+      encryptedMessage,
     );
     console.log(`Decrypted message: "${decryptedMessage}"`);
 
@@ -136,9 +136,9 @@ async function main() {
         console.log(`Message: ${message}`);
 
         const result = decrypt(
-          message,
           bytesToHex(bobPrivateKey),
           alicePublicKey,
+          message,
         );
 
         console.log(`Unexpected success! Decrypted: ${result}`);

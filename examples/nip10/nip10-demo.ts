@@ -25,12 +25,14 @@ async function main() {
   console.log("👥 Setting up demo users and events...\n");
 
   // Mock event IDs and pubkeys for demonstration
+  // NOTE: These are example IDs for demo purposes only - not actual Nostr event IDs
   const alicePubkey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
   const bobPubkey = "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
   const charliePubkey = "2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-  const rootEventId = "root123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-  const replyEventId = "repl123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  // Valid 64-character hexadecimal event IDs for demo purposes
+  const rootEventId = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456";
+  const replyEventId = "b2c3d4e5f67890123456789012345678901234567890abcdef1234567890abcd";
 
   console.log(`Alice:   ${alicePubkey.slice(0, 16)}...`);
   console.log(`Bob:     ${bobPubkey.slice(0, 16)}...`);
@@ -111,7 +113,7 @@ async function main() {
     tags: nestedReplyTags,
     created_at: Math.floor(Date.now() / 1000) + 120,
     pubkey: charliePubkey,
-    id: "nest123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    id: "c3d4e5f67890123456789012345678901234567890abcdef1234567890abcdef",
     sig: "mock_signature"
   };
 
@@ -125,7 +127,7 @@ async function main() {
     ],
     created_at: Math.floor(Date.now() / 1000) + 180,
     pubkey: charliePubkey,
-    id: "quot123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    id: "d4e5f67890123456789012345678901234567890abcdef1234567890abcdef12",
     sig: "mock_signature"
   };
 
