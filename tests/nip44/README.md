@@ -9,6 +9,8 @@ This directory contains tests for the NIP-44 (Versioned Encryption) implementati
 - ✅ Message padding and length hiding
 - ✅ HMAC authentication and tampering detection
 - ✅ Error handling for invalid inputs
+- ✅ NIP-44 specification compliance (# prefix detection, length validation)
+- ✅ Payload format validation and boundary testing
 - ✅ Cross-platform compatibility (browser and Node.js)
 
 ## Running the Tests
@@ -26,7 +28,7 @@ npx jest tests/nip44/nip44-vectors.test.ts
 - `nip44-compatibility.test.ts`: Tests for compatibility between platforms and implementations
 - `nip44-official-vectors.test.ts`: Tests using the official NIP-44 test vectors
 - `nip44-padding-hmac.test.ts`: Tests for message padding and HMAC authentication
-- `nip44-format-validation.test.ts`: Tests for validating public and private key formats
+- `nip44-format-validation.test.ts`: Tests for validating public/private key formats and NIP-44 compliance
 - `nip44-vectors.test.ts`: Additional test vectors for comprehensive testing
 
 ## Test Vectors
@@ -43,6 +45,7 @@ The tests ensure the implementation:
 - Properly authenticates messages to prevent tampering
 - Correctly pads messages to hide their length
 - Validates all inputs to prevent potential attacks
+- Enforces strict NIP-44 specification compliance (length limits, # prefix detection)
 - Uses proper key derivation from the shared secret
 - Handles version bytes for future algorithm upgrades
 - Follows the constant-time principle for cryptographic operations 

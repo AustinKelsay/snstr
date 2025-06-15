@@ -1,4 +1,4 @@
-import { isValidPublicKeyFormat, isValidPublicKeyPoint, isValidPrivateKey } from "../../src/nip44";
+import { isValidPublicKeyFormat, isValidPublicKeyPoint, isValidPrivateKey, decodePayload } from "../../src/nip44";
 
 describe("NIP-44 Format Validation", () => {
   describe("isValidPublicKeyFormat", () => {
@@ -245,6 +245,114 @@ describe("NIP-44 Format Validation", () => {
           "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142",
         ),
       ).toBe(false);
+    });
+  });
+});
+
+describe("NIP-44 decodePayload compliance tests", () => {
+  describe("# prefix detection", () => {
+    test("should reject payloads starting with #", () => {
+      const hashPrefixedPayload = "#invalid-non-base64-payload";
+      
+      expect(() => {
+        decodePayload(hashPrefixedPayload);
+      }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
+    });
+
+    test("should reject empty payloads starting with #", () => {
+      const hashOnlyPayload = "#";
+      
+      expect(() => {
+        decodePayload(hashOnlyPayload);
+      }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
+    });
+  });
+
+  describe("base64 payload length validation", () => {
+    test("should reject base64 payloads that are too short", () => {
+      // Generate a valid base64 string that's shorter than 132 characters
+      const shortPayload = "dGVzdA=="; // "test" in base64, only 8 characters
+      
+      expect(() => {
+        decodePayload(shortPayload);
+      }).toThrow("NIP-44: Invalid ciphertext length. Base64 payload must be between 132 and 87472 characters, got 8.");
+    });
+
+    test("should reject base64 payloads that are too long", () => {
+      // Generate a valid base64 string that's longer than 87,472 characters
+      const longPayload = "A".repeat(87473); // 87,473 characters, exceeds limit
+      
+      expect(() => {
+        decodePayload(longPayload);
+      }).toThrow("NIP-44: Invalid ciphertext length. Base64 payload must be between 132 and 87472 characters, got 87473.");
+    });
+
+    test("should accept base64 payloads at minimum length boundary", () => {
+      // Generate a valid base64 string that's exactly 132 characters
+      const minLengthPayload = "A".repeat(132);
+      
+      // This should pass length validation and successfully decode (version 0 is supported for decryption)
+      const result = decodePayload(minLengthPayload);
+      expect(result.version).toBe(0);
+      expect(result.nonce).toHaveLength(32);
+      expect(result.mac).toHaveLength(32);
+      expect(result.ciphertext.length).toBeGreaterThan(0);
+    });
+
+    test("should accept base64 payloads at maximum length boundary", () => {
+      // Generate a valid base64 string that's exactly 87,472 characters
+      const maxLengthPayload = "A".repeat(87472);
+      
+      // This should pass length validation but may fail later validation steps
+      expect(() => {
+        decodePayload(maxLengthPayload);
+      }).toThrow(/Invalid base64 encoding|Invalid decoded payload length/);
+    });
+  });
+
+  describe("decoded payload length validation", () => {
+    test("should reject decoded payloads that are too short", () => {
+      // Create a valid base64 that decodes to less than 99 bytes
+      // "A".repeat(132) decodes to 99 bytes, so we need something shorter
+      const shortDecodedPayload = Buffer.alloc(98).toString("base64"); // 98 bytes when decoded
+      const paddedPayload = shortDecodedPayload + "=".repeat((4 - (shortDecodedPayload.length % 4)) % 4);
+      
+      expect(() => {
+        decodePayload(paddedPayload);
+      }).toThrow("NIP-44: Invalid decoded payload length. Must be between 99 and 65603 bytes, got 98.");
+    });
+
+    test("should reject decoded payloads that are too long", () => {
+      // Create a valid base64 that decodes to more than 65,603 bytes
+      const longDecodedPayload = Buffer.alloc(65604).toString("base64"); // 65,604 bytes when decoded
+      
+      expect(() => {
+        decodePayload(longDecodedPayload);
+      }).toThrow("NIP-44: Invalid decoded payload length. Must be between 99 and 65603 bytes, got 65604.");
+    });
+
+    test("should accept decoded payloads at minimum length boundary", () => {
+      // Create a valid base64 that decodes to exactly 99 bytes
+      const minDecodedPayload = Buffer.alloc(99).toString("base64");
+      
+      // This should pass length validation and successfully decode (version 0 is supported for decryption)
+      const result = decodePayload(minDecodedPayload);
+      expect(result.version).toBe(0);
+      expect(result.nonce).toHaveLength(32);
+      expect(result.mac).toHaveLength(32);
+      expect(result.ciphertext.length).toBeGreaterThan(0);
+    });
+
+    test("should accept decoded payloads at maximum length boundary", () => {
+      // Create a valid base64 that decodes to exactly 65,603 bytes
+      const maxDecodedPayload = Buffer.alloc(65603).toString("base64");
+      
+      // This should pass length validation and successfully decode (version 0 is supported for decryption)
+      const result = decodePayload(maxDecodedPayload);
+      expect(result.version).toBe(0);
+      expect(result.nonce).toHaveLength(32);
+      expect(result.mac).toHaveLength(32);
+      expect(result.ciphertext.length).toBeGreaterThan(0);
     });
   });
 });

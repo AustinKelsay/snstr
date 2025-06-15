@@ -154,6 +154,10 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 - `NONCE_SIZE_V2 = 32` - 32-byte nonce as required by NIP-44 v2
 - `KEY_SIZE = 32` - 32-byte key for ChaCha20
 - `MAC_SIZE_V2 = 32` - 32-byte MAC from HMAC-SHA256
+- `MIN_BASE64_PAYLOAD_LENGTH = 132` - Minimum base64 payload length
+- `MAX_BASE64_PAYLOAD_LENGTH = 87472` - Maximum base64 payload length
+- `MIN_DECODED_PAYLOAD_LENGTH = 99` - Minimum decoded payload length
+- `MAX_DECODED_PAYLOAD_LENGTH = 65603` - Maximum decoded payload length
 
 ### Encryption Process
 
@@ -182,19 +186,24 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 
 ### Decryption Process
 
-1. **Parse Payload** (NIP-44 spec section "Decryption" step 2)
+1. **Input Validation** (NIP-44 spec section "Decryption" step 1)
+   - Check for non-base64 encoding (# prefix detection)
+   - Validate base64 payload length (132 to 87,472 characters)
+   - Validate decoded payload length (99 to 65,603 bytes)
+
+2. **Parse Payload** (NIP-44 spec section "Decryption" step 2)
    - Decode base64 
    - Extract version byte, validate it's between 0-2
    - Extract nonce, ciphertext, and MAC based on version-specific sizes
 
-2. **Key Derivation** (Same as encryption)
+3. **Key Derivation** (Same as encryption)
    - Calculate the same conversation key and message keys
 
-3. **Verification** (NIP-44 spec section "Decryption" step 4)
+4. **Verification** (NIP-44 spec section "Decryption" step 4)
    - Verify HMAC using constant-time comparison
    - Authenticate ciphertext before decryption
 
-4. **Decryption** (NIP-44 spec section "Decryption" step 5-6)
+5. **Decryption** (NIP-44 spec section "Decryption" step 5-6)
    - Decrypt ciphertext with ChaCha20
    - Remove padding and extract original message
 
@@ -202,7 +211,9 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 
 The implementation includes comprehensive error handling that:
 - Validates all inputs (key formats, nonce size, message length)
-- Checks payload format and version
+- Checks payload format and version with strict NIP-44 compliance
+- Validates payload length bounds (base64 and decoded)
+- Detects non-base64 encoding (# prefix) as per NIP-44 specification
 - Provides informative error messages that help diagnose issues
 - Properly handles authentication failures with constant-time comparison
 - Includes version information in error messages for better debugging
@@ -273,9 +284,11 @@ try {
   if (error.message.includes('Authentication failed')) {
     console.error('Message may have been tampered with or keys are incorrect');
     // Handle authentication failure
-  } else if (error.message.includes('Invalid payload format')) {
-    console.error('Message is not in a valid NIP-44 format');
-    // Handle format error
+  } else if (error.message.includes('Invalid payload format') || 
+             error.message.includes('Invalid ciphertext length') ||
+             error.message.includes('Invalid decoded payload length')) {
+    console.error('Message is not in a valid NIP-44 format or exceeds size limits');
+    // Handle format/length validation error
   } else if (error.message.includes('Unsupported version')) {
     console.error(`Unsupported NIP-44 version: ${error.message}`);
     // Handle version compatibility issue
