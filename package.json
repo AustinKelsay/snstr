@@ -94,7 +94,7 @@
     "example:nip44:js": "node examples/nip44/nip44-demo.js",
     "example:nip44:version-compat": "ts-node examples/nip44/nip44-version-compatibility.ts",
     "example:nip44:test-vector": "ts-node examples/nip44/nip44-test-vector.ts",
-    "example:nip44:compliance": "ts-node examples/nip44/nip44-compliance-demo.ts",
+    "example:nip44:compliance": "tsx examples/nip44/nip44-compliance-demo.ts",
     "example:nip17": "ts-node examples/nip17/nip17-demo.ts",
     "example:nip46": "ts-node examples/nip46/unified-example.ts",
     "example:nip46:minimal": "ts-node examples/nip46/minimal.ts",
