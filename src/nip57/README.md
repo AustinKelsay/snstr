@@ -298,10 +298,10 @@ If you encounter persistent issues, check the code examples for working implemen
 
 Check out the examples in the repository:
 
-- [`basic-example.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/basic-example.ts): Simple demonstration of zap requests and receipts
-- [`zap-client-example.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/zap-client-example.ts): Using the NostrZapClient for common zap operations
-- [`lnurl-server-simulation.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/lnurl-server-simulation.ts): Full simulation of LNURL server handling zap requests
-- [`invoice-validation-example.ts`](https://github.com/nostr-protocol/snstr/blob/main/examples/nip57/invoice-validation-example.ts): Invoice validation example for zap verification
+- [`basic-example.ts`](https://github.com/AustinKelsay/snstr/blob/main/examples/nip57/basic-example.ts): Simple demonstration of zap requests and receipts
+- [`zap-client-example.ts`](https://github.com/AustinKelsay/snstr/blob/main/examples/nip57/zap-client-example.ts): Using the NostrZapClient for common zap operations
+- [`lnurl-server-simulation.ts`](https://github.com/AustinKelsay/snstr/blob/main/examples/nip57/lnurl-server-simulation.ts): Full simulation of LNURL server handling zap requests
+- [`invoice-validation-example.ts`](https://github.com/AustinKelsay/snstr/blob/main/examples/nip57/invoice-validation-example.ts): Invoice validation example for zap verification
 
 You can run these examples using the npm scripts:
 

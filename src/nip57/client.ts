@@ -840,5 +840,3 @@ export class ZapClient {
     return calculateZapSplitAmounts(totalAmount, splitInfo);
   }
 }
-
-export default ZapClient;

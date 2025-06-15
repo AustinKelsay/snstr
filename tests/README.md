@@ -17,6 +17,8 @@ Tests are organized into directories by NIP number, with subdirectories for spec
       - `connection.test.ts` - Relay connection tests
       - `filter.test.ts` - Subscription filter tests
       - `reconnect.test.ts` - Tests for relay reconnection
+  - `/nip02` - Tests for NIP-02 (Contact List and Petnames)
+    - `nip02.test.ts` - Tests for contact list creation and parsing
   - `/nip04` - Tests for NIP-04 (Encrypted Direct Messages)
     - `encryption.test.ts` - Tests for NIP-04 encryption
   - `/nip05` - Tests for NIP-05 (DNS-based Verification)
@@ -74,6 +76,7 @@ To run tests for a specific NIP:
 
 ```bash
 npm run test:nip01       # Run all NIP-01 core protocol tests
+npm run test:nip02       # Run NIP-02 tests
 npm run test:nip04       # Run NIP-04 tests
 npm run test:nip05       # Run NIP-05 tests
 npm run test:nip09       # Run NIP-09 tests
@@ -93,7 +96,6 @@ npm run test:nip01:event    # Run all event-related tests
 npm run test:nip01:relay    # Run all relay-related tests
 npm run test:nostr          # Run Nostr client tests
 npm run test:event          # Run event creation/validation tests
-npm run test:relay:connection # Run relay connection tests
 ```
 
 ## Test Categories

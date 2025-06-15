@@ -28,6 +28,8 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 
 - Event creation and signing with comprehensive validation
 - Relay connections with automatic reconnect
+- **RelayPool for multi-relay management** - Efficient connection pooling, automatic failover, and batch operations
+- **Cross-relay event querying** - `fetchMany()` and `fetchOne()` methods for aggregated event retrieval
 - Filter-based subscriptions
 - Support for replaceable events (kinds 0, 3, 10000-19999)
 - Support for addressable events (kinds 30000-39999)
@@ -52,19 +54,19 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-01**: Basic protocol functionality with comprehensive event validation
 - **NIP-02**: Contact List events and interactions (Kind 3)
 - **NIP-04**: Encrypted direct messages using AES-CBC
-- **NIP-17**: Gift wrapped direct messages using NIP-44 encryption
 - **NIP-05**: DNS identifier verification and relay discovery
 - **NIP-07**: Browser extension integration for key management
 - **NIP-09**: Event deletion requests for removing published events
 - **NIP-10**: Text notes and threading metadata
 - **NIP-11**: Relay Information Document for discovering relay capabilities
+- **NIP-17**: Gift wrapped direct messages using NIP-44 encryption
 - **NIP-19**: Bech32-encoded entities for human-readable identifiers
 - **NIP-21**: URI scheme for nostr links
 - **NIP-44**: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
 - **NIP-46**: Remote signing (bunker) support for secure key management
-- **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
 - **NIP-47**: Nostr Wallet Connect for secure wallet communication
 - **NIP-50**: Search capability via `search` subscription filters
+- **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
 - **NIP-65**: Relay List metadata for read/write relay preferences
 - **NIP-66**: Relay discovery and liveness monitoring
 
@@ -73,8 +75,17 @@ For detailed information on each implementation, see the corresponding directori
 ## Installation
 
 ```bash
-# Coming soon
+# Install from npm (coming soon)
+npm install snstr
+
+# For now, clone and build locally:
+git clone https://github.com/AustinKelsay/snstr.git
+cd snstr
+npm install
+npm run build
 ```
+
+**Note**: The library is currently in development and not yet published to npm. Use the local build method above until the first release is published.
 
 ## Basic Usage
 
@@ -110,6 +121,22 @@ async function main() {
     { autoClose: true, eoseTimeout: 5000 },
   );
 
+  // Query events from all relays
+  const manyEvents = await client.fetchMany(
+    [{ kinds: [1], authors: ["pubkey"], limit: 10 }],
+    { maxWait: 5000 }
+  );
+  console.log(`Found ${manyEvents.length} events`);
+
+  // Get the most recent event from all relays
+  const latestEvent = await client.fetchOne(
+    [{ kinds: [1], authors: ["pubkey"] }],
+    { maxWait: 3000 }
+  );
+  if (latestEvent) {
+    console.log("Latest event:", latestEvent.content);
+  }
+
   // Cleanup
   setTimeout(() => {
     client.unsubscribe(subIds);
@@ -120,6 +147,100 @@ async function main() {
 main().catch(console.error);
 ```
 
+### Using RelayPool for Multi-Relay Management
+
+```typescript
+import { RelayPool, generateKeys, createEvent } from "snstr";
+
+async function relayPoolExample() {
+  // Initialize RelayPool with multiple relays
+  const pool = new RelayPool([
+    "wss://relay.nostr.band",
+    "wss://nos.lol", 
+    "wss://relay.damus.io"
+  ]);
+
+  // Generate keypair
+  const keys = await generateKeys();
+
+  // Publish to multiple relays simultaneously
+  const event = createEvent({
+    kind: 1,
+    content: "Hello from RelayPool!",
+    tags: [],
+    privateKey: keys.privateKey
+  });
+
+  const publishPromises = pool.publish(
+    ["wss://relay.nostr.band", "wss://nos.lol"], 
+    event
+  );
+  const results = await Promise.all(publishPromises);
+
+  // Subscribe across multiple relays with automatic failover
+  const subscription = await pool.subscribe(
+    ["wss://relay.nostr.band", "wss://nos.lol", "wss://relay.damus.io"],
+    [{ kinds: [1], limit: 10 }],
+    (event, relayUrl) => {
+      console.log(`Event from ${relayUrl}:`, event.content);
+    },
+    () => {
+      console.log("All relays finished sending stored events");
+    }
+  );
+
+  // Query events synchronously from multiple relays
+  const events = await pool.querySync(
+    ["wss://relay.nostr.band", "wss://nos.lol"],
+    { kinds: [1], limit: 5 },
+    { timeout: 10000 }
+  );
+  console.log(`Retrieved ${events.length} events`);
+
+  // Cleanup
+  subscription.close();
+  await pool.close();
+}
+
+relayPoolExample().catch(console.error);
+```
+
+### Event Querying with fetchMany and fetchOne
+
+```typescript
+import { Nostr } from "snstr";
+
+async function queryExample() {
+  const client = new Nostr(["wss://relay.nostr.band", "wss://nos.lol"]);
+  await client.connectToRelays();
+
+  // Fetch multiple events from all connected relays
+  const events = await client.fetchMany(
+    [
+      { kinds: [1], authors: ["pubkey1", "pubkey2"], limit: 20 },
+      { kinds: [0], authors: ["pubkey1"] } // Profile metadata
+    ],
+    { maxWait: 5000 } // Wait up to 5 seconds
+  );
+  
+  console.log(`Retrieved ${events.length} events from all relays`);
+  
+  // Fetch the most recent single event
+  const latestNote = await client.fetchOne(
+    [{ kinds: [1], authors: ["pubkey1"] }],
+    { maxWait: 3000 }
+  );
+  
+  if (latestNote) {
+    console.log("Latest note:", latestNote.content);
+  }
+
+  client.disconnectFromRelays();
+}
+
+queryExample().catch(console.error);
+```
+
 For more examples including encryption, relay management, and NIP-specific features, see the [examples directory](./examples/README.md).
 
 ### Custom WebSocket Implementation
@@ -127,11 +248,18 @@ For more examples including encryption, relay management, and NIP-specific featu
 SNSTR relies on `websocket-polyfill` when running in Node.js. If you want to provide your own `WebSocket` class (for example when using a different runtime), you can set it with `useWebSocketImplementation`:
 
 ```typescript
--import { useWebSocketImplementation } from "snstr/utils/websocket";
-+import { useWebSocketImplementation } from "snstr";
+import { useWebSocketImplementation } from "snstr";
 import WS from "isomorphic-ws";
 
 useWebSocketImplementation(WS);
+```
+
+You can also reset back to the default implementation:
+
+```typescript
+import { resetWebSocketImplementation } from "snstr";
+
+resetWebSocketImplementation();
 ```
 
 **Note**: To run the custom WebSocket example (`npm run example:custom-websocket`), you need to install a WebSocket package first:
@@ -164,11 +292,16 @@ The project is organized with detailed documentation for different components:
 - **[NIP-09](src/nip09/README.md)**: Event deletion requests
 - **[NIP-10](src/nip10/README.md)**: Text notes and threads
 - **[NIP-11](src/nip11/README.md)**: Relay information document
+- **[NIP-17](src/nip17/README.md)**: Gift wrapped direct messages
 - **[NIP-19](src/nip19/README.md)**: Bech32-encoded entities
+- **[NIP-21](src/nip21/README.md)**: URI scheme for nostr links
 - **[NIP-44](src/nip44/README.md)**: Versioned encryption
 - **[NIP-46](src/nip46/README.md)**: Remote signing protocol
 - **[NIP-47](src/nip47/README.md)**: Nostr Wallet Connect
+- **[NIP-50](src/nip50/README.md)**: Search capability
 - **[NIP-57](src/nip57/README.md)**: Lightning Zaps
+- **[NIP-65](src/nip65/README.md)**: Relay List metadata
+- **[NIP-66](src/nip66/README.md)**: Relay discovery and liveness monitoring
 
 #### Standardization Guidelines
 
@@ -187,13 +320,20 @@ npm run example
 # Run the direct messaging example
 npm run example:dm  # Uses NIP-04 implementation
 
+# Run additional basic examples
+npm run example:verbose         # Verbose logging
+npm run example:debug           # Debug logging
+npm run example:custom-websocket # Custom WebSocket implementation
+npm run example:crypto          # Cryptographic functions
+
 # Run NIP-01 examples
 npm run example:nip01:event:ordering      # Event ordering demonstration
 npm run example:nip01:event:addressable   # Addressable events
 npm run example:nip01:event:replaceable   # Replaceable events
 npm run example:nip01:relay:connection    # Relay connection management
-npm run example:nip01:relay:pool         # RelayPool multi-relay demo
+npm run example:nip01:relay:pool          # RelayPool multi-relay demo
 npm run example:nip01:relay:filters       # Filter types
+npm run example:nip01:relay:auto-close    # Auto-unsubscribe example
 npm run example:nip01:relay:query         # Pooled event queries
 npm run example:nip01:relay:reconnect     # Relay reconnection
 npm run example:nip01:validation          # NIP-01 validation flow
@@ -206,8 +346,37 @@ npm run example:nip19  # Bech32-encoded entities
 npm run example:nip44  # Versioned encryption
 npm run example:nip17  # Gift wrapped direct messages
 npm run example:nip46  # Remote signing protocol
+npm run example:nip50  # Search capability
 npm run example:nip57  # Lightning Zaps
 npm run example:nip65  # Relay list metadata
+npm run example:nip66  # Relay discovery and monitoring
+
+# Additional NIP-specific example variants
+npm run example:nip07          # Browser extension (runs local server)
+npm run example:nip07:build    # Build browser extension examples
+npm run example:nip07:dm       # Browser extension direct message
+npm run example:nip10          # Text Notes and Threads (see README)
+npm run example:nip11          # Relay information
+npm run example:nip19:bech32   # Basic Bech32 examples
+npm run example:nip19:tlv      # TLV entity examples
+npm run example:nip19:validation # Validation examples
+npm run example:nip19:security # Security features
+npm run example:nip21          # URI scheme
+npm run example:nip44:js       # JavaScript version of NIP-44
+npm run example:nip44:version-compat # Version compatibility
+npm run example:nip44:test-vector    # Test vector validation
+npm run example:nip46:minimal       # Minimal NIP-46 example
+npm run example:nip46:basic         # Basic NIP-46 example
+npm run example:nip46:advanced      # Advanced features
+npm run example:nip46:from-scratch  # Implementation from scratch
+npm run example:nip46:simple        # Simple client/server
+npm run example:nip47:verbose       # Verbose wallet connect
+npm run example:nip47:client-service # Client service example
+npm run example:nip47:error-handling # Error handling
+npm run example:nip47:expiration    # Request expiration
+npm run example:nip57:client        # Zap client
+npm run example:nip57:lnurl         # LNURL server simulation
+npm run example:nip57:validation    # Invoice validation
 ```
 
 For a full list of examples and detailed descriptions, see the [examples README](./examples/README.md).
@@ -276,24 +445,36 @@ npm run test:integration   # Integration tests
 npm run test:nip01         # All NIP-01 tests
 npm run test:nip01:event   # Event-related tests
 npm run test:nip01:relay   # Relay-related tests
+npm run test:nip01:relay:connection      # Relay connection tests
+npm run test:nip01:relay:filter      # Relay filter tests
+npm run test:nip01:relay:reconnect   # Relay reconnection tests
+npm run test:nip01:relay:pool        # RelayPool tests
 npm run test:nostr         # Nostr client
 npm run test:event         # Event creation and validation
+npm run test:event:ordering          # Event ordering tests
+npm run test:event:addressable       # Addressable events tests
+npm run test:event:all               # All event tests
 npm run test:relay         # Relay functionality
+npm run test:crypto:core   # Core crypto utilities
 
 # Test specific NIPs
 npm run test:nip02         # NIP-02 (Contact Lists)
 npm run test:nip04         # NIP-04 (Encrypted Direct Messages)
 npm run test:nip05         # NIP-05 (DNS Identifiers)
-npm run test:nip09         # NIP-09 (Event Deletion Requests)
 npm run test:nip07         # NIP-07 (Browser Extensions)
+npm run test:nip09         # NIP-09 (Event Deletion Requests)
+npm run test:nip10         # NIP-10 (Text Notes and Threads)
 npm run test:nip11         # NIP-11 (Relay Information)
-npm run test:nip19         # NIP-19 (Bech32 Entities)
-npm run test:nip44         # NIP-44 (Versioned Encryption)
 npm run test:nip17         # NIP-17 (Direct Messages)
+npm run test:nip19         # NIP-19 (Bech32 Entities)
+npm run test:nip21         # NIP-21 (URI Scheme)
+npm run test:nip44         # NIP-44 (Versioned Encryption)
 npm run test:nip46         # NIP-46 (Remote Signing)
 npm run test:nip47         # NIP-47 (Wallet Connect)
+npm run test:nip50         # NIP-50 (Search Capability)
 npm run test:nip57         # NIP-57 (Lightning Zaps)
 npm run test:nip65         # NIP-65 (Relay List Metadata)
+npm run test:nip66         # NIP-66 (Relay Discovery)
 ```
 
 ### Example Scripts
@@ -332,16 +513,20 @@ npm run example:dm         # Direct messaging (NIP-04)
 npm run example:nip02      # Contact Lists (NIP-02)
 npm run example:nip04      # Encrypted direct messages (NIP-04)
 npm run example:nip05      # DNS identifiers (NIP-05)
-npm run example:nip09      # Deletion requests (NIP-09)
 npm run example:nip07      # Browser extensions (NIP-07)
+npm run example:nip09      # Deletion requests (NIP-09)
+npm run example:nip10      # Text notes and threads (NIP-10)
 npm run example:nip11      # Relay information (NIP-11)
+npm run example:nip21      # URI scheme (NIP-21)
+npm run example:nip17      # Gift wrapped direct messages (NIP-17)
 npm run example:nip19      # Bech32-encoded entities (NIP-19)
 npm run example:nip44      # Versioned encryption (NIP-44)
-npm run example:nip17      # Gift wrapped direct messages (NIP-17)
 npm run example:nip46      # Remote signing protocol (NIP-46)
 npm run example:nip47      # Wallet connect (NIP-47)
+npm run example:nip50      # Search capability (NIP-50)
 npm run example:nip57      # Lightning zaps (NIP-57)
 npm run example:nip65      # Relay list metadata (NIP-65)
+npm run example:nip66      # Relay discovery and monitoring (NIP-66)
 ```
 
 ### Code Quality Scripts
@@ -379,7 +564,7 @@ npm run format
   - `event.ts`: Event creation, validation, and utilities
   - `nostr.ts`: Main Nostr client implementation
   - `relay.ts`: Relay connection and subscription management
-  - `relay-connection.ts`: WebSocket connection handling
+  - `relayPool.ts`: Multi-relay pool management
 - **Examples**: Organized by NIP in `examples/nipXX` directories
   - NIP-01 examples further divided into `event/` and `relay/` subdirectories
   - Client-specific examples in `examples/client`
