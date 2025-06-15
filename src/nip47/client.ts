@@ -554,9 +554,9 @@ export class NostrWalletConnectClient {
         `Decrypting response with client private key and service public key`,
       );
       const decrypted = decryptNIP04(
-        event.content,
         this.clientPrivkey,
         this.pubkey,
+        event.content,
       );
       console.log(`Decrypted response: ${decrypted.substring(0, 100)}...`);
 
@@ -619,9 +619,9 @@ export class NostrWalletConnectClient {
     try {
       // Decrypt the content with client's private key and service's public key
       const decrypted = decryptNIP04(
-        event.content,
         this.clientPrivkey,
         this.pubkey,
+        event.content,
       );
       const notification: NIP47Notification<unknown> = JSON.parse(decrypted);
 
@@ -707,9 +707,9 @@ export class NostrWalletConnectClient {
     let encryptedContent: string;
     try {
       encryptedContent = encryptNIP04(
-        JSON.stringify(request),
         this.clientPrivkey,
         this.pubkey,
+        JSON.stringify(request),
       );
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));

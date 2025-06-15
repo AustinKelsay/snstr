@@ -494,7 +494,7 @@ export class SimpleNIP46Bunker {
       // Encrypt the message using NIP-04
       let encrypted: string;
       try {
-        encrypted = await encryptNIP04(plaintext, this.userKeys.privateKey, recipient);
+        encrypted = await encryptNIP04(this.userKeys.privateKey, recipient, plaintext);
       } catch (encryptError) {
         const encryptErrorMessage =
           encryptError instanceof Error ? encryptError.message : String(encryptError);
@@ -550,7 +550,7 @@ export class SimpleNIP46Bunker {
       // Decrypt the message using NIP-04
       let decrypted: string;
       try {
-        decrypted = await decryptNIP04(ciphertext, this.userKeys.privateKey, sender);
+        decrypted = await decryptNIP04(this.userKeys.privateKey, sender, ciphertext);
       } catch (decryptError) {
         const decryptErrorMessage =
           decryptError instanceof Error ? decryptError.message : String(decryptError);

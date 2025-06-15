@@ -142,7 +142,7 @@ export class RelayPool {
    * Close relay connections. Invalid relay URLs are ignored.
    * @param relayUrls Optional array of relay URLs to close. If not provided, all relays are closed.
    */
-  public close(relayUrls?: string[]): void {
+  public async close(relayUrls?: string[]): Promise<void> {
     if (relayUrls) {
       relayUrls.forEach((url) => {
         try {
@@ -159,6 +159,10 @@ export class RelayPool {
     } else {
       this.relays.forEach((relay) => relay.disconnect());
     }
+    
+    // Add a small delay to ensure WebSocket connections have time to close properly
+    // This helps prevent Jest open handle warnings
+    await new Promise(resolve => setTimeout(resolve, 10));
   }
 
   public publish(relays: string[], event: NostrEvent, options?: PublishOptions): Promise<PublishResponse>[] {
@@ -178,6 +182,7 @@ export class RelayPool {
     let eoseCount = 0;
     let isClosed = false;
     let successfulRelayCount = 0;
+    let eoseSent = false;
 
     // Safe event handler that catches and logs errors
     const safeOnEvent = (event: NostrEvent, relayUrl: string) => {
@@ -220,10 +225,11 @@ export class RelayPool {
 
     // Safe EOSE handler - now created with accurate successful relay count
     const safeOnEOSE = () => {
-      if (isClosed) return;
+      if (isClosed || eoseSent) return;
       eoseCount++;
       if (eoseCount === successfulRelayCount && onEOSE) {
         try {
+          eoseSent = true;
           onEOSE();
         } catch (eoseError) {
           console.warn('Error in EOSE callback:', eoseError);
@@ -249,8 +255,9 @@ export class RelayPool {
         if (successfulRelayCount > 0) {
           successfulRelayCount--;
           // Check if we've now reached the condition where EOSE should be called
-          if (eoseCount === successfulRelayCount && onEOSE && !isClosed) {
+          if (eoseCount === successfulRelayCount && onEOSE && !isClosed && !eoseSent) {
             try {
+              eoseSent = true;
               onEOSE();
             } catch (eoseError) {
               console.warn('Error in EOSE callback (after subscription failure):', eoseError);
@@ -261,8 +268,9 @@ export class RelayPool {
     });
 
     // If all relays failed, trigger onEOSE immediately to prevent hanging
-    if (successfulRelayCount === 0 && onEOSE && !isClosed) {
+    if (successfulRelayCount === 0 && onEOSE && !isClosed && !eoseSent) {
       try {
+        eoseSent = true;
         onEOSE();
       } catch (eoseError) {
         console.warn('Error in EOSE callback (all relays failed):', eoseError);

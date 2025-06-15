@@ -250,9 +250,9 @@ describe("Nostr Client", () => {
 
       // Create encrypted content
       const encryptedContent = encryptNIP04(
-        content,
         senderKeys.privateKey,
         recipientKeys.publicKey,
+        content,
       );
 
       // Create event

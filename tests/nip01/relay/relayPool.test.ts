@@ -33,7 +33,7 @@ describe("RelayPool", () => {
       expect(results).toHaveLength(2);
       results.forEach((r) => expect(r.success).toBe(true));
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -67,7 +67,7 @@ describe("RelayPool", () => {
       expect(received[relay1.url].length).toBeGreaterThan(0);
       expect(received[relay2.url].length).toBeGreaterThan(0);
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -96,7 +96,7 @@ describe("RelayPool", () => {
       expect(events.length).toBeGreaterThan(0);
       expect(events.some(e => e.content === "query test 1" || e.content === "query test 2")).toBe(true);
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -123,7 +123,7 @@ describe("RelayPool", () => {
       expect(event?.content).toBe("get test");
       expect(event?.pubkey).toBe(keys.publicKey);
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -141,7 +141,7 @@ describe("RelayPool", () => {
       // Should complete quickly due to timeout
       expect(Array.isArray(events)).toBe(true);
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -158,7 +158,7 @@ describe("RelayPool", () => {
 
       expect(event).toBeNull();
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -197,7 +197,7 @@ describe("RelayPool", () => {
       expect(received.length).toBeGreaterThan(0);
       expect(received.some(e => e.content === "partial failure test")).toBe(true);
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -234,7 +234,7 @@ describe("RelayPool", () => {
       const afterCloseEvents = received.filter(e => e.content === "after close test");
       expect(afterCloseEvents).toHaveLength(0);
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -294,7 +294,7 @@ describe("RelayPool", () => {
     } finally {
       // Restore console.warn
       console.warn = originalWarn;
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -315,7 +315,7 @@ describe("RelayPool", () => {
         sub.close();
       }).not.toThrow();
     } finally {
-      pool.close();
+      await pool.close();
     }
   });
 
@@ -338,7 +338,81 @@ describe("RelayPool", () => {
       
       expect(() => sub.close()).not.toThrow();
     } finally {
-      pool.close();
+      await pool.close();
+    }
+  });
+
+  test("should handle async pool close properly", async () => {
+    const pool = new RelayPool([relay1.url, relay2.url]);
+    const keys = await generateKeypair();
+
+    try {
+      // Create a subscription to ensure relays are connected
+      const sub = await pool.subscribe(
+        [relay1.url, relay2.url],
+        [{ kinds: [1] }],
+        () => {},
+      );
+
+      // Publish an event to ensure connections are active
+      const testEvent = await createSignedEvent(createTextNote("close test", keys.privateKey), keys.privateKey);
+      await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
+
+      // Close the subscription first
+      sub.close();
+
+      // Test that pool.close() is async and completes properly
+      const startTime = Date.now();
+      await pool.close();
+      const closeTime = Date.now() - startTime;
+
+      // Verify that close took some time (due to the cleanup delay) but not too long
+      expect(closeTime).toBeGreaterThanOrEqual(10); // Should take at least 10ms due to cleanup delay
+      expect(closeTime).toBeLessThan(100); // But not too long
+
+      // Verify that calling close again doesn't throw errors
+      await expect(pool.close()).resolves.not.toThrow();
+    } catch (error) {
+      // If something goes wrong in the try block, still attempt cleanup
+      await pool.close();
+      throw error;
+    }
+  });
+
+  test("should prevent duplicate onEOSE calls", async () => {
+    const pool = new RelayPool([relay1.url, relay2.url]);
+    const keys = await generateKeypair();
+    let eoseCallCount = 0;
+
+    try {
+      // Create a subscription that should trigger EOSE after processing events
+      const sub = await pool.subscribe(
+        [relay1.url, relay2.url],
+        [{ kinds: [1], authors: [keys.publicKey] }],
+        () => {},
+        () => {
+          eoseCallCount++;
+        },
+      );
+
+      // Publish an event to ensure the relays have something to send
+      const testEvent = await createSignedEvent(createTextNote("eose test", keys.privateKey), keys.privateKey);
+      await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
+
+      // Wait for EOSE to be called (should happen once all relays finish sending stored events)
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Close the subscription
+      sub.close();
+
+      // Wait a bit more to ensure no additional EOSE calls occur
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Verify that onEOSE was called exactly once, not multiple times
+      // The eoseSent flag should prevent any duplicate calls
+      expect(eoseCallCount).toBe(1);
+    } finally {
+      await pool.close();
     }
   });
 

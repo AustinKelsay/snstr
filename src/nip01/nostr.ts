@@ -442,7 +442,7 @@ export class Nostr {
 
     // Decrypt the message using our private key and the sender's pubkey
     try {
-      return decryptNIP04(event.content, this.privateKey, senderPubkey);
+      return decryptNIP04(this.privateKey, senderPubkey, event.content);
     } catch (error) {
       console.error("Failed to decrypt message:", error);
       throw new Error(

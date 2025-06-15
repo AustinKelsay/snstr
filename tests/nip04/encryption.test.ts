@@ -43,17 +43,17 @@ describe("NIP-04 Encryption/Decryption", () => {
     const message = "Hello, Nostr world!";
 
     // Alice encrypts a message for Bob
-    const encrypted = encrypt(message, alicePrivateKey, bobPublicKey);
+    const encrypted = encrypt(alicePrivateKey, bobPublicKey, message);
 
     // Bob decrypts the message
-    const decrypted = decrypt(encrypted, bobPrivateKey, alicePublicKey);
+    const decrypted = decrypt(bobPrivateKey, alicePublicKey, encrypted);
 
     expect(decrypted).toBe(message);
   });
 
   test("encrypted message should follow NIP-04 format", () => {
     const message = "Testing format";
-    const encrypted = encrypt(message, alicePrivateKey, bobPublicKey);
+    const encrypted = encrypt(alicePrivateKey, bobPublicKey, message);
 
     // Check that the format is <ciphertext>?iv=<iv>
     expect(encrypted).toContain("?iv=");
@@ -70,11 +70,11 @@ describe("NIP-04 Input Validation", () => {
     const invalidEncrypted = "abc123";
 
     expect(() => {
-      decrypt(invalidEncrypted, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, invalidEncrypted);
     }).toThrow(NIP04DecryptionError);
 
     expect(() => {
-      decrypt(invalidEncrypted, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, invalidEncrypted);
     }).toThrow("missing IV separator");
   });
 
@@ -82,11 +82,11 @@ describe("NIP-04 Input Validation", () => {
     const invalidEncrypted = "part1?iv=part2?iv=part3";
 
     expect(() => {
-      decrypt(invalidEncrypted, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, invalidEncrypted);
     }).toThrow(NIP04DecryptionError);
 
     expect(() => {
-      decrypt(invalidEncrypted, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, invalidEncrypted);
     }).toThrow("multiple IV separators found");
   });
 
@@ -95,11 +95,11 @@ describe("NIP-04 Input Validation", () => {
     const emptyCiphertext = "?iv=ivdata";
 
     expect(() => {
-      decrypt(emptyIV, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, emptyIV);
     }).toThrow("empty ciphertext or IV");
 
     expect(() => {
-      decrypt(emptyCiphertext, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, emptyCiphertext);
     }).toThrow("empty ciphertext or IV");
   });
 
@@ -108,24 +108,24 @@ describe("NIP-04 Input Validation", () => {
     const invalidBase64 = "invalid!base64?iv=aGVsbG8=";
 
     expect(() => {
-      decrypt(invalidBase64, bobPrivateKey, alicePublicKey);
+      decrypt(bobPrivateKey, alicePublicKey, invalidBase64);
     }).toThrow("ciphertext is not valid base64");
   });
 
   test("should reject message with invalid base64 IV", () => {
     // Creating valid ciphertext but invalid IV
     const validCiphertext = encrypt(
-      "test",
       alicePrivateKey,
       bobPublicKey,
+      "test",
     ).split("?iv=")[0];
     const invalidIV = "invalid!iv!";
 
     expect(() => {
       decrypt(
-        `${validCiphertext}?iv=${invalidIV}`,
         bobPrivateKey,
         alicePublicKey,
+        `${validCiphertext}?iv=${invalidIV}`,
       );
     }).toThrow("IV is not valid base64");
   });
@@ -133,18 +133,18 @@ describe("NIP-04 Input Validation", () => {
   test("should reject message with incorrect IV length", () => {
     // Creating valid ciphertext but IV of wrong length (should be 16 bytes)
     const validCiphertext = encrypt(
-      "test",
       alicePrivateKey,
       bobPublicKey,
+      "test",
     ).split("?iv=")[0];
     // This is a valid base64 string that decodes to something other than 16 bytes
     const shortIV = "aGVsbG8="; // "hello" in base64
 
     expect(() => {
       decrypt(
-        `${validCiphertext}?iv=${shortIV}`,
         bobPrivateKey,
         alicePublicKey,
+        `${validCiphertext}?iv=${shortIV}`,
       );
     }).toThrow("Invalid IV length");
   });
@@ -163,8 +163,8 @@ describe("NIP-04 nostr-tools compatibility", () => {
 
     // We can't directly compare to nostr-tools without importing it, but we can
     // verify encryption/decryption roundtrip works
-    const encrypted = encrypt(testMessage, testPrivateKey, testPublicKey);
-    const decrypted = decrypt(encrypted, testPrivateKey, testPublicKey);
+    const encrypted = encrypt(testPrivateKey, testPublicKey, testMessage);
+    const decrypted = decrypt(testPrivateKey, testPublicKey, encrypted);
 
     expect(decrypted).toBe(testMessage);
 
@@ -183,10 +183,10 @@ describe("NIP-04 nostr-tools compatibility", () => {
     const bobPubKey = bobPublicKey;
 
     // Alice encrypts for Bob
-    const encrypted = encrypt("Hello, Bob!", alicePrivKey, bobPubKey);
+    const encrypted = encrypt(alicePrivKey, bobPubKey, "Hello, Bob!");
 
     // Bob decrypts from Alice
-    const decrypted = decrypt(encrypted, bobPrivKey, alicePubKey);
+    const decrypted = decrypt(bobPrivKey, alicePubKey, encrypted);
 
     expect(decrypted).toBe("Hello, Bob!");
   });
