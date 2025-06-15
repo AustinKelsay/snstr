@@ -67,19 +67,19 @@ console.log('Mentioned authors:', threadInfo.mentions);
 import { createReplyTags, parseThreadReferences } from 'snstr';
 
 class ThreadBuilder {
-  static createRootReply(rootEventId, content, privateKey) {
+  static createRootReply(rootEventId, rootPubkey, content, privateKey) {
     return {
       kind: 1,
       content,
       tags: [
         ['e', rootEventId, '', 'reply'],
-        ['p', rootEvent.pubkey]
+        ['p', rootPubkey]
       ],
       // ... sign with privateKey
     };
   }
   
-  static createNestedReply(rootEventId, parentEventId, content, privateKey) {
+  static createNestedReply(rootEventId, rootPubkey, parentEventId, parentPubkey, content, privateKey) {
     const tags = createReplyTags(
       { id: rootEventId },
       { id: parentEventId }
@@ -90,8 +90,8 @@ class ThreadBuilder {
       content,
       tags: [
         ...tags,
-        ['p', rootEvent.pubkey],
-        ['p', parentEvent.pubkey]
+        ['p', rootPubkey],
+        ['p', parentPubkey]
       ],
       // ... sign with privateKey
     };
