@@ -435,13 +435,15 @@ describe("Nostr Client", () => {
       await multi.publishTextNote("multi-note");
       
       // Wait for events to be stored and available, using polling
+      // Note: Due to deduplication, the same event will only appear once even if received from multiple relays
       await waitForCondition(async () => {
         const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
-        return events.length >= 2; // Should get the event from both relays
+        return events.length >= 1; // Should get the event (deduplicated across relays)
       }, 2000);
 
       const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 500 });
-      expect(events.length).toBeGreaterThanOrEqual(2);
+      expect(events.length).toBeGreaterThanOrEqual(1);
+      expect(events[0].content).toBe("multi-note");
 
       // ensure subscriptions cleaned up
       getNostrInternals(multi).relays.forEach((relay) => {
@@ -465,9 +467,10 @@ describe("Nostr Client", () => {
       await multi.publishTextNote("old-note");
       
       // Wait for first event to be stored, using polling
+      // Note: Due to deduplication, the same event will only appear once even if received from multiple relays
       await waitForCondition(async () => {
         const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
-        return events.length >= 2; // Should get the event from both relays
+        return events.length >= 1; // Should get the event (deduplicated across relays)
       }, 2000);
       
       // Ensure we get a different timestamp by waiting at least 1 second
@@ -476,9 +479,10 @@ describe("Nostr Client", () => {
       await multi.publishTextNote("new-note");
 
       // Wait for second event to be stored, using polling
+      // Note: Due to deduplication, we expect 2 unique events (not 4 duplicates)
       await waitForCondition(async () => {
         const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
-        return events.length >= 4; // Should get both events from both relays
+        return events.length >= 2; // Should get both unique events
       }, 2000);
 
       const latest = await multi.fetchOne([{ kinds: [1] }], { maxWait: 500 });
