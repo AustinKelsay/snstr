@@ -13,12 +13,12 @@ describe("NIP-10 utilities", () => {
     );
     expect(tags).toEqual([
       ["e", "root", "wss://relay", "root"],
-      ["e", "reply", "reply"],
+      ["e", "reply", "", "reply"],
     ]);
   });
 
   test("createQuoteTag should build e tag with mention marker", () => {
-    expect(createQuoteTag({ id: "abc" })).toEqual(["e", "abc", "mention"]);
+    expect(createQuoteTag({ id: "abc" })).toEqual(["e", "abc", "", "mention"]);
   });
 
   test("parseThreadReferences handles marked tags", () => {
@@ -65,7 +65,7 @@ describe("NIP-10 utilities", () => {
 
   test("createReplyTags should build only root tag when no reply", () => {
     expect(createReplyTags({ id: "root" })).toEqual([
-      ["e", "root", "root"],
+      ["e", "root", "", "root"],
     ]);
   });
 

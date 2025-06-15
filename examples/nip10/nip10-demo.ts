@@ -44,7 +44,10 @@ async function main() {
     relay: "wss://relay.example.com"
   };
   
-  const simpleReplyTags = createReplyTags(rootPointer);
+  const simpleReplyTags = [
+    ...createReplyTags(rootPointer),
+    ["p", alicePubkey] // Add mandatory 'p' tag for root author
+  ];
   console.log("Simple reply tags:", JSON.stringify(simpleReplyTags, null, 2));
   console.log();
 
@@ -56,7 +59,11 @@ async function main() {
     relay: "wss://relay.example.com"
   };
   
-  const nestedReplyTags = createReplyTags(rootPointer, replyPointer);
+  const nestedReplyTags = [
+    ...createReplyTags(rootPointer, replyPointer),
+    ["p", alicePubkey], // Root author
+    ["p", bobPubkey]    // Reply author being responded to
+  ];
   console.log("Nested reply tags:", JSON.stringify(nestedReplyTags, null, 2));
   console.log();
 

@@ -4,13 +4,13 @@ Implementation of [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10
 
 ## Overview
 
-NIP-10 standardizes how text notes (kind 1) reference each other to form threaded conversations. It introduces marked `e` tags for replies, `q` tags for quoting other events, and proper `p` tag usage for mentioning authors. This enables clients to build coherent conversation threads and display replies in context.
+NIP-10 standardizes how text notes (kind 1) reference each other to form threaded conversations. It introduces marked `e` tags for replies, `e` tags with `mention` markers for quoting other events, and proper `p` tag usage for mentioning authors. This enables clients to build coherent conversation threads and display replies in context.
 
 ## Key Features
 
 - 🧵 **Thread Management** – Create and parse threaded conversations with proper references
 - 🏷️ **Marked E Tags** – Support for `root` and `reply` markers for clear thread structure
-- 💬 **Quote Support** – `q` tags for quoting events with optional relay hints
+- 💬 **Quote Support** – `e` tags with `mention` markers for quoting events with optional relay hints
 - 👥 **Author References** – Proper `p` tag handling for mentioned users
 - 🔄 **Backward Compatibility** – Support for deprecated positional `e` tag scheme
 - 🔍 **Thread Parsing** – Extract complete thread information from events
@@ -28,11 +28,12 @@ const replyTags = createReplyTags(
   { id: parentEventId, relay: 'wss://relay.example.com' } // Direct parent
 );
 
-// Quote an event
+// Quote an event (returns an 'e' tag with 'mention' marker)
 const quoteTag = createQuoteTag({ 
   id: quotedEventId, 
   relay: 'wss://other-relay.com' 
 });
+// quoteTag: ['e', quotedEventId, 'wss://other-relay.com', 'mention']
 
 // Build complete event
 const replyEvent = {
@@ -165,14 +166,20 @@ const threadTags = createReplyTags(
 
 ### `createQuoteTag(event: EventReference): Tag`
 
-Creates a `q` tag for quoting an event.
+Creates an `e` tag with a `mention` marker for quoting an event.
 
 **Parameters:**
 - `event`: The event being quoted
   - `id: string` - Event ID
   - `relay?: string` - Optional relay hint
 
-**Returns:** A `q` tag for the quoted event
+**Returns:** An `e` tag with `mention` marker for the quoted event
+
+```typescript
+// Quote an event
+const quoteTag = createQuoteTag({ id: quotedEventId, relay: 'wss://relay.com' });
+// ['e', quotedEventId, 'wss://relay.com', 'mention']
+```
 
 ### `parseThreadReferences(event: NostrEvent): ThreadReferences`
 
@@ -231,7 +238,7 @@ Parses thread information from an event.
   kind: 1,
   content: "This is exactly what I was thinking! nostr:note1...",
   tags: [
-    ['q', quotedEventId, 'wss://relay.com'],
+    ['e', quotedEventId, 'wss://relay.com', 'mention'],
     ['p', quotedAuthorPubkey]
   ],
   // ...
@@ -259,7 +266,7 @@ npm run test:nip10
 
 1. **Marked Tags First**: Looks for `e` tags with `root` and `reply` markers
 2. **Positional Fallback**: Falls back to positional scheme for backward compatibility
-3. **Quote Extraction**: Processes `q` tags for quoted events
+3. **Quote Extraction**: Processes `e` tags with `mention` markers for quoted events
 4. **Author Collection**: Gathers mentioned authors from `p` tags
 
 ### Backward Compatibility

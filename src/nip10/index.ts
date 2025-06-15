@@ -36,11 +36,10 @@ export function createReplyTags(
 ): string[][] {
   const tags: string[][] = [];
 
-  // Build root tag conditionally
+  // Build root tag with consistent column order
   const rootTag = ["e", root.id];
-  if (root.relay) {
-    rootTag.push(root.relay);
-  }
+  // Always include relay field to maintain proper column order
+  rootTag.push(root.relay || "");
   rootTag.push("root");
   if (root.pubkey) {
     rootTag.push(root.pubkey);
@@ -48,11 +47,10 @@ export function createReplyTags(
   tags.push(rootTag);
 
   if (reply) {
-    // Build reply tag conditionally
+    // Build reply tag with consistent column order
     const replyTag = ["e", reply.id];
-    if (reply.relay) {
-      replyTag.push(reply.relay);
-    }
+    // Always include relay field to maintain proper column order
+    replyTag.push(reply.relay || "");
     replyTag.push("reply");
     if (reply.pubkey) {
       replyTag.push(reply.pubkey);
@@ -66,9 +64,8 @@ export function createReplyTags(
 /** Create an "e" tag with "mention" marker for quoting an event */
 export function createQuoteTag(pointer: ThreadPointer): string[] {
   const tag = ["e", pointer.id];
-  if (pointer.relay) {
-    tag.push(pointer.relay);
-  }
+  // Always include relay field to maintain proper column order
+  tag.push(pointer.relay || "");
   tag.push("mention");
   if (pointer.pubkey) {
     tag.push(pointer.pubkey);
