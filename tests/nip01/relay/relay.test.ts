@@ -1368,6 +1368,10 @@ describe("Relay", () => {
       };
     });
 
+    afterEach(() => {
+      relay.disconnect();
+    });
+
     test("should process and store replaceable events", () => {
       // Process the event
       const testRelay = asTestRelay(relay);

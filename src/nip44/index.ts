@@ -63,7 +63,34 @@ const MAX_DECODED_PAYLOAD_LENGTH = 65603; // Maximum decoded payload length
 
 // Conversion utilities
 function base64Encode(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("base64");
+  // Check if we're in a browser environment
+  if (typeof globalThis !== 'undefined' && typeof globalThis.btoa === 'function') {
+    // Browser environment: use btoa with binary string conversion
+    return globalThis.btoa(String.fromCharCode(...bytes));
+  } else if (typeof Buffer !== 'undefined') {
+    // Node.js environment: use Buffer
+    return Buffer.from(bytes).toString("base64");
+  } else {
+    // Fallback: manual base64 encoding
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    let result = '';
+    let i = 0;
+    
+    while (i < bytes.length) {
+      const a = bytes[i++];
+      const b = i < bytes.length ? bytes[i++] : 0;
+      const c = i < bytes.length ? bytes[i++] : 0;
+      
+      const bitmap = (a << 16) | (b << 8) | c;
+      
+      result += chars.charAt((bitmap >> 18) & 63);
+      result += chars.charAt((bitmap >> 12) & 63);
+      result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+      result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+    }
+    
+    return result;
+  }
 }
 
 // Base64 validation regex - compiled once for efficiency
@@ -82,7 +109,66 @@ function base64Decode(str: string): Uint8Array {
     throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
   }
   
-  return new Uint8Array(Buffer.from(str, "base64"));
+  // Check if we're in a browser environment
+  if (typeof globalThis !== 'undefined' && typeof globalThis.atob === 'function') {
+    // Browser environment: use atob and convert to Uint8Array
+    try {
+      const binaryString = globalThis.atob(str);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    } catch (error) {
+      throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
+    }
+  } else if (typeof Buffer !== 'undefined') {
+    // Node.js environment: use Buffer
+    return new Uint8Array(Buffer.from(str, "base64"));
+  } else {
+    // Fallback: manual base64 decoding
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    const lookup = new Array(256).fill(-1);
+    
+    // Build lookup table
+    for (let i = 0; i < chars.length; i++) {
+      lookup[chars.charCodeAt(i)] = i;
+    }
+    lookup['='.charCodeAt(0)] = 0; // Padding character
+    
+    const len = str.length;
+    let bufferLength = Math.floor(len * 0.75);
+    if (str[len - 1] === '=') {
+      bufferLength--;
+      if (str[len - 2] === '=') {
+        bufferLength--;
+      }
+    }
+    
+    const bytes = new Uint8Array(bufferLength);
+    let p = 0;
+    
+    for (let i = 0; i < len; i += 4) {
+      const encoded1 = lookup[str.charCodeAt(i)];
+      const encoded2 = lookup[str.charCodeAt(i + 1)];
+      const encoded3 = lookup[str.charCodeAt(i + 2)];
+      const encoded4 = lookup[str.charCodeAt(i + 3)];
+      
+      if (encoded1 === -1 || encoded2 === -1 || encoded3 === -1 || encoded4 === -1) {
+        throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
+      }
+      
+      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+      if (p < bufferLength) {
+        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+      }
+      if (p < bufferLength) {
+        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+      }
+    }
+    
+    return bytes;
+  }
 }
 
 /**

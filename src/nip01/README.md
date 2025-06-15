@@ -162,6 +162,7 @@ The `RelayPool` class provides advanced multi-relay management with intelligent 
 
 ```typescript
 import { RelayPool } from 'snstr/nip01/relayPool';
+import { createEvent } from 'snstr';
 
 // Initialize with multiple relays
 const pool = new RelayPool([

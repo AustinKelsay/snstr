@@ -22,5 +22,11 @@ npm run test:nip01:relay    # Run all relay-related tests
 npm run test:nostr          # Run Nostr client tests
 npm run test:event          # Run event creation/validation tests
 npm run test:event:ordering # Run event ordering tests
-npm run test:nip01:relay:filter  # Run subscription filter tests
+
+# Run granular relay tests
+npm run test:nip01:relay:connection  # Run relay connection tests
+npm run test:nip01:relay:filter      # Run subscription filter tests
+npm run test:nip01:relay:reconnect   # Run relay reconnection tests
+npm run test:nip01:relay:pool        # Run relay pool tests
+npm run test:nip01:relay:websocket   # Run WebSocket implementation tests
 ```
