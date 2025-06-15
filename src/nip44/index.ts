@@ -66,14 +66,19 @@ function base64Encode(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64");
 }
 
+// Base64 validation regex - compiled once for efficiency
+// Base64 alphabet: A-Z, a-z, 0-9, +, / with optional padding (=) at the end
+// Enforce proper base64 structure:
+// - String must be non-empty (either 4-char groups OR padded ending)
+// - String length must be multiple of 4 (including padding)
+// - Padding characters '=' can only appear at the end, either as '=' or '=='
+// - No padding characters allowed in the middle of the string
+// - Empty strings are rejected by requiring at least one valid ending pattern
+const BASE64_VALIDATION_REGEX = /^(?:(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)$/;
+
 function base64Decode(str: string): Uint8Array {
   // Validate base64 alphabet before decoding to prevent silent acceptance of malformed strings
-  // Base64 alphabet: A-Z, a-z, 0-9, +, / with optional padding (=) at the end
-  // Enforce proper base64 structure:
-  // - String length must be multiple of 4 (including padding)
-  // - Padding characters '=' can only appear at the end, either as '=' or '=='
-  // - No padding characters allowed in the middle of the string
-  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(str)) {
+  if (!BASE64_VALIDATION_REGEX.test(str)) {
     throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
   }
   
