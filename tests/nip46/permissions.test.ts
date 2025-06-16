@@ -269,8 +269,9 @@ describe("NIP-46 Permission Handling", () => {
     expect(decryptResult).toBe(plaintext);
   }, 7000);
 
-  test("Bunker with NIP-04 encryption permissions (legacy support)", async () => {
-    // Create bunker with NIP-04 encryption permissions
+  test("Bunker with NIP-04 encryption permissions (deprecated - use NIP-44 instead)", async () => {
+    // Create bunker with NIP-04 encryption permissions  
+    // Note: NIP-04 is considered deprecated due to security concerns, prefer NIP-44
     bunker = new SimpleNIP46Bunker(
       [relayUrl],
       userKeypair.publicKey,
@@ -285,7 +286,7 @@ describe("NIP-46 Permission Handling", () => {
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
 
-    // Set default permissions for NIP-04 encryption
+    // Set default permissions for NIP-04 encryption (explicitly enabled for this legacy test)
     bunker.setDefaultPermissions(["nip04_encrypt", "nip04_decrypt"]);
 
     await bunker.start();
@@ -297,7 +298,7 @@ describe("NIP-46 Permission Handling", () => {
     // Create a test recipient
     const recipientKeys = await generateKeypair();
 
-    // Test NIP-04 encrypt
+    // Test NIP-04 encrypt (legacy support)
     const plaintext = "This is a secret message";
     const encryptResult = await client.nip04Encrypt(
       recipientKeys.publicKey,
@@ -308,7 +309,7 @@ describe("NIP-46 Permission Handling", () => {
     expect(encryptResult).toBeTruthy();
     expect(encryptResult).not.toBe(plaintext);
 
-    // Test NIP-04 decrypt
+    // Test NIP-04 decrypt (legacy support)
     const decryptResult = await client.nip04Decrypt(
       recipientKeys.publicKey,
       encryptResult,

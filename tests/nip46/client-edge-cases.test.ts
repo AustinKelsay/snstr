@@ -76,8 +76,8 @@ describe("NIP-46 Client Edge Cases", () => {
       "sign_event",
       "get_public_key",
       "ping",
-      "nip04_encrypt",
-      "nip04_decrypt",
+      "nip44_encrypt",
+      "nip44_decrypt",
     ]);
 
     await bunker.start();

@@ -78,8 +78,6 @@ describe("NIP-46 Core Functionality", () => {
       "ping",
       "nip44_encrypt",
       "nip44_decrypt",
-      "nip04_encrypt",
-      "nip04_decrypt",
     ]);
 
     await bunker.start();
@@ -226,9 +224,14 @@ describe("NIP-46 Core Functionality", () => {
       expect(decrypted).toBe(message);
     });
 
-    test("NIP-04 encrypt and decrypt (legacy support)", async () => {
+    test("NIP-04 encrypt and decrypt (legacy support - requires manual permission)", async () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
+
+      // Manually grant NIP-04 permissions for this test
+      const clientPubkey = (client as any).clientKeys.publicKey;
+      bunker.addClientPermission(clientPubkey, "nip04_encrypt");
+      bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
       const recipientKeys = await generateKeypair();
       const message = "Hello, NIP-04 encryption!";
@@ -254,9 +257,14 @@ describe("NIP-46 Core Functionality", () => {
       ).rejects.toThrow();
     });
 
-    test("NIP-04 encrypt with empty message", async () => {
+    test("NIP-04 encrypt with empty message (legacy support - requires manual permission)", async () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
+
+      // Manually grant NIP-04 permissions for this test
+      const clientPubkey = (client as any).clientKeys.publicKey;
+      bunker.addClientPermission(clientPubkey, "nip04_encrypt");
+      bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
       const recipientKeys = await generateKeypair();
       const message = "";
