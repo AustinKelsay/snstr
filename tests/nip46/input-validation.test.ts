@@ -232,7 +232,7 @@ describe("NIP-46 Input Validation Security", () => {
           kind: 1,
           content: "Hello",
           created_at: Math.floor(Date.now() / 1000),
-          tags: ["invalid", "tag"] as any
+          tags: ["invalid", "tag"] as unknown as string[][]
         })
       ).rejects.toThrow();
     });

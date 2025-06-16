@@ -35,40 +35,42 @@ export class NIP46Validator {
   /**
    * Validate event structure for signing requests
    */
-  private static validateEventStructure(event: any): boolean {
+  private static validateEventStructure(event: unknown): boolean {
     if (!event || typeof event !== 'object') {
       return false;
     }
 
+    const eventObj = event as Record<string, unknown>;
+
     // Required fields for event signing
     const requiredFields = ['kind', 'content', 'created_at'];
     for (const field of requiredFields) {
-      if (!(field in event)) {
+      if (!(field in eventObj)) {
         return false;
       }
     }
 
     // Validate field types
-    if (typeof event.kind !== 'number' || 
-        typeof event.content !== 'string' ||
-        typeof event.created_at !== 'number') {
+    if (typeof eventObj.kind !== 'number' || 
+        typeof eventObj.content !== 'string' ||
+        typeof eventObj.created_at !== 'number') {
       return false;
     }
 
     // Validate kind range (0-65535)
-    if (event.kind < 0 || event.kind > 65535) {
+    if (eventObj.kind < 0 || eventObj.kind > 65535) {
       return false;
     }
 
     // Validate timestamp (reasonable range)
     const now = Math.floor(Date.now() / 1000);
     const maxSkew = 3600; // 1 hour tolerance
-    if (Math.abs(now - event.created_at) > maxSkew) {
+    if (Math.abs(now - eventObj.created_at) > maxSkew) {
       return false;
     }
 
     // Validate tags if present
-    if (event.tags && !this.validateTags(event.tags)) {
+    if (eventObj.tags && !this.validateTags(eventObj.tags)) {
       return false;
     }
 
@@ -78,7 +80,7 @@ export class NIP46Validator {
   /**
    * Validate event tags structure
    */
-  private static validateTags(tags: any): boolean {
+  private static validateTags(tags: unknown): boolean {
     if (!Array.isArray(tags)) {
       return false;
     }
@@ -374,7 +376,7 @@ export class SecureErrorHandler {
   /**
    * Log security events without exposing sensitive data
    */
-  static logSecurityEvent(event: string, details: Record<string, any>, sensitive: string[] = []): void {
+  static logSecurityEvent(event: string, details: Record<string, unknown>, sensitive: string[] = []): void {
     const sanitizedDetails = { ...details };
     
     // Remove or mask sensitive fields
@@ -386,4 +388,4 @@ export class SecureErrorHandler {
 
     console.warn(`[SECURITY] ${event}:`, sanitizedDetails);
   }
-} 
+}

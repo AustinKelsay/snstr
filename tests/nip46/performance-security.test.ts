@@ -137,7 +137,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
       if (successRate < 0.5) {
         console.log(`Low success rate: ${successful.length}/${requestCount} succeeded`);
         if (failed.length > 0) {
-          console.log("Sample failure:", (failed[0] as any).reason?.message || "Unknown error");
+          console.log("Sample failure:", (failed[0] as { reason?: { message: string } }).reason?.message || "Unknown error");
         }
       }
     });
@@ -390,7 +390,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
           const failed = results.filter(r => r.status === "rejected");
           console.log(`${successful.length}/${clients.length} clients succeeded`);
           if (failed.length > 0) {
-            console.log("Sample failure:", (failed[0] as any).reason?.message || "Unknown error");
+            console.log("Sample failure:", (failed[0] as { reason?: { message: string } }).reason?.message || "Unknown error");
           }
         }
         
