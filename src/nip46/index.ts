@@ -50,6 +50,7 @@ export {
   createErrorResponse,
 } from "./utils/request-response";
 export { buildConnectionString, parseConnectionString } from "./utils/connection";
+export { NIP46Validator, SecureErrorHandler } from "./utils/validator";
 
 // Re-export utility functions from crypto to make the API more convenient
 export { generateKeypair } from "../utils/crypto";

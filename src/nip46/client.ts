@@ -2,8 +2,8 @@ import { Nostr } from "../nip01/nostr";
 import { generateKeypair } from "../utils/crypto";
 import { getUnixTime } from "../utils/time";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
-import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
+import { createSignedEvent } from "../nip01/event";
 import { parseConnectionString } from "./utils/connection";
 import {
   NIP46Method,
@@ -57,10 +57,17 @@ export class NostrRemoteSignerClient {
       ...options,
     };
     this.nostr = new Nostr(this.options.relays);
-    this.preferredEncryption =
-      this.options.preferredEncryption || DEFAULT_ENCRYPTION;
+    this.preferredEncryption = "nip44";
     this.authWindow = null;
     this.debug = options.debug || false;
+
+    // Warn if NIP-04 was requested
+    if (options.preferredEncryption === "nip04") {
+      console.warn(
+        "[NIP46 CLIENT] WARNING: NIP-04 encryption is deprecated due to security vulnerabilities. " +
+        "Using NIP-44 instead. See: https://github.com/nostr-protocol/nips/issues/1095"
+      );
+    }
   }
 
   /**
@@ -553,119 +560,65 @@ export class NostrRemoteSignerClient {
    * Encrypt and send a request to the signer
    */
   private async sendEncryptedRequest(request: NIP46Request): Promise<void> {
-    if (this.debug)
-      console.log("[NIP46 CLIENT] Encrypting request:", request.id);
-
     if (!this.clientKeypair || !this.signerPubkey) {
-      throw new NIP46ConnectionError("Client not initialized");
+      throw new NIP46ConnectionError("Not connected to signer");
     }
 
-    // Encrypt the request content
+    const payload = JSON.stringify(request);
     let encryptedContent: string;
-    try {
-      const jsonStr = JSON.stringify(request);
-      if (this.debug) {
-        console.log("[NIP46 CLIENT] Request JSON:", jsonStr);
-        console.log(
-          "[NIP46 CLIENT] Using encryption method:",
-          this.preferredEncryption,
-        );
-      }
 
-      if (this.preferredEncryption === "nip44") {
-        try {
-          if (this.debug)
-            console.log("[NIP46 CLIENT] Attempting NIP-44 encryption");
-          encryptedContent = encryptNIP44(
-            jsonStr,
-            this.clientKeypair.privateKey,
-            this.signerPubkey,
-          );
-          if (this.debug)
-            console.log("[NIP46 CLIENT] NIP-44 encryption successful");
-        } catch (e) {
-          // Fall back to NIP-04
-          if (this.debug)
-            console.log(
-              "[NIP46 CLIENT] NIP-44 encryption failed, falling back to NIP-04",
-            );
-          encryptedContent = encryptNIP04(
-            this.clientKeypair.privateKey,
-            this.signerPubkey,
-            jsonStr,
-          );
-          this.preferredEncryption = "nip04";
-          if (this.debug)
-            console.log("[NIP46 CLIENT] NIP-04 fallback successful");
-        }
-      } else {
-        try {
-          if (this.debug)
-            console.log("[NIP46 CLIENT] Attempting NIP-04 encryption");
-          encryptedContent = encryptNIP04(
-            this.clientKeypair.privateKey,
-            this.signerPubkey,
-            jsonStr,
-          );
-          if (this.debug)
-            console.log("[NIP46 CLIENT] NIP-04 encryption successful");
-        } catch (e) {
-          // Fall back to NIP-44
-          if (this.debug)
-            console.log(
-              "[NIP46 CLIENT] NIP-04 encryption failed, falling back to NIP-44",
-            );
-          encryptedContent = encryptNIP44(
-            jsonStr,
-            this.clientKeypair.privateKey,
-            this.signerPubkey,
-          );
-          this.preferredEncryption = "nip44";
-          if (this.debug)
-            console.log("[NIP46 CLIENT] NIP-44 fallback successful");
-        }
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error("[NIP46 CLIENT] Encryption failed:", errorMessage);
-      throw new NIP46EncryptionError(
-        `Failed to encrypt request: ${errorMessage}`,
+    if (this.debug) {
+      console.log(
+        "[NIP46 CLIENT] Encrypting request with method:",
+        this.preferredEncryption,
       );
     }
 
-    // Create and publish the event
+    // Use NIP-44 encryption only for security
     try {
-      const event = {
-        kind: 24133,
-        pubkey: this.clientKeypair.publicKey,
-        created_at: getUnixTime(),
-        tags: [["p", this.signerPubkey]],
-        content: encryptedContent,
-        id: "",
-        sig: "",
-      };
+      encryptedContent = encryptNIP44(
+        payload,
+        this.clientKeypair.privateKey,
+        this.signerPubkey,
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      throw new NIP46EncryptionError(`NIP-44 encryption failed: ${errorMessage}`);
+    }
 
-      if (this.debug) {
-        console.log("[NIP46 CLIENT] Publishing event:", {
+    // Create the encrypted event
+    const event: NostrEvent = {
+      kind: 24133,
+      pubkey: this.clientKeypair.publicKey,
+      created_at: getUnixTime(),
+      tags: [["p", this.signerPubkey]],
+      content: encryptedContent,
+      id: "",
+      sig: "",
+    };
+
+    // Sign and publish the event
+    if (this.debug) {
+      console.log(
+        "[NIP46 CLIENT] Publishing encrypted request:",
+        JSON.stringify({
           kind: event.kind,
           pubkey: event.pubkey,
           created_at: event.created_at,
           tags: event.tags,
-          content_length: event.content.length,
-        });
-      }
-
-      await this.nostr.publishEvent(event);
-      if (this.debug)
-        console.log("[NIP46 CLIENT] Event published successfully");
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error("[NIP46 CLIENT] Failed to publish event:", errorMessage);
-      throw new NIP46ConnectionError(
-        `Failed to publish request: ${errorMessage}`,
+          hasContent: !!event.content,
+        }),
       );
+    }
+
+    const signedEvent = await createSignedEvent(
+      event,
+      this.clientKeypair.privateKey,
+    );
+    await this.nostr.publishEvent(signedEvent);
+
+    if (this.debug) {
+      console.log("[NIP46 CLIENT] Request published successfully");
     }
   }
 
@@ -786,7 +739,7 @@ export class NostrRemoteSignerClient {
   }
 
   /**
-   * Decrypt content from the signer
+   * Decrypt content from the signer using NIP-44 only
    * @private
    */
   private async decryptContent(
@@ -797,75 +750,29 @@ export class NostrRemoteSignerClient {
       return {
         success: false,
         error: "Client keypair not initialized",
-        method: this.preferredEncryption,
+        method: "nip44",
       };
     }
 
-    // Try preferred method first
+    // Use NIP-44 encryption only for security
     try {
-      if (this.preferredEncryption === "nip44") {
-        const decrypted = decryptNIP44(
-          content,
-          this.clientKeypair.privateKey,
-          authorPubkey,
-        );
-        return {
-          success: true,
-          data: decrypted,
-          method: "nip44",
-        };
-      } else {
-        const decrypted = decryptNIP04(
-          this.clientKeypair.privateKey,
-          authorPubkey,
-          content,
-        );
-        return {
-          success: true,
-          data: decrypted,
-          method: "nip04",
-        };
-      }
-    } catch (error1) {
-      // Try the other method as fallback
-      try {
-        if (this.preferredEncryption === "nip44") {
-          const decrypted = decryptNIP04(
-            this.clientKeypair.privateKey,
-            authorPubkey,
-            content,
-          );
-          this.preferredEncryption = "nip04"; // Switch preference for future messages
-          return {
-            success: true,
-            data: decrypted,
-            method: "nip04",
-          };
-        } else {
-          const decrypted = decryptNIP44(
-            content,
-            this.clientKeypair.privateKey,
-            authorPubkey,
-          );
-          this.preferredEncryption = "nip44"; // Switch preference for future messages
-          return {
-            success: true,
-            data: decrypted,
-            method: "nip44",
-          };
-        }
-      } catch (error2) {
-        // Both methods failed
-        const error1Message =
-          error1 instanceof Error ? error1.message : String(error1);
-        const error2Message =
-          error2 instanceof Error ? error2.message : String(error2);
-        return {
-          success: false,
-          error: `Decryption failed: ${error1Message}. Fallback also failed: ${error2Message}`,
-          method: this.preferredEncryption,
-        };
-      }
+      const decrypted = decryptNIP44(
+        content,
+        this.clientKeypair.privateKey,
+        authorPubkey,
+      );
+      return {
+        success: true,
+        data: decrypted,
+        method: "nip44",
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return {
+        success: false,
+        error: `NIP-44 decryption failed: ${errorMessage}. NIP-04 fallback disabled for security.`,
+        method: "nip44",
+      };
     }
   }
 

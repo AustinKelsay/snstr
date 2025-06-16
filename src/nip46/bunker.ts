@@ -1,6 +1,5 @@
 import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
-import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
@@ -39,9 +38,18 @@ export class NostrRemoteSignerBunker {
     this.connectedClients = new Map();
     this.pendingAuthChallenges = new Map();
     this.nostr = new Nostr(options.relays || []);
-    this.preferredEncryption = options.preferredEncryption || "nip44";
+    // Force NIP-44 encryption for security
+    this.preferredEncryption = "nip44";
     this.subId = null;
     this.debug = options.debug || false;
+
+    // Warn if NIP-04 was requested
+    if (options.preferredEncryption === "nip04") {
+      console.warn(
+        "[NIP46 BUNKER] WARNING: NIP-04 encryption is deprecated due to security vulnerabilities. " +
+        "Using NIP-44 instead. See: https://github.com/nostr-protocol/nips/issues/1095"
+      );
+    }
 
     // Initialize keypairs with empty private keys
     this.userKeypair = {
@@ -583,18 +591,20 @@ export class NostrRemoteSignerBunker {
 
       switch (request.method) {
         case NIP46Method.NIP04_ENCRYPT:
-          result = encryptNIP04(
+          // NIP-04 is deprecated for security reasons, redirecting to NIP-44
+          result = encryptNIP44(
+            content,
             this.userKeypair.privateKey,
             thirdPartyPubkey,
-            content,
           );
           break;
 
         case NIP46Method.NIP04_DECRYPT:
-          result = decryptNIP04(
+          // NIP-04 is deprecated for security reasons, redirecting to NIP-44
+          result = decryptNIP44(
+            content,
             this.userKeypair.privateKey,
             thirdPartyPubkey,
-            content,
           );
           break;
 
@@ -666,60 +676,13 @@ export class NostrRemoteSignerBunker {
     }
 
     try {
-      // Determine which encryption method to use for the client
-      let clientEncryption: "nip04" | "nip44" = this.preferredEncryption;
-      const client = this.connectedClients.get(clientPubkey);
-
-      if (client && client.preferredEncryption) {
-        clientEncryption = client.preferredEncryption;
-      }
-
-      // Encrypt the response
-      let encryptedContent: string;
+      // Encrypt the response using NIP-44 only
       const jsonResponse = JSON.stringify(response);
-
-      try {
-        if (clientEncryption === "nip44") {
-          encryptedContent = encryptNIP44(
-            jsonResponse,
-            this.signerKeypair.privateKey,
-            clientPubkey,
-          );
-        } else {
-          encryptedContent = encryptNIP04(
-            this.signerKeypair.privateKey,
-            clientPubkey,
-            jsonResponse,
-          );
-        }
-      } catch (error) {
-        // Fallback to the other encryption method
-        if (clientEncryption === "nip44") {
-          encryptedContent = encryptNIP04(
-            this.signerKeypair.privateKey,
-            clientPubkey,
-            jsonResponse,
-          );
-
-          // Update client preference
-          if (client) {
-            client.preferredEncryption = "nip04";
-            this.connectedClients.set(clientPubkey, client);
-          }
-        } else {
-          encryptedContent = encryptNIP44(
-            jsonResponse,
-            this.signerKeypair.privateKey,
-            clientPubkey,
-          );
-
-          // Update client preference
-          if (client) {
-            client.preferredEncryption = "nip44";
-            this.connectedClients.set(clientPubkey, client);
-          }
-        }
-      }
+      const encryptedContent = encryptNIP44(
+        jsonResponse,
+        this.signerKeypair.privateKey,
+        clientPubkey,
+      );
 
       // Create and publish the response event
       await this.nostr.publishEvent({
@@ -809,7 +772,7 @@ export class NostrRemoteSignerBunker {
   }
 
   /**
-   * Decrypt content using both NIP-04 and NIP-44
+   * Decrypt content using NIP-44 only for security
    * @private
    */
   private async decryptContent(
@@ -820,70 +783,31 @@ export class NostrRemoteSignerBunker {
       return {
         success: false,
         error: "Signer private key not set",
-        method: this.preferredEncryption,
+        method: "nip44",
       };
     }
 
-    // Try preferred method first
+    // Use NIP-44 encryption only for security
     try {
-      if (this.preferredEncryption === "nip44") {
-        const decrypted = decryptNIP44(
-          content,
-          this.signerKeypair.privateKey,
-          authorPubkey,
-        );
-        return {
-          success: true,
-          data: decrypted,
-          method: "nip44",
-        };
-      } else {
-        const decrypted = decryptNIP04(
-          this.signerKeypair.privateKey,
-          authorPubkey,
-          content,
-        );
-        return {
-          success: true,
-          data: decrypted,
-          method: "nip04",
-        };
-      }
+      const decrypted = decryptNIP44(
+        content,
+        this.signerKeypair.privateKey,
+        authorPubkey,
+      );
+      return {
+        success: true,
+        data: decrypted,
+        method: "nip44",
+      };
     } catch (error) {
-      // Try fallback method
-      try {
-        if (this.preferredEncryption === "nip44") {
-          const decrypted = decryptNIP04(
-            this.signerKeypair.privateKey,
-            authorPubkey,
-            content,
-          );
-          return {
-            success: true,
-            data: decrypted,
-            method: "nip04",
-          };
-        } else {
-          const decrypted = decryptNIP44(
-            content,
-            this.signerKeypair.privateKey,
-            authorPubkey,
-          );
-          return {
-            success: true,
-            data: decrypted,
-            method: "nip44",
-          };
-        }
-      } catch (fallbackError) {
-        if (this.debug)
-          console.log("[NIP46 BUNKER] Both decryption methods failed");
-        return {
-          success: false,
-          error: "Failed to decrypt content with both NIP-04 and NIP-44",
-          method: this.preferredEncryption,
-        };
-      }
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (this.debug)
+        console.log("[NIP46 BUNKER] NIP-44 decryption failed:", errorMessage);
+      return {
+        success: false,
+        error: `NIP-44 decryption failed: ${errorMessage}. NIP-04 fallback disabled for security.`,
+        method: "nip44",
+      };
     }
   }
 
