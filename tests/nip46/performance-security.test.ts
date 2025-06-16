@@ -319,8 +319,8 @@ describe("NIP-46 Performance & DoS Protection", () => {
     test("handles concurrent connections from multiple clients", async () => {
       const connectionString = bunker.getConnectionString();
       
-      // Single client test for speed
-      const clients = Array(1).fill(null).map(() => 
+      // Multiple clients test for concurrency
+      const clients = Array(3).fill(null).map(() => 
         new SimpleNIP46Client([relay.url], { timeout: 3000 }) // Reduced timeout
       );
 
@@ -339,7 +339,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
         const successful = results.filter(r => r.status === "fulfilled");
         const successRate = successful.length / clients.length;
         
-        expect(successRate).toBeGreaterThanOrEqual(0.5);
+        expect(successRate).toBeGreaterThanOrEqual(0.6); // At least 2 out of 3 should succeed
         
       } finally {
         // Clean up all clients
