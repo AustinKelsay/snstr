@@ -2,9 +2,11 @@
  * Minimal NIP-46 Implementation from Scratch
  * 
  * This example demonstrates a basic NIP-46 remote signing implementation 
- * using NIP-44 encryption for secure communication between client and bunker.
+ * supporting both NIP-44 (preferred) and NIP-04 (legacy) encryption methods
+ * for secure communication between client and bunker.
  * 
- * Previously used NIP-04, but migrated to NIP-44 for better security.
+ * NIP-44 is preferred for new implementations due to better security,
+ * but NIP-04 is maintained for backward compatibility with existing clients.
  */
 import {
   generateKeypair,
@@ -12,6 +14,8 @@ import {
   verifySignature,
   encryptNIP44,
   decryptNIP44,
+  encryptNIP04,
+  decryptNIP04,
   NostrEvent,
   EventTemplate,
   NIP46Request,
@@ -122,6 +126,22 @@ class MinimalNIP46Client {
     return await this.sendRequest("ping", []);
   }
 
+  async nip44Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
+    return await this.sendRequest("nip44_encrypt", [thirdPartyPubkey, plaintext]);
+  }
+
+  async nip44Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
+    return await this.sendRequest("nip44_decrypt", [thirdPartyPubkey, ciphertext]);
+  }
+
+  async nip04Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
+    return await this.sendRequest("nip04_encrypt", [thirdPartyPubkey, plaintext]);
+  }
+
+  async nip04Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
+    return await this.sendRequest("nip04_decrypt", [thirdPartyPubkey, ciphertext]);
+  }
+
   private async waitForOpen(): Promise<void> {
     if (this.socket.readyState === WebSocket.OPEN) return;
 
@@ -156,6 +176,12 @@ class MinimalNIP46Client {
           break;
         case "nip44_decrypt":
           methodEnum = NIP46Method.NIP44_DECRYPT;
+          break;
+        case "nip04_encrypt":
+          methodEnum = NIP46Method.NIP04_ENCRYPT;
+          break;
+        case "nip04_decrypt":
+          methodEnum = NIP46Method.NIP04_DECRYPT;
           break;
         default:
           reject(new Error(`Unknown NIP46 method: ${method}`));
@@ -437,6 +463,58 @@ class MinimalNIP46Bunker {
             result = JSON.stringify(signedEvent);
           } catch (signError) {
             error = `Failed to sign event: ${signError instanceof Error ? signError.message : String(signError)}`;
+          }
+          break;
+
+        case "nip44_encrypt":
+          if (!this.connectedClients.has(clientPubkey)) {
+            error = "Not connected";
+            break;
+          }
+          try {
+            const [thirdPartyPubkey, plaintext] = params;
+            result = encryptNIP44(plaintext, this.userKeys.privateKey, thirdPartyPubkey);
+          } catch (encryptError) {
+            error = `NIP-44 encryption failed: ${encryptError instanceof Error ? encryptError.message : String(encryptError)}`;
+          }
+          break;
+
+        case "nip44_decrypt":
+          if (!this.connectedClients.has(clientPubkey)) {
+            error = "Not connected";
+            break;
+          }
+          try {
+            const [thirdPartyPubkey, ciphertext] = params;
+            result = decryptNIP44(ciphertext, this.userKeys.privateKey, thirdPartyPubkey);
+          } catch (decryptError) {
+            error = `NIP-44 decryption failed: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`;
+          }
+          break;
+
+        case "nip04_encrypt":
+          if (!this.connectedClients.has(clientPubkey)) {
+            error = "Not connected";
+            break;
+          }
+          try {
+            const [thirdPartyPubkey, plaintext] = params;
+            result = encryptNIP04(this.userKeys.privateKey, thirdPartyPubkey, plaintext);
+          } catch (encryptError) {
+            error = `NIP-04 encryption failed: ${encryptError instanceof Error ? encryptError.message : String(encryptError)}`;
+          }
+          break;
+
+        case "nip04_decrypt":
+          if (!this.connectedClients.has(clientPubkey)) {
+            error = "Not connected";
+            break;
+          }
+          try {
+            const [thirdPartyPubkey, ciphertext] = params;
+            result = decryptNIP04(this.userKeys.privateKey, thirdPartyPubkey, ciphertext);
+          } catch (decryptError) {
+            error = `NIP-04 decryption failed: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`;
           }
           break;
 

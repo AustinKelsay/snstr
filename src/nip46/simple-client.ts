@@ -199,46 +199,64 @@ export class SimpleNIP46Client {
   }
 
   /**
-   * Encrypt a message using NIP-44
-   * @param thirdPartyPubkey - Public key of the recipient
-   * @param plaintext - Message to encrypt
-   * @returns Encrypted message
+   * Encrypt a message using NIP-44 (preferred)
    */
-  async nip44Encrypt(
-    thirdPartyPubkey: string,
-    plaintext: string,
-  ): Promise<string> {
+  async nip44Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP44_ENCRYPT, [
       thirdPartyPubkey,
       plaintext,
     ]);
 
-    // Handle error response
     if (response.error) {
-      throw new NIP46EncryptionError(response.error);
+      throw new NIP46EncryptionError(`NIP-44 encryption failed: ${response.error}`);
     }
 
     return response.result!;
   }
 
   /**
-   * Decrypt a message using NIP-44
-   * @param thirdPartyPubkey - Public key of the sender
-   * @param ciphertext - Message to decrypt
-   * @returns Decrypted message
+   * Decrypt a message using NIP-44 (preferred)
    */
-  async nip44Decrypt(
-    thirdPartyPubkey: string,
-    ciphertext: string,
-  ): Promise<string> {
+  async nip44Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP44_DECRYPT, [
       thirdPartyPubkey,
       ciphertext,
     ]);
 
-    // Handle error response
     if (response.error) {
-      throw new NIP46DecryptionError(response.error);
+      throw new NIP46DecryptionError(`NIP-44 decryption failed: ${response.error}`);
+    }
+
+    return response.result!;
+  }
+
+  /**
+   * Encrypt a message using NIP-04 (legacy support)
+   */
+  async nip04Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
+    const response = await this.sendRequest(NIP46Method.NIP04_ENCRYPT, [
+      thirdPartyPubkey,
+      plaintext,
+    ]);
+
+    if (response.error) {
+      throw new NIP46EncryptionError(`NIP-04 encryption failed: ${response.error}`);
+    }
+
+    return response.result!;
+  }
+
+  /**
+   * Decrypt a message using NIP-04 (legacy support)
+   */
+  async nip04Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
+    const response = await this.sendRequest(NIP46Method.NIP04_DECRYPT, [
+      thirdPartyPubkey,
+      ciphertext,
+    ]);
+
+    if (response.error) {
+      throw new NIP46DecryptionError(`NIP-04 decryption failed: ${response.error}`);
     }
 
     return response.result!;

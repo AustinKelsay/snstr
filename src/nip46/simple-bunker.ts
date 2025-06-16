@@ -1,6 +1,7 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
+import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { getUnixTime } from "../utils/time";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 import {
@@ -272,11 +273,19 @@ export class SimpleNIP46Bunker {
             break;
 
           case NIP46Method.NIP44_ENCRYPT:
-            response = await this.handleNIP44Encrypt(request, clientPubkey);
+            response = await this.handleNIP44Encrypt(request);
             break;
 
           case NIP46Method.NIP44_DECRYPT:
-            response = await this.handleNIP44Decrypt(request, clientPubkey);
+            response = await this.handleNIP44Decrypt(request);
+            break;
+
+          case NIP46Method.NIP04_ENCRYPT:
+            response = await this.handleNIP04Encrypt(request);
+            break;
+
+          case NIP46Method.NIP04_DECRYPT:
+            response = await this.handleNIP04Decrypt(request);
             break;
 
           default:
@@ -457,119 +466,122 @@ export class SimpleNIP46Bunker {
   }
 
   /**
-   * Handle a nip44_encrypt request
+   * Handle NIP-44 encryption request (preferred)
    */
-  private async handleNIP44Encrypt(
-    request: NIP46Request,
-    clientPubkey: string,
-  ): Promise<NIP46Response> {
-    // Check authorization
-    if (!this.isClientAuthorized(clientPubkey)) {
-      return createErrorResponse(request.id, "Unauthorized");
-    }
-
-    // Check if client has encryption permission
-    const client = this.clients.get(clientPubkey);
-    if (!client || !client.permissions.has("nip44_encrypt")) {
-      return createErrorResponse(
-        request.id,
-        "Not authorized for NIP-44 encryption",
-      );
-    }
-
-    // Check if we have the user's private key
-    if (!this.userKeys.privateKey) {
-      return createErrorResponse(request.id, "User private key not set");
-    }
-
-    // Check parameters
-    if (request.params.length < 2) {
-      return createErrorResponse(request.id, "Missing parameters");
-    }
-
-    const [recipient, plaintext] = request.params;
-
+  private async handleNIP44Encrypt(request: NIP46Request): Promise<NIP46Response> {
     try {
-      // Encrypt the message using NIP-44
-      let encrypted: string;
-      try {
-        encrypted = encryptNIP44(plaintext, this.userKeys.privateKey, recipient);
-      } catch (encryptError) {
-        const encryptErrorMessage =
-          encryptError instanceof Error ? encryptError.message : String(encryptError);
-        this.logger.error(`NIP-44 encryption failed: ${encryptErrorMessage}`);
-        return createErrorResponse(
-          request.id,
-          `NIP-44 encryption failed: ${encryptErrorMessage}`,
-        );
+      const [thirdPartyPubkey, plaintext] = request.params;
+      
+      if (!thirdPartyPubkey || !plaintext) {
+        return {
+          id: request.id,
+          error: "Missing required parameters for NIP-44 encryption",
+        };
       }
 
-      this.logger.debug(`NIP-44 encryption successful`);
-
-      return createSuccessResponse(request.id, encrypted);
+      const encrypted = encryptNIP44(plaintext, this.userKeys.privateKey, thirdPartyPubkey);
+      
+      return {
+        id: request.id,
+        result: encrypted,
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      return createErrorResponse(
-        request.id,
-        `NIP-44 encryption failed: ${errorMessage}`,
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error("NIP-44 encryption failed:", errorMessage);
+      return {
+        id: request.id,
+        error: `NIP-44 encryption failed: ${errorMessage}`,
+      };
     }
   }
 
   /**
-   * Handle a nip44_decrypt request
+   * Handle NIP-44 decryption request (preferred)
    */
-  private async handleNIP44Decrypt(
-    request: NIP46Request,
-    clientPubkey: string,
-  ): Promise<NIP46Response> {
-    // Check authorization
-    if (!this.isClientAuthorized(clientPubkey)) {
-      return createErrorResponse(request.id, "Unauthorized");
-    }
-
-    // Check if client has decryption permission
-    const client = this.clients.get(clientPubkey);
-    if (!client || !client.permissions.has("nip44_decrypt")) {
-      return createErrorResponse(
-        request.id,
-        "Not authorized for NIP-44 decryption",
-      );
-    }
-
-    // Check parameters
-    if (request.params.length < 2) {
-      return createErrorResponse(request.id, "Missing parameters");
-    }
-
-    const [sender, ciphertext] = request.params;
-
+  private async handleNIP44Decrypt(request: NIP46Request): Promise<NIP46Response> {
     try {
-      // Decrypt the message using NIP-44
-      let decrypted: string;
-      try {
-        decrypted = decryptNIP44(ciphertext, this.userKeys.privateKey, sender);
-      } catch (decryptError) {
-        const decryptErrorMessage =
-          decryptError instanceof Error ? decryptError.message : String(decryptError);
-        this.logger.error(`NIP-44 decryption failed: ${decryptErrorMessage}`);
-        return createErrorResponse(
-          request.id,
-          `NIP-44 decryption failed: ${decryptErrorMessage}`,
-        );
+      const [thirdPartyPubkey, ciphertext] = request.params;
+      
+      if (!thirdPartyPubkey || !ciphertext) {
+        return {
+          id: request.id,
+          error: "Missing required parameters for NIP-44 decryption",
+        };
       }
 
-      this.logger.debug(`NIP-44 decryption successful`);
-
-      return createSuccessResponse(request.id, decrypted);
+      const decrypted = decryptNIP44(ciphertext, this.userKeys.privateKey, thirdPartyPubkey);
+      
+      return {
+        id: request.id,
+        result: decrypted,
+      };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      return createErrorResponse(
-        request.id,
-        `NIP-44 decryption failed: ${errorMessage}`,
-      );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error("NIP-44 decryption failed:", errorMessage);
+      return {
+        id: request.id,
+        error: `NIP-44 decryption failed: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Handle NIP-04 encryption request (legacy support)
+   */
+  private async handleNIP04Encrypt(request: NIP46Request): Promise<NIP46Response> {
+    try {
+      const [thirdPartyPubkey, plaintext] = request.params;
+      
+      if (!thirdPartyPubkey || plaintext === undefined) {
+        return {
+          id: request.id,
+          error: "Missing required parameters for NIP-04 encryption",
+        };
+      }
+
+      const encrypted = encryptNIP04(this.userKeys.privateKey, thirdPartyPubkey, plaintext);
+      
+      return {
+        id: request.id,
+        result: encrypted,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error("NIP-04 encryption failed:", errorMessage);
+      return {
+        id: request.id,
+        error: `NIP-04 encryption failed: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Handle NIP-04 decryption request (legacy support)
+   */
+  private async handleNIP04Decrypt(request: NIP46Request): Promise<NIP46Response> {
+    try {
+      const [thirdPartyPubkey, ciphertext] = request.params;
+      
+      if (!thirdPartyPubkey || ciphertext === undefined) {
+        return {
+          id: request.id,
+          error: "Missing required parameters for NIP-04 decryption",
+        };
+      }
+
+      const decrypted = decryptNIP04(this.userKeys.privateKey, thirdPartyPubkey, ciphertext);
+      
+      return {
+        id: request.id,
+        result: decrypted,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error("NIP-04 decryption failed:", errorMessage);
+      return {
+        id: request.id,
+        error: `NIP-04 decryption failed: ${errorMessage}`,
+      };
     }
   }
 

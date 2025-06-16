@@ -222,8 +222,8 @@ describe("NIP-46 Permission Handling", () => {
     expect(validDM).toBe(true);
   }, 7000);
 
-  test("Bunker with encryption permissions allows encryption", async () => {
-    // Create bunker with encryption permissions
+  test("Bunker with NIP-44 encryption permissions (preferred)", async () => {
+    // Create bunker with NIP-44 encryption permissions
     bunker = new SimpleNIP46Bunker(
       [relayUrl],
       userKeypair.publicKey,
@@ -238,7 +238,7 @@ describe("NIP-46 Permission Handling", () => {
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
 
-    // Set default permissions for encryption
+    // Set default permissions for NIP-44 encryption
     bunker.setDefaultPermissions(["nip44_encrypt", "nip44_decrypt"]);
 
     await bunker.start();
@@ -262,14 +262,57 @@ describe("NIP-46 Permission Handling", () => {
     expect(encryptResult).not.toBe(plaintext);
 
     // Test NIP-44 decrypt
-    try {
-      const decryptResult = await client.nip44Decrypt(
-        recipientKeys.publicKey,
-        encryptResult,
-      );
-      expect(decryptResult).toBe(plaintext);
-    } catch (error) {
-      // If decrypt is not implemented, this test can be skipped
-    }
+    const decryptResult = await client.nip44Decrypt(
+      recipientKeys.publicKey,
+      encryptResult,
+    );
+    expect(decryptResult).toBe(plaintext);
+  }, 7000);
+
+  test("Bunker with NIP-04 encryption permissions (legacy support)", async () => {
+    // Create bunker with NIP-04 encryption permissions
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeypair.publicKey,
+      signerKeypair.publicKey,
+      {
+        debug: true,
+        logLevel: LogLevel.DEBUG,
+      },
+    );
+
+    // Set private keys
+    bunker.setUserPrivateKey(userKeypair.privateKey);
+    bunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+    // Set default permissions for NIP-04 encryption
+    bunker.setDefaultPermissions(["nip04_encrypt", "nip04_decrypt"]);
+
+    await bunker.start();
+
+    // Connect client
+    const connectionString = bunker.getConnectionString();
+    await client.connect(connectionString);
+
+    // Create a test recipient
+    const recipientKeys = await generateKeypair();
+
+    // Test NIP-04 encrypt
+    const plaintext = "This is a secret message";
+    const encryptResult = await client.nip04Encrypt(
+      recipientKeys.publicKey,
+      plaintext,
+    );
+
+    // Verify encryption worked
+    expect(encryptResult).toBeTruthy();
+    expect(encryptResult).not.toBe(plaintext);
+
+    // Test NIP-04 decrypt
+    const decryptResult = await client.nip04Decrypt(
+      recipientKeys.publicKey,
+      encryptResult,
+    );
+    expect(decryptResult).toBe(plaintext);
   }, 7000);
 });

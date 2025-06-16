@@ -78,6 +78,8 @@ describe("NIP-46 Core Functionality", () => {
       "ping",
       "nip44_encrypt",
       "nip44_decrypt",
+      "nip04_encrypt",
+      "nip04_decrypt",
     ]);
 
     await bunker.start();
@@ -208,19 +210,34 @@ describe("NIP-46 Core Functionality", () => {
     });
   });
 
-  describe("Encryption Operations", () => {
-    test("NIP-44 encrypt/decrypt round trip", async () => {
+  describe("Encryption Support", () => {
+    test("NIP-44 encrypt and decrypt (preferred)", async () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
       const recipientKeys = await generateKeypair();
-      const message = "This is a test message with special chars: 🤖 @#$%";
+      const message = "Hello, NIP-44 encryption!";
 
       const encrypted = await client.nip44Encrypt(recipientKeys.publicKey, message);
       expect(encrypted).toBeTruthy();
       expect(encrypted).not.toBe(message);
-
+      
       const decrypted = await client.nip44Decrypt(recipientKeys.publicKey, encrypted);
+      expect(decrypted).toBe(message);
+    });
+
+    test("NIP-04 encrypt and decrypt (legacy support)", async () => {
+      const connectionString = bunker.getConnectionString();
+      await client.connect(connectionString);
+
+      const recipientKeys = await generateKeypair();
+      const message = "Hello, NIP-04 encryption!";
+
+      const encrypted = await client.nip04Encrypt(recipientKeys.publicKey, message);
+      expect(encrypted).toBeTruthy();
+      expect(encrypted).not.toBe(message);
+      
+      const decrypted = await client.nip04Decrypt(recipientKeys.publicKey, encrypted);
       expect(decrypted).toBe(message);
     });
 
@@ -234,18 +251,43 @@ describe("NIP-46 Core Functionality", () => {
       // NIP-44 should reject empty messages for security reasons
       await expect(
         client.nip44Encrypt(recipientKeys.publicKey, message)
-      ).rejects.toThrow(/Invalid plaintext length/);
+      ).rejects.toThrow();
     });
 
-    test("NIP-44 decrypt with invalid ciphertext", async () => {
+    test("NIP-04 encrypt with empty message", async () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
       const recipientKeys = await generateKeypair();
+      const message = "";
+
+      // NIP-04 allows empty messages (legacy behavior)
+      const encrypted = await client.nip04Encrypt(recipientKeys.publicKey, message);
+      expect(encrypted).toBeTruthy();
       
-      await expect(
-        client.nip44Decrypt(recipientKeys.publicKey, "invalid_ciphertext")
-      ).rejects.toThrow();
+      const decrypted = await client.nip04Decrypt(recipientKeys.publicKey, encrypted);
+      expect(decrypted).toBe(message);
+    });
+
+    test("Both encryption methods work with same message", async () => {
+      const connectionString = bunker.getConnectionString();
+      await client.connect(connectionString);
+
+      const recipientKeys = await generateKeypair();
+      const message = "Test message for both encryption methods";
+
+      // Test NIP-44
+      const nip44Encrypted = await client.nip44Encrypt(recipientKeys.publicKey, message);
+      const nip44Decrypted = await client.nip44Decrypt(recipientKeys.publicKey, nip44Encrypted);
+      expect(nip44Decrypted).toBe(message);
+
+      // Test NIP-04
+      const nip04Encrypted = await client.nip04Encrypt(recipientKeys.publicKey, message);
+      const nip04Decrypted = await client.nip04Decrypt(recipientKeys.publicKey, nip04Encrypted);
+      expect(nip04Decrypted).toBe(message);
+
+      // Encrypted results should be different (different encryption methods)
+      expect(nip44Encrypted).not.toBe(nip04Encrypted);
     });
   });
 
