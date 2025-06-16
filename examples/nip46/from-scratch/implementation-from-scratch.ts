@@ -1,9 +1,17 @@
+/**
+ * Minimal NIP-46 Implementation from Scratch
+ * 
+ * This example demonstrates a basic NIP-46 remote signing implementation 
+ * using NIP-44 encryption for secure communication between client and bunker.
+ * 
+ * Previously used NIP-04, but migrated to NIP-44 for better security.
+ */
 import {
   generateKeypair,
   signEvent,
   verifySignature,
-  encryptNIP04,
-  decryptNIP04,
+  encryptNIP44,
+  decryptNIP44,
   NostrEvent,
   EventTemplate,
   NIP46Request,
@@ -143,12 +151,6 @@ class MinimalNIP46Client {
         case "ping":
           methodEnum = NIP46Method.PING;
           break;
-        case "nip04_encrypt":
-          methodEnum = NIP46Method.NIP04_ENCRYPT;
-          break;
-        case "nip04_decrypt":
-          methodEnum = NIP46Method.NIP04_DECRYPT;
-          break;
         case "nip44_encrypt":
           methodEnum = NIP46Method.NIP44_ENCRYPT;
           break;
@@ -184,10 +186,10 @@ class MinimalNIP46Client {
       // Encrypt and send request
       try {
         const json = JSON.stringify(request);
-        const encrypted = encryptNIP04(
+        const encrypted = encryptNIP44(
+          json,
           this.clientKeys.privateKey,
           this.signerPubkey,
-          json,
         );
 
         // Create and send event
@@ -250,10 +252,10 @@ class MinimalNIP46Client {
 
       // Decrypt content
       try {
-        const decrypted = decryptNIP04(
+        const decrypted = decryptNIP44(
+          event.content,
           this.clientKeys.privateKey,
           this.signerPubkey,
-          event.content,
         );
 
         // Parse response
@@ -350,10 +352,10 @@ class MinimalNIP46Bunker {
 
       // Decrypt content
       try {
-        const decrypted = decryptNIP04(
+        const decrypted = decryptNIP44(
+          event.content,
           this.signerKeys.privateKey,
           event.pubkey,
-          event.content,
         );
 
         // Parse request
@@ -455,10 +457,10 @@ class MinimalNIP46Bunker {
     try {
       // Encrypt the response
       const json = JSON.stringify(response);
-      const encrypted = encryptNIP04(
+      const encrypted = encryptNIP44(
+        json,
         this.signerKeys.privateKey,
         clientPubkey,
-        json,
       );
 
       // Create and send event

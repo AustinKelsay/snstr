@@ -217,7 +217,7 @@ describe("NIP-46 Client Edge Cases", () => {
           created_at: Math.floor(Date.now() / 1000),
           tags: [],
         })).rejects.toThrow(NIP46ConnectionError);
-        await expect(client.nip04Encrypt("pubkey", "message")).rejects.toThrow(NIP46ConnectionError);
+        await expect(client.nip44Encrypt("pubkey", "message")).rejects.toThrow(NIP46ConnectionError);
       } finally {
         await client.disconnect().catch(() => {});
       }
@@ -251,7 +251,7 @@ describe("NIP-46 Client Edge Cases", () => {
           relays: [relayUrl],
           secret: "test-secret",
           name: "Test Client",
-          permissions: ["sign_event", "nip04_encrypt"],
+          permissions: ["sign_event", "nip44_encrypt"],
         }
       );
 

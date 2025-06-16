@@ -41,8 +41,8 @@ describe("NIP-46 Remote Signing", () => {
     // Set default permissions for all tests
     bunker.setDefaultPermissions([
       "sign_event",
-      "nip04_encrypt",
-      "nip04_decrypt",
+      "nip44_encrypt",
+      "nip44_decrypt",
     ]);
 
     await bunker.start();
@@ -135,7 +135,7 @@ describe("NIP-46 Remote Signing", () => {
   });
 
   describe("Encryption", () => {
-    test("NIP-04 encryption and decryption", async () => {
+    test("NIP-44 encryption and decryption", async () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
@@ -143,10 +143,10 @@ describe("NIP-46 Remote Signing", () => {
         const thirdPartyPubkey = (await generateKeypair()).publicKey;
         const message = "Secret message for testing";
         // Encrypt the message
-        const encrypted = await client.nip04Encrypt(thirdPartyPubkey, message);
+        const encrypted = await client.nip44Encrypt(thirdPartyPubkey, message);
 
         // Decrypt the message and verify round trip
-        const decrypted = await client.nip04Decrypt(
+        const decrypted = await client.nip44Decrypt(
           thirdPartyPubkey,
           encrypted,
         );

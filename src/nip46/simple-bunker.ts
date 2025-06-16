@@ -1,7 +1,6 @@
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
-import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { getUnixTime } from "../utils/time";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 import {
@@ -272,12 +271,12 @@ export class SimpleNIP46Bunker {
             response = await this.handleSignEvent(request, clientPubkey);
             break;
 
-          case NIP46Method.NIP04_ENCRYPT:
-            response = await this.handleNIP04Encrypt(request, clientPubkey);
+          case NIP46Method.NIP44_ENCRYPT:
+            response = await this.handleNIP44Encrypt(request, clientPubkey);
             break;
 
-          case NIP46Method.NIP04_DECRYPT:
-            response = await this.handleNIP04Decrypt(request, clientPubkey);
+          case NIP46Method.NIP44_DECRYPT:
+            response = await this.handleNIP44Decrypt(request, clientPubkey);
             break;
 
           default:
@@ -458,9 +457,9 @@ export class SimpleNIP46Bunker {
   }
 
   /**
-   * Handle a nip04_encrypt request
+   * Handle a nip44_encrypt request
    */
-  private async handleNIP04Encrypt(
+  private async handleNIP44Encrypt(
     request: NIP46Request,
     clientPubkey: string,
   ): Promise<NIP46Response> {
@@ -471,10 +470,10 @@ export class SimpleNIP46Bunker {
 
     // Check if client has encryption permission
     const client = this.clients.get(clientPubkey);
-    if (!client || !client.permissions.has("nip04_encrypt")) {
+    if (!client || !client.permissions.has("nip44_encrypt")) {
       return createErrorResponse(
         request.id,
-        "Not authorized for NIP-04 encryption",
+        "Not authorized for NIP-44 encryption",
       );
     }
 
@@ -491,21 +490,21 @@ export class SimpleNIP46Bunker {
     const [recipient, plaintext] = request.params;
 
     try {
-      // Encrypt the message using NIP-04
+      // Encrypt the message using NIP-44
       let encrypted: string;
       try {
-        encrypted = await encryptNIP04(this.userKeys.privateKey, recipient, plaintext);
+        encrypted = encryptNIP44(plaintext, this.userKeys.privateKey, recipient);
       } catch (encryptError) {
         const encryptErrorMessage =
           encryptError instanceof Error ? encryptError.message : String(encryptError);
-        this.logger.error(`NIP-04 encryption failed: ${encryptErrorMessage}`);
+        this.logger.error(`NIP-44 encryption failed: ${encryptErrorMessage}`);
         return createErrorResponse(
           request.id,
-          `NIP-04 encryption failed: ${encryptErrorMessage}`,
+          `NIP-44 encryption failed: ${encryptErrorMessage}`,
         );
       }
 
-      this.logger.debug(`NIP-04 encryption successful`);
+      this.logger.debug(`NIP-44 encryption successful`);
 
       return createSuccessResponse(request.id, encrypted);
     } catch (error) {
@@ -513,15 +512,15 @@ export class SimpleNIP46Bunker {
         error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
-        `NIP-04 encryption failed: ${errorMessage}`,
+        `NIP-44 encryption failed: ${errorMessage}`,
       );
     }
   }
 
   /**
-   * Handle a nip04_decrypt request
+   * Handle a nip44_decrypt request
    */
-  private async handleNIP04Decrypt(
+  private async handleNIP44Decrypt(
     request: NIP46Request,
     clientPubkey: string,
   ): Promise<NIP46Response> {
@@ -532,10 +531,10 @@ export class SimpleNIP46Bunker {
 
     // Check if client has decryption permission
     const client = this.clients.get(clientPubkey);
-    if (!client || !client.permissions.has("nip04_decrypt")) {
+    if (!client || !client.permissions.has("nip44_decrypt")) {
       return createErrorResponse(
         request.id,
-        "Not authorized for NIP-04 decryption",
+        "Not authorized for NIP-44 decryption",
       );
     }
 
@@ -547,21 +546,21 @@ export class SimpleNIP46Bunker {
     const [sender, ciphertext] = request.params;
 
     try {
-      // Decrypt the message using NIP-04
+      // Decrypt the message using NIP-44
       let decrypted: string;
       try {
-        decrypted = await decryptNIP04(this.userKeys.privateKey, sender, ciphertext);
+        decrypted = decryptNIP44(ciphertext, this.userKeys.privateKey, sender);
       } catch (decryptError) {
         const decryptErrorMessage =
           decryptError instanceof Error ? decryptError.message : String(decryptError);
-        this.logger.error(`NIP-04 decryption failed: ${decryptErrorMessage}`);
+        this.logger.error(`NIP-44 decryption failed: ${decryptErrorMessage}`);
         return createErrorResponse(
           request.id,
-          `NIP-04 decryption failed: ${decryptErrorMessage}`,
+          `NIP-44 decryption failed: ${decryptErrorMessage}`,
         );
       }
 
-      this.logger.debug(`NIP-04 decryption successful`);
+      this.logger.debug(`NIP-44 decryption successful`);
 
       return createSuccessResponse(request.id, decrypted);
     } catch (error) {
@@ -569,7 +568,7 @@ export class SimpleNIP46Bunker {
         error instanceof Error ? error.message : String(error);
       return createErrorResponse(
         request.id,
-        `NIP-04 decryption failed: ${errorMessage}`,
+        `NIP-44 decryption failed: ${errorMessage}`,
       );
     }
   }

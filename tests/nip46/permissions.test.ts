@@ -239,7 +239,7 @@ describe("NIP-46 Permission Handling", () => {
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
 
     // Set default permissions for encryption
-    bunker.setDefaultPermissions(["nip04_encrypt", "nip04_decrypt"]);
+    bunker.setDefaultPermissions(["nip44_encrypt", "nip44_decrypt"]);
 
     await bunker.start();
 
@@ -250,9 +250,9 @@ describe("NIP-46 Permission Handling", () => {
     // Create a test recipient
     const recipientKeys = await generateKeypair();
 
-    // Test NIP-04 encrypt
+    // Test NIP-44 encrypt
     const plaintext = "This is a secret message";
-    const encryptResult = await client.nip04Encrypt(
+    const encryptResult = await client.nip44Encrypt(
       recipientKeys.publicKey,
       plaintext,
     );
@@ -261,9 +261,9 @@ describe("NIP-46 Permission Handling", () => {
     expect(encryptResult).toBeTruthy();
     expect(encryptResult).not.toBe(plaintext);
 
-    // Test NIP-04 decrypt
+    // Test NIP-44 decrypt
     try {
-      const decryptResult = await client.nip04Decrypt(
+      const decryptResult = await client.nip44Decrypt(
         recipientKeys.publicKey,
         encryptResult,
       );

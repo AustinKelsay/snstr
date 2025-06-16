@@ -31,7 +31,7 @@ describe("NIP-46 Input Validation Security", () => {
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(userKeypair.privateKey);
-    bunker.setDefaultPermissions(["sign_event", "nip04_encrypt", "nip04_decrypt"]);
+    bunker.setDefaultPermissions(["sign_event", "nip44_encrypt", "nip44_decrypt"]);
     await bunker.start();
 
     // Reduced connection delay
@@ -238,17 +238,17 @@ describe("NIP-46 Input Validation Security", () => {
 
       // Invalid pubkey format
       await expect(
-        client.nip04Encrypt("invalid-pubkey", "message")
+        client.nip44Encrypt("invalid-pubkey", "message")
       ).rejects.toThrow();
 
       // Pubkey too short
       await expect(
-        client.nip04Encrypt("a".repeat(63), "message")
+        client.nip44Encrypt("a".repeat(63), "message")
       ).rejects.toThrow();
 
       // Pubkey with invalid characters
       await expect(
-        client.nip04Encrypt("g" + "a".repeat(63), "message")
+        client.nip44Encrypt("g" + "a".repeat(63), "message")
       ).rejects.toThrow();
     });
 
@@ -262,7 +262,7 @@ describe("NIP-46 Input Validation Security", () => {
       // but we test that the system handles them gracefully
       const largeMessage = "a".repeat(32769); // 32KB+
       try {
-        const result = await client.nip04Encrypt(validPubkey, largeMessage);
+        const result = await client.nip44Encrypt(validPubkey, largeMessage);
         // If it succeeds, that's acceptable for simple implementation
         expect(result).toBeDefined();
       } catch (error) {
@@ -280,11 +280,11 @@ describe("NIP-46 Input Validation Security", () => {
       // For the simple implementation, we test that dangerous content
       // is handled without causing system issues
       const dangerousMessage = '<script>alert("xss")</script>';
-      const encrypted = await client.nip04Encrypt(validPubkey, dangerousMessage);
+      const encrypted = await client.nip44Encrypt(validPubkey, dangerousMessage);
       expect(encrypted).toBeDefined();
       
       // The simple implementation may not sanitize, but should handle safely
-      const decrypted = await client.nip04Decrypt(validPubkey, encrypted);
+      const decrypted = await client.nip44Decrypt(validPubkey, encrypted);
       expect(decrypted).toBeDefined();
       // Test that the system remains stable (no need for sanitization in this layer)
       expect(typeof decrypted).toBe("string");
@@ -343,7 +343,7 @@ describe("NIP-46 Input Validation Security", () => {
 
       try {
         // Force an encryption error
-        await client.nip04Encrypt("invalid-pubkey", "message");
+        await client.nip44Encrypt("invalid-pubkey", "message");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         

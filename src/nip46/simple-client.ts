@@ -15,6 +15,7 @@ import {
   NIP46ConnectionError,
   NIP46TimeoutError,
   NIP46EncryptionError,
+  NIP46DecryptionError,
   NIP46SigningError,
   NIP46Request,
   NIP46Response,
@@ -197,7 +198,51 @@ export class SimpleNIP46Client {
     return JSON.parse(response.result!);
   }
 
+  /**
+   * Encrypt a message using NIP-44
+   * @param thirdPartyPubkey - Public key of the recipient
+   * @param plaintext - Message to encrypt
+   * @returns Encrypted message
+   */
+  async nip44Encrypt(
+    thirdPartyPubkey: string,
+    plaintext: string,
+  ): Promise<string> {
+    const response = await this.sendRequest(NIP46Method.NIP44_ENCRYPT, [
+      thirdPartyPubkey,
+      plaintext,
+    ]);
 
+    // Handle error response
+    if (response.error) {
+      throw new NIP46EncryptionError(response.error);
+    }
+
+    return response.result!;
+  }
+
+  /**
+   * Decrypt a message using NIP-44
+   * @param thirdPartyPubkey - Public key of the sender
+   * @param ciphertext - Message to decrypt
+   * @returns Decrypted message
+   */
+  async nip44Decrypt(
+    thirdPartyPubkey: string,
+    ciphertext: string,
+  ): Promise<string> {
+    const response = await this.sendRequest(NIP46Method.NIP44_DECRYPT, [
+      thirdPartyPubkey,
+      ciphertext,
+    ]);
+
+    // Handle error response
+    if (response.error) {
+      throw new NIP46DecryptionError(response.error);
+    }
+
+    return response.result!;
+  }
 
   /**
    * Disconnect from the remote signer
