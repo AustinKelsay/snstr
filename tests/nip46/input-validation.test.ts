@@ -14,7 +14,7 @@ describe("NIP-46 Input Validation Security", () => {
   let userKeypair: { publicKey: string; privateKey: string };
 
   beforeAll(async () => {
-    relay = new NostrRelay(3334);
+    relay = new NostrRelay(0);
     await relay.start();
     userKeypair = await generateKeypair();
     
@@ -301,9 +301,9 @@ describe("NIP-46 Input Validation Security", () => {
       
       const results = await Promise.allSettled(requests);
       
-      // Should handle all requests without crashing
+      // Should handle at least 80% of requests successfully (4 out of 5)
       const successful = results.filter(r => r.status === "fulfilled");
-      expect(successful.length).toBeGreaterThan(0);
+      expect(successful.length).toBeGreaterThanOrEqual(4);
     });
 
     test("prevents DoS with large numbers of simultaneous requests", async () => {
