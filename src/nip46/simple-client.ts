@@ -209,8 +209,11 @@ export class SimpleNIP46Client {
       thirdPartyPubkey,
       plaintext,
     ]);
-    if (!response.result) {
-      throw new NIP46EncryptionError("NIP-04 encryption failed");
+    if (response.error) {
+      throw new NIP46EncryptionError(`NIP-04 encryption failed: ${response.error}`);
+    }
+    if (response.result === undefined || response.result === null) {
+      throw new NIP46EncryptionError("NIP-04 encryption failed: no result");
     }
     return response.result;
   }
@@ -226,8 +229,11 @@ export class SimpleNIP46Client {
       thirdPartyPubkey,
       ciphertext,
     ]);
-    if (!response.result) {
-      throw new NIP46DecryptionError("NIP-04 decryption failed");
+    if (response.error) {
+      throw new NIP46DecryptionError(`NIP-04 decryption failed: ${response.error}`);
+    }
+    if (response.result === undefined || response.result === null) {
+      throw new NIP46DecryptionError("NIP-04 decryption failed: no result");
     }
     return response.result;
   }

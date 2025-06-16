@@ -260,15 +260,7 @@ export class NostrRemoteSignerClient {
           );
         }
 
-        if (
-          connectionInfo.type === "nostrconnect" &&
-          connectionInfo.secret &&
-          response.result !== connectionInfo.secret
-        ) {
-          console.error("[NIP46 CLIENT] Secret validation failed");
-          throw new NIP46ConnectionError("Connection secret validation failed");
-        }
-
+        // Connection successful - set connected state BEFORE calling getPublicKey
         this.connected = true;
         if (this.debug) console.log("[NIP46 CLIENT] Connection successful");
       }
