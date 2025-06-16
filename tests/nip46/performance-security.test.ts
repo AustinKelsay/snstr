@@ -31,7 +31,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(userKeypair.privateKey);
-    bunker.setDefaultPermissions(["sign_event", "nip04_encrypt", "nip04_decrypt"]);
+    bunker.setDefaultPermissions(["sign_event"]);
     await bunker.start();
 
     // Reduced connection delay
