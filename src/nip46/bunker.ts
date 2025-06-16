@@ -26,29 +26,20 @@ export class NostrRemoteSignerBunker {
   private options: NIP46BunkerOptions;
   private connectedClients: Map<string, NIP46ClientSession>;
   private pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
-  private preferredEncryption: "nip04" | "nip44";
   private subId: string | null;
   private debug: boolean;
 
   constructor(options: NIP46BunkerOptions) {
-    this.options = {
-      authTimeout: 300000, // Default 5 minute timeout for auth challenges
-      ...options,
-    };
+    this.options = options;
+    this.nostr = new Nostr(options.relays || []);
     this.connectedClients = new Map();
     this.pendingAuthChallenges = new Map();
-    this.nostr = new Nostr(options.relays || []);
-    // Force NIP-44 encryption for security
-    this.preferredEncryption = "nip44";
     this.subId = null;
     this.debug = options.debug || false;
 
-    // Warn if NIP-04 was requested
-    if (options.preferredEncryption === "nip04") {
-      console.warn(
-        "[NIP46 BUNKER] WARNING: NIP-04 encryption is deprecated due to security vulnerabilities. " +
-        "Using NIP-44 instead. See: https://github.com/nostr-protocol/nips/issues/1095"
-      );
+    // Validate required options
+    if (!options.userPubkey) {
+      throw new NIP46ConnectionError("User public key is required");
     }
 
     // Initialize keypairs with empty private keys
@@ -188,7 +179,6 @@ export class NostrRemoteSignerBunker {
           clientSession = {
             permissions: new Set<string>(),
             lastSeen: Date.now(),
-            preferredEncryption: this.preferredEncryption,
           };
         }
 
@@ -311,16 +301,6 @@ export class NostrRemoteSignerBunker {
         return;
       }
 
-      // Update client's preferred encryption method
-      if (result.method) {
-        const client = this.connectedClients.get(clientPubkey);
-        if (client) {
-          client.preferredEncryption = result.method;
-          client.lastSeen = Date.now();
-          this.connectedClients.set(clientPubkey, client);
-        }
-      }
-
       // Process the request
       let response: NIP46Response;
 
@@ -437,7 +417,6 @@ export class NostrRemoteSignerBunker {
     const clientSession = this.connectedClients.get(clientPubkey) || {
       permissions: new Set<string>(),
       lastSeen: Date.now(),
-      preferredEncryption: this.preferredEncryption,
     };
 
     // Add all requested permissions
@@ -590,24 +569,6 @@ export class NostrRemoteSignerBunker {
       let result: string;
 
       switch (request.method) {
-        case NIP46Method.NIP04_ENCRYPT:
-          // NIP-04 is deprecated for security reasons, redirecting to NIP-44
-          result = encryptNIP44(
-            content,
-            this.userKeypair.privateKey,
-            thirdPartyPubkey,
-          );
-          break;
-
-        case NIP46Method.NIP04_DECRYPT:
-          // NIP-04 is deprecated for security reasons, redirecting to NIP-44
-          result = decryptNIP44(
-            content,
-            this.userKeypair.privateKey,
-            thirdPartyPubkey,
-          );
-          break;
-
         case NIP46Method.NIP44_ENCRYPT:
           result = encryptNIP44(
             content,

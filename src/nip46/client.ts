@@ -22,7 +22,6 @@ import {
 } from "./types";
 
 const DEFAULT_TIMEOUT = 30000; // 30 seconds
-const DEFAULT_ENCRYPTION = "nip44" as const;
 
 export class NostrRemoteSignerClient {
   private nostr: Nostr;
@@ -38,7 +37,6 @@ export class NostrRemoteSignerClient {
     }
   >();
   private options: NIP46ClientOptions;
-  private preferredEncryption: "nip44" | "nip04";
   private authWindow: Window | null;
   private connected = false;
   private subId: string | null = null;
@@ -53,21 +51,11 @@ export class NostrRemoteSignerClient {
       name: "",
       url: "",
       image: "",
-      preferredEncryption: DEFAULT_ENCRYPTION,
       ...options,
     };
     this.nostr = new Nostr(this.options.relays);
-    this.preferredEncryption = "nip44";
     this.authWindow = null;
     this.debug = options.debug || false;
-
-    // Warn if NIP-04 was requested
-    if (options.preferredEncryption === "nip04") {
-      console.warn(
-        "[NIP46 CLIENT] WARNING: NIP-04 encryption is deprecated due to security vulnerabilities. " +
-        "Using NIP-44 instead. See: https://github.com/nostr-protocol/nips/issues/1095"
-      );
-    }
   }
 
   /**
@@ -372,56 +360,6 @@ export class NostrRemoteSignerClient {
   }
 
   /**
-   * Encrypt a message using NIP-04
-   */
-  async nip04Encrypt(
-    thirdPartyPubkey: string,
-    plaintext: string,
-  ): Promise<string> {
-    if (!this.connected || !this.clientKeypair || !this.signerPubkey) {
-      throw new NIP46ConnectionError("Not connected to remote signer");
-    }
-
-    const response = await this.sendRequest(NIP46Method.NIP04_ENCRYPT, [
-      thirdPartyPubkey,
-      plaintext,
-    ]);
-
-    if (response.error) {
-      throw new NIP46EncryptionError(
-        `NIP-04 encryption failed: ${response.error}`,
-      );
-    }
-
-    return response.result!;
-  }
-
-  /**
-   * Decrypt a message using NIP-04
-   */
-  async nip04Decrypt(
-    thirdPartyPubkey: string,
-    ciphertext: string,
-  ): Promise<string> {
-    if (!this.connected || !this.clientKeypair || !this.signerPubkey) {
-      throw new NIP46ConnectionError("Not connected to remote signer");
-    }
-
-    const response = await this.sendRequest(NIP46Method.NIP04_DECRYPT, [
-      thirdPartyPubkey,
-      ciphertext,
-    ]);
-
-    if (response.error) {
-      throw new NIP46DecryptionError(
-        `NIP-04 decryption failed: ${response.error}`,
-      );
-    }
-
-    return response.result!;
-  }
-
-  /**
    * Encrypt a message using NIP-44
    */
   async nip44Encrypt(
@@ -569,8 +507,7 @@ export class NostrRemoteSignerClient {
 
     if (this.debug) {
       console.log(
-        "[NIP46 CLIENT] Encrypting request with method:",
-        this.preferredEncryption,
+        "[NIP46 CLIENT] Encrypting request with method: nip44",
       );
     }
 
@@ -770,7 +707,7 @@ export class NostrRemoteSignerClient {
       const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        error: `NIP-44 decryption failed: ${errorMessage}. NIP-04 fallback disabled for security.`,
+        error: `NIP-44 decryption failed: ${errorMessage}`,
         method: "nip44",
       };
     }

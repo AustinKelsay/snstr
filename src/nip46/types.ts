@@ -49,7 +49,6 @@ export interface NIP46ClientOptions extends NIP46ConnectionOptions {
   url?: string;
   image?: string;
   timeout?: number; // Request timeout in milliseconds
-  preferredEncryption?: "nip04" | "nip44";
   debug?: boolean;
 }
 
@@ -66,7 +65,6 @@ export interface NIP46BunkerOptions {
   authUrl?: string;
   authTimeout?: number;
   metadata?: NIP46Metadata;
-  preferredEncryption?: "nip04" | "nip44";
   debug?: boolean;
 }
 
@@ -108,7 +106,7 @@ export interface NIP46ConnectionInfo {
  */
 export type NIP46EncryptionResult = {
   success: boolean;
-  method: "nip04" | "nip44";
+  method: "nip44";
 } & (
   | {
       success: true;
@@ -128,7 +126,6 @@ export type NIP46EncryptionResult = {
 export interface NIP46ClientSession {
   permissions: Set<string>;
   lastSeen: number;
-  preferredEncryption?: "nip04" | "nip44";
 }
 
 /**

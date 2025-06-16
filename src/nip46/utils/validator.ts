@@ -19,14 +19,14 @@ export class NIP46Validator {
     }
 
     // Check content size limits
-    if (content.length > this.MAX_CONTENT_SIZE) {
+    if (content.length > NIP46Validator.MAX_CONTENT_SIZE) {
       return false;
     }
 
     // Validate JSON structure for event data
     try {
       const parsed = JSON.parse(content);
-      return this.validateEventStructure(parsed);
+      return NIP46Validator.validateEventStructure(parsed);
     } catch {
       return false;
     }
@@ -70,7 +70,7 @@ export class NIP46Validator {
     }
 
     // Validate tags if present
-    if (eventObj.tags && !this.validateTags(eventObj.tags)) {
+    if (eventObj.tags && !NIP46Validator.validateTags(eventObj.tags)) {
       return false;
     }
 
@@ -121,8 +121,8 @@ export class NIP46Validator {
       return false;
     }
 
-    // Must be exactly 64 characters of hex
-    return /^[0-9a-fA-F]{64}$/.test(privateKey);
+    // Must be exactly 64 characters of lowercase hex
+    return /^[0-9a-f]{64}$/.test(privateKey);
   }
 
   /**
@@ -141,22 +141,22 @@ export class NIP46Validator {
     // Validate ID format and length
     if (typeof request.id !== 'string' || 
         request.id.length === 0 || 
-        request.id.length > this.MAX_ID_LENGTH) {
+        request.id.length > NIP46Validator.MAX_ID_LENGTH) {
       return false;
     }
 
     // Validate method
-    if (!this.isValidMethod(request.method)) {
+    if (!NIP46Validator.isValidMethod(request.method)) {
       return false;
     }
 
     // Validate params
-    if (!this.validateParams(request.params)) {
+    if (!NIP46Validator.validateParams(request.params)) {
       return false;
     }
 
     // Validate optional pubkey if present
-    if (request.pubkey && !this.validatePubkey(request.pubkey)) {
+    if (request.pubkey && !NIP46Validator.validatePubkey(request.pubkey)) {
       return false;
     }
 
@@ -179,7 +179,7 @@ export class NIP46Validator {
     }
 
     // Check parameter count
-    if (params.length > this.MAX_PARAMS_COUNT) {
+    if (params.length > NIP46Validator.MAX_PARAMS_COUNT) {
       return false;
     }
 
@@ -190,7 +190,7 @@ export class NIP46Validator {
       }
 
       // Check parameter length
-      if (param.length > this.MAX_PARAM_LENGTH) {
+      if (param.length > NIP46Validator.MAX_PARAM_LENGTH) {
         return false;
       }
     }
@@ -283,14 +283,14 @@ export class NIP46Validator {
       
       // Extract and validate pubkey from hostname
       const pubkey = url.hostname;
-      if (!this.validatePubkey(pubkey)) {
+      if (!NIP46Validator.validatePubkey(pubkey)) {
         return false;
       }
 
       // Validate relay URLs if present
       const relays = url.searchParams.getAll('relay');
       for (const relay of relays) {
-        if (!this.validateRelayUrl(relay)) {
+        if (!NIP46Validator.validateRelayUrl(relay)) {
           return false;
         }
       }
@@ -300,7 +300,7 @@ export class NIP46Validator {
       if (perms) {
         const permissions = perms.split(',');
         for (const perm of permissions) {
-          if (!this.validatePermission(perm.trim())) {
+          if (!NIP46Validator.validatePermission(perm.trim())) {
             return false;
           }
         }
