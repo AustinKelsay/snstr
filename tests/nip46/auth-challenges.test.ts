@@ -98,4 +98,39 @@ describe("NIP-46 Auth Challenges", () => {
     // Verify no challenge was resolved
     expect(resolved).toBe(false);
   });
+
+  test("auth challenge follows correct NIP-46 format", async () => {
+    // Create bunker with auth challenge requirement
+    const bunkerOptions: NIP46BunkerOptions = {
+      relays: ["wss://localhost:3000"],
+      userPubkey: userKeypair.publicKey,
+      signerPubkey: signerKeypair.publicKey,
+      requireAuthChallenge: true,
+      authUrl: "https://example.com/auth",
+      debug: true,
+    };
+
+    bunker = new NostrRemoteSignerBunker(bunkerOptions);
+    bunker.setUserPrivateKey(userKeypair.privateKey);
+    bunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+    // Access private method for testing
+    const testBunker = bunker as any;
+    
+    // Create a mock connect request
+    const connectRequest = {
+      id: "test-connect-id",
+      method: "connect",
+      params: [signerKeypair.publicKey, "", "sign_event:1,get_public_key"]
+    };
+
+    // Call handleConnect directly
+    const response = await testBunker.handleConnect(connectRequest, userKeypair.publicKey);
+
+    // Verify the auth challenge response format matches NIP-46 spec
+    expect(response.id).toBe("test-connect-id");
+    expect(response.result).toBe("auth_url");
+    expect(response.error).toBe("https://example.com/auth");
+    expect(response.auth_url).toBeUndefined(); // Should not have auth_url field
+  });
 });

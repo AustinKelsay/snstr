@@ -273,19 +273,19 @@ export class SimpleNIP46Bunker {
             break;
 
           case NIP46Method.NIP44_ENCRYPT:
-            response = await this.handleNIP44Encrypt(request);
+            response = await this.handleNIP44Encrypt(request, clientPubkey);
             break;
 
           case NIP46Method.NIP44_DECRYPT:
-            response = await this.handleNIP44Decrypt(request);
+            response = await this.handleNIP44Decrypt(request, clientPubkey);
             break;
 
           case NIP46Method.NIP04_ENCRYPT:
-            response = await this.handleNIP04Encrypt(request);
+            response = await this.handleNIP04Encrypt(request, clientPubkey);
             break;
 
           case NIP46Method.NIP04_DECRYPT:
-            response = await this.handleNIP04Decrypt(request);
+            response = await this.handleNIP04Decrypt(request, clientPubkey);
             break;
 
           default:
@@ -468,7 +468,31 @@ export class SimpleNIP46Bunker {
   /**
    * Handle NIP-44 encryption request (preferred)
    */
-  private async handleNIP44Encrypt(request: NIP46Request): Promise<NIP46Response> {
+  private async handleNIP44Encrypt(request: NIP46Request, clientPubkey: string): Promise<NIP46Response> {
+    // Check authorization
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+
+    // Check if we have the user's private key
+    if (!this.userKeys.privateKey) {
+      return createErrorResponse(request.id, "User private key not set");
+    }
+
+    // Check if the client has permission to encrypt
+    const client = this.clients.get(clientPubkey);
+    
+    if (!client) {
+      return createErrorResponse(request.id, "Client not found - authorization required");
+    }
+    
+    if (!client.permissions.has("nip44_encrypt")) {
+      return createErrorResponse(
+        request.id,
+        "Not authorized to encrypt NIP-44 messages",
+      );
+    }
+
     try {
       const [thirdPartyPubkey, plaintext] = request.params;
       
@@ -498,7 +522,31 @@ export class SimpleNIP46Bunker {
   /**
    * Handle NIP-44 decryption request (preferred)
    */
-  private async handleNIP44Decrypt(request: NIP46Request): Promise<NIP46Response> {
+  private async handleNIP44Decrypt(request: NIP46Request, clientPubkey: string): Promise<NIP46Response> {
+    // Check authorization
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+
+    // Check if we have the user's private key
+    if (!this.userKeys.privateKey) {
+      return createErrorResponse(request.id, "User private key not set");
+    }
+
+    // Check if the client has permission to decrypt
+    const client = this.clients.get(clientPubkey);
+    
+    if (!client) {
+      return createErrorResponse(request.id, "Client not found - authorization required");
+    }
+    
+    if (!client.permissions.has("nip44_decrypt")) {
+      return createErrorResponse(
+        request.id,
+        "Not authorized to decrypt NIP-44 messages",
+      );
+    }
+
     try {
       const [thirdPartyPubkey, ciphertext] = request.params;
       
@@ -528,7 +576,31 @@ export class SimpleNIP46Bunker {
   /**
    * Handle NIP-04 encryption request (legacy support)
    */
-  private async handleNIP04Encrypt(request: NIP46Request): Promise<NIP46Response> {
+  private async handleNIP04Encrypt(request: NIP46Request, clientPubkey: string): Promise<NIP46Response> {
+    // Check authorization
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+
+    // Check if we have the user's private key
+    if (!this.userKeys.privateKey) {
+      return createErrorResponse(request.id, "User private key not set");
+    }
+
+    // Check if the client has permission to encrypt
+    const client = this.clients.get(clientPubkey);
+    
+    if (!client) {
+      return createErrorResponse(request.id, "Client not found - authorization required");
+    }
+    
+    if (!client.permissions.has("nip04_encrypt")) {
+      return createErrorResponse(
+        request.id,
+        "Not authorized to encrypt NIP-04 messages",
+      );
+    }
+
     try {
       const [thirdPartyPubkey, plaintext] = request.params;
       
@@ -558,7 +630,31 @@ export class SimpleNIP46Bunker {
   /**
    * Handle NIP-04 decryption request (legacy support)
    */
-  private async handleNIP04Decrypt(request: NIP46Request): Promise<NIP46Response> {
+  private async handleNIP04Decrypt(request: NIP46Request, clientPubkey: string): Promise<NIP46Response> {
+    // Check authorization
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+
+    // Check if we have the user's private key
+    if (!this.userKeys.privateKey) {
+      return createErrorResponse(request.id, "User private key not set");
+    }
+
+    // Check if the client has permission to decrypt
+    const client = this.clients.get(clientPubkey);
+    
+    if (!client) {
+      return createErrorResponse(request.id, "Client not found - authorization required");
+    }
+    
+    if (!client.permissions.has("nip04_decrypt")) {
+      return createErrorResponse(
+        request.id,
+        "Not authorized to decrypt NIP-04 messages",
+      );
+    }
+
     try {
       const [thirdPartyPubkey, ciphertext] = request.params;
       

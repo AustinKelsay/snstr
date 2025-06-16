@@ -116,9 +116,24 @@ export class SimpleNIP46Client {
         `Subscribed to responses with filter: p=${this.clientKeys.publicKey}`,
       );
 
-      // Send connect request
-      await this.sendRequest(NIP46Method.CONNECT, [this.signerPubkey]);
+      // Send connect request with proper parameters per NIP-46 spec
+      const connectParams = [
+        this.signerPubkey,
+        info.secret || "", // optional_secret
+        (info.permissions || []).join(",") // optional_requested_permissions
+      ];
+      
+      const connectResponse = await this.sendRequest(NIP46Method.CONNECT, connectParams);
       this.logger.info(`Connect request sent successfully`);
+      
+      // Handle connect response per NIP-46 spec
+      if (connectResponse.result !== "ack") {
+        // If not "ack", it should be a required secret value
+        this.logger.debug(`Connect response requires secret: ${connectResponse.result}`);
+        if (!info.secret || info.secret !== connectResponse.result) {
+          throw new NIP46ConnectionError("Invalid or missing required secret");
+        }
+      }
 
       // Get and store user public key (required after connect per NIP-46 spec)
       try {

@@ -27,7 +27,20 @@ export class NIP46Validator {
     try {
       const parsed = JSON.parse(content);
       return NIP46Validator.validateEventStructure(parsed);
-    } catch {
+    } catch (error) {
+      // Log parsing error for debugging while sanitizing sensitive data
+      const errorMessage = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+      SecureErrorHandler.logSecurityEvent(
+        'JSON parsing failed in validateEventContent',
+        { 
+          error: SecureErrorHandler.sanitizeError(
+            new Error(errorMessage), 
+            process.env.NODE_ENV !== 'production'
+          ),
+          contentLength: content.length,
+          contentPreview: NIP46Validator.sanitizeString(content, 50)
+        }
+      );
       return false;
     }
   }
@@ -225,7 +238,20 @@ export class NIP46Validator {
       }
 
       return true;
-    } catch {
+    } catch (error) {
+      // Log URL parsing error for debugging
+      const errorMessage = error instanceof Error ? error.message : 'Unknown URL parsing error';
+      SecureErrorHandler.logSecurityEvent(
+        'URL parsing failed in validateRelayUrl',
+        { 
+          error: SecureErrorHandler.sanitizeError(
+            new Error(errorMessage), 
+            process.env.NODE_ENV !== 'production'
+          ),
+          urlLength: url.length,
+          urlPreview: NIP46Validator.sanitizeString(url, 50)
+        }
+      );
       return false;
     }
   }
@@ -305,7 +331,20 @@ export class NIP46Validator {
       }
 
       return true;
-    } catch {
+    } catch (error) {
+      // Log connection string parsing error for debugging
+      const errorMessage = error instanceof Error ? error.message : 'Unknown URL parsing error';
+      SecureErrorHandler.logSecurityEvent(
+        'Connection string parsing failed in validateConnectionString',
+        { 
+          error: SecureErrorHandler.sanitizeError(
+            new Error(errorMessage), 
+            process.env.NODE_ENV !== 'production'
+          ),
+          connectionStringLength: connectionString.length,
+          connectionStringPreview: NIP46Validator.sanitizeString(connectionString, 50)
+        }
+      );
       return false;
     }
   }
@@ -362,8 +401,8 @@ export class SecureErrorHandler {
 
     // In production, only return safe error messages
     if (!isDebug) {
-      const message = error.message;
-      const isSafe = safeErrors.some(safe => message.includes(safe));
+      const message = error.message.trim();
+      const isSafe = safeErrors.includes(message);
       return isSafe ? message : 'Operation failed';
     }
 

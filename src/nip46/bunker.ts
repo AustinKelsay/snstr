@@ -405,10 +405,11 @@ export class NostrRemoteSignerBunker {
         authUrl = this.options.authUrl;
       }
 
-      // Return auth challenge response
+      // Return auth challenge response per NIP-46 spec
       return {
         id: request.id,
-        auth_url: authUrl || `auth:${challengeId}`,
+        result: "auth_url",
+        error: authUrl || `auth:${challengeId}`,
       };
     }
 
