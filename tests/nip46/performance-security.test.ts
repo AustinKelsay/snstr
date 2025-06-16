@@ -14,7 +14,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
   let userKeypair: { publicKey: string; privateKey: string };
 
   beforeAll(async () => {
-    relay = new NostrRelay(3335);
+    relay = new NostrRelay(0); // Let OS assign a free port
     await relay.start();
     userKeypair = await generateKeypair();
     
@@ -117,9 +117,9 @@ describe("NIP-46 Performance & DoS Protection", () => {
       // Should handle all requests gracefully
       expect(results.length).toBe(5);
       
-      // Most should succeed
+      // At least 80% should succeed (4 out of 5)
       const successful = results.filter(r => r.status === "fulfilled");
-      expect(successful.length).toBeGreaterThan(0);
+      expect(successful.length).toBeGreaterThanOrEqual(4);
     });
 
     test("handles large tag arrays without memory exhaustion", async () => {
@@ -155,8 +155,9 @@ describe("NIP-46 Performance & DoS Protection", () => {
       // Should handle burst without crashing
       expect(results.length).toBe(burstSize);
       
+      // At least 80% should succeed (4 out of 5)
       const successful = results.filter(r => r.status === "fulfilled");
-      expect(successful.length).toBeGreaterThan(0);
+      expect(successful.length).toBeGreaterThanOrEqual(4);
     });
 
     test("maintains performance under sustained load", async () => {
