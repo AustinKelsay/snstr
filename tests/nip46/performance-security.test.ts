@@ -338,9 +338,9 @@ describe("NIP-46 Performance & DoS Protection", () => {
         const results = await Promise.allSettled(operations);
         
         const successful = results.filter(r => r.status === "fulfilled");
-        const successRate = successful.length / clients.length;
         
-        expect(successRate).toBeGreaterThanOrEqual(0.6); // At least 2 out of 3 should succeed
+        // All concurrent client operations should succeed
+        expect(successful.length).toBe(3);
         
       } finally {
         // Clean up all clients
