@@ -109,7 +109,51 @@ describe("NIP-46 Input Validation Security", () => {
           new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
         ])
       ).rejects.toThrow();
-    }, 6000); // Reduced timeout
+          }, 6000); // Reduced timeout
+    });
+
+  describe("Key Validation", () => {
+    test("accepts hex keys with mixed case in connection strings", async () => {
+      // Test various case combinations for public keys in connection strings
+      const testKeys = [
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // lowercase
+        "1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF1234567890ABCDEF", // uppercase
+        "1234567890AbCdEf1234567890aBcDeF1234567890AbCdEf1234567890aBcDeF", // mixed case
+      ];
+
+      for (const pubkey of testKeys) {
+        // Test connection string parsing - this is where validation actually happens
+        const connectionString = `bunker://${pubkey}?relay=${relay.url}`;
+        
+        // These should pass connection string parsing but fail during actual connection
+        // since the pubkeys don't match the bunker's actual key
+        try {
+          await client.connect(connectionString);
+          // If it somehow succeeds, that's fine too
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          // The key point is that it should NOT fail with the connection string parsing error
+          expect(errorMessage).not.toBe("Invalid signer public key in connection string");
+        }
+      }
+    });
+
+    test("rejects invalid hex keys in connection strings", async () => {
+      const invalidKeys = [
+        "G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // invalid character 'G'
+        "1234567890abcdef123456789", // too short (25 chars)
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1", // too long (65 chars)
+        "", // empty
+        "not-hex-at-all", // not hex
+      ];
+
+      for (const pubkey of invalidKeys) {
+        const connectionString = `bunker://${pubkey}?relay=${relay.url}`;
+        
+        // These should throw during connection string parsing with the specific error message
+        await expect(client.connect(connectionString)).rejects.toThrow("Invalid signer public key in connection string");
+      }
+    });
   });
 
   describe("Event Content Validation", () => {

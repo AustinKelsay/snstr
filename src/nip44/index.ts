@@ -283,8 +283,8 @@ function unpad(padded: Uint8Array): string {
 const FIELD_PRIME = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
 
 export function isValidPublicKeyFormat(publicKey: string): boolean {
-  // Check format: must be 64 hex characters (lowercase only)
-  if (!/^[0-9a-f]{64}$/.test(publicKey)) {
+  // Check format: must be 64 hex characters (case-insensitive)
+  if (!/^[0-9a-f]{64}$/i.test(publicKey)) {
     return false;
   }
   
@@ -352,8 +352,8 @@ export function isValidPublicKeyPoint(publicKey: string): boolean {
  * A valid private key must be a 32-byte hex string with a value less than the curve order
  */
 export function isValidPrivateKey(privateKey: string): boolean {
-  // Check format: must be 64 hex characters (lowercase only)
-  if (!/^[0-9a-f]{64}$/.test(privateKey)) {
+  // Check format: must be 64 hex characters (case-insensitive)
+  if (!/^[0-9a-f]{64}$/i.test(privateKey)) {
     return false;
   }
 

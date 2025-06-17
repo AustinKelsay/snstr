@@ -20,7 +20,7 @@ describe("NIP-46 Client Edge Cases", () => {
 
   beforeAll(async () => {
     // Start ephemeral relay for testing
-    relay = new NostrRelay(3793);
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 

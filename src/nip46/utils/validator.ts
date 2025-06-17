@@ -134,8 +134,8 @@ export class NIP46Validator {
       return false;
     }
 
-    // Must be exactly 64 characters of lowercase hex
-    return /^[0-9a-f]{64}$/.test(pubkey);
+    // Must be exactly 64 characters of hex (case-insensitive)
+    return /^[0-9a-f]{64}$/i.test(pubkey);
   }
 
   /**
@@ -146,8 +146,8 @@ export class NIP46Validator {
       return false;
     }
 
-    // Must be exactly 64 characters of lowercase hex
-    return /^[0-9a-f]{64}$/.test(privateKey);
+    // Must be exactly 64 characters of hex (case-insensitive)
+    return /^[0-9a-f]{64}$/i.test(privateKey);
   }
 
   /**
