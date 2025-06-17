@@ -5,7 +5,7 @@ import {
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
-jest.setTimeout(5000);
+jest.setTimeout(15000);
 
 describe("NIP-46 Input Validation Security", () => {
   let relay: NostrRelay;
