@@ -9,6 +9,8 @@ export class NIP46Validator {
   private static readonly MAX_ID_LENGTH = 64;
   private static readonly MAX_PARAMS_COUNT = 10;
   private static readonly MAX_PARAM_LENGTH = 32768; // 32KB per param
+  private static readonly MAX_TAGS_COUNT = 100; // Maximum number of tags per event
+  private static readonly MAX_TAG_ELEMENT_LENGTH = 2048; // Maximum length per tag element
 
   /**
    * Validate event content size and structure
@@ -98,6 +100,11 @@ export class NIP46Validator {
       return false;
     }
 
+    // Limit the number of tags to prevent DoS attacks
+    if (tags.length > NIP46Validator.MAX_TAGS_COUNT) {
+      return false;
+    }
+
     for (const tag of tags) {
       if (!Array.isArray(tag) || tag.length === 0) {
         return false;
@@ -106,6 +113,11 @@ export class NIP46Validator {
       // All tag elements must be strings
       for (const element of tag) {
         if (typeof element !== 'string') {
+          return false;
+        }
+
+        // Limit the length of each tag element to prevent DoS attacks
+        if (element.length > NIP46Validator.MAX_TAG_ELEMENT_LENGTH) {
           return false;
         }
       }
