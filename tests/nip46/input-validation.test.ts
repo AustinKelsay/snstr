@@ -10,14 +10,16 @@ jest.setTimeout(15000);
 
 // Helper function to race a promise with a timeout that cleans up properly
 function raceWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string = "timeout"): Promise<T> {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: NodeJS.Timeout | undefined;
   
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
   });
   
   return Promise.race([promise, timeoutPromise]).finally(() => {
-    clearTimeout(timeoutId);
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
   });
 }
 
@@ -354,6 +356,8 @@ describe("NIP-46 Input Validation Security", () => {
       expect(decrypted).toBeDefined();
       // Test that the system remains stable (no need for sanitization in this layer)
       expect(typeof decrypted).toBe("string");
+      // Verify round-trip correctness - decrypted message should match original
+      expect(decrypted).toBe(dangerousMessage);
     });
   });
 
@@ -390,9 +394,13 @@ describe("NIP-46 Input Validation Security", () => {
 
   describe("Error Handling Security", () => {
     test("does not leak sensitive information in errors", async () => {
+      expect.assertions(3); // Ensure all assertions are executed
+      
       // Try to connect with invalid configuration
       try {
         await client.connect("bunker://invalid");
+        // If we reach this point, the test should fail
+        throw new Error("Expected client.connect to throw an error, but it succeeded");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         
@@ -404,12 +412,16 @@ describe("NIP-46 Input Validation Security", () => {
     });
 
     test("handles encryption errors securely", async () => {
+      expect.assertions(3); // Ensure all assertions are executed
+      
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
       try {
         // Force an encryption error
         await client.nip44Encrypt("invalid-pubkey", "message");
+        // If we reach this point, the test should fail
+        throw new Error("Expected nip44Encrypt to throw an error, but it succeeded");
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         
