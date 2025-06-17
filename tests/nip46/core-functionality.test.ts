@@ -281,6 +281,11 @@ describe("NIP-46 Core Functionality", () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
+      // Manually grant NIP-04 permissions for this test
+      const clientPubkey = (client as any).clientKeys.publicKey;
+      bunker.addClientPermission(clientPubkey, "nip04_encrypt");
+      bunker.addClientPermission(clientPubkey, "nip04_decrypt");
+
       const recipientKeys = await generateKeypair();
       const message = "Test message for both encryption methods";
 
