@@ -15,11 +15,16 @@ describe("NIP-46 Input Validation Security", () => {
 
   beforeAll(async () => {
     relay = new NostrRelay(0);
-    await relay.start();
-    userKeypair = await generateKeypair();
     
-    // Reduced initialization delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for relay to be ready using the onconnect event
+    const relayReady = new Promise<void>((resolve) => {
+      relay.onconnect(() => resolve());
+    });
+    
+    await relay.start();
+    await relayReady;
+    
+    userKeypair = await generateKeypair();
   });
 
   beforeEach(async () => {
@@ -34,8 +39,8 @@ describe("NIP-46 Input Validation Security", () => {
     bunker.setDefaultPermissions(["sign_event", "nip44_encrypt", "nip44_decrypt"]);
     await bunker.start();
 
-    // Reduced connection delay
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // The bunker.start() Promise resolves when the relay connection is established
+    // and the subscription is active, so no additional waiting is needed
 
     client = new SimpleNIP46Client([relay.url], { timeout: 3000 }); // Reduced timeout
   });
@@ -57,8 +62,7 @@ describe("NIP-46 Input Validation Security", () => {
       // Ignore cleanup errors
     }
     
-    // Reduced cleanup delay
-    await new Promise(resolve => setTimeout(resolve, 25));
+    // No artificial delay needed - the disconnect/stop methods handle cleanup properly
   });
 
   afterAll(async () => {
@@ -70,8 +74,7 @@ describe("NIP-46 Input Validation Security", () => {
       // Ignore cleanup errors
     }
     
-    // Reduced final delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // No artificial delay needed - relay.close() handles cleanup properly
   });
 
   describe("Connection String Validation", () => {

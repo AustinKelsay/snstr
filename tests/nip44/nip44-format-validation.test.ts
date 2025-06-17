@@ -202,6 +202,12 @@ describe("NIP-44 Format Validation", () => {
           "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140",
         ),
       ).toBe(true); // (Order - 1)
+      // Uppercase hex (should be accepted - case insensitive)
+      expect(
+        isValidPrivateKey(
+          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
+        ),
+      ).toBe(true);
     });
 
     it("should return false for invalid private key formats", () => {
@@ -223,12 +229,6 @@ describe("NIP-44 Format Validation", () => {
           "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff0g",
         ),
       ).toBe(false);
-      // Uppercase hex (should be accepted - case insensitive)
-      expect(
-        isValidPrivateKey(
-          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
-        ),
-      ).toBe(true);
       // Empty string
       expect(isValidPrivateKey("")).toBe(false);
     });
