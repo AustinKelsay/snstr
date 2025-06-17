@@ -336,10 +336,15 @@ describe("NIP-46 Input Validation Security", () => {
       
       // Test large message encryption - should succeed for sizes under NIP-44 limit (65535 bytes)
       const largeMessage = "a".repeat(32769); // 32KB+ - well below 65535 byte limit
-      const result = await client.nip44Encrypt(validPubkey, largeMessage);
-      expect(result).toBeDefined();
-      expect(typeof result).toBe("string");
-      expect(result.length).toBeGreaterThan(0);
+      const encrypted = await client.nip44Encrypt(validPubkey, largeMessage);
+      expect(encrypted).toBeDefined();
+      expect(typeof encrypted).toBe("string");
+      expect(encrypted.length).toBeGreaterThan(0);
+      
+      // Test decryption to ensure round-trip correctness
+      const decrypted = await client.nip44Decrypt(validPubkey, encrypted);
+      expect(decrypted).toBeDefined();
+      expect(decrypted).toBe(largeMessage);
       
       // Test that messages exceeding NIP-44 limit are rejected
       await expect(
