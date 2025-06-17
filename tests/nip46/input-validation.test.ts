@@ -191,6 +191,13 @@ describe("NIP-46 Input Validation Security", () => {
           const errorMessage = error instanceof Error ? error.message : String(error);
           // The key point is that it should NOT fail with the connection string parsing error
           expect(errorMessage).not.toBe("Invalid signer public key in connection string");
+        } finally {
+          // Always disconnect to prevent resource leaks and connection conflicts
+          try {
+            await client.disconnect();
+          } catch (e) {
+            // Ignore cleanup errors
+          }
         }
       }
     });
