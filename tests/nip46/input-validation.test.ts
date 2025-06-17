@@ -149,9 +149,17 @@ describe("NIP-46 Input Validation Security", () => {
         // since the pubkeys don't match the bunker's actual key
         try {
           await client.connect(connectionString);
-          // If it somehow succeeds, that's fine too
+          // If we reach here, the connection succeeded when it should have failed
+          // This is a security issue - mismatched signer keys should be rejected
+          throw new Error(`Security violation: Connection with mismatched signer key ${pubkey} should have been rejected but succeeded`);
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          // If it's our security violation error, re-throw to fail the test
+          if (errorMessage.startsWith("Security violation:")) {
+            throw error;
+          }
+          
           // The key point is that it should NOT fail with the connection string parsing error
           expect(errorMessage).not.toBe("Invalid signer public key in connection string");
         } finally {
