@@ -20,11 +20,56 @@ describe("NIP-46 Input Validation Security", () => {
     try {
       const relayStartPromise = relay.start();
       
-      // Wait for relay to be ready using the onconnect event, with timeout for error handling
+      // Wait for relay to be ready using the onconnect event, with immediate error handling
       const relayReady = new Promise<void>((resolve, reject) => {
-        relay.onconnect(() => resolve());
-        // Add timeout to prevent hanging on relay startup errors
-        setTimeout(() => reject(new Error("Relay startup timed out")), 5000);
+        let isResolved = false;
+        
+        // Listen for successful connection
+        relay.onconnect(() => {
+          if (!isResolved) {
+            isResolved = true;
+            resolve();
+          }
+        });
+        
+        // Listen for WebSocketServer errors (immediate error detection)
+        const errorHandler = (error: Error) => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error(`Relay startup failed: ${error.message}`));
+          }
+        };
+        
+        // Add error listener to the WebSocketServer once it's created
+        const checkForWss = () => {
+          if (relay.wss) {
+            relay.wss.on('error', errorHandler);
+          } else {
+            // WSS not created yet, check again in next tick
+            process.nextTick(checkForWss);
+          }
+        };
+        checkForWss();
+        
+        // Keep timeout as fallback for other types of failures
+        const timeoutId = setTimeout(() => {
+          if (!isResolved) {
+            isResolved = true;
+            reject(new Error("Relay startup timed out"));
+          }
+        }, 5000);
+        
+        // Clean up timeout when resolved
+        const originalResolve = resolve;
+        const originalReject = reject;
+        resolve = (...args) => {
+          clearTimeout(timeoutId);
+          return originalResolve(...args);
+        };
+        reject = (...args) => {
+          clearTimeout(timeoutId);
+          return originalReject(...args);
+        };
       });
       
       await relayStartPromise;
@@ -183,14 +228,15 @@ describe("NIP-46 Input Validation Security", () => {
       expect(currentEvent).toBeDefined();
       
       // Test that future-dated events can be signed (validation happens at relay level)
+      const futureTimestamp = Math.floor(Date.now() / 1000) + 3600; // 1 hour in future
       const futureEvent = await client.signEvent({
         kind: 1,
         content: "Hello future",
-        created_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour in future
+        created_at: futureTimestamp,
         tags: []
       });
       expect(futureEvent).toBeDefined();
-      expect(futureEvent.created_at).toBe(Math.floor(Date.now() / 1000) + 3600);
+      expect(futureEvent.created_at).toBe(futureTimestamp);
     });
 
     test("handles events with various kind values", async () => {
