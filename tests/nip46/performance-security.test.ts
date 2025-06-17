@@ -26,7 +26,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
     bunker = new SimpleNIP46Bunker(
       [relay.url],
       userKeypair.publicKey,
-      undefined,
+      userKeypair.publicKey,
       { debug: false }
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);

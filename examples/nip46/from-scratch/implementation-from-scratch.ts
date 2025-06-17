@@ -14,8 +14,8 @@ import {
   verifySignature,
   encryptNIP44,
   decryptNIP44,
-  encryptNIP04,
-  decryptNIP04,
+  encryptNIP04 as _encryptNIP04,
+  decryptNIP04 as _decryptNIP04,
   NostrEvent,
   EventTemplate,
   NIP46Request,
@@ -24,6 +24,15 @@ import {
 } from "../../../src";
 import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
+
+// Wrapper functions to provide NIP-44 style API for NIP-04 (for consistency)
+const encryptNIP04 = (plaintext: string, privateKey: string, publicKey: string): string => {
+  return _encryptNIP04(privateKey, publicKey, plaintext);
+};
+
+const decryptNIP04 = (ciphertext: string, privateKey: string, publicKey: string): string => {
+  return _decryptNIP04(privateKey, publicKey, ciphertext);
+};
 
 // Type definitions
 type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
@@ -499,7 +508,7 @@ class MinimalNIP46Bunker {
           }
           try {
             const [thirdPartyPubkey, plaintext] = params;
-            result = encryptNIP04(this.userKeys.privateKey, thirdPartyPubkey, plaintext);
+            result = encryptNIP04(plaintext, this.userKeys.privateKey, thirdPartyPubkey);
           } catch (encryptError) {
             error = `NIP-04 encryption failed: ${encryptError instanceof Error ? encryptError.message : String(encryptError)}`;
           }
@@ -512,7 +521,7 @@ class MinimalNIP46Bunker {
           }
           try {
             const [thirdPartyPubkey, ciphertext] = params;
-            result = decryptNIP04(this.userKeys.privateKey, thirdPartyPubkey, ciphertext);
+            result = decryptNIP04(ciphertext, this.userKeys.privateKey, thirdPartyPubkey);
           } catch (decryptError) {
             error = `NIP-04 decryption failed: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`;
           }

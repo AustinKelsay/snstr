@@ -127,6 +127,11 @@ export class SimpleNIP46Client {
       this.logger.info(`Connect request sent successfully`);
       
       // Handle connect response per NIP-46 spec
+      // First check for error response
+      if (connectResponse.error) {
+        throw new NIP46ConnectionError(`Connection failed: ${connectResponse.error}`);
+      }
+      
       if (connectResponse.result !== "ack") {
         // If not "ack", it should be a required secret value
         this.logger.debug(`Connect response requires secret: ${connectResponse.result}`);
