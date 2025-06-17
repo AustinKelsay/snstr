@@ -5,7 +5,10 @@ import {
 } from "../../src";
 import { NIP46AuthChallenge } from "../../src/nip46/types";
 
-// No need for interface since we're using 'as any' for testing
+// Interface for accessing internal bunker methods in tests
+interface BunkerWithInternals {
+  handleConnect(request: { id: string; method: string; params: string[] }, clientPubkey: string): Promise<{ id: string; result: string; error: string; auth_url?: string }>;
+}
 
 describe("NIP-46 Auth Challenges", () => {
   let userKeypair: { publicKey: string; privateKey: string };
@@ -115,7 +118,7 @@ describe("NIP-46 Auth Challenges", () => {
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
 
     // Access private method for testing
-    const testBunker = bunker as any;
+    const testBunker = bunker as unknown as BunkerWithInternals;
     
     // Create a mock connect request
     const connectRequest = {

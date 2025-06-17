@@ -7,6 +7,56 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 jest.setTimeout(15000);
 
+// Helper function to create a Promise with timeout that properly cleans up
+function createPromiseWithTimeout<T>(
+  executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: unknown) => void) => void,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
+  return new Promise<T>((originalResolve, originalReject) => {
+    let isResolved = false;
+    
+    const timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        isResolved = true;
+        originalReject(new Error(timeoutMessage));
+      }
+    }, timeoutMs);
+    
+    // Wrapper functions that clear timeout before calling original resolve/reject
+    const resolveWrapper = (value: T | PromiseLike<T>) => {
+      if (!isResolved) {
+        isResolved = true;
+        clearTimeout(timeoutId);
+        originalResolve(value);
+      }
+    };
+    
+    const rejectWrapper = (reason?: unknown) => {
+      if (!isResolved) {
+        isResolved = true;
+        clearTimeout(timeoutId);
+        originalReject(reason);
+      }
+    };
+    
+    executor(resolveWrapper, rejectWrapper);
+  });
+}
+
+// Helper function to race a promise with a timeout that cleans up properly
+function raceWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string = "timeout"): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+  
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
 describe("NIP-46 Input Validation Security", () => {
   let relay: NostrRelay;
   let client: SimpleNIP46Client;
@@ -21,56 +71,42 @@ describe("NIP-46 Input Validation Security", () => {
       const relayStartPromise = relay.start();
       
       // Wait for relay to be ready using the onconnect event, with immediate error handling
-      const relayReady = new Promise<void>((resolve, reject) => {
-        let isResolved = false;
-        
+      const relayReady = createPromiseWithTimeout<void>((resolve, reject) => {
         // Listen for successful connection
         relay.onconnect(() => {
-          if (!isResolved) {
-            isResolved = true;
-            resolve();
-          }
+          resolve();
         });
         
         // Listen for WebSocketServer errors (immediate error detection)
         const errorHandler = (error: Error) => {
-          if (!isResolved) {
-            isResolved = true;
-            reject(new Error(`Relay startup failed: ${error.message}`));
-          }
+          reject(new Error(`Relay startup failed: ${error.message}`));
         };
         
         // Add error listener to the WebSocketServer once it's created
+        let retryCount = 0;
+        const maxRetries = 100; // Maximum number of retries to prevent infinite recursion
+        const pollStartTime = Date.now();
+        const maxPollTime = 4000; // Maximum time to poll (4 seconds)
+        
         const checkForWss = () => {
           if (relay.wss) {
             relay.wss.on('error', errorHandler);
           } else {
+            retryCount++;
+            const elapsed = Date.now() - pollStartTime;
+            
+            // Check if we've exceeded retry limit or time limit
+            if (retryCount >= maxRetries || elapsed >= maxPollTime) {
+              reject(new Error(`Relay WSS initialization timed out after ${retryCount} retries and ${elapsed}ms`));
+              return;
+            }
+            
             // WSS not created yet, check again in next tick
             process.nextTick(checkForWss);
           }
         };
         checkForWss();
-        
-        // Keep timeout as fallback for other types of failures
-        const timeoutId = setTimeout(() => {
-          if (!isResolved) {
-            isResolved = true;
-            reject(new Error("Relay startup timed out"));
-          }
-        }, 5000);
-        
-        // Clean up timeout when resolved
-        const originalResolve = resolve;
-        const originalReject = reject;
-        resolve = (...args) => {
-          clearTimeout(timeoutId);
-          return originalResolve(...args);
-        };
-        reject = (...args) => {
-          clearTimeout(timeoutId);
-          return originalReject(...args);
-        };
-      });
+      }, 5000, "Relay startup timed out");
       
       await relayStartPromise;
       await relayReady;
@@ -152,22 +188,24 @@ describe("NIP-46 Input Validation Security", () => {
     test("validates relay URLs in connection strings", async () => {
       const validPubkey = "a".repeat(64);
       
-      // Reduced timeout for faster failure
+      // Use timeout helper that properly cleans up timers
       await expect(
-        Promise.race([
+        raceWithTimeout(
           client.connect(`bunker://${validPubkey}?relay=http://insecure.com`),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
-        ])
+          2000,
+          "timeout"
+        )
       ).rejects.toThrow();
       
       await expect(
-        Promise.race([
+        raceWithTimeout(
           client.connect(`bunker://${validPubkey}?relay=invalid-url`),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 2000))
-        ])
-      ).rejects.toThrow();
-          }, 6000); // Reduced timeout
-    });
+          2000,
+          "timeout"
+        )
+              ).rejects.toThrow();
+    }, 6000); // Reduced timeout
+  });
 
   describe("Key Validation", () => {
     test("accepts hex keys with mixed case in connection strings", async () => {

@@ -11,6 +11,9 @@ import {
   NIP46ConnectionError,
 } from "../../src/nip46/types";
 
+// Type for accessing internal client properties in tests
+interface ClientWithInternals { clientKeys: { publicKey: string } }
+
 describe("NIP-46 Core Functionality", () => {
   let relay: NostrRelay;
   let relayUrl: string;
@@ -229,7 +232,7 @@ describe("NIP-46 Core Functionality", () => {
       await client.connect(connectionString);
 
       // Manually grant NIP-04 permissions for this test
-      const clientPubkey = (client as any).clientKeys.publicKey;
+      const clientPubkey = (client as unknown as ClientWithInternals).clientKeys.publicKey;
       bunker.addClientPermission(clientPubkey, "nip04_encrypt");
       bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
@@ -262,7 +265,7 @@ describe("NIP-46 Core Functionality", () => {
       await client.connect(connectionString);
 
       // Manually grant NIP-04 permissions for this test
-      const clientPubkey = (client as any).clientKeys.publicKey;
+      const clientPubkey = (client as unknown as ClientWithInternals).clientKeys.publicKey;
       bunker.addClientPermission(clientPubkey, "nip04_encrypt");
       bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
@@ -282,7 +285,7 @@ describe("NIP-46 Core Functionality", () => {
       await client.connect(connectionString);
 
       // Manually grant NIP-04 permissions for this test
-      const clientPubkey = (client as any).clientKeys.publicKey;
+      const clientPubkey = (client as unknown as ClientWithInternals).clientKeys.publicKey;
       bunker.addClientPermission(clientPubkey, "nip04_encrypt");
       bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
