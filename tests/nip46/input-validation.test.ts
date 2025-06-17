@@ -16,13 +16,22 @@ describe("NIP-46 Input Validation Security", () => {
   beforeAll(async () => {
     relay = new NostrRelay(0);
     
-    // Wait for relay to be ready using the onconnect event
-    const relayReady = new Promise<void>((resolve) => {
-      relay.onconnect(() => resolve());
-    });
-    
-    await relay.start();
-    await relayReady;
+    // Start relay and wait for it to be ready with proper error handling
+    try {
+      const relayStartPromise = relay.start();
+      
+      // Wait for relay to be ready using the onconnect event, with timeout for error handling
+      const relayReady = new Promise<void>((resolve, reject) => {
+        relay.onconnect(() => resolve());
+        // Add timeout to prevent hanging on relay startup errors
+        setTimeout(() => reject(new Error("Relay startup timed out")), 5000);
+      });
+      
+      await relayStartPromise;
+      await relayReady;
+    } catch (error) {
+      throw new Error(`Failed to start relay: ${error instanceof Error ? error.message : String(error)}`);
+    }
     
     userKeypair = await generateKeypair();
   });
@@ -173,21 +182,15 @@ describe("NIP-46 Input Validation Security", () => {
       });
       expect(currentEvent).toBeDefined();
       
-      // Test that the system handles timestamp validation gracefully
-      // (The simple implementation may not have strict timestamp validation)
-      try {
-        const futureEvent = await client.signEvent({
-          kind: 1,
-          content: "Hello future",
-          created_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour in future
-          tags: []
-        });
-        // If it succeeds, that's fine - just verify it's signed
-        expect(futureEvent).toBeDefined();
-      } catch (error) {
-        // If it fails, that's also acceptable - just ensure it's a proper error
-        expect(error).toBeDefined();
-      }
+      // Test that future-dated events can be signed (validation happens at relay level)
+      const futureEvent = await client.signEvent({
+        kind: 1,
+        content: "Hello future",
+        created_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour in future
+        tags: []
+      });
+      expect(futureEvent).toBeDefined();
+      expect(futureEvent.created_at).toBe(Math.floor(Date.now() / 1000) + 3600);
     });
 
     test("handles events with various kind values", async () => {
@@ -208,19 +211,15 @@ describe("NIP-46 Input Validation Security", () => {
         expect(event.kind).toBe(kind);
       }
       
-      // Test one edge case only
-      const edgeCase = -1;
-      try {
-        const event = await client.signEvent({
-          kind: edgeCase,
-          content: `Hello edge case ${edgeCase}`,
-          created_at: Math.floor(Date.now() / 1000),
-          tags: []
-        });
-        expect(event).toBeDefined();
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+      // Test negative kind values can be signed (validation happens at relay level)
+      const negativeKindEvent = await client.signEvent({
+        kind: -1,
+        content: "Hello negative kind",
+        created_at: Math.floor(Date.now() / 1000),
+        tags: []
+      });
+      expect(negativeKindEvent).toBeDefined();
+      expect(negativeKindEvent.kind).toBe(-1);
     });
 
     test("handles various content sizes", async () => {
@@ -237,20 +236,26 @@ describe("NIP-46 Input Validation Security", () => {
       });
       expect(normalEvent).toBeDefined();
       
-      // Reduced large content size
-      const largeContent = "a".repeat(5000); // Reduced from 10000
-      try {
-        const largeEvent = await client.signEvent({
+      // Test large content handling - should succeed for reasonable sizes
+      const largeContent = "a".repeat(5000); // 5KB - well below 64KB limit
+      const largeEvent = await client.signEvent({
+        kind: 1,
+        content: largeContent,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: []
+      });
+      expect(largeEvent).toBeDefined();
+      expect(largeEvent.content.length).toBe(5000);
+      
+      // Test that content over 64KB limit is rejected
+      await expect(
+        client.signEvent({
           kind: 1,
-          content: largeContent,
+          content: "a".repeat(65537), // > 64KB limit
           created_at: Math.floor(Date.now() / 1000),
           tags: []
-        });
-        expect(largeEvent).toBeDefined();
-        expect(largeEvent.content.length).toBe(5000);
-      } catch (error) {
-        expect(error).toBeDefined();
-      }
+        })
+      ).rejects.toThrow();
     });
 
     test("validates event tag structure", async () => {
@@ -305,17 +310,17 @@ describe("NIP-46 Input Validation Security", () => {
 
       const validPubkey = (await generateKeypair()).publicKey;
       
-      // For the simple implementation, large messages may succeed
-      // but we test that the system handles them gracefully
-      const largeMessage = "a".repeat(32769); // 32KB+
-      try {
-        const result = await client.nip44Encrypt(validPubkey, largeMessage);
-        // If it succeeds, that's acceptable for simple implementation
-        expect(result).toBeDefined();
-      } catch (error) {
-        // If it fails due to size limits, that's also acceptable
-        expect(error).toBeDefined();
-      }
+      // Test large message encryption - should succeed for sizes under NIP-44 limit (65535 bytes)
+      const largeMessage = "a".repeat(32769); // 32KB+ - well below 65535 byte limit
+      const result = await client.nip44Encrypt(validPubkey, largeMessage);
+      expect(result).toBeDefined();
+      expect(typeof result).toBe("string");
+      expect(result.length).toBeGreaterThan(0);
+      
+      // Test that messages exceeding NIP-44 limit are rejected
+      await expect(
+        client.nip44Encrypt(validPubkey, "a".repeat(65536)) // > 65535 byte limit
+      ).rejects.toThrow();
     });
 
     test("sanitizes dangerous input", async () => {

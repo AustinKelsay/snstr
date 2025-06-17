@@ -117,6 +117,11 @@ export class SimpleNIP46Client {
       );
 
       // Send connect request with proper parameters per NIP-46 spec
+      // Ensure signerPubkey is not null before constructing params array
+      if (!this.signerPubkey) {
+        throw new NIP46ConnectionError("Signer public key is not set. Connection string parsing may have failed.");
+      }
+      
       const connectParams = [
         this.signerPubkey,
         info.secret || "", // optional_secret
