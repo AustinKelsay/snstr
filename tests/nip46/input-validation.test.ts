@@ -7,42 +7,6 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 jest.setTimeout(15000);
 
-// Helper function to create a Promise with timeout that properly cleans up
-function createPromiseWithTimeout<T>(
-  executor: (resolve: (value: T | PromiseLike<T>) => void, reject: (reason?: unknown) => void) => void,
-  timeoutMs: number,
-  timeoutMessage: string
-): Promise<T> {
-  return new Promise<T>((originalResolve, originalReject) => {
-    let isResolved = false;
-    
-    const timeoutId = setTimeout(() => {
-      if (!isResolved) {
-        isResolved = true;
-        originalReject(new Error(timeoutMessage));
-      }
-    }, timeoutMs);
-    
-    // Wrapper functions that clear timeout before calling original resolve/reject
-    const resolveWrapper = (value: T | PromiseLike<T>) => {
-      if (!isResolved) {
-        isResolved = true;
-        clearTimeout(timeoutId);
-        originalResolve(value);
-      }
-    };
-    
-    const rejectWrapper = (reason?: unknown) => {
-      if (!isResolved) {
-        isResolved = true;
-        clearTimeout(timeoutId);
-        originalReject(reason);
-      }
-    };
-    
-    executor(resolveWrapper, rejectWrapper);
-  });
-}
 
 // Helper function to race a promise with a timeout that cleans up properly
 function raceWithTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string = "timeout"): Promise<T> {
@@ -66,50 +30,9 @@ describe("NIP-46 Input Validation Security", () => {
   beforeAll(async () => {
     relay = new NostrRelay(0);
     
-    // Start relay and wait for it to be ready with proper error handling
+    // Start relay - relay.start() only resolves when WSS is fully listening
     try {
-      const relayStartPromise = relay.start();
-      
-      // Wait for relay to be ready using the onconnect event, with immediate error handling
-      const relayReady = createPromiseWithTimeout<void>((resolve, reject) => {
-        // Listen for successful connection
-        relay.onconnect(() => {
-          resolve();
-        });
-        
-        // Listen for WebSocketServer errors (immediate error detection)
-        const errorHandler = (error: Error) => {
-          reject(new Error(`Relay startup failed: ${error.message}`));
-        };
-        
-        // Add error listener to the WebSocketServer once it's created
-        let retryCount = 0;
-        const maxRetries = 100; // Maximum number of retries to prevent infinite recursion
-        const pollStartTime = Date.now();
-        const maxPollTime = 4000; // Maximum time to poll (4 seconds)
-        
-        const checkForWss = () => {
-          if (relay.wss) {
-            relay.wss.on('error', errorHandler);
-          } else {
-            retryCount++;
-            const elapsed = Date.now() - pollStartTime;
-            
-            // Check if we've exceeded retry limit or time limit
-            if (retryCount >= maxRetries || elapsed >= maxPollTime) {
-              reject(new Error(`Relay WSS initialization timed out after ${retryCount} retries and ${elapsed}ms`));
-              return;
-            }
-            
-            // WSS not created yet, check again in next tick
-            process.nextTick(checkForWss);
-          }
-        };
-        checkForWss();
-      }, 5000, "Relay startup timed out");
-      
-      await relayStartPromise;
-      await relayReady;
+      await relay.start();
     } catch (error) {
       throw new Error(`Failed to start relay: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -461,7 +384,7 @@ describe("NIP-46 Input Validation Security", () => {
       expect(results.length).toBe(10);
       
       const successful = results.filter(r => r.status === "fulfilled");
-      expect(successful.length).toBeGreaterThan(0);
+      expect(successful.length).toBeGreaterThanOrEqual(8); // At least 80% success rate (8 out of 10)
     });
   });
 
