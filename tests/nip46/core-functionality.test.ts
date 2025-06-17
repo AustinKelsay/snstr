@@ -201,7 +201,7 @@ describe("NIP-46 Core Functionality", () => {
       // Missing required fields
       await expect(client.signEvent({
         kind: 1,
-        // Missing content field
+        // Missing content
         created_at: Math.floor(Date.now() / 1000),
         tags: [],
       } as unknown as Parameters<typeof client.signEvent>[0])).rejects.toThrow();
