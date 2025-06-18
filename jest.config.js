@@ -19,6 +19,10 @@ module.exports = {
   testPathIgnorePatterns: [],
   // Add reasonable test timeout
   testTimeout: 10000,
+  // Force Jest to exit after tests complete
+  forceExit: true,
+  // Detect open handles to help debug hanging tests
+  detectOpenHandles: false,
   // Display detailed coverage information
   collectCoverage: true,
   collectCoverageFrom: [

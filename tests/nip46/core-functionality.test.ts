@@ -34,7 +34,7 @@ describe("NIP-46 Core Functionality", () => {
     signerKeypair = await generateKeypair();
 
     // Give the relay time to start properly
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500).unref());
   }, 10000);
 
   afterAll(async () => {
@@ -59,7 +59,7 @@ describe("NIP-46 Core Functionality", () => {
     }
 
     // Add a small delay to ensure all connections are closed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000).unref());
   }, 15000);
 
   beforeEach(async () => {
@@ -94,13 +94,21 @@ describe("NIP-46 Core Functionality", () => {
   });
 
   afterEach(async () => {
-    if (bunker) {
-      await bunker.stop().catch(() => {});
-    }
+    // Disconnect client first to stop sending new requests
     if (client) {
       await client.disconnect().catch(() => {});
     }
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    
+    // Give time for any pending events to be processed
+    await new Promise((resolve) => setTimeout(resolve, 1000).unref());
+    
+    // Stop bunker after client is disconnected
+    if (bunker) {
+      await bunker.stop().catch(() => {});
+    }
+    
+    // Final cleanup delay
+    await new Promise((resolve) => setTimeout(resolve, 500).unref());
   });
 
   describe("Client State Management", () => {

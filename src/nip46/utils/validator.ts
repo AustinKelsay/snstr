@@ -77,9 +77,9 @@ export class NIP46Validator {
       return false;
     }
 
-    // Validate timestamp (reasonable range)
+    // Validate timestamp (reasonable range) - relaxed for offline signing
     const now = Math.floor(Date.now() / 1000);
-    const maxSkew = 3600; // 1 hour tolerance
+    const maxSkew = 86400; // 24 hours tolerance for offline signing
     if (Math.abs(now - eventObj.created_at) > maxSkew) {
       return false;
     }
@@ -136,6 +136,30 @@ export class NIP46Validator {
 
     // Must be exactly 64 characters of hex (case-insensitive)
     return /^[0-9a-f]{64}$/i.test(pubkey);
+  }
+
+  /**
+   * Validate event ID format
+   */
+  static validateEventId(eventId: string): boolean {
+    if (!eventId || typeof eventId !== 'string') {
+      return false;
+    }
+
+    // Must be exactly 64 characters of hex (case-insensitive)
+    return /^[0-9a-f]{64}$/i.test(eventId);
+  }
+
+  /**
+   * Validate signature format
+   */
+  static validateSignature(signature: string): boolean {
+    if (!signature || typeof signature !== 'string') {
+      return false;
+    }
+
+    // Must be exactly 128 characters of hex (case-insensitive)
+    return /^[0-9a-f]{128}$/i.test(signature);
   }
 
   /**
@@ -279,8 +303,10 @@ export class NIP46Validator {
     const validPermissions = [
       'connect',
       'get_public_key',
+      'get_relays',
       'sign_event',
-      'ping',
+      'ping', 
+      'disconnect',
       'nip04_encrypt',
       'nip04_decrypt',
       'nip44_encrypt',
@@ -360,6 +386,28 @@ export class NIP46Validator {
         }
       );
       return false;
+    }
+  }
+
+  /**
+   * Validate JSON string and return parsing result
+   */
+  static validateAndParseJson(jsonString: string): { valid: boolean; data?: any; error?: string } {
+    if (!jsonString || typeof jsonString !== 'string') {
+      return { valid: false, error: 'Invalid JSON string' };
+    }
+
+    // Check for reasonable size limits
+    if (jsonString.length > NIP46Validator.MAX_CONTENT_SIZE) {
+      return { valid: false, error: 'JSON string too large' };
+    }
+
+    try {
+      const parsed = JSON.parse(jsonString);
+      return { valid: true, data: parsed };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
+      return { valid: false, error: `JSON parsing failed: ${errorMessage}` };
     }
   }
 

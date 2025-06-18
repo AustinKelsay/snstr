@@ -1,5 +1,6 @@
 import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
+import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
@@ -16,6 +17,8 @@ import {
   NIP46UnsignedEventData,
   NIP46ConnectionError,
   NIP46EncryptionError,
+  NIP46ErrorCode,
+  NIP46ErrorUtils,
 } from "./types";
 import { buildConnectionString } from "./utils/connection";
 
@@ -28,6 +31,9 @@ export class NostrRemoteSignerBunker {
   private pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
   private subId: string | null;
   private debug: boolean;
+  private permissionHandler: ((clientPubkey: string, method: string, params: string[]) => boolean | null) | null = null;
+  private usedRequestIds: Map<string, number> = new Map(); // Request ID -> timestamp
+  private cleanupInterval: NodeJS.Timeout | null = null; // For cleanup interval management
 
   constructor(options: NIP46BunkerOptions) {
     this.options = options;
@@ -114,11 +120,17 @@ export class NostrRemoteSignerBunker {
     }
 
     // Start cleanup interval
-    setInterval(() => this.cleanup(), 300000); // Run cleanup every 5 minutes
+    this.cleanupInterval = setInterval(() => this.cleanup(), 300000).unref(); // Run cleanup every 5 minutes, don't keep process alive
   }
 
   public async stop(): Promise<void> {
     if (this.debug) console.log("[NIP46 BUNKER] Stopping bunker");
+
+    // Clear the cleanup interval
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
 
     if (this.subId) {
       this.nostr.unsubscribe([this.subId]);
@@ -131,6 +143,7 @@ export class NostrRemoteSignerBunker {
 
     this.connectedClients.clear();
     this.pendingAuthChallenges.clear();
+    this.usedRequestIds.clear();
   }
 
   /**
@@ -153,6 +166,69 @@ export class NostrRemoteSignerBunker {
   setPrivateKeys(userPrivateKey: string, signerPrivateKey?: string): void {
     this.setUserPrivateKey(userPrivateKey);
     this.setSignerPrivateKey(signerPrivateKey || userPrivateKey);
+  }
+
+  /**
+   * Set a custom permission handler for advanced permission logic
+   * @param handler - Function that takes (clientPubkey, method, params) and returns:
+   *                  - true: Allow the operation
+   *                  - false: Deny the operation
+   *                  - null: Use default permission checking
+   */
+  setPermissionHandler(
+    handler: (clientPubkey: string, method: string, params: string[]) => boolean | null
+  ): void {
+    this.permissionHandler = handler;
+  }
+
+  /**
+   * Remove the custom permission handler
+   */
+  clearPermissionHandler(): void {
+    this.permissionHandler = null;
+  }
+
+  /**
+   * Check if a request ID has been used before (replay attack prevention)
+   * @private
+   */
+  private isReplayAttack(requestId: string): boolean {
+    const now = Date.now();
+    const requestTime = this.usedRequestIds.get(requestId);
+    
+    if (requestTime !== undefined) {
+      // This request ID has been seen before
+      if (this.debug) {
+        console.log(`[NIP46 BUNKER] Replay attack detected: request ID ${requestId} already used at ${new Date(requestTime)}`);
+      }
+      return true;
+    }
+
+    // Store this request ID with current timestamp
+    this.usedRequestIds.set(requestId, now);
+    
+    return false;
+  }
+
+  /**
+   * Clean up old request IDs to prevent memory growth
+   * @private
+   */
+  private cleanupOldRequestIds(): void {
+    const now = Date.now();
+    const maxAge = 300000; // 5 minutes in milliseconds
+    
+    let cleaned = 0;
+    for (const [requestId, timestamp] of this.usedRequestIds.entries()) {
+      if (now - timestamp > maxAge) {
+        this.usedRequestIds.delete(requestId);
+        cleaned++;
+      }
+    }
+    
+    if (this.debug && cleaned > 0) {
+      console.log(`[NIP46 BUNKER] Cleaned up ${cleaned} old request IDs`);
+    }
   }
 
   /**
@@ -247,6 +323,9 @@ export class NostrRemoteSignerBunker {
       }
     });
 
+    // Clean up old request IDs for replay attack prevention
+    this.cleanupOldRequestIds();
+
     if (this.debug && (clientsRemoved > 0 || challengesRemoved > 0)) {
       console.log(
         `[NIP46 BUNKER] Cleanup: removed ${clientsRemoved} clients and ${challengesRemoved} challenges`,
@@ -301,6 +380,14 @@ export class NostrRemoteSignerBunker {
         return;
       }
 
+      // Check for replay attacks (except for ping which can be repeated)
+      if (request.method !== "ping" && this.isReplayAttack(request.id)) {
+        if (this.debug) {
+          console.log(`[NIP46 BUNKER] Ignoring replay attack for request ID: ${request.id}`);
+        }
+        return; // Silently ignore replay attacks
+      }
+
       // Process the request
       let response: NIP46Response;
 
@@ -330,6 +417,8 @@ export class NostrRemoteSignerBunker {
           id: request.id,
           result: "pong",
         };
+      } else if (method === "disconnect") {
+        response = await this.handleDisconnect(request, clientPubkey);
       } else {
         console.log("[NIP46 BUNKER] Unknown method:", method);
         response = {
@@ -363,21 +452,32 @@ export class NostrRemoteSignerBunker {
     // Check if the client is trying to connect with the wrong signer
     const targetPubkey = request.params[0];
     if (targetPubkey && targetPubkey !== this.signerKeypair.publicKey) {
-      return {
-        id: request.id,
-        error: "Connection rejected: wrong target public key",
-      };
+      return NIP46ErrorUtils.createErrorResponse(
+        request.id,
+        NIP46ErrorCode.CONNECTION_REJECTED,
+        "Wrong target public key",
+        `Expected: ${this.signerKeypair.publicKey}, got: ${targetPubkey}`
+      );
     }
 
     // Extract the secret from the request
     const secret = request.params[1] || "";
 
-    // Check the secret if configured
-    if (this.options.secret && this.options.secret !== secret) {
-      return {
-        id: request.id,
-        error: "Connection rejected: invalid secret",
-      };
+    // Handle secret validation according to NIP-46 spec
+    if (this.options.secret) {
+      if (!secret) {
+        // No secret provided, return the required secret value
+        return {
+          id: request.id,
+          result: this.options.secret,
+        };
+              } else if (this.options.secret !== secret) {
+          return NIP46ErrorUtils.createErrorResponse(
+            request.id,
+            NIP46ErrorCode.INVALID_SECRET,
+            "Invalid secret provided"
+          );
+        }
     }
 
     // Parse and validate the requested permissions
@@ -479,7 +579,7 @@ export class NostrRemoteSignerBunker {
 
       // Check event kind permission
       if (
-        !this.hasPermission(clientPubkey, `sign_event:${eventTemplate.kind}`)
+        !this.hasPermission(clientPubkey, `sign_event:${eventTemplate.kind}`, request.method, request.params)
       ) {
         return {
           id: request.id,
@@ -525,6 +625,36 @@ export class NostrRemoteSignerBunker {
   }
 
   /**
+   * Handle a disconnect request
+   */
+  private async handleDisconnect(
+    request: NIP46Request,
+    clientPubkey: string,
+  ): Promise<NIP46Response> {
+    // Remove the client session
+    if (this.connectedClients.has(clientPubkey)) {
+      this.connectedClients.delete(clientPubkey);
+      if (this.debug) {
+        console.log("[NIP46 BUNKER] Client disconnected:", clientPubkey);
+      }
+    }
+
+    // Remove any pending auth challenges for this client
+    const challengesToRemove: string[] = [];
+    this.pendingAuthChallenges.forEach((challenge, challengeId) => {
+      if (challenge.clientPubkey === clientPubkey) {
+        challengesToRemove.push(challengeId);
+      }
+    });
+    challengesToRemove.forEach(id => this.pendingAuthChallenges.delete(id));
+
+    return {
+      id: request.id,
+      result: "ack",
+    };
+  }
+
+  /**
    * Handle encryption/decryption requests
    */
   private async handleEncryption(
@@ -539,7 +669,7 @@ export class NostrRemoteSignerBunker {
     }
 
     // Check permissions for the specific encryption method
-    if (!this.hasPermission(clientPubkey, request.method)) {
+    if (!this.hasPermission(clientPubkey, request.method, request.method, request.params)) {
       return {
         id: request.id,
         error: `Not authorized for ${request.method}`,
@@ -586,11 +716,29 @@ export class NostrRemoteSignerBunker {
           );
           break;
 
+        case NIP46Method.NIP04_ENCRYPT:
+          result = encryptNIP04(
+            content,
+            this.userKeypair.privateKey,
+            thirdPartyPubkey,
+          );
+          break;
+
+        case NIP46Method.NIP04_DECRYPT:
+          result = decryptNIP04(
+            content,
+            this.userKeypair.privateKey,
+            thirdPartyPubkey,
+          );
+          break;
+
         default:
-          return {
-            id: request.id,
-            error: "Unsupported method",
-          };
+          return NIP46ErrorUtils.createErrorResponse(
+            request.id,
+            NIP46ErrorCode.METHOD_NOT_SUPPORTED,
+            "Unsupported encryption method",
+            `Method: ${request.method}`
+          );
       }
 
       return {
@@ -646,16 +794,20 @@ export class NostrRemoteSignerBunker {
         clientPubkey,
       );
 
-      // Create and publish the response event
-      await this.nostr.publishEvent({
-        kind: 24133,
-        pubkey: this.signerKeypair.publicKey,
-        created_at: getUnixTime(),
-        tags: [["p", clientPubkey]],
-        content: encryptedContent,
-        id: "",
-        sig: "",
-      });
+      // Create and sign the response event
+      const responseEvent = await createSignedEvent(
+        {
+          kind: 24133,
+          pubkey: this.signerKeypair.publicKey,
+          created_at: getUnixTime(),
+          tags: [["p", clientPubkey]],
+          content: encryptedContent,
+        },
+        this.signerKeypair.privateKey,
+      );
+
+      // Publish the signed response event
+      await this.nostr.publishEvent(responseEvent);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
@@ -777,7 +929,18 @@ export class NostrRemoteSignerBunker {
    * Check if a client has a specific permission
    * @private
    */
-  private hasPermission(clientPubkey: string, permission: string): boolean {
+  private hasPermission(clientPubkey: string, permission: string, method?: string, params?: string[]): boolean {
+    // First check custom permission handler if set
+    if (this.permissionHandler && method) {
+      const customResult = this.permissionHandler(clientPubkey, method, params || []);
+      if (customResult !== null) {
+        if (this.debug) {
+          console.log(`[NIP46 BUNKER] Custom permission handler returned: ${customResult} for ${clientPubkey}:${method}`);
+        }
+        return customResult;
+      }
+    }
+
     const client = this.connectedClients.get(clientPubkey);
     if (!client) {
       return false;

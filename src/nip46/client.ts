@@ -41,6 +41,12 @@ export class NostrRemoteSignerClient {
   private connected = false;
   private subId: string | null = null;
   private debug: boolean;
+  private pendingAuthChallenges = new Map<string, {
+    originalRequestId: string;
+    authUrl: string;
+    timeout: NodeJS.Timeout;
+    timestamp: number;
+  }>();
 
   constructor(options: NIP46ClientOptions = {}) {
     this.options = {
@@ -126,6 +132,18 @@ export class NostrRemoteSignerClient {
       request.reject(new NIP46ConnectionError("Client disconnected"));
     });
     this.pendingRequests.clear();
+
+    // Clean up pending auth challenges
+    this.pendingAuthChallenges.forEach((challenge) => {
+      clearTimeout(challenge.timeout);
+    });
+    this.pendingAuthChallenges.clear();
+
+    // Close auth window if open
+    if (this.authWindow && !this.authWindow.closed) {
+      this.authWindow.close();
+      this.authWindow = null;
+    }
   }
 
   /**
@@ -227,7 +245,7 @@ export class NostrRemoteSignerClient {
         await new Promise<void>((resolve, reject) => {
           setTimeout(() => {
             reject(new NIP46TimeoutError("Authentication challenge timed out"));
-          }, authTimeout);
+          }, authTimeout).unref(); // Don't keep process alive
 
           // Check periodically if we can connect
           const checkInterval = setInterval(async () => {
@@ -244,7 +262,7 @@ export class NostrRemoteSignerClient {
             } catch (err) {
               // Keep trying until timeout
             }
-          }, 1000);
+          }, 1000).unref(); // Don't keep process alive
         });
       } else {
         // Validate response
@@ -252,6 +270,16 @@ export class NostrRemoteSignerClient {
           console.error("[NIP46 CLIENT] Connection failed:", response.error);
           throw new NIP46ConnectionError(
             `Connection failed: ${response.error}`,
+          );
+        }
+
+        // Check if bunker returned a required secret value
+        if (response.result && response.result !== "ack" && response.result !== (connectionInfo.secret || this.options.secret || "")) {
+          if (this.debug) {
+            console.log("[NIP46 CLIENT] Bunker requires secret:", response.result);
+          }
+          throw new NIP46ConnectionError(
+            `Connection requires secret: ${response.result}. Please provide this secret in your connection string.`,
           );
         }
 
@@ -299,6 +327,21 @@ export class NostrRemoteSignerClient {
    * Disconnect from the remote signer
    */
   public async disconnect(): Promise<void> {
+    // Send disconnect request if we're connected
+    if (this.connected && this.clientKeypair && this.signerPubkey) {
+      try {
+        const response = await this.sendRequest(NIP46Method.DISCONNECT, []);
+        if (this.debug) {
+          console.log("[NIP46 CLIENT] Disconnect response:", response);
+        }
+      } catch (error) {
+        if (this.debug) {
+          console.log("[NIP46 CLIENT] Error sending disconnect request:", error);
+        }
+        // Don't throw, continue with cleanup
+      }
+    }
+    
     await this.cleanup();
   }
 
@@ -410,6 +453,69 @@ export class NostrRemoteSignerClient {
   }
 
   /**
+   * Get the relay list from the remote signer
+   */
+  async getRelays(): Promise<string[]> {
+    if (!this.connected || !this.clientKeypair || !this.signerPubkey) {
+      throw new NIP46ConnectionError("Not connected to remote signer");
+    }
+
+    const response = await this.sendRequest(NIP46Method.GET_RELAYS, []);
+
+    if (response.error) {
+      throw new NIP46Error(`Get relays failed: ${response.error}`);
+    }
+
+    return JSON.parse(response.result!);
+  }
+
+  /**
+   * NIP-04 encrypt plaintext for a third party
+   */
+  async nip04Encrypt(
+    thirdPartyPubkey: string,
+    plaintext: string,
+  ): Promise<string> {
+    if (!this.connected || !this.clientKeypair || !this.signerPubkey) {
+      throw new NIP46ConnectionError("Not connected to remote signer");
+    }
+
+    const response = await this.sendRequest(NIP46Method.NIP04_ENCRYPT, [
+      thirdPartyPubkey,
+      plaintext,
+    ]);
+
+    if (response.error) {
+      throw new NIP46EncryptionError(`NIP-04 encryption failed: ${response.error}`);
+    }
+
+    return response.result!;
+  }
+
+  /**
+   * NIP-04 decrypt ciphertext from a third party
+   */
+  async nip04Decrypt(
+    thirdPartyPubkey: string,
+    ciphertext: string,
+  ): Promise<string> {
+    if (!this.connected || !this.clientKeypair || !this.signerPubkey) {
+      throw new NIP46ConnectionError("Not connected to remote signer");
+    }
+
+    const response = await this.sendRequest(NIP46Method.NIP04_DECRYPT, [
+      thirdPartyPubkey,
+      ciphertext,
+    ]);
+
+    if (response.error) {
+      throw new NIP46DecryptionError(`NIP-04 decryption failed: ${response.error}`);
+    }
+
+    return response.result!;
+  }
+
+  /**
    * Send a request to the remote signer
    */
   private async sendRequest(
@@ -443,7 +549,7 @@ export class NostrRemoteSignerClient {
           this.pendingRequests.delete(id);
           reject(new NIP46TimeoutError(`Request timed out: ${method}`));
         }
-      }, this.options.timeout || DEFAULT_TIMEOUT);
+      }, this.options.timeout || DEFAULT_TIMEOUT).unref(); // Don't keep process alive
 
       if (this.debug)
         console.log(
@@ -714,15 +820,130 @@ export class NostrRemoteSignerClient {
   }
 
   /**
-   * Handle authentication challenge
+   * Handle authentication challenge with proper validation and timeout
    * @private
    */
   private handleAuthChallenge(response: NIP46Response): void {
-    if (response.auth_url && typeof window !== "undefined") {
-      // Open auth window if not already open
+    if (!response.auth_url) {
+      console.error("[NIP46 CLIENT] Auth challenge without auth_url");
+      return;
+    }
+
+    // Validate auth URL for security
+    if (!this.isValidAuthUrl(response.auth_url)) {
+      console.error("[NIP46 CLIENT] Invalid or potentially dangerous auth URL:", response.auth_url);
+      return;
+    }
+
+    if (this.debug) {
+      console.log("[NIP46 CLIENT] Processing auth challenge for request:", response.id);
+    }
+
+    // Set up auth challenge timeout (default 5 minutes)
+    const authTimeout = this.options.authTimeout || 300000;
+    const timeoutId = setTimeout(() => {
+      this.handleAuthTimeout(response.id);
+    }, authTimeout).unref(); // Don't keep process alive
+
+    // Store the pending auth challenge
+    this.pendingAuthChallenges.set(response.id, {
+      originalRequestId: response.id,
+      authUrl: response.auth_url,
+      timeout: timeoutId,
+      timestamp: Date.now()
+    });
+
+    // Open auth window in browser environment
+    if (typeof window !== "undefined") {
       if (!this.authWindow || this.authWindow.closed) {
-        this.authWindow = window.open(response.auth_url, "_blank");
+        this.authWindow = window.open(response.auth_url, "_blank", "width=500,height=600");
+        
+        // Set up window monitoring for auth completion
+        this.monitorAuthWindow(response.id);
       }
+    } else {
+      console.warn("[NIP46 CLIENT] Auth challenge received in non-browser environment. Please complete authentication at:", response.auth_url);
+    }
+  }
+
+  /**
+   * Validate auth URL to prevent XSS and other attacks
+   * @private
+   */
+  private isValidAuthUrl(url: string): boolean {
+    try {
+      const parsedUrl = new URL(url);
+      
+      // Only allow HTTPS URLs (or HTTP for localhost in development)
+      if (parsedUrl.protocol !== 'https:' && 
+          !(parsedUrl.protocol === 'http:' && parsedUrl.hostname === 'localhost')) {
+        return false;
+      }
+
+      // Optional: whitelist domains if configured
+      if (this.options.authDomainWhitelist && this.options.authDomainWhitelist.length > 0) {
+        return this.options.authDomainWhitelist.includes(parsedUrl.hostname);
+      }
+
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Monitor auth window for completion
+   * @private
+   */
+  private monitorAuthWindow(requestId: string): void {
+    if (!this.authWindow) return;
+
+    const checkInterval = setInterval(() => {
+      if (this.authWindow?.closed) {
+        clearInterval(checkInterval);
+        // Window was closed - check if we got a response
+        setTimeout(() => {
+          if (this.pendingAuthChallenges.has(requestId)) {
+            console.warn("[NIP46 CLIENT] Auth window closed without completion");
+            this.handleAuthTimeout(requestId);
+          }
+        }, 1000).unref(); // Don't keep process alive
+      }
+    }, 1000).unref(); // Don't keep process alive
+
+    // Clean up interval after max timeout
+    setTimeout(() => {
+      clearInterval(checkInterval);
+    }, this.options.authTimeout || 300000).unref(); // Don't keep process alive
+  }
+
+  /**
+   * Handle auth challenge timeout
+   * @private
+   */
+  private handleAuthTimeout(requestId: string): void {
+    const challenge = this.pendingAuthChallenges.get(requestId);
+    if (challenge) {
+      clearTimeout(challenge.timeout);
+      this.pendingAuthChallenges.delete(requestId);
+      
+      if (this.debug) {
+        console.log("[NIP46 CLIENT] Auth challenge timed out for request:", requestId);
+      }
+
+      // Reject the original request with timeout error
+      const pendingRequest = this.pendingRequests.get(requestId);
+      if (pendingRequest) {
+        clearTimeout(pendingRequest.timeout);
+        this.pendingRequests.delete(requestId);
+        pendingRequest.reject(new NIP46TimeoutError("Authentication challenge timed out"));
+      }
+    }
+
+    // Close auth window if still open
+    if (this.authWindow && !this.authWindow.closed) {
+      this.authWindow.close();
+      this.authWindow = null;
     }
   }
 

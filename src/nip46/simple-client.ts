@@ -99,7 +99,7 @@ export class SimpleNIP46Client {
       await this.nostr.connectToRelays();
 
       // Give a moment for the connection to fully establish
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000).unref());
       this.logger.debug(`Connected to relays`);
 
       // Subscribe to responses
@@ -184,12 +184,17 @@ export class SimpleNIP46Client {
    */
   async ping(): Promise<boolean> {
     try {
+      // Check if client is connected first
+      if (!this.signerPubkey || !this.clientKeys.privateKey) {
+        return false;
+      }
+
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<boolean>((_, reject) => {
         setTimeout(
           () => reject(new NIP46TimeoutError("Ping timed out")),
           this.timeout,
-        );
+        ).unref(); // Don't keep process alive
       });
 
       const pingPromise = this.sendRequest(NIP46Method.PING, []).then(
@@ -288,9 +293,28 @@ export class SimpleNIP46Client {
   }
 
   /**
+   * Get the relay list from the remote signer
+   */
+  async getRelays(): Promise<string[]> {
+    const response = await this.sendRequest(NIP46Method.GET_RELAYS, []);
+    return JSON.parse(response.result!);
+  }
+
+  /**
    * Disconnect from the remote signer
    */
   async disconnect(): Promise<void> {
+    // Send disconnect request to bunker if connected
+    if (this.signerPubkey && this.clientKeys.privateKey) {
+      try {
+        await this.sendRequest(NIP46Method.DISCONNECT, []);
+        this.logger.debug("Disconnect request sent to bunker");
+      } catch (e) {
+        // Ignore disconnect request errors - continue with cleanup
+        this.logger.warn("Failed to send disconnect request:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
     // First cancel subscription
     if (this.subId) {
       try {
@@ -328,7 +352,7 @@ export class SimpleNIP46Client {
     this.signerPubkey = null;
 
     // Add a small delay to ensure all connections are closed
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500).unref());
   }
 
   /**
@@ -368,7 +392,7 @@ export class SimpleNIP46Client {
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(request.id);
         reject(new NIP46TimeoutError(`Request timed out: ${method}`));
-      }, this.timeout);
+      }, this.timeout).unref(); // Don't keep process alive
 
       // Store the promise handlers with timeout cleanup
       this.pendingRequests.set(request.id, (response: NIP46Response) => {
