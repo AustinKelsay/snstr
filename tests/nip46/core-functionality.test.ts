@@ -24,8 +24,8 @@ describe("NIP-46 Core Functionality", () => {
   const activeClients: NostrRemoteSignerClient[] = [];
 
   beforeAll(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3792);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 

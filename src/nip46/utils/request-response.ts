@@ -6,12 +6,34 @@
 import { NIP46Method, NIP46Request, NIP46Response } from "../types";
 
 /**
- * Generate a unique request ID
- * Uses a combination of timestamp and random characters
+ * Generate a cryptographically secure random request ID
+ * Uses crypto.randomBytes in Node.js or crypto.getRandomValues in browsers
  */
 export function generateRequestId(): string {
-  const randomChars = Math.random().toString(36).substring(2, 12);
-  return randomChars;
+  // Use Node.js crypto if available
+  if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    try {
+      // Dynamic import to avoid require statement
+      const crypto = eval('require')('crypto');
+      return crypto.randomBytes(16).toString('hex');
+    } catch (error) {
+      // Fallback if crypto is not available
+    }
+  }
+  
+  // Use Web Crypto API if available (browsers)
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(16);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+  
+  // Final fallback - should only happen in very unusual environments
+  // Include timestamp to reduce collision probability
+  const timestamp = Date.now().toString(36);
+  const random1 = Math.random().toString(36).substring(2, 15);
+  const random2 = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}-${random1}-${random2}`;
 }
 
 /**

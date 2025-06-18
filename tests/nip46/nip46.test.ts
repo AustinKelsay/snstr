@@ -16,8 +16,8 @@ describe("NIP-46 Remote Signing", () => {
   let userKeypair: { publicKey: string; privateKey: string };
 
   beforeAll(async () => {
-    // Start ephemeral relay with a different port
-    relay = new NostrRelay(3333);
+    // Start ephemeral relay (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
 
     // Generate test keypairs

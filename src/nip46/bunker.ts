@@ -4,6 +4,7 @@ import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
+import { generateRequestId } from "./utils/request-response";
 import {
   NIP46Method,
   NIP46Request,
@@ -128,33 +129,50 @@ export class NostrRemoteSignerBunker {
     }
 
     // Start cleanup interval
-    this.cleanupInterval = setInterval(() => this.cleanup(), 300000).unref(); // Run cleanup every 5 minutes, don't keep process alive
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60000).unref(); // Run cleanup every 1 minute for better security, don't keep process alive
   }
 
   public async stop(): Promise<void> {
     this.logger.info("Stopping bunker");
 
-    // Clear the cleanup interval
+    // Clear the cleanup interval FIRST to prevent race conditions
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
 
+    // Clean up subscription
     if (this.subId) {
-      this.nostr.unsubscribe([this.subId]);
-      this.subId = null;
+      try {
+        await this.nostr.unsubscribe([this.subId]);
+        this.subId = null;
+      } catch (error) {
+        this.logger.error('Failed to unsubscribe', { error });
+      }
     }
 
+    // Disconnect from relays
     if (this.nostr) {
-      this.nostr.disconnectFromRelays();
+      try {
+        await this.nostr.disconnectFromRelays();
+      } catch (error) {
+        this.logger.error('Failed to disconnect from relays', { error });
+      }
     }
 
     // Clean up rate limiter
-    this.rateLimiter.destroy();
+    try {
+      this.rateLimiter.destroy();
+    } catch (error) {
+      this.logger.error('Failed to destroy rate limiter', { error });
+    }
 
+    // Clear all data structures
     this.connectedClients.clear();
     this.pendingAuthChallenges.clear();
     this.usedRequestIds.clear();
+    
+    this.logger.info("Bunker stopped successfully");
   }
 
   /**
@@ -235,7 +253,7 @@ export class NostrRemoteSignerBunker {
    */
   private cleanupOldRequestIds(): void {
     const now = Date.now();
-    const maxAge = 3600000; // 1 hour
+    const maxAge = 120000; // 2 minutes - reduced from 1 hour for better security
     let cleaned = 0;
 
     for (const [requestId, timestamp] of this.usedRequestIds.entries()) {
@@ -294,7 +312,7 @@ export class NostrRemoteSignerBunker {
    */
   private createAuthChallenge(clientPubkey: string, permissions?: string[]): NIP46AuthChallenge {
     const challenge: NIP46AuthChallenge = {
-      id: Math.random().toString(36).substring(2, 15),
+      id: generateRequestId(),
       clientPubkey,
       timestamp: Date.now(),
       permissions,

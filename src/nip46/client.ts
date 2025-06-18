@@ -6,6 +6,7 @@ import { NostrEvent, NostrFilter } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { parseConnectionString } from "./utils/connection";
 import { Logger, LogLevel } from "./utils/logger";
+import { generateRequestId } from "./utils/request-response";
 import {
   NIP46Method,
   NIP46Request,
@@ -115,21 +116,10 @@ export class NostrRemoteSignerClient {
    * Clean up resources and reset state
    */
   private async cleanup(): Promise<void> {
-    if (this.subId) {
-      try {
-        await this.nostr.unsubscribe([this.subId]); // FIX: Add await to prevent race condition
-        this.subId = null;
-      } catch (error) {
-        this.logger.error('Unsubscription failed', { error });
-      }
-    }
-
-    await this.nostr.disconnectFromRelays();
-
+    // Set disconnected state FIRST to prevent new requests
     this.connected = false;
-    this.signerPubkey = null;
-    this.userPubkey = null;
-
+    
+    // Clean up pending requests BEFORE unsubscribing to prevent race conditions
     this.pendingRequests.forEach((request) => {
       clearTimeout(request.timeout);
       request.reject(new NIP46ConnectionError("Client disconnected"));
@@ -147,6 +137,26 @@ export class NostrRemoteSignerClient {
       this.authWindow.close();
       this.authWindow = null;
     }
+
+    // Now safely clean up subscriptions and connections
+    if (this.subId) {
+      try {
+        await this.nostr.unsubscribe([this.subId]);
+        this.subId = null;
+      } catch (error) {
+        this.logger.error('Unsubscription failed', { error });
+      }
+    }
+
+    try {
+      await this.nostr.disconnectFromRelays();
+    } catch (error) {
+      this.logger.error('Relay disconnection failed', { error });
+    }
+
+    // Clear other state
+    this.signerPubkey = null;
+    this.userPubkey = null;
   }
 
   /**
@@ -486,6 +496,10 @@ export class NostrRemoteSignerClient {
     method: NIP46Method,
     params: string[],
   ): Promise<NIP46Response> {
+    if (!this.connected && method !== NIP46Method.CONNECT) {
+      throw new NIP46ConnectionError("Client is not connected");
+    }
+    
     const id = this.generateRequestId();
     const request: NIP46Request = { id, method, params };
 
@@ -798,8 +812,8 @@ export class NostrRemoteSignerClient {
    * @private
    */
   private generateRequestId(): string {
-    return Math.random().toString(36).substring(2, 15) + 
-           Math.random().toString(36).substring(2, 15);
+    // Use the secure utility function
+    return generateRequestId();
   }
 
   /**
@@ -822,7 +836,7 @@ export class NostrRemoteSignerClient {
     }
     
     // Always include a secret if not provided
-    const secret = options.secret || Math.random().toString(36).substring(2, 15);
+    const secret = options.secret || generateRequestId();
     params.append("secret", secret);
     
     if (options.permissions?.length) {

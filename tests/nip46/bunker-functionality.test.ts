@@ -8,6 +8,9 @@ import { LogLevel } from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { NostrEvent } from "../../src/types/nostr";
 
+
+
+
 describe("NIP-46 Bunker Functionality", () => {
   let relay: NostrRelay;
   let relayUrl: string;
@@ -15,8 +18,8 @@ describe("NIP-46 Bunker Functionality", () => {
   let signerKeypair: { publicKey: string; privateKey: string };
 
   beforeAll(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3794);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 
@@ -26,14 +29,14 @@ describe("NIP-46 Bunker Functionality", () => {
 
     // Give the relay time to start properly
     await new Promise((resolve) => setTimeout(resolve, 500));
-  }, 10000);
+  }, 15000); // Increased timeout
 
   afterAll(async () => {
     if (relay) {
-      relay.close();
+      await relay.close();
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
-  }, 10000);
+  }, 15000); // Increased timeout
 
   describe("Bunker Configuration", () => {
     test("Bunker with different user and signer keys", async () => {

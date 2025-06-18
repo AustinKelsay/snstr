@@ -16,8 +16,8 @@ describe("NIP-46 Permission Handling", () => {
   let client: SimpleNIP46Client;
 
   beforeEach(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3791);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 

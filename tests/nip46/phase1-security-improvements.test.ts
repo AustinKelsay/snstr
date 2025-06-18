@@ -17,8 +17,8 @@ describe("NIP-46 Phase 1 Security Improvements", () => {
   let signerKeypair: { publicKey: string; privateKey: string };
 
   beforeAll(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3793);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 

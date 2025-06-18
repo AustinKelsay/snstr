@@ -15,8 +15,8 @@ describe("NIP-46 Connection Failures", () => {
   let client: SimpleNIP46Client;
 
   beforeAll(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3790);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 
