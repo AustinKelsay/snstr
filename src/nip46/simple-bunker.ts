@@ -76,6 +76,7 @@ export class SimpleNIP46Bunker {
     this.logger = new Logger({
       prefix: "Bunker",
       level: logLevel,
+      silent: process.env.NODE_ENV === 'test' // Silent in test environment
     });
   }
 

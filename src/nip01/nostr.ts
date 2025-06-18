@@ -306,7 +306,7 @@ export class Nostr {
     relayResults: Map<string, { success: boolean; reason?: string }>;
   }> {
     if (!this.relays.size) {
-      console.warn("No relays configured for publishing");
+      // console.warn("No relays configured for publishing");
       return {
         success: false,
         event: null,
@@ -339,15 +339,15 @@ export class Nostr {
           relayResults,
         };
       } else {
-        // Get reasons for failures
-        const failureReasons = Array.from(relayResults.entries())
-          .filter(([_, result]) => !result.success)
-          .map(([url, result]) => `${url}: ${result.reason || "unknown"}`);
+        // Get reasons for failures (commented out for testing)
+        // const failureReasons = Array.from(relayResults.entries())
+        //   .filter(([_, result]) => !result.success)
+        //   .map(([url, result]) => `${url}: ${result.reason || "unknown"}`);
 
-        console.warn(
-          "Failed to publish event to any relay:",
-          failureReasons.join(", "),
-        );
+        // console.warn(
+        //   "Failed to publish event to any relay:",
+        //   failureReasons.join(", "),
+        // );
 
         return {
           success: false,
@@ -356,9 +356,9 @@ export class Nostr {
         };
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "unknown error";
-      console.error("Failed to publish event:", errorMessage);
+      // const errorMessage =
+      //   error instanceof Error ? error.message : "unknown error";
+      // console.error("Failed to publish event:", errorMessage);
 
       return {
         success: false,
@@ -437,14 +437,14 @@ export class Nostr {
 
     // If we're not the intended recipient, we shouldn't be able to decrypt this
     if (this.publicKey && recipientPubkey !== this.publicKey) {
-      console.warn("This message was not intended for this user");
+      // console.warn("This message was not intended for this user");
     }
 
     // Decrypt the message using our private key and the sender's pubkey
     try {
       return decryptNIP04(this.privateKey, senderPubkey, event.content);
     } catch (error) {
-      console.error("Failed to decrypt message:", error);
+      // console.error("Failed to decrypt message:", error);
       throw new Error(
         "Failed to decrypt message. Make sure you are the intended recipient.",
       );

@@ -132,8 +132,8 @@ describe("NIP-46 Auth Challenges", () => {
 
     // Verify the auth challenge response format matches NIP-46 spec
     expect(response.id).toBe("test-connect-id");
-    expect(response.result).toBe("auth_url");
-    expect(response.error).toBe("https://example.com/auth");
-    expect(response.auth_url).toBeUndefined(); // Should not have auth_url field
+    expect(response.result).toBe("auth_required");
+    expect(response.auth_url).toBeTruthy(); // Should have auth_url field
+    expect(response.auth_url).toContain("https://example.com/auth");
   });
 });

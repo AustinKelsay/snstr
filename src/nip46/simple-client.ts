@@ -61,6 +61,7 @@ export class SimpleNIP46Client {
     this.logger = new Logger({
       prefix: "Client",
       level: logLevel,
+      silent: process.env.NODE_ENV === 'test' // Silent in test environment
     });
   }
 

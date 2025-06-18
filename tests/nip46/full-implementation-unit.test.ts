@@ -49,20 +49,20 @@ describe("NIP-46 Full Implementation Unit Tests", () => {
       expect(pubkey).toBe(signerKeypair.publicKey);
     });
 
-    test("bunker setUserPrivateKey updates key", () => {
-      const newKey = "new-private-key";
-      expect(() => bunker.setUserPrivateKey(newKey)).not.toThrow();
+    test("bunker setUserPrivateKey updates key", async () => {
+      const newKeypair = await generateKeypair();
+      expect(() => bunker.setUserPrivateKey(newKeypair.privateKey)).not.toThrow();
     });
 
-    test("bunker setSignerPrivateKey updates key", () => {
-      const newKey = "new-signer-key";
-      expect(() => bunker.setSignerPrivateKey(newKey)).not.toThrow();
+    test("bunker setSignerPrivateKey updates key", async () => {
+      const newKeypair = await generateKeypair();
+      expect(() => bunker.setSignerPrivateKey(newKeypair.privateKey)).not.toThrow();
     });
 
-    test("bunker setPrivateKeys updates both keys", () => {
-      const userKey = "new-user-key";
-      const signerKey = "new-signer-key";
-      expect(() => bunker.setPrivateKeys(userKey, signerKey)).not.toThrow();
+    test("bunker setPrivateKeys updates both keys", async () => {
+      const userKeypair = await generateKeypair();
+      const signerKeypair = await generateKeypair();
+      expect(() => bunker.setPrivateKeys(userKeypair.privateKey, signerKeypair.privateKey)).not.toThrow();
     });
 
     test("bunker resolveAuthChallenge works", () => {

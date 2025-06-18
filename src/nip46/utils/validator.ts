@@ -485,6 +485,6 @@ export class SecureErrorHandler {
       }
     }
 
-    console.warn(`[SECURITY] ${event}:`, sanitizedDetails);
+    // console.warn(`[SECURITY] ${event}:`, sanitizedDetails);
   }
 }

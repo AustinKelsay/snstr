@@ -151,9 +151,9 @@ export class Relay {
         this.connectionPromise = null;
         reject(error);
       }
-    }).catch((error) => {
+    }).catch((_error) => {
       // Ensure we return false if connection fails but don't re-throw
-      console.error(`Connection to ${this.url} failed:`, error);
+      // console.error(`Connection to ${this.url} failed:`, _error);
 
       // Schedule reconnection if auto-reconnect is enabled
       if (this.autoReconnect) {
