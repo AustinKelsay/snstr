@@ -190,7 +190,7 @@ describe("NIP-46 Full Implementation Unit Tests", () => {
   describe("Full Implementation Error Handling", () => {
     test("bunker constructor with missing required options", () => {
       expect(() => {
-        new NostrRemoteSignerBunker({} as any);
+        new NostrRemoteSignerBunker({} as unknown as NIP46BunkerOptions);
       }).toThrow();
     });
 
@@ -202,7 +202,7 @@ describe("NIP-46 Full Implementation Unit Tests", () => {
 
     test("client constructor with undefined options", () => {
       expect(() => {
-        new NostrRemoteSignerClient(undefined as any);
+        new NostrRemoteSignerClient(undefined as unknown as NIP46ClientOptions);
       }).not.toThrow();
     });
   });

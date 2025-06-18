@@ -77,7 +77,7 @@ describe("NIP-46 Phase 1 Security Improvements", () => {
       try {
         if (client) {
           await client.disconnect();
-          client = null as any;
+          client = null as unknown as SimpleNIP46Client;
         }
       } catch (error) {
         // Ignore cleanup errors
@@ -87,7 +87,7 @@ describe("NIP-46 Phase 1 Security Improvements", () => {
       try {
         if (bunker) {
           await bunker.stop();
-          bunker = null as any;
+          bunker = null as unknown as NostrRemoteSignerBunker;
         }
       } catch (error) {
         // Ignore cleanup errors

@@ -20,8 +20,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     });
 
     test("rejects invalid requests", () => {
-      expect(NIP46Validator.validateRequestPayload(null as any)).toBe(false);
-      expect(NIP46Validator.validateRequestPayload({} as any)).toBe(false);
+      expect(NIP46Validator.validateRequestPayload(null as unknown as NIP46Request)).toBe(false);
+      expect(NIP46Validator.validateRequestPayload({} as unknown as NIP46Request)).toBe(false);
       expect(NIP46Validator.validateRequestPayload({
         id: "",
         method: NIP46Method.PING,
@@ -59,7 +59,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(NIP46Validator.validatePubkey("")).toBe(false);
       expect(NIP46Validator.validatePubkey("invalid")).toBe(false);
       expect(NIP46Validator.validatePubkey("g".repeat(64))).toBe(false);
-      expect(NIP46Validator.validatePubkey(null as any)).toBe(false);
+      expect(NIP46Validator.validatePubkey(null as unknown as string)).toBe(false);
     });
   });
 
@@ -211,8 +211,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     });
 
     test("rejects invalid methods", () => {
-      expect(NIP46Validator.isValidMethod("invalid" as any)).toBe(false);
-      expect(NIP46Validator.isValidMethod("" as any)).toBe(false);
+      expect(NIP46Validator.isValidMethod("invalid" as string)).toBe(false);
+      expect(NIP46Validator.isValidMethod("" as string)).toBe(false);
     });
   });
 

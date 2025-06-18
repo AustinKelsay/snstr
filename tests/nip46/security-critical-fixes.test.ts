@@ -124,7 +124,7 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
       });
       
       // Access the private method via type assertion for testing
-      const clientWithInternals = client as any;
+      const clientWithInternals = client as unknown as { generateRequestId(): string };
       const id1 = clientWithInternals.generateRequestId();
       const id2 = clientWithInternals.generateRequestId();
       
@@ -161,7 +161,11 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
 
     test("Replay attack window is reduced to 2 minutes", async () => {
       // Access private method for testing
-      const bunkerWithInternals = bunker as any;
+      const bunkerWithInternals = bunker as unknown as { 
+        usedRequestIds: Map<string, number>;
+        isReplayAttack: (id: string) => boolean;
+        cleanupOldRequestIds: () => void;
+      };
       
       // Simulate a request ID that's 1 minute old (should be valid)
       const requestId1 = generateRequestId();
@@ -184,7 +188,7 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
 
     test("Cleanup runs more frequently", async () => {
       // This test verifies that cleanup interval is set to 1 minute
-      const bunkerWithInternals = bunker as any;
+      const bunkerWithInternals = bunker as unknown as { cleanupInterval: NodeJS.Timeout | null };
       
       // Check that cleanup interval exists
       expect(bunkerWithInternals.cleanupInterval).toBeDefined();
@@ -192,7 +196,10 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
     });
 
     test("Old request IDs are properly cleaned up", async () => {
-      const bunkerWithInternals = bunker as any;
+      const bunkerWithInternals = bunker as unknown as { 
+        usedRequestIds: Map<string, number>;
+        cleanupOldRequestIds: () => void;
+      };
       
       // Add some old request IDs
       const oldId1 = generateRequestId();
@@ -238,7 +245,7 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
     });
 
     test("Cleanup interval is properly cleared on stop", async () => {
-      const bunkerWithInternals = bunker as any;
+      const bunkerWithInternals = bunker as unknown as { cleanupInterval: NodeJS.Timeout | null };
       
       // Verify cleanup interval exists
       expect(bunkerWithInternals.cleanupInterval).toBeDefined();
@@ -251,7 +258,11 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
     });
 
     test("All resources are properly cleaned up on stop", async () => {
-      const bunkerWithInternals = bunker as any;
+      const bunkerWithInternals = bunker as unknown as { 
+        connectedClients: Map<string, { permissions: Set<string>; lastSeen: number }>;
+        usedRequestIds: Map<string, number>;
+        pendingAuthChallenges: Map<string, { id: string; clientPubkey: string; timestamp: number }>;
+      };
       
       // Add some test data
       bunkerWithInternals.connectedClients.set("test-client", { permissions: new Set(), lastSeen: Date.now() });
@@ -272,7 +283,9 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
     });
 
     test("Stop method handles errors gracefully", async () => {
-      const bunkerWithInternals = bunker as any;
+      const bunkerWithInternals = bunker as unknown as { 
+        rateLimiter: { destroy: () => void };
+      };
       
       // Mock an error in the rate limiter
       bunkerWithInternals.rateLimiter.destroy = jest.fn(() => {
@@ -338,7 +351,10 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
       
-      const clientWithInternals = client as any;
+      const clientWithInternals = client as unknown as { 
+        pendingRequests: Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>;
+        connected: boolean;
+      };
       
       // Create multiple pending requests to increase chance of cleanup
       const requestPromises = [
@@ -376,7 +392,7 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
       
-      const clientWithInternals = client as any;
+      const clientWithInternals = client as unknown as { connected: boolean };
       expect(clientWithInternals.connected).toBe(true);
       
       // Disconnect
@@ -390,7 +406,9 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
       
-      const clientWithInternals = client as any;
+      const clientWithInternals = client as unknown as { 
+        nostr: { unsubscribe: (...args: unknown[]) => void };
+      };
       
       // Mock the nostr unsubscribe to throw an error
       const originalUnsubscribe = clientWithInternals.nostr.unsubscribe;
@@ -415,7 +433,7 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
       await client.disconnect();
       
       // Should still be disconnected
-      const clientWithInternals = client as any;
+      const clientWithInternals = client as unknown as { connected: boolean };
       expect(clientWithInternals.connected).toBe(false);
     });
   });
@@ -471,7 +489,10 @@ describe("Critical NIP-46 Security and Reliability Fixes", () => {
         await client.disconnect();
         
         // Verify cleanup
-        const clientWithInternals = client as any;
+        const clientWithInternals = client as unknown as { 
+          connected: boolean;
+          pendingRequests: Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>;
+        };
         expect(clientWithInternals.connected).toBe(false);
         expect(clientWithInternals.pendingRequests.size).toBe(0);
         

@@ -392,7 +392,7 @@ export class NIP46Validator {
   /**
    * Validate JSON string and return parsing result
    */
-  static validateAndParseJson(jsonString: string): { valid: boolean; data?: any; error?: string } {
+  static validateAndParseJson(jsonString: string): { valid: boolean; data?: unknown; error?: string } {
     if (!jsonString || typeof jsonString !== 'string') {
       return { valid: false, error: 'Invalid JSON string' };
     }
