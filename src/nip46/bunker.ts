@@ -20,7 +20,7 @@ import {
 } from "./types";
 import { buildConnectionString } from "./utils/connection";
 import { NIP46RateLimiter } from "./utils/rate-limiter";
-import { NIP46SecurityValidator } from "./utils/security";
+import { NIP46SecurityValidator, securePermissionCheck } from "./utils/security";
 import { Logger, LogLevel } from "./utils/logger";
 
 export class NostrRemoteSignerBunker {
@@ -974,8 +974,8 @@ export class NostrRemoteSignerBunker {
       }
     }
 
-    // Check basic permission
-    if (session.permissions.has(permission)) {
+    // Check basic permission using secure comparison to prevent timing attacks
+    if (securePermissionCheck(session.permissions, permission)) {
       return true;
     }
 
@@ -984,7 +984,7 @@ export class NostrRemoteSignerBunker {
       try {
         const eventData = JSON.parse(params[0]);
         const kindPermission = `sign_event:${eventData.kind}`;
-        if (session.permissions.has(kindPermission)) {
+        if (securePermissionCheck(session.permissions, kindPermission)) {
           return true;
         }
       } catch (error) {

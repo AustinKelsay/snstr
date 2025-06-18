@@ -5,6 +5,44 @@
 import { isValidPrivateKey } from "../../nip44";
 import { NIP46SecurityError } from "../types";
 
+/**
+ * Constant-time string comparison to prevent timing attacks
+ */
+function constantTimeStringEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  
+  return result === 0;
+}
+
+/**
+ * Secure permission checking with timing attack protection
+ */
+export function securePermissionCheck(
+  clientPermissions: Set<string>,
+  requiredPermission: string
+): boolean {
+  // Convert to array to avoid set enumeration timing differences
+  const permissions = Array.from(clientPermissions);
+  
+  let hasPermission = false;
+  
+  // Check all permissions to avoid early exit timing attacks
+  for (const permission of permissions) {
+    if (constantTimeStringEqual(permission, requiredPermission)) {
+      hasPermission = true;
+    }
+  }
+  
+  return hasPermission;
+}
+
 export interface SecurityValidationResult {
   valid: boolean;
   error?: string;

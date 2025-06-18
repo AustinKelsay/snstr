@@ -152,6 +152,7 @@ export class NostrRemoteSignerClient {
   /**
    * Connect to a remote signer
    * @throws {Error} If connection fails or validation fails
+   * @returns {string} "ack" or required secret value (NOT the user pubkey)
    */
   public async connect(connectionString: string): Promise<string> {
     this.logger.info("Connecting to signer", { connectionString });
@@ -198,63 +199,36 @@ export class NostrRemoteSignerClient {
       await this.setupSubscription();
 
       // Send connect request
-      const connectResponse = await this.sendRequest(
-        NIP46Method.CONNECT,
-        [
-          this.clientKeypair.publicKey,
-          connectionInfo.secret || "",
-          this.options.permissions?.join(",") || "",
-        ],
-      );
-
-      this.logger.debug("Connect response received", { response: connectResponse });
-
-      // Handle auth challenges
-      if (connectResponse.auth_url) {
-        this.logger.info("Auth challenge received", { 
-          authUrl: connectResponse.auth_url 
-        });
-        this.handleAuthChallenge(connectResponse);
-        // Return early - connection will complete after auth
-        return "auth_required";
+      const params = [this.signerPubkey];
+      if (connectionInfo.secret) {
+        params.push(connectionInfo.secret);
+      }
+      if (connectionInfo.permissions?.length) {
+        params.push(connectionInfo.permissions.join(","));
       }
 
-      if (connectResponse.error) {
-        this.logger.error("Connection failed", { error: connectResponse.error });
-        throw new NIP46ConnectionError(
-          `Connection failed: ${connectResponse.error}`,
-        );
+      const response = await this.sendRequest(NIP46Method.CONNECT, params);
+
+      if (response.error) {
+        throw new NIP46ConnectionError(`Connection failed: ${response.error}`);
       }
 
-      this.logger.info("Connection successful");
+      // SPEC COMPLIANCE: connect() returns "ack" or secret, NOT user pubkey
       this.connected = true;
-
-      // Get public key as per NIP-46 spec
-      this.logger.debug("Getting user public key");
-      const pubkeyResponse = await this.sendRequest(
-        NIP46Method.GET_PUBLIC_KEY,
-        [],
-      );
-      this.logger.debug("Public key response received", { 
-        pubkey: pubkeyResponse.result 
+      this.logger.info("Connected to signer successfully", {
+        signerPubkey: this.signerPubkey,
+        connectResult: response.result
       });
 
-      if (pubkeyResponse.error) {
-        throw new NIP46ConnectionError(
-          `Failed to get public key: ${pubkeyResponse.error}`,
-        );
-      }
-
-      this.userPubkey = pubkeyResponse.result!;
-      this.logger.info("User public key retrieved", { userPubkey: this.userPubkey });
-
-      return this.userPubkey;
+      // Return the connect result (should be "ack" or secret)
+      return response.result || "ack";
     } catch (error) {
-      this.logger.error("Connection failed", { 
-        error: error instanceof Error ? error.message : String(error) 
-      });
       await this.cleanup();
-      throw error;
+      if (error instanceof NIP46Error) {
+        throw error;
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      throw new NIP46ConnectionError(`Failed to connect: ${message}`);
     }
   }
 
@@ -305,25 +279,38 @@ export class NostrRemoteSignerClient {
   }
 
   /**
-   * Get the signer's public key
-   * @throws {Error} If request fails
+   * Get the user's public key (must be called after connect())
+   * This is required by NIP-46 spec - clients must differentiate between
+   * remote-signer-pubkey and user-pubkey
    */
-  async getPublicKey(): Promise<string> {
-    this.logger.debug("Getting public key");
-
+  public async getUserPublicKey(): Promise<string> {
     if (!this.connected) {
       throw new NIP46ConnectionError("Not connected to signer");
     }
 
+    if (this.userPubkey) {
+      return this.userPubkey;
+    }
+
+    this.logger.debug("Getting user public key from signer");
     const response = await this.sendRequest(NIP46Method.GET_PUBLIC_KEY, []);
 
     if (response.error) {
-      this.logger.error("Get public key failed", { error: response.error });
-      throw new NIP46Error(`Get public key failed: ${response.error}`);
+      throw new NIP46ConnectionError(`Failed to get public key: ${response.error}`);
     }
 
-    this.logger.debug("Public key retrieved", { publicKey: response.result });
-    return response.result!;
+    this.userPubkey = response.result!;
+    this.logger.info("User public key retrieved", { userPubkey: this.userPubkey });
+
+    return this.userPubkey;
+  }
+
+  /**
+   * @deprecated Use getUserPublicKey() instead. This method name doesn't clearly
+   * indicate it's getting the USER's public key, not the signer's public key.
+   */
+  async getPublicKey(): Promise<string> {
+    return this.getUserPublicKey();
   }
 
   /**
