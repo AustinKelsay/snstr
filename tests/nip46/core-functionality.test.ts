@@ -89,18 +89,7 @@ describe("NIP-46 Core Functionality", () => {
     }
 
     // Wait for all connections to be properly closed
-    await waitForCondition(
-      () => {
-        // Check if relay connections are clean by trying to create a quick connection test
-        // This is a simple check that doesn't block if connections are already clean
-        return true; // In real tests, we could check relay connection counts or client states
-      },
-      2000,
-      50
-    ).catch(() => {
-      // If condition fails, give a small delay as fallback
-      return new Promise((resolve) => setTimeout(resolve, 100));
-    });
+    await new Promise((resolve) => setTimeout(resolve, 200).unref());
   }, 15000);
 
   beforeEach(async () => {
@@ -167,18 +156,7 @@ describe("NIP-46 Core Functionality", () => {
     }
     
     // Wait for bunker to be fully stopped
-    await waitForCondition(
-      () => {
-        // Simple condition - in a real implementation we could check bunker.isRunning() or similar
-        // For now, we trust that stop() completed successfully
-        return true;
-      },
-      1000,
-      50
-    ).catch(() => {
-      // Minimal fallback delay
-      return new Promise((resolve) => setTimeout(resolve, 50));
-    });
+    await new Promise((resolve) => setTimeout(resolve, 100).unref());
   });
 
   describe("Client State Management", () => {
