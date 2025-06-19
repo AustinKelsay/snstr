@@ -21,7 +21,7 @@ module.exports = {
   testTimeout: 10000,
   // Force Jest to exit after tests complete
   forceExit: true,
-  // Detect open handles to help debug hanging tests
+  // Disable open handle detection to prevent warnings
   detectOpenHandles: false,
   // Display detailed coverage information
   collectCoverage: true,
