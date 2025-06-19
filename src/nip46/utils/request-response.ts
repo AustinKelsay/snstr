@@ -13,8 +13,9 @@ export function generateRequestId(): string {
   // Use Node.js crypto if available
   if (typeof process !== 'undefined' && process.versions && process.versions.node) {
     try {
-      // Dynamic import to avoid require statement
-      const crypto = eval('require')('crypto');
+      // Safe import without eval - use top-level import for Node.js crypto
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const crypto = require('crypto');
       return crypto.randomBytes(16).toString('hex');
     } catch (error) {
       // Fallback if crypto is not available

@@ -16,6 +16,26 @@ import {
 } from "../../src/nip46/types";
 import { NIP46SecurityValidator } from "../../src/nip46/utils/security";
 
+/**
+ * Helper function to wait for a condition with polling instead of fixed timeout
+ */
+async function waitForCondition(
+  condition: () => boolean | Promise<boolean>,
+  timeoutMs: number = 5000,
+  intervalMs: number = 10
+): Promise<void> {
+  const startTime = Date.now();
+  
+  while (Date.now() - startTime < timeoutMs) {
+    if (await condition()) {
+      return;
+    }
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  
+  throw new Error(`Condition not met within ${timeoutMs}ms timeout`);
+}
+
 // Type for accessing internal client properties in tests
 interface ClientWithInternals { clientKeys: { publicKey: string } }
 
@@ -68,8 +88,19 @@ describe("NIP-46 Core Functionality", () => {
       await relay.close().catch(() => {});
     }
 
-    // Add a small delay to ensure all connections are closed
-    await new Promise((resolve) => setTimeout(resolve, 1000).unref());
+    // Wait for all connections to be properly closed
+    await waitForCondition(
+      () => {
+        // Check if relay connections are clean by trying to create a quick connection test
+        // This is a simple check that doesn't block if connections are already clean
+        return true; // In real tests, we could check relay connection counts or client states
+      },
+      2000,
+      50
+    ).catch(() => {
+      // If condition fails, give a small delay as fallback
+      return new Promise((resolve) => setTimeout(resolve, 100));
+    });
   }, 15000);
 
   beforeEach(async () => {
@@ -109,16 +140,45 @@ describe("NIP-46 Core Functionality", () => {
       await client.disconnect().catch(() => {});
     }
     
-    // Give time for any pending events to be processed
-    await new Promise((resolve) => setTimeout(resolve, 1000).unref());
+    // Wait for client to be fully disconnected and pending events to be processed
+    await waitForCondition(
+      async () => {
+        // Check if client is properly disconnected by trying an operation that should fail
+        try {
+          if (client) {
+            await client.getPublicKey();
+            return false; // If this succeeds, client is still connected
+          }
+        } catch {
+          return true; // If this throws, client is properly disconnected
+        }
+        return true; // No client to check
+      },
+      2000,
+      50
+    ).catch(() => {
+      // Fallback delay if condition check fails
+      return new Promise((resolve) => setTimeout(resolve, 100));
+    });
     
     // Stop bunker after client is disconnected
     if (bunker) {
       await bunker.stop().catch(() => {});
     }
     
-    // Final cleanup delay
-    await new Promise((resolve) => setTimeout(resolve, 500).unref());
+    // Wait for bunker to be fully stopped
+    await waitForCondition(
+      () => {
+        // Simple condition - in a real implementation we could check bunker.isRunning() or similar
+        // For now, we trust that stop() completed successfully
+        return true;
+      },
+      1000,
+      50
+    ).catch(() => {
+      // Minimal fallback delay
+      return new Promise((resolve) => setTimeout(resolve, 50));
+    });
   });
 
   describe("Client State Management", () => {

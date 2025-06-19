@@ -5,6 +5,13 @@
 import { isValidPrivateKey } from "../../nip44";
 import { NIP46SecurityError } from "../types";
 
+interface EventDataForSigning {
+  kind: number;
+  content: string;
+  created_at: number;
+  [key: string]: any; // Allow additional properties
+}
+
 /**
  * Constant-time string comparison to prevent timing attacks
  */
@@ -54,7 +61,7 @@ export class NIP46SecurityValidator {
    * Validate private key with comprehensive security checks (throws on error)
    */
   static validatePrivateKey(privateKey: string, context: string = "private key"): void {
-    const result = this.validatePrivateKeyResult(privateKey, context);
+    const result = NIP46SecurityValidator.validatePrivateKeyResult(privateKey, context);
     if (!result.valid) {
       throw new NIP46SecurityError(result.error!);
     }
@@ -109,7 +116,7 @@ export class NIP46SecurityValidator {
    */
   static validateKeypairForCrypto(keypair: { publicKey: string; privateKey: string }, context: string = "keypair"): void {
     // Validate private key
-    this.validatePrivateKey(keypair.privateKey, `${context} private key`);
+    NIP46SecurityValidator.validatePrivateKey(keypair.privateKey, `${context} private key`);
 
     // Validate public key is not empty
     if (!keypair.publicKey || keypair.publicKey === "") {
@@ -126,7 +133,7 @@ export class NIP46SecurityValidator {
    * Validate user keypair before signing operations
    */
   static validateUserKeypairForSigning(userKeypair: { publicKey: string; privateKey: string }): void {
-    this.validateKeypairForCrypto(userKeypair, "user keypair");
+    NIP46SecurityValidator.validateKeypairForCrypto(userKeypair, "user keypair");
 
     // Additional validation for signing context
     if (userKeypair.privateKey.length !== 64) {
@@ -138,7 +145,7 @@ export class NIP46SecurityValidator {
    * Validate signer keypair before bunker operations
    */
   static validateSignerKeypairForBunker(signerKeypair: { publicKey: string; privateKey: string }): void {
-    this.validateKeypairForCrypto(signerKeypair, "signer keypair");
+    NIP46SecurityValidator.validateKeypairForCrypto(signerKeypair, "signer keypair");
 
     // Additional validation for bunker context
     if (signerKeypair.privateKey.length !== 64) {
@@ -156,7 +163,7 @@ export class NIP46SecurityValidator {
     operation: string = "encryption"
   ): void {
     // Validate private key
-    this.validatePrivateKey(privateKey, `${operation} private key`);
+    NIP46SecurityValidator.validatePrivateKey(privateKey, `${operation} private key`);
 
     // Validate third party public key
     if (!thirdPartyPubkey || thirdPartyPubkey === "") {
@@ -193,9 +200,9 @@ export class NIP46SecurityValidator {
   /**
    * Validate before any signing operation
    */
-  static validateBeforeSigning(userKeypair: { publicKey: string; privateKey: string }, eventData: any): void {
+  static validateBeforeSigning(userKeypair: { publicKey: string; privateKey: string }, eventData: EventDataForSigning): void {
     // Validate user keypair
-    this.validateUserKeypairForSigning(userKeypair);
+    NIP46SecurityValidator.validateUserKeypairForSigning(userKeypair);
 
     // Validate event data
     if (!eventData) {
@@ -247,8 +254,8 @@ export class NIP46SecurityValidator {
     plaintext: string,
     method: string = "NIP-44"
   ): void {
-    this.validateKeypairForCrypto(userKeypair, "user keypair");
-    this.validateEncryptionParams(userKeypair.privateKey, thirdPartyPubkey, plaintext, `${method} encryption`);
+    NIP46SecurityValidator.validateKeypairForCrypto(userKeypair, "user keypair");
+    NIP46SecurityValidator.validateEncryptionParams(userKeypair.privateKey, thirdPartyPubkey, plaintext, `${method} encryption`);
   }
 
   /**
@@ -260,8 +267,8 @@ export class NIP46SecurityValidator {
     ciphertext: string,
     method: string = "NIP-44"
   ): void {
-    this.validateKeypairForCrypto(userKeypair, "user keypair");
-    this.validateEncryptionParams(userKeypair.privateKey, thirdPartyPubkey, ciphertext, `${method} decryption`);
+    NIP46SecurityValidator.validateKeypairForCrypto(userKeypair, "user keypair");
+    NIP46SecurityValidator.validateEncryptionParams(userKeypair.privateKey, thirdPartyPubkey, ciphertext, `${method} decryption`);
 
     // Additional validation for ciphertext
     if (!ciphertext || ciphertext.trim() === "") {
@@ -294,11 +301,11 @@ export class NIP46SecurityValidator {
 
     // Validate keypairs if provided
     if (options.userKeypair) {
-      this.validateUserKeypairForSigning(options.userKeypair);
+      NIP46SecurityValidator.validateUserKeypairForSigning(options.userKeypair);
     }
 
     if (options.signerKeypair) {
-      this.validateSignerKeypairForBunker(options.signerKeypair);
+      NIP46SecurityValidator.validateSignerKeypairForBunker(options.signerKeypair);
     }
   }
 
@@ -310,17 +317,17 @@ export class NIP46SecurityValidator {
     signerKeypair: { publicKey: string; privateKey: string };
   }): void {
     // Check user keypair
-    if (this.isPrivateKeyEmpty(bunkerInstance.userKeypair.privateKey)) {
+    if (NIP46SecurityValidator.isPrivateKeyEmpty(bunkerInstance.userKeypair.privateKey)) {
       throw new NIP46SecurityError("User private key not properly initialized - cannot perform cryptographic operations");
     }
 
     // Check signer keypair
-    if (this.isPrivateKeyEmpty(bunkerInstance.signerKeypair.privateKey)) {
+    if (NIP46SecurityValidator.isPrivateKeyEmpty(bunkerInstance.signerKeypair.privateKey)) {
       throw new NIP46SecurityError("Signer private key not properly initialized - cannot perform cryptographic operations");
     }
 
     // Validate both keypairs
-    this.validateUserKeypairForSigning(bunkerInstance.userKeypair);
-    this.validateSignerKeypairForBunker(bunkerInstance.signerKeypair);
+    NIP46SecurityValidator.validateUserKeypairForSigning(bunkerInstance.userKeypair);
+    NIP46SecurityValidator.validateSignerKeypairForBunker(bunkerInstance.signerKeypair);
   }
 } 

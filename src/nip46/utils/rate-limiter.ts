@@ -195,15 +195,22 @@ export class NIP46RateLimiter {
   private performCleanup(): void {
     const now = Math.floor(Date.now() / 1000);
     const hourWindow = now - 3600;
+    const clientsToDelete: string[] = [];
     
+    // First pass: clean history and collect clients to delete
     for (const [clientPubkey, history] of this.clientHistory.entries()) {
       // Remove requests older than 1 hour
       history.requests = history.requests.filter(timestamp => timestamp >= hourWindow);
       
-      // Remove clients with no recent requests
+      // Mark clients with no recent requests for deletion
       if (history.requests.length === 0 && now - history.lastCleanup > 3600) {
-        this.clientHistory.delete(clientPubkey);
+        clientsToDelete.push(clientPubkey);
       }
+    }
+    
+    // Second pass: delete marked clients to avoid concurrent modification
+    for (const clientPubkey of clientsToDelete) {
+      this.clientHistory.delete(clientPubkey);
     }
   }
 
