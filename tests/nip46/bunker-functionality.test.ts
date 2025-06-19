@@ -1,6 +1,7 @@
 import {
   SimpleNIP46Client,
   SimpleNIP46Bunker,
+  NostrRemoteSignerBunker,
   generateKeypair,
   verifySignature,
 } from "../../src";
@@ -369,6 +370,68 @@ describe("NIP-46 Bunker Functionality", () => {
 
       // Should not throw when stopping a bunker that was never started
       await expect(bunker.stop()).resolves.not.toThrow();
+    });
+  });
+
+  describe("Bunker Initialization Security", () => {
+    test("should validate bunker options on creation", () => {
+      expect(() => {
+        new NostrRemoteSignerBunker({
+          userPubkey: "", // Invalid
+          relays: []
+        });
+      }).toThrow();
+      
+      expect(() => {
+        new NostrRemoteSignerBunker({
+          userPubkey: "invalid_hex", // Invalid format
+          relays: []
+        });
+      }).toThrow();
+    });
+
+    test("should enforce private key validation on start", async () => {
+      const validKeypair = await generateKeypair();
+      
+      const bunker = new NostrRemoteSignerBunker({
+        userPubkey: validKeypair.publicKey,
+        relays: ["wss://test.relay.com"]
+      });
+      
+      // Should fail without private keys set
+      await expect(bunker.start()).rejects.toThrow();
+      
+      // Set valid private keys
+      bunker.setUserPrivateKey(validKeypair.privateKey);
+      bunker.setSignerPrivateKey(validKeypair.privateKey);
+      
+      // Should succeed now that private keys are set, even though relay connection fails
+      // (relay connection failures don't throw errors, they're just logged)
+      await expect(bunker.start()).resolves.not.toThrow();
+      
+      // Clean up
+      await bunker.stop().catch(() => {});
+    });
+
+    test("should validate private keys when setting them", async () => {
+      const validKeypair = await generateKeypair();
+      
+      const bunker = new NostrRemoteSignerBunker({
+        userPubkey: validKeypair.publicKey,
+        relays: []
+      });
+      
+      expect(() => {
+        bunker.setUserPrivateKey(""); // Invalid
+      }).toThrow();
+      
+      expect(() => {
+        bunker.setUserPrivateKey("invalid_hex"); // Invalid format
+      }).toThrow();
+      
+      expect(() => {
+        bunker.setUserPrivateKey(validKeypair.privateKey); // Valid
+      }).not.toThrow();
     });
   });
 }); 

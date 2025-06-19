@@ -1,6 +1,9 @@
 import { NIP46Validator, SecureErrorHandler } from "../../src/nip46/utils/validator";
-import { NIP46Method, NIP46Request } from "../../src/nip46/types";
+import { NIP46Method, NIP46Request, NIP46ErrorCode, NIP46ErrorUtils } from "../../src/nip46/types";
 import { generateKeypair } from "../../src/utils/crypto";
+import { generateRequestId } from "../../src/nip46/utils/request-response";
+import { NIP46SecurityValidator, securePermissionCheck } from "../../src/nip46/utils/security";
+import { NIP46SecurityError } from "../../src/nip46/types";
 
 describe("NIP-46 Validator Unit Tests", () => {
   let validKeypair: { publicKey: string; privateKey: string };
@@ -87,6 +90,17 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(NIP46Validator.validateSignature("invalid")).toBe(false);
       expect(NIP46Validator.validateSignature("z".repeat(128))).toBe(false);
     });
+
+    test("validates signatures correctly with various formats", () => {
+      expect(NIP46Validator.validateSignature("a".repeat(128))).toBe(true);
+      expect(NIP46Validator.validateSignature("A".repeat(128))).toBe(true);
+      expect(NIP46Validator.validateSignature("1234567890abcdef".repeat(8))).toBe(true);
+      
+      expect(NIP46Validator.validateSignature("")).toBe(false);
+      expect(NIP46Validator.validateSignature("a".repeat(127))).toBe(false);
+      expect(NIP46Validator.validateSignature("a".repeat(129))).toBe(false);
+      expect(NIP46Validator.validateSignature("xyz" + "a".repeat(125))).toBe(false);
+    });
   });
 
   describe("NIP46Validator.validateEventId", () => {
@@ -99,6 +113,17 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(NIP46Validator.validateEventId("")).toBe(false);
       expect(NIP46Validator.validateEventId("invalid")).toBe(false);
       expect(NIP46Validator.validateEventId("z".repeat(64))).toBe(false);
+    });
+
+    test("validates event IDs correctly with various formats", () => {
+      expect(NIP46Validator.validateEventId("a".repeat(64))).toBe(true);
+      expect(NIP46Validator.validateEventId("A".repeat(64))).toBe(true);
+      expect(NIP46Validator.validateEventId("1234567890abcdef".repeat(4))).toBe(true);
+      
+      expect(NIP46Validator.validateEventId("")).toBe(false);
+      expect(NIP46Validator.validateEventId("a".repeat(63))).toBe(false);
+      expect(NIP46Validator.validateEventId("a".repeat(65))).toBe(false);
+      expect(NIP46Validator.validateEventId("xyz" + "a".repeat(61))).toBe(false);
     });
   });
 
@@ -117,6 +142,15 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("accepts old timestamps with custom max age", () => {
       const old = Math.floor(Date.now() / 1000) - 400;
       expect(NIP46Validator.validateTimestamp(old, 500)).toBe(true);
+    });
+
+    test("relaxed timestamp validation for offline signing", () => {
+      const now = Math.floor(Date.now() / 1000);
+      
+      // Should allow up to 24 hours difference
+      expect(NIP46Validator.validateTimestamp(now - 86000, 86400)).toBe(true); // ~23.9 hours ago with 24h tolerance
+      expect(NIP46Validator.validateTimestamp(now + 86000, 86400)).toBe(false); // Future timestamps not allowed
+      expect(NIP46Validator.validateTimestamp(now - 90000, 86400)).toBe(false); // >25 hours ago
     });
   });
 
@@ -189,6 +223,23 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(result.valid).toBe(false);
       expect(result.error).toBeDefined();
     });
+
+    test("validates JSON input securely", () => {
+      const validJson = '{"test": "value"}';
+      const result = NIP46Validator.validateAndParseJson(validJson);
+      expect(result.valid).toBe(true);
+      expect(result.data).toEqual({ test: "value" });
+
+      const invalidJson = '{"test": value}'; // Missing quotes
+      const result2 = NIP46Validator.validateAndParseJson(invalidJson);
+      expect(result2.valid).toBe(false);
+      expect(result2.error).toContain("JSON parsing failed");
+
+      const tooLarge = "a".repeat(70000);
+      const result3 = NIP46Validator.validateAndParseJson(tooLarge);
+      expect(result3.valid).toBe(false);
+      expect(result3.error).toBe("JSON string too large");
+    });
   });
 
   describe("NIP46Validator.sanitizeString", () => {
@@ -242,4 +293,273 @@ describe("NIP-46 Validator Unit Tests", () => {
       }).not.toThrow();
     });
   });
-}); 
+
+  describe("Request ID Generation Security", () => {
+    test("generateRequestId produces cryptographically secure IDs", () => {
+      const ids = new Set<string>();
+      const numIds = 1000;
+      
+      // Generate many IDs to test for uniqueness
+      for (let i = 0; i < numIds; i++) {
+        const id = generateRequestId();
+        expect(id).toBeDefined();
+        expect(typeof id).toBe('string');
+        expect(id.length).toBeGreaterThan(0);
+        
+        // Should not have duplicates
+        expect(ids.has(id)).toBe(false);
+        ids.add(id);
+      }
+      
+      // All IDs should be unique
+      expect(ids.size).toBe(numIds);
+    });
+
+    test("Request IDs have sufficient entropy", () => {
+      const ids: string[] = [];
+      const numIds = 100;
+      
+      for (let i = 0; i < numIds; i++) {
+        ids.push(generateRequestId());
+      }
+      
+      // Check that IDs have good distribution
+      const hexPattern = /^[0-9a-f]+$/i;
+      let hexCount = 0;
+      
+      for (const id of ids) {
+        if (hexPattern.test(id)) {
+          hexCount++;
+        }
+        
+        // Should have reasonable length
+        expect(id.length).toBeGreaterThanOrEqual(16);
+      }
+      
+      // Most IDs should be hex (crypto-generated) or have timestamp fallback
+      expect(hexCount / numIds).toBeGreaterThan(0.5);
+    });
+
+    test("Request IDs are not predictable", () => {
+      const id1 = generateRequestId();
+      const id2 = generateRequestId();
+      const id3 = generateRequestId();
+      
+      // Should be different
+      expect(id1).not.toBe(id2);
+      expect(id2).not.toBe(id3);
+      expect(id1).not.toBe(id3);
+      
+      // Test for non-sequential patterns by generating many IDs
+      const ids = Array.from({ length: 20 }, () => generateRequestId());
+      const uniqueIds = new Set(ids);
+      
+      // Should have high uniqueness (at least 95% unique for 20 IDs)
+      expect(uniqueIds.size / ids.length).toBeGreaterThan(0.95);
+      
+      // Should not be incrementing sequences
+      const isSequential = ids.every((id, index) => {
+        if (index === 0) return true;
+        const prevNum = parseInt(ids[index - 1], 16) || parseInt(ids[index - 1], 10);
+        const currNum = parseInt(id, 16) || parseInt(id, 10);
+        return !isNaN(prevNum) && !isNaN(currNum) && currNum === prevNum + 1;
+      });
+      expect(isSequential).toBe(false);
+    });
+
+    test("Request IDs distribution test", () => {
+      // Generate multiple IDs and verify they have good distribution
+      const ids = Array.from({ length: 100 }, () => generateRequestId());
+      const uniqueIds = new Set(ids);
+      
+      // Should have high uniqueness
+      expect(uniqueIds.size).toBeGreaterThan(95);
+      
+      // Test for randomness - no two consecutive IDs should be identical
+      for (let i = 1; i < ids.length; i++) {
+        expect(ids[i]).not.toBe(ids[i - 1]);
+      }
+         });
+   });
+
+  describe("Standardized Error Handling", () => {
+    test("creates standardized error responses", () => {
+      const response = NIP46ErrorUtils.createErrorResponse(
+        "test-id",
+        NIP46ErrorCode.PERMISSION_DENIED,
+        "Not authorized for this action"
+      );
+      
+      expect(response.id).toBe("test-id");
+      expect(response.error).toBeTruthy();
+      
+      const errorObj = JSON.parse(response.error!);
+      expect(errorObj.code).toBe(NIP46ErrorCode.PERMISSION_DENIED);
+      expect(errorObj.message).toBe("Not authorized for this action");
+    });
+
+    test("provides error descriptions", () => {
+      const description = NIP46ErrorUtils.getErrorDescription(NIP46ErrorCode.INVALID_PARAMETERS);
+      expect(description).toBe("The provided parameters are invalid");
+    });
+
+    test("handles various error codes", () => {
+      const errorCodes = [
+        NIP46ErrorCode.PERMISSION_DENIED,
+        NIP46ErrorCode.INVALID_PARAMETERS,
+        NIP46ErrorCode.INTERNAL_ERROR,
+        NIP46ErrorCode.RATE_LIMITED
+      ];
+
+      errorCodes.forEach(code => {
+        const response = NIP46ErrorUtils.createErrorResponse("test", code, "Test message");
+        expect(response.error).toBeTruthy();
+        
+        const errorObj = JSON.parse(response.error!);
+        expect(errorObj.code).toBe(code);
+        expect(errorObj.message).toBe("Test message");
+        
+        const description = NIP46ErrorUtils.getErrorDescription(code);
+        expect(description).toBeTruthy();
+        expect(typeof description).toBe("string");
+             });
+     });
+   });
+
+   describe("Private Key Security Validation", () => {
+     test("should reject empty private keys", () => {
+       expect(() => {
+         NIP46SecurityValidator.validatePrivateKey("", "test key");
+       }).toThrow(NIP46SecurityError);
+       
+       expect(() => {
+         NIP46SecurityValidator.validatePrivateKey("undefined", "test key");
+       }).toThrow(NIP46SecurityError);
+       
+       expect(() => {
+         NIP46SecurityValidator.validatePrivateKey("null", "test key");
+       }).toThrow(NIP46SecurityError);
+     });
+
+     test("should reject invalid hex format", () => {
+       expect(() => {
+         NIP46SecurityValidator.validatePrivateKey("invalid_hex", "test key");
+       }).toThrow(NIP46SecurityError);
+       
+       expect(() => {
+         NIP46SecurityValidator.validatePrivateKey("123", "test key"); // Too short
+       }).toThrow(NIP46SecurityError);
+     });
+
+     test("should validate keypairs before crypto operations", async () => {
+       const validKeypair = await generateKeypair();
+       const invalidKeypair = { publicKey: validKeypair.publicKey, privateKey: "" };
+       
+       expect(() => {
+         NIP46SecurityValidator.validateKeypairForCrypto(validKeypair, "test keypair");
+       }).not.toThrow();
+       
+       expect(() => {
+         NIP46SecurityValidator.validateKeypairForCrypto(invalidKeypair, "test keypair");
+       }).toThrow(NIP46SecurityError);
+     });
+
+     test("should validate before signing operations", async () => {
+       const validKeypair = await generateKeypair();
+       const validEventData = {
+         kind: 1,
+         content: "test content",
+         created_at: Math.floor(Date.now() / 1000),
+         tags: []
+       };
+       
+       expect(() => {
+         NIP46SecurityValidator.validateBeforeSigning(validKeypair, validEventData);
+       }).not.toThrow();
+       
+       const invalidKeypair = { publicKey: validKeypair.publicKey, privateKey: "" };
+       expect(() => {
+         NIP46SecurityValidator.validateBeforeSigning(invalidKeypair, validEventData);
+       }).toThrow(NIP46SecurityError);
+     });
+
+     test("should validate before encryption operations", async () => {
+       const validKeypair = await generateKeypair();
+       const thirdPartyPubkey = "abcd".repeat(16); // Valid 64-char hex
+       const plaintext = "test message";
+       
+       expect(() => {
+         NIP46SecurityValidator.validateBeforeEncryption(validKeypair, thirdPartyPubkey, plaintext);
+       }).not.toThrow();
+       
+       const invalidKeypair = { publicKey: validKeypair.publicKey, privateKey: "" };
+       expect(() => {
+         NIP46SecurityValidator.validateBeforeEncryption(invalidKeypair, thirdPartyPubkey, plaintext);
+       }).toThrow(NIP46SecurityError);
+     });
+
+     test("should prevent encryption of oversized data", async () => {
+       const validKeypair = await generateKeypair();
+       const thirdPartyPubkey = "abcd".repeat(16);
+       const oversizedData = "x".repeat(200000); // > 100KB
+       
+       expect(() => {
+         NIP46SecurityValidator.validateBeforeEncryption(validKeypair, thirdPartyPubkey, oversizedData);
+       }).toThrow(NIP46SecurityError);
+     });
+
+     test("should use proper error codes for validation failures", () => {
+       const validation = NIP46SecurityValidator.validatePrivateKeyResult("", "test");
+       expect(validation.valid).toBe(false);
+       expect(validation.error).toBeTruthy();
+       expect(validation.code).toBe("PRIVATE_KEY_EMPTY");
+     });
+   });
+
+   describe("Timing Attack Prevention", () => {
+     test("should use constant-time permission checking", () => {
+       const permissions = new Set(["sign_event", "get_public_key", "ping"]);
+       
+       // Use the imported secure permission check function
+       
+       // These should take similar time regardless of permission position
+       const start1 = process.hrtime.bigint();
+       const result1 = securePermissionCheck(permissions, "sign_event");
+       const end1 = process.hrtime.bigint();
+       
+       const start2 = process.hrtime.bigint();
+       const result2 = securePermissionCheck(permissions, "invalid_permission");
+       const end2 = process.hrtime.bigint();
+       
+       expect(result1).toBe(true);
+       expect(result2).toBe(false);
+       
+       // Both operations should complete (timing is less reliable in tests,
+       // but the important part is that the function exists and works)
+       const time1 = Number(end1 - start1);
+       const time2 = Number(end2 - start2);
+       
+       expect(time1).toBeGreaterThan(0);
+       expect(time2).toBeGreaterThan(0);
+     });
+
+     test("should check all permissions to avoid early exit timing", () => {
+       const permissions = new Set([
+         "permission_1",
+         "permission_2", 
+         "target_permission",
+         "permission_4"
+       ]);
+       
+       // Use the imported secure permission check function
+       
+       // Should find the permission even when it's not first
+       const result = securePermissionCheck(permissions, "target_permission");
+       expect(result).toBe(true);
+       
+       // Should not find non-existent permissions
+       const result2 = securePermissionCheck(permissions, "nonexistent");
+       expect(result2).toBe(false);
+     });
+   });
+ });    

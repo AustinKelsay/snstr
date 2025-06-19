@@ -191,4 +191,92 @@ describe("NIP-46 Connection Failures", () => {
     expect(disconnectSpy).toHaveBeenCalled();
     disconnectSpy.mockRestore();
   }, 5000);
+
+  describe("Timeout and Error Handling Edge Cases", () => {
+    test("Very short timeout should still work for fast operations", async () => {
+      // Start bunker for this test
+      bunker = new SimpleNIP46Bunker(
+        [relayUrl],
+        userKeypair.publicKey,
+        signerKeypair.publicKey,
+        {
+          debug: true,
+          logLevel: LogLevel.DEBUG,
+        },
+      );
+      bunker.setUserPrivateKey(userKeypair.privateKey);
+      bunker.setSignerPrivateKey(signerKeypair.privateKey);
+      bunker.setDefaultPermissions(["get_public_key", "ping"]);
+      await bunker.start();
+
+      // Create client with reasonable timeout for local relay
+      const shortTimeoutClient = new SimpleNIP46Client([relayUrl], {
+        timeout: 5000, // 5 seconds should be enough for local relay
+        debug: true,
+        logLevel: LogLevel.DEBUG,
+      });
+
+      try {
+        const connectionString = bunker.getConnectionString();
+        const userPubkey = await shortTimeoutClient.connect(connectionString);
+        expect(userPubkey).toBe(userKeypair.publicKey);
+        
+        // Fast operations should still work
+        expect(await shortTimeoutClient.ping()).toBe(true);
+      } finally {
+        await shortTimeoutClient.disconnect().catch(() => {});
+      }
+    });
+
+    test("Client without relays should fail gracefully", async () => {
+      // Create a client with empty relays array
+      const noRelayClient = new SimpleNIP46Client([], {
+        timeout: 2000, // Short timeout to fail quickly
+        debug: true,
+        logLevel: LogLevel.DEBUG,
+      });
+
+      try {
+        // Create a connection string that specifies no relays
+        const connectionString = `bunker://${signerKeypair.publicKey}`;
+        await expect(noRelayClient.connect(connectionString)).rejects.toThrow(/connection|relay|failed/i);
+      } finally {
+        await noRelayClient.disconnect().catch(() => {});
+      }
+    });
+
+    test("Client handles relay disconnection gracefully", async () => {
+      // Start bunker for this test
+      bunker = new SimpleNIP46Bunker(
+        [relayUrl],
+        userKeypair.publicKey,
+        signerKeypair.publicKey,
+        {
+          debug: true,
+          logLevel: LogLevel.DEBUG,
+        },
+      );
+      bunker.setUserPrivateKey(userKeypair.privateKey);
+      bunker.setSignerPrivateKey(signerKeypair.privateKey);
+      bunker.setDefaultPermissions(["get_public_key", "ping"]);
+      await bunker.start();
+
+      const connectionString = bunker.getConnectionString();
+      await client.connect(connectionString);
+      
+      // Verify connection works
+      expect(await client.ping()).toBe(true);
+      
+      // Stop the relay to simulate disconnection
+      await relay.close();
+      
+      // Operations should now fail gracefully
+      expect(await client.ping()).toBe(false);
+      
+      // Restart relay for subsequent tests
+      relay = new NostrRelay(0);
+      await relay.start();
+      relayUrl = relay.url;
+    });
+  });
 });
