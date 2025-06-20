@@ -58,6 +58,27 @@ export interface SecurityValidationResult {
 
 export class NIP46SecurityValidator {
   /**
+   * Create production-safe error message
+   */
+  static createProductionSafeMessage(debugMessage: string, prodMessage: string = "Security validation failed"): string {
+    return process.env.NODE_ENV === 'production' ? prodMessage : debugMessage;
+  }
+
+  /**
+   * Enhanced private key validation with production-safe errors
+   */
+  static validatePrivateKeySecure(privateKey: string, context: string = "private key"): void {
+    const result = NIP46SecurityValidator.validatePrivateKeyResult(privateKey, context);
+    if (!result.valid) {
+      const prodSafeMessage = NIP46SecurityValidator.createProductionSafeMessage(
+        result.error!,
+        "Invalid key format"
+      );
+      throw new NIP46SecurityError(prodSafeMessage);
+    }
+  }
+
+  /**
    * Validate private key with comprehensive security checks (throws on error)
    */
   static validatePrivateKey(privateKey: string, context: string = "private key"): void {

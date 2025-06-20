@@ -20,6 +20,7 @@ import {
   createErrorResponse,
 } from "./utils/request-response";
 import { buildConnectionString } from "./utils/connection";
+import { NIP46SecurityValidator } from "./utils/security";
 
 // Session data for connected clients
 interface ClientSession {
@@ -169,6 +170,7 @@ export class SimpleNIP46Bunker {
    * Set the user's private key
    */
   setUserPrivateKey(privateKey: string): void {
+    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "user private key");
     this.userKeys.privateKey = privateKey;
   }
 
@@ -176,6 +178,7 @@ export class SimpleNIP46Bunker {
    * Set the signer's private key
    */
   setSignerPrivateKey(privateKey: string): void {
+    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "signer private key");
     this.signerKeys.privateKey = privateKey;
   }
 

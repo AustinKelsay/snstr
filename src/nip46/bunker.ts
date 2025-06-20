@@ -179,7 +179,7 @@ export class NostrRemoteSignerBunker {
    * Set the user's private key
    */
   setUserPrivateKey(privateKey: string): void {
-    NIP46SecurityValidator.validatePrivateKey(privateKey, "user private key");
+    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "user private key");
     this.userKeypair.privateKey = privateKey;
     this.logger.debug("User private key set successfully");
   }
@@ -188,7 +188,7 @@ export class NostrRemoteSignerBunker {
    * Set the signer's private key
    */
   setSignerPrivateKey(privateKey: string): void {
-    NIP46SecurityValidator.validatePrivateKey(privateKey, "signer private key");
+    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "signer private key");
     this.signerKeypair.privateKey = privateKey;
     this.logger.debug("Signer private key set successfully");
   }

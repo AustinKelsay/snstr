@@ -146,6 +146,19 @@ describe("NIP-46 Input Validation Security", () => {
         "bunker://abc'onload=alert(1)'def",
         'bunker://abc"onload=alert(1)"def',
         "bunker://abc>alert(1)<def",
+        
+        "bunker://abc<script src='evil.js'></script>def",
+        "bunker://abcjavascript:alert(1)def",
+        "bunker://abcdata:text/html,<script>alert(1)</script>def",
+        "bunker://abcvbscript:alert(1)def",
+        "bunker://abconclick=alert(1)def",
+        "bunker://abconload=alert(1)def",
+        "bunker://abcexpression(alert(1))def",
+        "bunker://abchttps://example.com://evil.comdef",
+        "bunker://abc<img src=x onerror=alert(1)>def",
+        "bunker://abc<svg onload=alert(1)>def",
+        "bunker://abc<iframe src=javascript:alert(1)>def",
+        "bunker://abc<link rel=stylesheet href=data:,*{x:expression(alert(1))}>def",
       ];
 
       maliciousStrings.forEach(str => {
@@ -210,6 +223,52 @@ describe("NIP-46 Input Validation Security", () => {
       
       expect(connection.metadata?.url).toBeUndefined();
       expect(connection.metadata?.image).toBe("https://example.com/valid.png");
+    });
+
+    test("comprehensive security pattern validation", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Test all security patterns individually
+      const securityPatterns = [
+        // Script injection patterns
+        { pattern: "<script>", name: "script tags" },
+        { pattern: "<script src='evil.js'>", name: "script with source" },
+        { pattern: "javascript:", name: "javascript protocol" },
+        { pattern: "data:", name: "data URLs" },
+        { pattern: "vbscript:", name: "vbscript protocol" },
+        { pattern: "onload=", name: "event handlers" },
+        { pattern: "onclick=", name: "click handlers" },
+        { pattern: "expression(", name: "CSS expressions" },
+        { pattern: "https://example.com://evil.com", name: "protocol confusion" },
+        
+        // XSS patterns
+        { pattern: "<img src=x onerror=alert(1)>", name: "image XSS" },
+        { pattern: "<svg onload=alert(1)>", name: "SVG XSS" },
+        { pattern: "<iframe src=javascript:alert(1)>", name: "iframe XSS" },
+        { pattern: "<link rel=stylesheet href=data:,*{x:expression(alert(1))}>", name: "link XSS" },
+      ];
+
+      securityPatterns.forEach(({ pattern }) => {
+        const maliciousString = `bunker://${validPubkey}${pattern}`;
+        expect(() => parseConnectionString(maliciousString)).toThrow(NIP46SecurityError);
+        
+        // Test in query parameters without URL encoding to trigger validation
+        const maliciousQuery = `bunker://${validPubkey}?relay=wss://relay.com${pattern}`;
+        expect(() => parseConnectionString(maliciousQuery)).toThrow(NIP46SecurityError);
+      });
+    });
+
+    test("validates query parameter structure", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Multiple question marks should be rejected
+      expect(() => {
+        parseConnectionString(`bunker://${validPubkey}?relay=wss://relay.com?evil=param`);
+      }).toThrow(NIP46SecurityError);
+      
+      // Valid single query parameter should work
+      const validConnection = parseConnectionString(`bunker://${validPubkey}?relay=wss://relay.com`);
+      expect(validConnection.relays).toEqual(["wss://relay.com"]);
     });
 
     test("Valid bunker connection string format", async () => {

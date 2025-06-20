@@ -22,6 +22,41 @@ import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
 import { NIP46Validator } from "./validator";
 
 /**
+ * Enhanced security patterns to detect potential injection attacks
+ */
+const SECURITY_PATTERNS = {
+  // Script injection patterns
+  SCRIPT_TAGS: /<script[^>]*>/i,
+  JAVASCRIPT_PROTOCOL: /javascript:/i,
+  DATA_URLS: /data:/i,
+  VBSCRIPT: /vbscript:/i,
+  EVENT_HANDLERS: /on\w+\s*=/i,
+  CSS_EXPRESSIONS: /expression\s*\(/i,
+  // Basic XSS patterns
+  BASIC_XSS: /[<>"']/,
+  // Protocol confusion
+  PROTOCOL_CONFUSION: /https?:\/\/.*:\/\//i
+};
+
+/**
+ * Validate connection string for security threats
+ */
+function validateConnectionSecurity(str: string): void {
+  // Check each security pattern
+  for (const [name, pattern] of Object.entries(SECURITY_PATTERNS)) {
+    if (pattern.test(str)) {
+      throw new NIP46SecurityError(`Connection string contains potentially dangerous pattern: ${name.toLowerCase()}`);
+    }
+  }
+  
+  // Additional validation for URL structure
+  const urlParts = str.split('?');
+  if (urlParts.length > 2) {
+    throw new NIP46SecurityError("Connection string has malformed query parameters");
+  }
+}
+
+/**
  * Parse a bunker or nostrconnect connection string with enhanced security validation.
  */
 export function parseConnectionString(str: string): NIP46ConnectionInfo {
@@ -42,10 +77,8 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     );
   }
 
-  // Check for potentially dangerous characters that could indicate injection attempts
-  if (str.includes('<') || str.includes('>') || str.includes('"') || str.includes("'")) {
-    throw new NIP46SecurityError("Connection string contains potentially dangerous characters");
-  }
+  // Enhanced security validation
+  validateConnectionSecurity(str);
 
   // Determine connection type and extract pubkey first before URL parsing
   const type = str.startsWith("bunker://") ? "bunker" : "nostrconnect";
