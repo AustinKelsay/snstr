@@ -3,14 +3,9 @@
  */
 
 import { isValidPrivateKey } from "../../nip44";
-import { NIP46SecurityError } from "../types";
+import { NIP46SecurityError, NIP46UnsignedEventData } from "../types";
 
-interface EventDataForSigning {
-  kind: number;
-  content: string;
-  created_at: number;
-  [key: string]: any; // Allow additional properties
-}
+
 
 /**
  * Constant-time string comparison to prevent timing attacks
@@ -221,7 +216,7 @@ export class NIP46SecurityValidator {
   /**
    * Validate before any signing operation
    */
-  static validateBeforeSigning(userKeypair: { publicKey: string; privateKey: string }, eventData: EventDataForSigning): void {
+  static validateBeforeSigning(userKeypair: { publicKey: string; privateKey: string }, eventData: NIP46UnsignedEventData): void {
     // Validate user keypair
     NIP46SecurityValidator.validateUserKeypairForSigning(userKeypair);
 

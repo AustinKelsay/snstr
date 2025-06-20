@@ -23,9 +23,10 @@ export class TestManager {
     await relay.start();
     
     // Track the actual port being used
-    const actualPort = relay.url.split(':').pop();
-    if (actualPort) {
-      this.usedPorts.add(parseInt(actualPort));
+    const relayUrl = new URL(relay.url);
+    const actualPort = parseInt(relayUrl.port);
+    if (!isNaN(actualPort)) {
+      this.usedPorts.add(actualPort);
     }
     
     const setup: TestSetup = {

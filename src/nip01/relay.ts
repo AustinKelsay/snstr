@@ -15,6 +15,7 @@ import {
 import { RelayConnectionOptions } from "../types/protocol";
 import { NostrValidationError } from "./event";
 import { getUnixTime } from "../utils/time";
+import { Logger, LogLevel } from "../nip46/utils/logger";
 
 export class Relay {
   private url: string;
@@ -24,6 +25,7 @@ export class Relay {
   private eventHandlers: RelayEventHandler = {};
   private connectionPromise: Promise<boolean> | null = null;
   private connectionTimeout = 10000; // Default timeout of 10 seconds
+  private logger: Logger;
   // Event buffer for implementing proper event ordering
   private eventBuffers: Map<string, NostrEvent[]> = new Map();
   private bufferFlushInterval: NodeJS.Timeout | null = null;
@@ -40,6 +42,12 @@ export class Relay {
 
   constructor(url: string, options: RelayConnectionOptions = {}) {
     this.url = url;
+    this.logger = new Logger({
+      prefix: `Relay(${url})`,
+      level: LogLevel.WARN, // Default to WARN level for production use
+      includeTimestamp: false
+    });
+    
     if (options.connectionTimeout !== undefined) {
       this.connectionTimeout = options.connectionTimeout;
     }
@@ -153,7 +161,7 @@ export class Relay {
       }
     }).catch((_error) => {
       // Ensure we return false if connection fails but don't re-throw
-      // console.error(`Connection to ${this.url} failed:`, _error);
+      this.logger.error(`Connection failed:`, _error);
 
       // Schedule reconnection if auto-reconnect is enabled
       if (this.autoReconnect) {

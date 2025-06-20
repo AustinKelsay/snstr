@@ -442,7 +442,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
         // Get successfully connected clients
         const connectedClients = connectionResults
           .filter(result => result.status === 'fulfilled' && result.value.success)
-          .map(result => (result as PromiseFulfilledResult<any>).value.client);
+          .map(result => (result as PromiseFulfilledResult<{ success: boolean; client: SimpleNIP46Client }>).value.client);
 
         // Should have at least 2 successful connections out of 3
         expect(connectedClients.length).toBeGreaterThanOrEqual(2);
