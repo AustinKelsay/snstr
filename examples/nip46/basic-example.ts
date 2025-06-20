@@ -10,6 +10,10 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 async function main() {
   console.log("NIP-46 Basic Remote Signing Example");
   console.log("----------------------------------");
+  console.log("Demonstrates the NIP-46 protocol where:");
+  console.log("- remote-signer-pubkey is used for communication");
+  console.log("- user-pubkey is retrieved via get_public_key after connect");
+  console.log("");
 
   // Start an ephemeral relay for testing
   const relay = new NostrRelay(3333);
@@ -24,8 +28,8 @@ async function main() {
     const userKeypair = await generateKeypair();
     const signerKeypair = await generateKeypair(); // Different keypair for the signer
 
-    console.log("User pubkey:", userKeypair.publicKey);
-    console.log("Signer pubkey:", signerKeypair.publicKey);
+    console.log("User pubkey (for signing):", userKeypair.publicKey);
+    console.log("Remote signer pubkey (for communication):", signerKeypair.publicKey);
 
     // Create and start bunker
     console.log("\nStarting bunker...");
@@ -48,6 +52,7 @@ async function main() {
     // Get connection string
     const connectionString = bunker.getConnectionString();
     console.log("Connection string:", connectionString);
+    console.log("(Contains remote-signer-pubkey, not user-pubkey)");
 
     // Create client
     console.log("\nInitializing client...");
@@ -55,13 +60,16 @@ async function main() {
 
     // Connect client to bunker
     console.log("Connecting to bunker...");
-    const pubkey = await client.connect(connectionString);
+    const connectResult = await client.connect(connectionString);
     console.log("Client connected successfully");
-    console.log("Public key from bunker:", pubkey);
-    console.log(
-      "Matches original user pubkey:",
-      pubkey === userKeypair.publicKey,
-    );
+    console.log("Connect result:", connectResult);
+
+    // Get user public key (required after connect per NIP-46 spec)
+    console.log("\nGetting user public key from bunker...");
+    const userPubkey = await client.getPublicKey();
+    console.log("User public key from bunker:", userPubkey);
+    console.log("Matches original user pubkey:", userPubkey === userKeypair.publicKey);
+    console.log("Different from signer pubkey:", userPubkey !== signerKeypair.publicKey);
 
     // Test ping command
     console.log("\nPinging bunker...");
@@ -83,6 +91,7 @@ async function main() {
     console.log("Signed note ID:", signedNote.id);
     console.log("Signed with pubkey:", signedNote.pubkey);
     console.log("Signature:", signedNote.sig.substring(0, 20) + "...");
+    console.log("Pubkey matches user pubkey:", signedNote.pubkey === userPubkey);
 
     // Verify the signature is valid
     const validSig = await verifySignature(

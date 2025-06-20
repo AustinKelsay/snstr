@@ -8,7 +8,13 @@ import { LogLevel } from "../../../src/nip46/utils/logger";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 async function main() {
-  console.log("=== NIP-46 Remote Signing Advanced Demo ===\n");
+  console.log("=== NIP-46 Remote Signing Advanced Demo ===");
+  console.log("This demo shows the updated NIP-46 flow:");
+  console.log("1. Connect to bunker (connection establishment)");
+  console.log("2. Call get_public_key to retrieve user's signing key");
+  console.log("3. Demonstrate permission-based signing");
+  console.log("4. Show difference between remote-signer-pubkey and user-pubkey");
+  console.log("");
 
   // Use an ephemeral relay for testing - in production you'd use public relays
   const relay = new NostrRelay(3000);
@@ -22,8 +28,8 @@ async function main() {
   const userKeypair = await generateKeypair();
   const signerKeypair = await generateKeypair();
 
-  console.log(`User public key: ${userKeypair.publicKey}`);
-  console.log(`Signer public key: ${signerKeypair.publicKey}`);
+  console.log(`User public key (for signing): ${userKeypair.publicKey}`);
+  console.log(`Signer public key (for communication): ${signerKeypair.publicKey}`);
 
   // Create and configure bunker
   console.log("\nStarting bunker...");
@@ -52,6 +58,7 @@ async function main() {
   // Get the connection string to share with clients
   const connectionString = bunker.getConnectionString();
   console.log("Bunker connection string:", connectionString);
+  console.log(`(Contains remote-signer-pubkey: ${signerKeypair.publicKey})`);
 
   // Create a client with debug logging
   console.log("\nCreating client...");
@@ -61,16 +68,15 @@ async function main() {
   try {
     // Connect to the bunker
     console.log("Connecting to bunker...");
-    await client.connect(connectionString);
-    console.log("Connected successfully!");
+    const connectResult = await client.connect(connectionString);
+    console.log(`Connected successfully! Result: ${connectResult}`);
 
-    // Get the user's public key from the bunker
+    // Get the user's public key from the bunker (required after connect)
+    console.log("\nGetting user public key from bunker...");
     const userPubkey = await client.getPublicKey();
-    console.log("\nUser public key from bunker:", userPubkey);
-    console.log(
-      "Matches original:",
-      userPubkey === userKeypair.publicKey ? "Yes" : "No",
-    );
+    console.log("User public key from bunker:", userPubkey);
+    console.log("Matches original user key:", userPubkey === userKeypair.publicKey ? "Yes" : "No");
+    console.log("Different from signer key:", userPubkey !== signerKeypair.publicKey ? "Yes" : "No");
 
     // Test ping
     console.log("\nSending ping to verify connection...");
@@ -94,6 +100,7 @@ async function main() {
     console.log("Event to sign:", JSON.stringify(eventToSign));
     const signedEvent = await client.signEvent(eventToSign);
     console.log("Signed event:", JSON.stringify(signedEvent, null, 2));
+    console.log(`Event signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`);
 
     // Test NIP-04 encryption
     console.log("\nTesting NIP-04 encryption...");

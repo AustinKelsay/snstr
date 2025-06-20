@@ -7,6 +7,10 @@
  * 2. Connect a client to the bunker
  * 3. Perform remote signing operations
  *
+ * Key concepts:
+ * - remote-signer-pubkey: The pubkey in the connection string (used for communication)
+ * - user-pubkey: The actual signing pubkey (retrieved via get_public_key after connect)
+ *
  * For simplicity, this example uses the SimpleNIP46 implementation which provides
  * the essential functionality with minimal code.
  */
@@ -35,16 +39,12 @@ async function main() {
     // 2. Generate keypairs
     console.log("\nGenerating keypairs...");
 
-    // Option 1: Use same keypair for both user and signer (simpler but less secure)
+    // Generate separate keypairs for user identity and remote signer communication
     const userKeypair = await generateKeypair();
-    const signerKeypair = userKeypair; // Same keypair for simplicity
+    const signerKeypair = await generateKeypair();
 
-    // Option 2: Use separate keypairs (more secure, uncomment to use)
-    // const userKeypair = await generateKeypair();
-    // const signerKeypair = await generateKeypair();
-
-    console.log(`User public key: ${userKeypair.publicKey}`);
-    console.log(`Signer public key: ${signerKeypair.publicKey}`);
+    console.log(`User public key (for signing): ${userKeypair.publicKey}`);
+    console.log(`Remote signer public key (for communication): ${signerKeypair.publicKey}`);
 
     // 3. Create and configure bunker
     console.log("\nStarting bunker...");
@@ -67,24 +67,29 @@ async function main() {
     // 4. Get connection string that clients will use to connect
     const connectionString = bunker.getConnectionString();
     console.log(`Connection string: ${connectionString}`);
+    console.log(`(Note: Contains remote-signer-pubkey: ${signerKeypair.publicKey})`);
 
     // 5. Create and connect client
     console.log("\nConnecting client...");
     const client = new SimpleNIP46Client(relays, { timeout: 5000 });
-    const remotePublicKey = await client.connect(connectionString);
+    
+    // Connect to the bunker (this establishes the connection but doesn't return user pubkey)
+    const connectResult = await client.connect(connectionString);
+    console.log(`Connected successfully! Connect result: ${connectResult}`);
 
-    console.log(`Connected successfully to bunker`);
-    console.log(`Remote public key: ${remotePublicKey}`);
-    console.log(
-      `Matches user pubkey: ${remotePublicKey === userKeypair.publicKey ? "Yes" : "No"}`,
-    );
+    // 6. Get the user's public key (required after connect per NIP-46 spec)
+    console.log("\nGetting user public key...");
+    const userPubkey = await client.getPublicKey();
+    console.log(`User public key: ${userPubkey}`);
+    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey ? "Yes" : "No"}`);
+    console.log(`Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey ? "Yes" : "No"}`);
 
-    // 6. Test connection with ping
+    // 7. Test connection with ping
     console.log("\nTesting connection with ping...");
     const pingResult = await client.ping();
     console.log(`Ping result: ${pingResult}`);
 
-    // 7. Sign an event
+    // 8. Sign an event
     console.log("\nSigning a text note...");
     const eventTemplate = {
       kind: 1,
@@ -98,8 +103,9 @@ async function main() {
     console.log(`  ID: ${signedEvent.id}`);
     console.log(`  Pubkey: ${signedEvent.pubkey}`);
     console.log(`  Signature: ${signedEvent.sig.substring(0, 20)}...`);
+    console.log(`  Signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`);
 
-    // 8. Verify the signature
+    // 9. Verify the signature
     const isValid = await verifySignature(
       signedEvent.id,
       signedEvent.sig,
@@ -107,7 +113,7 @@ async function main() {
     );
     console.log(`Signature valid: ${isValid ? "Yes" : "No"}`);
 
-    // 9. Clean up resources
+    // 10. Clean up resources
     console.log("\nCleaning up...");
     await client.disconnect();
     await bunker.stop();

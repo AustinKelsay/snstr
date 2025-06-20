@@ -109,6 +109,7 @@
     "example:nip46:from-scratch": "ts-node examples/nip46/from-scratch/implementation-from-scratch.ts",
     "example:nip46:simple": "ts-node examples/nip46/simple/simple-example.ts",
     "example:nip46:simple-client": "ts-node examples/nip46/simple/simple-client-test.ts",
+    "example:nip46:test-all": "ts-node examples/nip46/test-all-examples.ts",
     "example:nip46:connection-string-validation": "ts-node examples/nip46/connection-string-validation-example.ts",
     "example:nip47": "ts-node examples/nip47/basic-example.ts",
     "example:nip47:verbose": "VERBOSE=true ts-node examples/nip47/basic-example.ts",
