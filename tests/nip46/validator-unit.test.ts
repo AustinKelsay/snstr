@@ -561,7 +561,7 @@ describe("NIP-46 Validator Unit Tests", () => {
      test("should throw for invalid keypair", () => {
        const invalidKeypair = {
          publicKey: "invalid",
-         privateKey: generateRequestId()
+         privateKey: "a".repeat(64) // Valid 64-char hex private key so we test public key validation
        };
        expect(() => {
          validateKeypairForCrypto(invalidKeypair, "test keypair");
@@ -714,8 +714,8 @@ describe("NIP-46 Validator Unit Tests", () => {
        expect(invalidResult.valid).toBe(false);
        expect(invalidResult.error).toContain("test key is not a valid private key format");
        
-       // Valid key test
-       const validKey = generateRequestId(); // This generates a 64-char hex string
+       // Valid key test - need a 64-char hex string, not 32-char from generateRequestId
+       const validKey = generateRequestId() + generateRequestId(); // Combine two 32-char strings to make 64-char
        const validResult = validatePrivateKeyResult(validKey, "test key");
        expect(validResult.valid).toBe(true);
        expect(validResult.error).toBeUndefined();
