@@ -292,6 +292,96 @@ describe("NIP-46 Validator Unit Tests", () => {
         SecureErrorHandler.logSecurityEvent("test_event", { key: "value" });
       }).not.toThrow();
     });
+
+    describe("Security Logging Configuration", () => {
+      beforeEach(() => {
+        // Reset security logging state before each test
+        SecureErrorHandler.setSecurityLoggingEnabled(true);
+      });
+
+          test("should allow enabling and disabling security logging", () => {
+      // Disable security logging
+      SecureErrorHandler.setSecurityLoggingEnabled(false);
+      expect(SecureErrorHandler.isSecurityLoggingEnabled()).toBe(false);
+      
+      // Re-enable security logging
+      SecureErrorHandler.setSecurityLoggingEnabled(true);
+      expect(SecureErrorHandler.isSecurityLoggingEnabled()).toBe(true);
+    });
+
+      test("should initialize custom security logger", () => {
+        const mockLogger = {
+          warn: jest.fn(),
+          error: jest.fn(),
+          info: jest.fn(),
+          debug: jest.fn(),
+          trace: jest.fn(),
+          setLevel: jest.fn()
+        } as any;
+
+        // Initialize with custom logger
+        SecureErrorHandler.initializeSecurityLogging(mockLogger, true);
+        
+        // Enable logging and test
+        SecureErrorHandler.setSecurityLoggingEnabled(true);
+        SecureErrorHandler.logSecurityEvent("test_event", { key: "value" });
+        
+        // Verify the custom logger was called
+        expect(mockLogger.warn).toHaveBeenCalledWith("test_event", { key: "value" });
+      });
+
+      test("should respect security logging enabled/disabled setting", () => {
+        const mockLogger = {
+          warn: jest.fn(),
+          error: jest.fn(),
+          info: jest.fn(),
+          debug: jest.fn(),
+          trace: jest.fn(),
+          setLevel: jest.fn()
+        } as any;
+
+        SecureErrorHandler.initializeSecurityLogging(mockLogger, false);
+        
+        // Should not log when disabled
+        SecureErrorHandler.logSecurityEvent("disabled_event", { key: "value" });
+        expect(mockLogger.warn).not.toHaveBeenCalled();
+        
+        // Enable and try again
+        SecureErrorHandler.setSecurityLoggingEnabled(true);
+        SecureErrorHandler.logSecurityEvent("enabled_event", { key: "value" });
+        expect(mockLogger.warn).toHaveBeenCalledWith("enabled_event", { key: "value" });
+      });
+
+      test("should properly redact sensitive fields in security logs", () => {
+        const mockLogger = {
+          warn: jest.fn(),
+          error: jest.fn(),
+          info: jest.fn(),
+          debug: jest.fn(),
+          trace: jest.fn(),
+          setLevel: jest.fn()
+        } as any;
+
+        SecureErrorHandler.initializeSecurityLogging(mockLogger, true);
+        SecureErrorHandler.setSecurityLoggingEnabled(true);
+        
+        // Log with sensitive data
+        const details = {
+          publicKey: "sensitive-public-key",
+          privateKey: "sensitive-private-key",
+          normalData: "normal-data"
+        };
+        
+        SecureErrorHandler.logSecurityEvent("test_redaction", details, ["privateKey", "publicKey"]);
+        
+        // Verify sensitive fields were redacted
+        expect(mockLogger.warn).toHaveBeenCalledWith("test_redaction", {
+          publicKey: "[REDACTED]",
+          privateKey: "[REDACTED]",
+          normalData: "normal-data"
+        });
+      });
+    });
   });
 
   describe("Request ID Generation Security", () => {

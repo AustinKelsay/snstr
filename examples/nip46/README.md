@@ -61,4 +61,71 @@ This library provides two implementations:
 
 ## Specification
 
-For full details, see [NIP-46 Specification](https://github.com/nostr-protocol/nips/blob/master/46.md). 
+For full details, see [NIP-46 Specification](https://github.com/nostr-protocol/nips/blob/master/46.md).
+
+## Security Logging Configuration
+
+NIP-46 includes comprehensive security event logging to help monitor and debug security issues. By default, security logging is disabled in test environments but can be configured for production use.
+
+```typescript
+import { SecureErrorHandler, Logger, LogLevel } from "../../src/nip46";
+
+// Enable security logging with default configuration
+SecureErrorHandler.setSecurityLoggingEnabled(true);
+
+// Or initialize with a custom logger
+const securityLogger = new Logger({
+  prefix: "SECURITY-MONITOR",
+  level: LogLevel.WARN,
+  includeTimestamp: true,
+  silent: false
+});
+
+SecureErrorHandler.initializeSecurityLogging(securityLogger, true);
+
+// Security events will now be logged automatically when validation errors occur
+// For example, when connection strings fail to parse or when invalid requests are received
+
+// Check if security logging is enabled
+if (SecureErrorHandler.isSecurityLoggingEnabled()) {
+  console.log("Security monitoring is active");
+}
+
+// Manually log security events (with automatic sensitive data redaction)
+SecureErrorHandler.logSecurityEvent(
+  "Custom security event",
+  {
+    clientPubkey: "abc123...",
+    privateKey: "sensitive-key", // This will be redacted
+    timestamp: Date.now()
+  },
+  ["privateKey"] // Fields to redact
+);
+```
+
+### Security Logging Features
+
+- **Automatic sensitive data redaction**: Private keys and other sensitive fields are automatically masked
+- **Configurable logging levels**: Use different log levels for different environments
+- **Production-ready**: Designed to provide security visibility without exposing sensitive information
+- **Integration with existing Logger**: Uses the same logging infrastructure as other NIP-46 components
+- **Performance optimized**: Minimal overhead when logging is disabled
+
+### Environment Configuration
+
+```typescript
+// Typical production setup
+if (process.env.NODE_ENV === 'production') {
+  const productionLogger = new Logger({
+    prefix: "NIP46-SECURITY",
+    level: LogLevel.WARN,
+    includeTimestamp: true,
+    silent: false
+  });
+  
+  SecureErrorHandler.initializeSecurityLogging(productionLogger, true);
+} else {
+  // Development or testing - security logging disabled by default
+  SecureErrorHandler.setSecurityLoggingEnabled(false);
+}
+``` 

@@ -1,4 +1,5 @@
 import { NIP46Request, NIP46Method } from "../types";
+import { Logger, LogLevel } from "./logger";
 
 /**
  * Enhanced validation utilities for NIP-46 security
@@ -445,6 +446,36 @@ export class NIP46Validator {
  * Secure error handler to prevent information disclosure
  */
 export class SecureErrorHandler {
+  private static securityLogger: Logger | null = null;
+  private static securityLoggingEnabled: boolean = process.env.NODE_ENV !== 'test';
+
+  /**
+   * Initialize security logging with a custom logger
+   */
+  static initializeSecurityLogging(logger?: Logger, enabled: boolean = true): void {
+    this.securityLogger = logger || new Logger({
+      prefix: "SECURITY",
+      level: LogLevel.WARN,
+      includeTimestamp: true,
+      silent: false
+    });
+    this.securityLoggingEnabled = enabled;
+  }
+
+  /**
+   * Enable or disable security event logging
+   */
+  static setSecurityLoggingEnabled(enabled: boolean): void {
+    this.securityLoggingEnabled = enabled;
+  }
+
+  /**
+   * Check if security logging is enabled
+   */
+  static isSecurityLoggingEnabled(): boolean {
+    return this.securityLoggingEnabled;
+  }
+
   /**
    * Sanitize error messages for safe client communication
    */
@@ -476,6 +507,10 @@ export class SecureErrorHandler {
    * Log security events without exposing sensitive data
    */
   static logSecurityEvent(event: string, details: Record<string, unknown>, sensitive: string[] = []): void {
+    if (!this.securityLoggingEnabled) {
+      return;
+    }
+
     const sanitizedDetails = { ...details };
     
     // Remove or mask sensitive fields
@@ -485,6 +520,12 @@ export class SecureErrorHandler {
       }
     }
 
-    // console.warn(`[SECURITY] ${event}:`, sanitizedDetails);
+    // Initialize default logger if none provided
+    if (!this.securityLogger) {
+      this.initializeSecurityLogging();
+    }
+
+    // Use the configured logger for security events
+    this.securityLogger!.warn(`${event}`, sanitizedDetails);
   }
 }

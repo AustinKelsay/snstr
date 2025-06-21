@@ -422,7 +422,7 @@ describe("NIP-46 Bunker Functionality", () => {
       
       const bunker = new NostrRemoteSignerBunker({
         userPubkey: validKeypair.publicKey,
-        relays: ["wss://test.relay.com"]
+        relays: [relayUrl] // Use the ephemeral relay from test setup
       });
       
       // Should fail without private keys set - specific error about secure initialization
@@ -432,8 +432,7 @@ describe("NIP-46 Bunker Functionality", () => {
       bunker.setUserPrivateKey(validKeypair.privateKey);
       bunker.setSignerPrivateKey(validKeypair.privateKey);
       
-      // Should succeed now that private keys are set, even though relay connection fails
-      // (relay connection failures don't throw errors, they're just logged)
+      // Should succeed now that private keys are set with a working relay connection
       await expect(bunker.start()).resolves.not.toThrow();
       
       // Clean up
