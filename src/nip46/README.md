@@ -762,7 +762,7 @@ class NIP46Validator {
   static validatePermission(permission: string): boolean
 }
 
-class NIP46SecurityValidator {
+// Security validation functions:
   static validatePrivateKey(privateKey: string, context?: string): void
   static validateKeypairForCrypto(keypair: NIP46KeyPair, context?: string): void
   static validateBeforeSigning(userKeypair: NIP46KeyPair, eventData: any): void

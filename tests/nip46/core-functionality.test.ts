@@ -14,7 +14,7 @@ import {
   NIP46AuthChallenge,
   NIP46ClientOptions,
 } from "../../src/nip46/types";
-import { NIP46SecurityValidator } from "../../src/nip46/utils/security";
+import { validateSecureInitialization } from "../../src/nip46/utils/security";
 
 /**
  * Helper function to wait for a condition with polling instead of fixed timeout
@@ -360,7 +360,7 @@ describe("NIP-46 Core Functionality", () => {
       ).rejects.toThrow();
     });
 
-    test("NIP-04 encrypt with empty message (legacy support - requires manual permission)", async () => {
+    test("NIP-04 rejects empty message (security enhancement)", async () => {
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
@@ -370,14 +370,17 @@ describe("NIP-46 Core Functionality", () => {
       bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
       const recipientKeys = await generateKeypair();
-      const message = "";
+      const emptyMessage = "";
 
-      // NIP-04 allows empty messages (legacy behavior)
-      const encrypted = await client.nip04Encrypt(recipientKeys.publicKey, message);
-      expect(encrypted).toBeTruthy();
+      // NIP-04 should now reject empty messages for security
+      await expect(
+        client.nip04Encrypt(recipientKeys.publicKey, emptyMessage)
+      ).rejects.toThrow("Missing required parameters for NIP-04 encryption");
       
-      const decrypted = await client.nip04Decrypt(recipientKeys.publicKey, encrypted);
-      expect(decrypted).toBe(message);
+      // Also test empty ciphertext rejection for decryption
+      await expect(
+        client.nip04Decrypt(recipientKeys.publicKey, "")
+      ).rejects.toThrow("Missing required parameters for NIP-04 decryption");
     });
 
     test("Both encryption methods work with same message", async () => {
@@ -629,7 +632,7 @@ describe("NIP-46 Core Functionality", () => {
       
       // Test that all validation passes
       expect(() => {
-        NIP46SecurityValidator.validateSecureInitialization({
+        validateSecureInitialization({
           userKeypair: { 
             publicKey: userKeypair.publicKey, 
             privateKey: userKeypair.privateKey 

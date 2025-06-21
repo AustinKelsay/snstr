@@ -3,6 +3,7 @@ import {
   SimpleNIP46Bunker,
   generateKeypair,
 } from "../../src";
+import { NostrRemoteSignerClient } from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import {
   NIP46SecurityError,
@@ -633,6 +634,89 @@ describe("NIP-46 Input Validation Security", () => {
         expect(errorMessage).not.toContain("internal");
         expect(errorMessage).not.toMatch(/[0-9a-f]{64}/);
       }
+    });
+  });
+
+  describe("Auth URL Domain Whitelist Validation", () => {
+    test("validates auth URLs against domain whitelist", () => {
+      // Create client with domain whitelist
+      const clientWithWhitelist = new NostrRemoteSignerClient({
+        relays: ["wss://relay.example.com"],
+        authDomainWhitelist: ["trusted-domain.com", "auth.example.com"],
+        debug: false
+      });
+
+      // Access private method for testing
+      const clientAny = clientWithWhitelist as any;
+
+      // Test allowed domains
+      expect(clientAny.isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://auth.example.com/login")).toBe(true);
+      
+      // Test subdomain matching
+      expect(clientAny.isValidAuthUrl("https://api.trusted-domain.com/oauth")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://secure.auth.example.com/callback")).toBe(true);
+      
+      // Test blocked domains
+      expect(clientAny.isValidAuthUrl("https://malicious-site.com/auth")).toBe(false);
+      expect(clientAny.isValidAuthUrl("https://evil.com/steal-keys")).toBe(false);
+      expect(clientAny.isValidAuthUrl("https://not-trusted.org/login")).toBe(false);
+    });
+
+    test("allows all valid HTTPS URLs when no whitelist is configured", () => {
+      // Create client without domain whitelist
+      const clientWithoutWhitelist = new NostrRemoteSignerClient({
+        relays: ["wss://relay.example.com"],
+        debug: false
+      });
+
+      const clientAny = clientWithoutWhitelist as any;
+
+      // Should allow any valid HTTPS URL
+      expect(clientAny.isValidAuthUrl("https://any-domain.com/auth")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://random-site.org/login")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://valid-site.net/oauth")).toBe(true);
+      
+      // Should still block HTTP URLs
+      expect(clientAny.isValidAuthUrl("http://insecure.com/auth")).toBe(false);
+    });
+
+    test("handles case-insensitive domain matching", () => {
+      const clientWithWhitelist = new NostrRemoteSignerClient({
+        relays: ["wss://relay.example.com"],
+        authDomainWhitelist: ["TrustedDomain.com", "AUTH.example.com"],
+        debug: false
+      });
+
+      const clientAny = clientWithWhitelist as any;
+
+      // Test case variations
+      expect(clientAny.isValidAuthUrl("https://trusteddomain.com/auth")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://auth.EXAMPLE.com/login")).toBe(true);
+      expect(clientAny.isValidAuthUrl("https://AUTH.EXAMPLE.COM/login")).toBe(true);
+    });
+
+    test("validates against all other security checks with whitelist", () => {
+      const clientWithWhitelist = new NostrRemoteSignerClient({
+        relays: ["wss://relay.example.com"],
+        authDomainWhitelist: ["trusted-domain.com"],
+        debug: false
+      });
+
+      const clientAny = clientWithWhitelist as any;
+
+      // Should still enforce HTTPS requirement
+      expect(clientAny.isValidAuthUrl("http://trusted-domain.com/auth")).toBe(false);
+      
+      // Should still check for dangerous characters
+      expect(clientAny.isValidAuthUrl("https://trusted-domain.com/auth<script>")).toBe(false);
+      
+      // Should still validate hostname format
+      expect(clientAny.isValidAuthUrl("https://")).toBe(false);
+      
+      // Valid URL should pass all checks
+      expect(clientAny.isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
     });
   });
 }); 

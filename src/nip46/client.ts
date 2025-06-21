@@ -195,6 +195,20 @@ export class NostrRemoteSignerClient {
          this.logger.debug("Connecting to signer relays", { 
            relays: connectionInfo.relays 
          });
+         
+         // Clean up existing Nostr instance if it exists
+         if (this.nostr) {
+           this.logger.debug("Cleaning up existing Nostr instance");
+           try {
+             this.nostr.unsubscribeAll();
+             this.nostr.disconnectFromRelays();
+           } catch (error) {
+             this.logger.warn("Error during Nostr instance cleanup", {
+               error: error instanceof Error ? error.message : String(error)
+             });
+           }
+         }
+         
          // Create a new Nostr instance with combined relays
          const allRelays = [
            ...(this.options.relays || []),
@@ -741,6 +755,30 @@ export class NostrRemoteSignerClient {
       if (url.includes('<') || url.includes('>') || url.includes('"') || url.includes("'")) {
         this.logger.warn("Auth URL contains dangerous characters", { url });
         return false;
+      }
+
+      // Check against domain whitelist if configured
+      if (this.options.authDomainWhitelist && this.options.authDomainWhitelist.length > 0) {
+        const hostname = parsed.hostname.toLowerCase();
+        const isAllowed = this.options.authDomainWhitelist.some(allowedDomain => {
+          const normalizedDomain = allowedDomain.toLowerCase();
+          // Support exact match or subdomain matching
+          return hostname === normalizedDomain || hostname.endsWith('.' + normalizedDomain);
+        });
+
+        if (!isAllowed) {
+          this.logger.warn("Auth URL hostname not in domain whitelist", { 
+            hostname,
+            whitelist: this.options.authDomainWhitelist,
+            url 
+          });
+          return false;
+        }
+        
+        this.logger.debug("Auth URL hostname validated against whitelist", { 
+          hostname,
+          whitelist: this.options.authDomainWhitelist 
+        });
       }
 
       return true;
