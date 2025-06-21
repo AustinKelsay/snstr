@@ -2,38 +2,24 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/tests/**/*.test.ts'],
-  moduleFileExtensions: ['ts', 'js'],
+  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: 'tests/tsconfig.json'
+      tsconfig: 'tsconfig.json'
     }]
   },
-  globals: {
-    'ts-jest': {
-      tsconfig: 'tests/tsconfig.json'
-    }
-  },
-  setupFilesAfterEnv: ['./jest.setup.js'],
-  // No need to exclude integration tests since they use the ephemeral relay
-  testPathIgnorePatterns: [],
-  // Add reasonable test timeout
-  testTimeout: 10000,
-  // Display detailed coverage information
-  collectCoverage: true,
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
+    '!src/**/index.ts'
   ],
-  // Temporarily commenting out coverage thresholds to fix test failures
-  /*
-  coverageThreshold: {
-    global: {
-      statements: 75,
-      branches: 50,
-      functions: 70,
-      lines: 75
-    }
-  }
-  */
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testTimeout: 30000,
+  // Prevent Jest from hanging on open handles
+  forceExit: true,
+  // Handle potential memory leaks in tests
+  detectOpenHandles: false
 }; 

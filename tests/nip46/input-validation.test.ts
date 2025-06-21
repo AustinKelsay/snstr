@@ -4,6 +4,10 @@ import {
   generateKeypair,
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import {
+  NIP46SecurityError,
+} from "../../src/nip46/types";
+import { parseConnectionString } from "../../src/nip46/utils/connection";
 
 jest.setTimeout(15000);
 
@@ -130,6 +134,192 @@ describe("NIP-46 Input Validation Security", () => {
         )
               ).rejects.toThrow();
     }, 6000); // Reduced timeout
+
+    test("validates connection string length", () => {
+      const longString = "bunker://" + "a".repeat(8200);
+      expect(() => parseConnectionString(longString)).toThrow(NIP46SecurityError);
+    });
+
+    test("rejects dangerous characters", () => {
+      const maliciousStrings = [
+        "bunker://abc<script>alert(1)</script>def",
+        "bunker://abc'onload=alert(1)'def",
+        'bunker://abc"onload=alert(1)"def',
+        "bunker://abc>alert(1)<def",
+        
+        "bunker://abc<script src='evil.js'></script>def",
+        "bunker://abcjavascript:alert(1)def",
+        "bunker://abcdata:text/html,<script>alert(1)</script>def",
+        "bunker://abcvbscript:alert(1)def",
+        "bunker://abconclick=alert(1)def",
+        "bunker://abconload=alert(1)def",
+        "bunker://abcexpression(alert(1))def",
+        "bunker://abchttps://example.com://evil.comdef",
+        "bunker://abc<img src=x onerror=alert(1)>def",
+        "bunker://abc<svg onload=alert(1)>def",
+        "bunker://abc<iframe src=javascript:alert(1)>def",
+        "bunker://abc<link rel=stylesheet href=data:,*{x:expression(alert(1))}>def",
+      ];
+
+      maliciousStrings.forEach(str => {
+        expect(() => parseConnectionString(str)).toThrow(NIP46SecurityError);
+      });
+    });
+
+    test("validates secret token length", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Too short secret
+      expect(() => 
+        parseConnectionString(`bunker://${validPubkey}?secret=short`)
+      ).toThrow(NIP46SecurityError);
+
+      // Too long secret
+      const longSecret = "a".repeat(130);
+      expect(() => 
+        parseConnectionString(`bunker://${validPubkey}?secret=${longSecret}`)
+      ).toThrow(NIP46SecurityError);
+
+      // Valid secret
+      const validConnection = parseConnectionString(`bunker://${validPubkey}?secret=validSecret123`);
+      expect(validConnection.secret).toBe("validSecret123");
+    });
+
+    test("sanitizes metadata fields", () => {
+      const validPubkey = "a".repeat(64);
+      const dangerousName = "App<script>alert(1)</script>";
+      const connection = parseConnectionString(
+        `bunker://${validPubkey}?name=${encodeURIComponent(dangerousName)}`
+      );
+      
+      // Should be sanitized
+      expect(connection.metadata?.name).not.toContain("<script>");
+      expect(connection.metadata?.name).toBe("Appscriptalert(1)/script");
+    });
+
+    test("validates permissions format", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Valid permissions
+      const validConnection = parseConnectionString(
+        `bunker://${validPubkey}?perms=sign_event:1,get_public_key,ping`
+      );
+      expect(validConnection.permissions).toEqual(["sign_event:1", "get_public_key", "ping"]);
+
+      // Invalid permissions should be filtered out
+      const mixedConnection = parseConnectionString(
+        `bunker://${validPubkey}?perms=sign_event:1,invalid_perm,get_public_key`
+      );
+      expect(mixedConnection.permissions).toEqual(["sign_event:1", "get_public_key"]);
+    });
+
+    test("validates metadata URLs", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Invalid URL should be filtered out
+      const connection = parseConnectionString(
+        `bunker://${validPubkey}?url=${encodeURIComponent("not-a-url")}&image=https://example.com/valid.png`
+      );
+      
+      expect(connection.metadata?.url).toBeUndefined();
+      expect(connection.metadata?.image).toBe("https://example.com/valid.png");
+    });
+
+    test("comprehensive security pattern validation", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Test all security patterns individually
+      const securityPatterns = [
+        // Script injection patterns
+        { pattern: "<script>", name: "script tags" },
+        { pattern: "<script src='evil.js'>", name: "script with source" },
+        { pattern: "javascript:", name: "javascript protocol" },
+        { pattern: "data:", name: "data URLs" },
+        { pattern: "vbscript:", name: "vbscript protocol" },
+        { pattern: "onload=", name: "event handlers" },
+        { pattern: "onclick=", name: "click handlers" },
+        { pattern: "expression(", name: "CSS expressions" },
+        { pattern: "https://example.com://evil.com", name: "protocol confusion" },
+        
+        // XSS patterns
+        { pattern: "<img src=x onerror=alert(1)>", name: "image XSS" },
+        { pattern: "<svg onload=alert(1)>", name: "SVG XSS" },
+        { pattern: "<iframe src=javascript:alert(1)>", name: "iframe XSS" },
+        { pattern: "<link rel=stylesheet href=data:,*{x:expression(alert(1))}>", name: "link XSS" },
+      ];
+
+      securityPatterns.forEach(({ pattern }) => {
+        const maliciousString = `bunker://${validPubkey}${pattern}`;
+        expect(() => parseConnectionString(maliciousString)).toThrow(NIP46SecurityError);
+        
+        // Test in query parameters without URL encoding to trigger validation
+        const maliciousQuery = `bunker://${validPubkey}?relay=wss://relay.com${pattern}`;
+        expect(() => parseConnectionString(maliciousQuery)).toThrow(NIP46SecurityError);
+      });
+    });
+
+    test("validates query parameter structure", () => {
+      const validPubkey = "a".repeat(64);
+      
+      // Multiple question marks should be rejected
+      expect(() => {
+        parseConnectionString(`bunker://${validPubkey}?relay=wss://relay.com?evil=param`);
+      }).toThrow(NIP46SecurityError);
+      
+      // Valid single query parameter should work
+      const validConnection = parseConnectionString(`bunker://${validPubkey}?relay=wss://relay.com`);
+      expect(validConnection.relays).toEqual(["wss://relay.com"]);
+    });
+
+    test("Valid bunker connection string format", async () => {
+      const connectionString = bunker.getConnectionString();
+      expect(connectionString).toMatch(/^bunker:\/\/[a-f0-9]{64}\?/);
+      
+      // Should be able to parse and connect
+      await client.connect(connectionString);
+      const userPubkey = await client.getPublicKey();
+      expect(typeof userPubkey).toBe("string");
+      expect(userPubkey.length).toBe(64);
+      
+      await client.disconnect();
+    });
+
+    test("Invalid connection string formats", async () => {
+      // Test various invalid formats
+      const invalidStrings = [
+        "bunker://",
+        "bunker://invalid",
+        "nostrconnect://invalid",
+        "invalid://string",
+        "",
+        "just-a-string",
+      ];
+
+      for (const invalidString of invalidStrings) {
+        await expect(client.connect(invalidString)).rejects.toThrow();
+      }
+    });
+
+    test("Connection string with invalid relay", async () => {
+      // Create a client that only uses the relay specified in the connection string
+      const isolatedClient = new SimpleNIP46Client([], { timeout: 2000 });
+      
+      try {
+        // Use a different signer pubkey that doesn't match our bunker to ensure failure
+        const fakePubkey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef";
+        const connectionString = `bunker://${fakePubkey}?relay=ws://invalid-relay.com`;
+        
+        await expect(
+          raceWithTimeout(
+            isolatedClient.connect(connectionString),
+            2000,
+            "timeout"
+          )
+        ).rejects.toThrow();
+      } finally {
+        await isolatedClient.disconnect().catch(() => {});
+      }
+    });
   });
 
   describe("Key Validation", () => {

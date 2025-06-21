@@ -20,6 +20,7 @@ import {
   normalizeRelayUrl as normalizeRelayUrlUtil,
   RelayUrlValidationError,
 } from "../utils/relayUrl";
+import { Logger, LogLevel } from "../nip46/utils/logger";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -78,6 +79,7 @@ export class Nostr {
     bufferFlushDelay?: number;
   };
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
+  private logger: Logger;
 
   /**
    * Create a new Nostr client
@@ -95,6 +97,12 @@ export class Nostr {
     },
   ) {
     this.relayOptions = options?.relayOptions;
+    this.logger = new Logger({
+      prefix: "Nostr",
+      level: LogLevel.WARN,
+      includeTimestamp: false,
+      silent: process.env.NODE_ENV === 'test'
+    });
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
@@ -306,7 +314,12 @@ export class Nostr {
     relayResults: Map<string, { success: boolean; reason?: string }>;
   }> {
     if (!this.relays.size) {
-      console.warn("No relays configured for publishing");
+      this.logger.warn("No relays configured for publishing", {
+        eventId: event.id,
+        eventKind: event.kind,
+        operation: "publishEvent"
+      });
+      
       return {
         success: false,
         event: null,
@@ -339,14 +352,19 @@ export class Nostr {
           relayResults,
         };
       } else {
-        // Get reasons for failures
+        // Get reasons for failures and log them for diagnostics
         const failureReasons = Array.from(relayResults.entries())
           .filter(([_, result]) => !result.success)
           .map(([url, result]) => `${url}: ${result.reason || "unknown"}`);
 
-        console.warn(
-          "Failed to publish event to any relay:",
-          failureReasons.join(", "),
+        this.logger.warn(
+          "Failed to publish event to any relay",
+          {
+            eventId: event.id,
+            eventKind: event.kind,
+            failureCount: failureReasons.length,
+            failures: failureReasons
+          }
         );
 
         return {
@@ -358,7 +376,12 @@ export class Nostr {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
-      console.error("Failed to publish event:", errorMessage);
+      
+      this.logger.error("Failed to publish event", {
+        eventId: event.id,
+        eventKind: event.kind,
+        error: errorMessage
+      });
 
       return {
         success: false,
@@ -437,14 +460,26 @@ export class Nostr {
 
     // If we're not the intended recipient, we shouldn't be able to decrypt this
     if (this.publicKey && recipientPubkey !== this.publicKey) {
-      console.warn("This message was not intended for this user");
+      this.logger.warn("Direct message not intended for this user", {
+        recipientPubkey,
+        currentUserPubkey: this.publicKey,
+        senderPubkey
+      });
     }
 
     // Decrypt the message using our private key and the sender's pubkey
     try {
       return decryptNIP04(this.privateKey, senderPubkey, event.content);
     } catch (error) {
-      console.error("Failed to decrypt message:", error);
+      const errorMessage = error instanceof Error ? error.message : "unknown error";
+      
+      this.logger.error("Failed to decrypt direct message", {
+        eventId: event.id,
+        senderPubkey,
+        recipientPubkey,
+        error: errorMessage
+      });
+      
       throw new Error(
         "Failed to decrypt message. Make sure you are the intended recipient.",
       );

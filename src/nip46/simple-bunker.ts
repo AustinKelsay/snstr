@@ -20,6 +20,7 @@ import {
   createErrorResponse,
 } from "./utils/request-response";
 import { buildConnectionString } from "./utils/connection";
+import { NIP46SecurityValidator } from "./utils/security";
 
 // Session data for connected clients
 interface ClientSession {
@@ -76,6 +77,7 @@ export class SimpleNIP46Bunker {
     this.logger = new Logger({
       prefix: "Bunker",
       level: logLevel,
+      silent: process.env.NODE_ENV === 'test' // Silent in test environment
     });
   }
 
@@ -168,6 +170,7 @@ export class SimpleNIP46Bunker {
    * Set the user's private key
    */
   setUserPrivateKey(privateKey: string): void {
+    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "user private key");
     this.userKeys.privateKey = privateKey;
   }
 
@@ -175,6 +178,7 @@ export class SimpleNIP46Bunker {
    * Set the signer's private key
    */
   setSignerPrivateKey(privateKey: string): void {
+    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "signer private key");
     this.signerKeys.privateKey = privateKey;
   }
 
@@ -286,6 +290,14 @@ export class SimpleNIP46Bunker {
 
           case NIP46Method.NIP04_DECRYPT:
             response = await this.handleNIP04Decrypt(request, clientPubkey);
+            break;
+
+          case NIP46Method.GET_RELAYS:
+            response = await this.handleGetRelays(request, clientPubkey);
+            break;
+
+          case NIP46Method.DISCONNECT:
+            response = await this.handleDisconnect(request, clientPubkey);
             break;
 
           default:
@@ -677,6 +689,74 @@ export class SimpleNIP46Bunker {
       return {
         id: request.id,
         error: `NIP-04 decryption failed: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Handle get_relays request
+   */
+  private async handleGetRelays(request: NIP46Request, clientPubkey: string): Promise<NIP46Response> {
+    // Check authorization
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+
+    // Check if the client has permission to get relays
+    const client = this.clients.get(clientPubkey);
+    
+    if (!client) {
+      return createErrorResponse(request.id, "Client not found - authorization required");
+    }
+    
+    if (!client.permissions.has("get_relays")) {
+      return createErrorResponse(
+        request.id,
+        "Not authorized to get relay list",
+      );
+    }
+
+    try {
+      // Return the relay list as JSON string
+      return {
+        id: request.id,
+        result: JSON.stringify(this.relays),
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error("Get relays failed:", errorMessage);
+      return {
+        id: request.id,
+        error: `Get relays failed: ${errorMessage}`,
+      };
+    }
+  }
+
+  /**
+   * Handle disconnect request
+   */
+  private async handleDisconnect(request: NIP46Request, clientPubkey: string): Promise<NIP46Response> {
+    // Check authorization
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+
+    try {
+      // Remove client from authorized clients
+      this.clients.delete(clientPubkey);
+      
+      this.logger.info(`Client ${clientPubkey.slice(0, 8)}... disconnected`);
+      
+      return {
+        id: request.id,
+        result: "ack",
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error("Disconnect failed:", errorMessage);
+      return {
+        id: request.id,
+        error: `Disconnect failed: ${errorMessage}`,
       };
     }
   }

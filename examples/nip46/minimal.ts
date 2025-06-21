@@ -10,6 +10,11 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
  * This minimal example demonstrates NIP-46 remote signing functionality.
  * It creates a bunker (signer) and client, establishes a connection,
  * and performs basic operations like signing an event.
+ * 
+ * Key NIP-46 concepts demonstrated:
+ * - remote-signer-pubkey: Used in connection string for communication
+ * - user-pubkey: Retrieved via get_public_key after connection
+ * - Two-step connection: connect() then get_public_key()
  */
 async function run() {
   // Create a local ephemeral relay for testing
@@ -26,13 +31,20 @@ async function run() {
     // 2. Generate test keypairs
     console.log("\nGenerating keypairs...");
     const userKeypair = await generateKeypair();
-    console.log(`User public key: ${userKeypair.publicKey}`);
+    const signerKeypair = await generateKeypair(); // Separate keypair for communication
+    
+    console.log(`User public key (for signing): ${userKeypair.publicKey}`);
+    console.log(`Remote signer public key (for communication): ${signerKeypair.publicKey}`);
 
     // 3. Create and start bunker with more verbose logging
     console.log("\nStarting bunker...");
-    const bunker = new SimpleNIP46Bunker(relays, userKeypair.publicKey);
+    const bunker = new SimpleNIP46Bunker(
+      relays, 
+      userKeypair.publicKey,
+      signerKeypair.publicKey
+    );
     bunker.setUserPrivateKey(userKeypair.privateKey);
-    bunker.setSignerPrivateKey(userKeypair.privateKey);
+    bunker.setSignerPrivateKey(signerKeypair.privateKey);
     bunker.setLogLevel(LogLevel.DEBUG);
 
     // Set permissions for signing events
@@ -43,6 +55,7 @@ async function run() {
     // 4. Get connection string
     const connectionString = bunker.getConnectionString();
     console.log(`Connection string: ${connectionString}`);
+    console.log(`(Contains remote-signer-pubkey: ${signerKeypair.publicKey})`);
 
     // 5. Create and connect client with more verbose logging
     console.log("\nConnecting client...");
@@ -50,20 +63,22 @@ async function run() {
       timeout: 5000,
       logLevel: LogLevel.DEBUG,
     });
-    await client.connect(connectionString);
+    
+    // Connect establishes the connection but doesn't return user pubkey
+    const connectResult = await client.connect(connectionString);
+    console.log(`Connected! Result: ${connectResult}`);
 
     // 6. Verify connection with ping
-    console.log("Testing connection with ping...");
+    console.log("\nTesting connection with ping...");
     const pingResult = await client.ping();
     console.log(`Ping result: ${pingResult ? "Success" : "Failed"}`);
 
-    // 7. Get public key
+    // 7. Get user public key (required step after connect per NIP-46 spec)
     console.log("\nGetting user public key from bunker...");
-    const pubkey = await client.getPublicKey();
-    console.log(`Retrieved public key: ${pubkey}`);
-    console.log(
-      `Matches original: ${pubkey === userKeypair.publicKey ? "Yes" : "No"}`,
-    );
+    const userPubkey = await client.getPublicKey();
+    console.log(`Retrieved user public key: ${userPubkey}`);
+    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey ? "Yes" : "No"}`);
+    console.log(`Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey ? "Yes" : "No"}`);
 
     // 8. Sign an event
     console.log("\nSigning a test event...");
@@ -76,7 +91,9 @@ async function run() {
 
     const signedEvent = await client.signEvent(eventTemplate);
     console.log("Event signed successfully:");
-    console.log(JSON.stringify(signedEvent, null, 2));
+    console.log(`  ID: ${signedEvent.id}`);
+    console.log(`  Pubkey: ${signedEvent.pubkey}`);
+    console.log(`  Signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`);
 
     // 9. Clean up
     console.log("\nCleaning up...");
