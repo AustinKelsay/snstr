@@ -631,7 +631,11 @@ describe("NIP-46 Validator Unit Tests", () => {
          validatePrivateKeySecure("", "test key");
        }).toThrow("Invalid key format"); // Production-safe message
        
-       process.env.NODE_ENV = originalEnv;
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
      test("validatePrivateKeySecure should throw debug errors in development", () => {
@@ -642,7 +646,11 @@ describe("NIP-46 Validator Unit Tests", () => {
          validatePrivateKeySecure("", "test key");
        }).toThrow("test key is required and cannot be empty"); // Debug message
        
-       process.env.NODE_ENV = originalEnv;
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
      test("createProductionSafeMessage should return prod message in production", () => {
@@ -655,7 +663,11 @@ describe("NIP-46 Validator Unit Tests", () => {
        );
        expect(devMessage).toBe("Generic error");
        
-       process.env.NODE_ENV = originalEnv;
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
      test("createProductionSafeMessage should return debug message in development", () => {
@@ -668,7 +680,11 @@ describe("NIP-46 Validator Unit Tests", () => {
        );
        expect(prodMessage).toBe("Detailed debug info");
        
-       process.env.NODE_ENV = originalEnv;
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
      test("createProductionSafeMessage should use default prod message", () => {
@@ -678,7 +694,11 @@ describe("NIP-46 Validator Unit Tests", () => {
        const defaultProdMessage = createProductionSafeMessage("Debug info");
        expect(defaultProdMessage).toBe("Security validation failed");
        
-       process.env.NODE_ENV = originalEnv;
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
      test("validatePrivateKeyResult should return validation results", () => {

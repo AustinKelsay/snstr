@@ -453,27 +453,27 @@ export class SecureErrorHandler {
    * Initialize security logging with a custom logger
    */
   static initializeSecurityLogging(logger?: Logger, enabled: boolean = true): void {
-    this.securityLogger = logger || new Logger({
+    SecureErrorHandler.securityLogger = logger || new Logger({
       prefix: "SECURITY",
       level: LogLevel.WARN,
       includeTimestamp: true,
       silent: false
     });
-    this.securityLoggingEnabled = enabled;
+    SecureErrorHandler.securityLoggingEnabled = enabled;
   }
 
   /**
    * Enable or disable security event logging
    */
   static setSecurityLoggingEnabled(enabled: boolean): void {
-    this.securityLoggingEnabled = enabled;
+    SecureErrorHandler.securityLoggingEnabled = enabled;
   }
 
   /**
    * Check if security logging is enabled
    */
   static isSecurityLoggingEnabled(): boolean {
-    return this.securityLoggingEnabled;
+    return SecureErrorHandler.securityLoggingEnabled;
   }
 
   /**
@@ -507,7 +507,7 @@ export class SecureErrorHandler {
    * Log security events without exposing sensitive data
    */
   static logSecurityEvent(event: string, details: Record<string, unknown>, sensitive: string[] = []): void {
-    if (!this.securityLoggingEnabled) {
+    if (!SecureErrorHandler.securityLoggingEnabled) {
       return;
     }
 
@@ -521,11 +521,11 @@ export class SecureErrorHandler {
     }
 
     // Initialize default logger if none provided
-    if (!this.securityLogger) {
-      this.initializeSecurityLogging();
+    if (!SecureErrorHandler.securityLogger) {
+      SecureErrorHandler.initializeSecurityLogging();
     }
 
     // Use the configured logger for security events
-    this.securityLogger!.warn(`${event}`, sanitizedDetails);
+    SecureErrorHandler.securityLogger!.warn(`${event}`, sanitizedDetails);
   }
 }
