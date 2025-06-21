@@ -53,8 +53,8 @@ export class NostrRemoteSignerBunker {
       silent: process.env.NODE_ENV === 'test' // Silent in test environment
     });
 
-    // Initialize rate limiter
-    this.rateLimiter = new NIP46RateLimiter({
+    // Initialize rate limiter with configurable options
+    this.rateLimiter = new NIP46RateLimiter(options.rateLimitConfig || {
       maxRequestsPerMinute: 60,
       maxRequestsPerHour: 1000,
       burstSize: 10

@@ -375,19 +375,46 @@ describe("NIP-46 Bunker Functionality", () => {
 
   describe("Bunker Initialization Security", () => {
     test("should validate bunker options on creation", () => {
+      // Test empty userPubkey - should throw specific error
       expect(() => {
         new NostrRemoteSignerBunker({
-          userPubkey: "", // Invalid
+          userPubkey: "", // Empty string
           relays: []
         });
-      }).toThrow();
+      }).toThrow("User public key is required for bunker initialization");
       
+      // Test invalid hex format - not hex characters
       expect(() => {
         new NostrRemoteSignerBunker({
-          userPubkey: "invalid_hex", // Invalid format
+          userPubkey: "G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // Invalid character 'G'
           relays: []
         });
-      }).toThrow();
+      }).toThrow("User public key must be 64 character hex string");
+      
+      // Test invalid length - too short
+      expect(() => {
+        new NostrRemoteSignerBunker({
+          userPubkey: "1234567890abcdef123456789", // 25 characters, too short
+          relays: []
+        });
+      }).toThrow("User public key must be 64 character hex string");
+      
+      // Test invalid length - too long
+      expect(() => {
+        new NostrRemoteSignerBunker({
+          userPubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1", // 65 characters, too long
+          relays: []
+        });
+      }).toThrow("User public key must be 64 character hex string");
+      
+      // Test invalid signer pubkey format when provided
+      expect(() => {
+        new NostrRemoteSignerBunker({
+          userPubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+          signerPubkey: "not-a-valid-pubkey", // Invalid format
+          relays: []
+        });
+      }).toThrow("Signer public key must be 64 character hex string");
     });
 
     test("should enforce private key validation on start", async () => {
@@ -398,8 +425,8 @@ describe("NIP-46 Bunker Functionality", () => {
         relays: ["wss://test.relay.com"]
       });
       
-      // Should fail without private keys set
-      await expect(bunker.start()).rejects.toThrow();
+      // Should fail without private keys set - specific error about secure initialization
+      await expect(bunker.start()).rejects.toThrow("User private key not properly initialized");
       
       // Set valid private keys
       bunker.setUserPrivateKey(validKeypair.privateKey);
@@ -421,14 +448,31 @@ describe("NIP-46 Bunker Functionality", () => {
         relays: []
       });
       
+      // Test empty private key
       expect(() => {
-        bunker.setUserPrivateKey(""); // Invalid
+        bunker.setUserPrivateKey(""); // Empty
+      }).toThrow("is required and cannot be empty");
+      
+      // Test invalid hex format
+      expect(() => {
+        bunker.setUserPrivateKey("G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"); // Invalid character 'G'
+      }).toThrow("is not a valid private key format or is outside curve order");
+      
+      // Test invalid length - too short
+      expect(() => {
+        bunker.setUserPrivateKey("1234567890abcdef"); // 16 characters, too short
+      }).toThrow("is not a valid private key format or is outside curve order");
+      
+      // Test placeholder values that should be rejected
+      expect(() => {
+        bunker.setUserPrivateKey("undefined"); // Placeholder value
       }).toThrow();
       
       expect(() => {
-        bunker.setUserPrivateKey("invalid_hex"); // Invalid format
+        bunker.setUserPrivateKey("null"); // Placeholder value
       }).toThrow();
       
+      // Test valid private key should not throw
       expect(() => {
         bunker.setUserPrivateKey(validKeypair.privateKey); // Valid
       }).not.toThrow();

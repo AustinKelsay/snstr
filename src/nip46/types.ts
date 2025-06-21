@@ -1,6 +1,9 @@
 /**
  * NIP-46 request message format
  */
+
+import type { RateLimitConfig } from './utils/rate-limiter';
+
 export interface NIP46Request {
   id: string;
   method: NIP46Method;
@@ -108,6 +111,7 @@ export interface NIP46BunkerOptions {
   authTimeout?: number;
   metadata?: NIP46Metadata;
   debug?: boolean;
+  rateLimitConfig?: RateLimitConfig;
 }
 
 /**
