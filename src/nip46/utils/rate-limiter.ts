@@ -66,7 +66,8 @@ export class NIP46RateLimiter {
     const minuteRequests = history.requests.filter(timestamp => timestamp >= minuteWindow);
     
     if (minuteRequests.length >= this.maxRequestsPerMinute) {
-      const oldestRequest = Math.min(...minuteRequests);
+      // Safety check: ensure array is not empty before using Math.min
+      const oldestRequest = minuteRequests.length > 0 ? Math.min(...minuteRequests) : now;
       const retryAfter = 60 - (now - oldestRequest);
       return {
         allowed: false,
@@ -80,7 +81,8 @@ export class NIP46RateLimiter {
     const hourRequests = history.requests.filter(timestamp => timestamp >= hourWindow);
     
     if (hourRequests.length >= this.maxRequestsPerHour) {
-      const oldestRequest = Math.min(...hourRequests);
+      // Safety check: ensure array is not empty before using Math.min
+      const oldestRequest = hourRequests.length > 0 ? Math.min(...hourRequests) : now;
       const retryAfter = 3600 - (now - oldestRequest);
       return {
         allowed: false,
