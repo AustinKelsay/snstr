@@ -866,7 +866,7 @@ describe("Relay", () => {
       // Missing fields
       const missingFields = {
         id: "a".repeat(64),
-        // missing pubkey
+        // missing pubkey field
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: [],

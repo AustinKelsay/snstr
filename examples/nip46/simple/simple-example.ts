@@ -11,6 +11,11 @@ async function main() {
   console.log("=============================");
   console.log("Simple NIP-46 Remote Signing Example");
   console.log("=============================");
+  console.log("This example demonstrates the new NIP-46 flow:");
+  console.log("1. Connect to remote signer (establishes connection)");
+  console.log("2. Call get_public_key to retrieve user's signing pubkey");
+  console.log("3. Differentiate between remote-signer-pubkey and user-pubkey");
+  console.log("");
 
   // Start an ephemeral relay for testing
   const relay = new NostrRelay(3456);
@@ -23,8 +28,8 @@ async function main() {
   const userKeypair = await generateKeypair();
   const signerKeypair = await generateKeypair(); // Different keypair for the signer
 
-  console.log(`User pubkey: ${userKeypair.publicKey}`);
-  console.log(`Remote signer pubkey: ${signerKeypair.publicKey}`);
+  console.log(`User pubkey (for signing): ${userKeypair.publicKey}`);
+  console.log(`Remote signer pubkey (for communication): ${signerKeypair.publicKey}`);
   console.log("");
 
   try {
@@ -37,7 +42,7 @@ async function main() {
       signerKeypair.publicKey,
       {
         // Add default permissions
-        defaultPermissions: ["sign_event:1"], // Allow signing kind 1 (text notes)
+        defaultPermissions: ["sign_event:1", "get_public_key", "ping"], // Allow signing kind 1 (text notes)
         debug: true,
       },
     );
@@ -52,9 +57,7 @@ async function main() {
 
     const connectionString = bunker.getConnectionString();
     console.log(`Connection string: ${connectionString}`);
-    console.log(
-      "(Note the remote signer pubkey in the URL, not the user pubkey)",
-    );
+    console.log("(Note the remote signer pubkey in the URL, not the user pubkey)");
     console.log("");
 
     // Create client and connect to bunker
@@ -62,15 +65,16 @@ async function main() {
     const client = new SimpleNIP46Client([relay.url]);
 
     console.log("Connecting client to bunker...");
-    // connect() will make the connection and automatically call get_public_key
-    const userPubkey = await client.connect(connectionString);
-    console.log(`Connected! Got user pubkey: ${userPubkey}`);
-    console.log(
-      `Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`,
-    );
-    console.log(
-      `Pubkey is NOT the signer pubkey: ${userPubkey !== signerKeypair.publicKey}`,
-    );
+    // connect() establishes the connection but doesn't return user pubkey
+    const connectResult = await client.connect(connectionString);
+    console.log(`Connected! Connect result: ${connectResult}`);
+    
+    // Must call get_public_key after connect to get the user's signing pubkey
+    console.log("\nGetting user public key from bunker...");
+    const userPubkey = await client.getPublicKey();
+    console.log(`Retrieved user pubkey: ${userPubkey}`);
+    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`);
+    console.log(`Pubkey is NOT the signer pubkey: ${userPubkey !== signerKeypair.publicKey}`);
     console.log("");
 
     // Test ping
@@ -103,12 +107,8 @@ async function main() {
       signedEvent.pubkey,
     );
     console.log(`Signature valid: ${valid}`);
-    console.log(
-      `Pubkey matches user pubkey: ${signedEvent.pubkey === userKeypair.publicKey}`,
-    );
-    console.log(
-      `Pubkey is NOT the signer pubkey: ${signedEvent.pubkey !== signerKeypair.publicKey}`,
-    );
+    console.log(`Pubkey matches user pubkey: ${signedEvent.pubkey === userKeypair.publicKey}`);
+    console.log(`Pubkey is NOT the signer pubkey: ${signedEvent.pubkey !== signerKeypair.publicKey}`);
     console.log("");
 
     // Clean up

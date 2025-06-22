@@ -50,6 +50,32 @@ export {
   createErrorResponse,
 } from "./utils/request-response";
 export { buildConnectionString, parseConnectionString } from "./utils/connection";
+export { 
+  // Constants
+  MAX_CONTENT_SIZE,
+  MAX_ID_LENGTH,
+  MAX_PARAMS_COUNT,
+  MAX_PARAM_LENGTH,
+  MAX_TAGS_COUNT,
+  MAX_TAG_ELEMENT_LENGTH,
+  // Validation functions
+  validateEventContent,
+  validatePubkey,
+  validateEventId,
+  validateSignature,
+  validatePrivateKey,
+  validateRequestPayload,
+  isValidMethod,
+  validateParams,
+  validateRelayUrl,
+  validatePermission,
+  validateConnectionString,
+  validateAndParseJson,
+  sanitizeString,
+  validateTimestamp,
+  // Error handler class
+  SecureErrorHandler 
+} from "./utils/validator";
 
 // Re-export utility functions from crypto to make the API more convenient
 export { generateKeypair } from "../utils/crypto";

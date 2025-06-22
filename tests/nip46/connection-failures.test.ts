@@ -15,8 +15,8 @@ describe("NIP-46 Connection Failures", () => {
   let client: SimpleNIP46Client;
 
   beforeAll(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3790);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 
@@ -24,8 +24,8 @@ describe("NIP-46 Connection Failures", () => {
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
 
-    // Give the relay time to start properly
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Reduced relay startup delay
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }, 10000);
 
   afterAll(async () => {
@@ -191,4 +191,130 @@ describe("NIP-46 Connection Failures", () => {
     expect(disconnectSpy).toHaveBeenCalled();
     disconnectSpy.mockRestore();
   }, 5000);
+
+  describe("Timeout and Error Handling Edge Cases", () => {
+    test("Very short timeout should still work for fast operations", async () => {
+      // Start bunker for this test
+      bunker = new SimpleNIP46Bunker(
+        [relayUrl],
+        userKeypair.publicKey,
+        signerKeypair.publicKey,
+        {
+          debug: true,
+          logLevel: LogLevel.DEBUG,
+        },
+      );
+      bunker.setUserPrivateKey(userKeypair.privateKey);
+      bunker.setSignerPrivateKey(signerKeypair.privateKey);
+      bunker.setDefaultPermissions(["get_public_key", "ping"]);
+      await bunker.start();
+
+      // Create client with reasonable timeout for local relay
+      const shortTimeoutClient = new SimpleNIP46Client([relayUrl], {
+        timeout: 5000, // 5 seconds should be enough for local relay
+        debug: true,
+        logLevel: LogLevel.DEBUG,
+      });
+
+      try {
+        const connectionString = bunker.getConnectionString();
+        const userPubkey = await shortTimeoutClient.connect(connectionString);
+        expect(userPubkey).toBe(userKeypair.publicKey);
+        
+        // Fast operations should still work
+        expect(await shortTimeoutClient.ping()).toBe(true);
+      } finally {
+        await shortTimeoutClient.disconnect().catch(() => {});
+      }
+    });
+
+    test("Client without relays should fail gracefully", async () => {
+      // Create a client with empty relays array
+      const noRelayClient = new SimpleNIP46Client([], {
+        timeout: 2000, // Short timeout to fail quickly
+        debug: true,
+        logLevel: LogLevel.DEBUG,
+      });
+
+      try {
+        // Create a connection string that specifies no relays
+        const connectionString = `bunker://${signerKeypair.publicKey}`;
+        await expect(noRelayClient.connect(connectionString)).rejects.toThrow(/connection|relay|failed/i);
+      } finally {
+        await noRelayClient.disconnect().catch(() => {});
+      }
+    });
+
+    test("Client handles relay disconnection gracefully", async () => {
+      // Create an isolated relay for this test to avoid affecting other tests
+      let isolatedRelay: NostrRelay | null = null;
+      let isolatedClient: SimpleNIP46Client | null = null;
+      let isolatedBunker: SimpleNIP46Bunker | null = null;
+      
+      try {
+        // Start isolated relay
+        isolatedRelay = new NostrRelay(0);
+        await isolatedRelay.start();
+        const isolatedRelayUrl = isolatedRelay.url;
+        
+        // Wait for relay to be fully ready
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Create isolated client using the isolated relay
+        isolatedClient = new SimpleNIP46Client([isolatedRelayUrl], {
+          timeout: 5000,
+          debug: true,
+          logLevel: LogLevel.DEBUG,
+        });
+
+        // Start bunker for this test using isolated relay
+        isolatedBunker = new SimpleNIP46Bunker(
+          [isolatedRelayUrl],
+          userKeypair.publicKey,
+          signerKeypair.publicKey,
+          {
+            debug: true,
+            logLevel: LogLevel.DEBUG,
+          },
+        );
+        isolatedBunker.setUserPrivateKey(userKeypair.privateKey);
+        isolatedBunker.setSignerPrivateKey(signerKeypair.privateKey);
+        isolatedBunker.setDefaultPermissions(["get_public_key", "ping"]);
+        await isolatedBunker.start();
+
+        const connectionString = isolatedBunker.getConnectionString();
+        await isolatedClient.connect(connectionString);
+        
+        // Verify connection works
+        expect(await isolatedClient.ping()).toBe(true);
+        
+        // Stop the isolated relay to simulate disconnection
+        await isolatedRelay.close();
+        isolatedRelay = null; // Mark as closed
+        
+        // Operations should now fail gracefully
+        expect(await isolatedClient.ping()).toBe(false);
+        
+      } finally {
+        // Clean up isolated resources
+        if (isolatedClient) {
+          await isolatedClient.disconnect().catch(() => {});
+          isolatedClient = null;
+        }
+        
+        if (isolatedBunker) {
+          await isolatedBunker.stop().catch(() => {});
+          isolatedBunker = null;
+        }
+        
+        if (isolatedRelay) {
+          await isolatedRelay.close().catch(() => {});
+          isolatedRelay = null;
+        }
+        
+        // Allow time for cleanup
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      }
+    });
+  });
 });

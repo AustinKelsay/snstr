@@ -14,7 +14,16 @@ import { encrypt as encryptNIP04 } from "../nip04";
 import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
-import { isValidPrivateKey, isValidPublicKeyFormat, isValidPublicKeyPoint } from "../nip44";
+import { isValidPrivateKey, isValidPublicKeyPoint } from "../nip44";
+
+/**
+ * Validate if a string is a valid lowercase hex public key format for NIP-01 events
+ * NIP-01 specifically requires lowercase hex for event fields
+ */
+function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
+  // Must be exactly 64 characters of lowercase hex
+  return /^[0-9a-f]{64}$/.test(publicKey);
+}
 import { getUnixTime } from "../utils/time";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
@@ -146,7 +155,7 @@ export function createEvent(
   pubkey: string,
 ): UnsignedEvent {
   // First validate the format (64-character lowercase hex)
-  if (!isValidPublicKeyFormat(pubkey)) {
+  if (!isValidLowercasePublicKeyFormat(pubkey)) {
     throw new NostrValidationError(
       "Invalid pubkey format: must be a 64-character lowercase hex string",
       "pubkey"
@@ -450,7 +459,7 @@ export async function validateEvent(
     }
 
     // First check basic format validation (hex format and case)
-    if (!isValidPublicKeyFormat(event.pubkey)) {
+    if (!isValidLowercasePublicKeyFormat(event.pubkey)) {
       // Check for uppercase to provide specific error message
       if (/^[0-9A-F]{64}$/.test(event.pubkey)) {
         throw new NostrValidationError(

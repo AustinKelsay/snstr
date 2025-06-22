@@ -1,6 +1,7 @@
 import {
   SimpleNIP46Client,
   SimpleNIP46Bunker,
+  NostrRemoteSignerBunker,
   generateKeypair,
   verifySignature,
 } from "../../src";
@@ -16,8 +17,8 @@ describe("NIP-46 Permission Handling", () => {
   let client: SimpleNIP46Client;
 
   beforeEach(async () => {
-    // Start ephemeral relay for testing
-    relay = new NostrRelay(3791);
+    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+    relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
 
@@ -27,12 +28,13 @@ describe("NIP-46 Permission Handling", () => {
 
     // Create client
     client = new SimpleNIP46Client([relayUrl], {
-      debug: true,
-      logLevel: LogLevel.DEBUG,
+      debug: false, // Disabled for performance
+      logLevel: LogLevel.ERROR, // Only errors for performance
+      timeout: 2000, // Reduced timeout for faster failures
     });
 
-    // Give the relay time to start properly
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Reduced relay startup delay from 1000ms to 50ms
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }, 10000);
 
   afterEach(async () => {
@@ -68,8 +70,8 @@ describe("NIP-46 Permission Handling", () => {
       // Ignore errors on disconnect
     }
 
-    // Allow time for cleanup
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Reduced cleanup delay from 500ms to 25ms
+    await new Promise((resolve) => setTimeout(resolve, 25));
   }, 15000);
 
   test("Bunker with default permissions allows specific kind", async () => {
@@ -79,8 +81,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -126,8 +128,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -166,8 +168,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -222,15 +224,15 @@ describe("NIP-46 Permission Handling", () => {
     expect(validDM).toBe(true);
   }, 7000);
 
-  test("Bunker with encryption permissions allows encryption", async () => {
-    // Create bunker with encryption permissions
+  test("Bunker with NIP-44 encryption permissions (preferred)", async () => {
+    // Create bunker with NIP-44 encryption permissions
     bunker = new SimpleNIP46Bunker(
       [relayUrl],
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -238,7 +240,55 @@ describe("NIP-46 Permission Handling", () => {
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
 
-    // Set default permissions for encryption
+    // Set default permissions for NIP-44 encryption
+    bunker.setDefaultPermissions(["nip44_encrypt", "nip44_decrypt"]);
+
+    await bunker.start();
+
+    // Connect client
+    const connectionString = bunker.getConnectionString();
+    await client.connect(connectionString);
+
+    // Create a test recipient
+    const recipientKeys = await generateKeypair();
+
+    // Test NIP-44 encrypt
+    const plaintext = "This is a secret message";
+    const encryptResult = await client.nip44Encrypt(
+      recipientKeys.publicKey,
+      plaintext,
+    );
+
+    // Verify encryption worked
+    expect(encryptResult).toBeTruthy();
+    expect(encryptResult).not.toBe(plaintext);
+
+    // Test NIP-44 decrypt
+    const decryptResult = await client.nip44Decrypt(
+      recipientKeys.publicKey,
+      encryptResult,
+    );
+    expect(decryptResult).toBe(plaintext);
+  }, 7000);
+
+  test("Bunker with NIP-04 encryption permissions (deprecated - use NIP-44 instead)", async () => {
+    // Create bunker with NIP-04 encryption permissions  
+    // Note: NIP-04 is considered deprecated due to security concerns, prefer NIP-44
+    bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeypair.publicKey,
+      signerKeypair.publicKey,
+      {
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
+      },
+    );
+
+    // Set private keys
+    bunker.setUserPrivateKey(userKeypair.privateKey);
+    bunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+    // Set default permissions for NIP-04 encryption (explicitly enabled for this legacy test)
     bunker.setDefaultPermissions(["nip04_encrypt", "nip04_decrypt"]);
 
     await bunker.start();
@@ -250,7 +300,7 @@ describe("NIP-46 Permission Handling", () => {
     // Create a test recipient
     const recipientKeys = await generateKeypair();
 
-    // Test NIP-04 encrypt
+    // Test NIP-04 encrypt (legacy support)
     const plaintext = "This is a secret message";
     const encryptResult = await client.nip04Encrypt(
       recipientKeys.publicKey,
@@ -261,15 +311,132 @@ describe("NIP-46 Permission Handling", () => {
     expect(encryptResult).toBeTruthy();
     expect(encryptResult).not.toBe(plaintext);
 
-    // Test NIP-04 decrypt
-    try {
-      const decryptResult = await client.nip04Decrypt(
-        recipientKeys.publicKey,
-        encryptResult,
-      );
-      expect(decryptResult).toBe(plaintext);
-    } catch (error) {
-      // If decrypt is not implemented, this test can be skipped
-    }
+    // Test NIP-04 decrypt (legacy support)
+    const decryptResult = await client.nip04Decrypt(
+      recipientKeys.publicKey,
+      encryptResult,
+    );
+    expect(decryptResult).toBe(plaintext);
   }, 7000);
+
+  describe("Custom Permission Handler", () => {
+    let customBunker: NostrRemoteSignerBunker;
+    let customClient: SimpleNIP46Client;
+
+    beforeEach(async () => {
+      customBunker = new NostrRemoteSignerBunker({
+        userPubkey: userKeypair.publicKey,
+        signerPubkey: signerKeypair.publicKey,
+        relays: [relayUrl],
+        defaultPermissions: ["get_public_key", "ping", "sign_event"],
+        debug: false, // Disabled for performance
+      });
+
+      customBunker.setUserPrivateKey(userKeypair.privateKey);
+      customBunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+      await customBunker.start();
+
+      customClient = new SimpleNIP46Client([relayUrl], {
+        timeout: 5000,
+        debug: false, // Disabled for performance
+      });
+    });
+
+    afterEach(async () => {
+      // Disconnect client first
+      try {
+        if (customClient) {
+          await customClient.disconnect();
+          customClient = null as unknown as SimpleNIP46Client;
+        }
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+      
+      // Stop bunker second
+      try {
+        if (customBunker) {
+          await customBunker.stop();
+          customBunker = null as unknown as NostrRemoteSignerBunker;
+        }
+      } catch (error) {
+        // Ignore cleanup errors
+      }
+      
+      // Give time for all resources to cleanup
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    });
+
+    test("Custom permission handler allows specific operations", async () => {
+      // Set up custom permission handler that only allows kind 1 events
+      customBunker.setPermissionHandler((_clientPubkey, method, params) => {
+        if (method === "sign_event") {
+          try {
+            const eventData = JSON.parse(params[0]);
+            return eventData.kind === 1; // Only allow kind 1 (text notes)
+          } catch {
+            return false;
+          }
+        }
+        return null; // Use default permission checking for other methods
+      });
+
+      const connectionString = customBunker.getConnectionString();
+      await customClient.connect(connectionString);
+
+      // Should allow kind 1 event
+      const kind1Event = await customClient.signEvent({
+        kind: 1,
+        content: "This should work",
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+      });
+      expect(kind1Event.kind).toBe(1);
+
+      // Should reject kind 4 event
+      await expect(
+        customClient.signEvent({
+          kind: 4,
+          content: "This should fail",
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [["p", "recipient"]],
+        })
+      ).rejects.toThrow();
+    });
+
+    test("Custom permission handler can be cleared", async () => {
+      // Set strict handler
+      customBunker.setPermissionHandler(() => false);
+
+      const connectionString = customBunker.getConnectionString();
+      await customClient.connect(connectionString);
+
+      // Should reject everything
+      await expect(
+        customClient.signEvent({
+          kind: 1,
+          content: "Should fail",
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [],
+        })
+      ).rejects.toThrow();
+
+      // Clear handler and add default permissions
+      customBunker.clearPermissionHandler();
+      customBunker.setPermissionHandler((_clientPubkey, method, _params) => {
+        if (method === "sign_event") return true;
+        return null;
+      });
+
+      // Should now work
+      const event = await customClient.signEvent({
+        kind: 1,
+        content: "Should work now",
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [],
+      });
+      expect(event.kind).toBe(1);
+    });
+  });
 });

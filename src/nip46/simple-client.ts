@@ -61,6 +61,7 @@ export class SimpleNIP46Client {
     this.logger = new Logger({
       prefix: "Client",
       level: logLevel,
+      silent: process.env.NODE_ENV === 'test' // Silent in test environment
     });
   }
 
@@ -99,7 +100,7 @@ export class SimpleNIP46Client {
       await this.nostr.connectToRelays();
 
       // Give a moment for the connection to fully establish
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000).unref());
       this.logger.debug(`Connected to relays`);
 
       // Subscribe to responses
@@ -116,9 +117,34 @@ export class SimpleNIP46Client {
         `Subscribed to responses with filter: p=${this.clientKeys.publicKey}`,
       );
 
-      // Send connect request
-      await this.sendRequest(NIP46Method.CONNECT, [this.signerPubkey]);
+      // Send connect request with proper parameters per NIP-46 spec
+      // Ensure signerPubkey is not null before constructing params array
+      if (!this.signerPubkey) {
+        throw new NIP46ConnectionError("Signer public key is not set. Connection string parsing may have failed.");
+      }
+      
+      const connectParams = [
+        this.signerPubkey,
+        info.secret || "", // optional_secret
+        (info.permissions || []).join(",") // optional_requested_permissions
+      ];
+      
+      const connectResponse = await this.sendRequest(NIP46Method.CONNECT, connectParams);
       this.logger.info(`Connect request sent successfully`);
+      
+      // Handle connect response per NIP-46 spec
+      // First check for error response
+      if (connectResponse.error) {
+        throw new NIP46ConnectionError(`Connection failed: ${connectResponse.error}`);
+      }
+      
+      if (connectResponse.result !== "ack") {
+        // If not "ack", it should be a required secret value
+        this.logger.debug(`Connect response requires secret: ${connectResponse.result}`);
+        if (!info.secret || info.secret !== connectResponse.result) {
+          throw new NIP46ConnectionError("Invalid or missing required secret");
+        }
+      }
 
       // Get and store user public key (required after connect per NIP-46 spec)
       try {
@@ -159,12 +185,17 @@ export class SimpleNIP46Client {
    */
   async ping(): Promise<boolean> {
     try {
+      // Check if client is connected first
+      if (!this.signerPubkey || !this.clientKeys.privateKey) {
+        return false;
+      }
+
       // Add timeout to prevent hanging
       const timeoutPromise = new Promise<boolean>((_, reject) => {
         setTimeout(
           () => reject(new NIP46TimeoutError("Ping timed out")),
           this.timeout,
-        );
+        ).unref(); // Don't keep process alive
       });
 
       const pingPromise = this.sendRequest(NIP46Method.PING, []).then(
@@ -199,43 +230,92 @@ export class SimpleNIP46Client {
   }
 
   /**
-   * Encrypt a message using NIP-04
+   * Encrypt a message using NIP-44 (preferred)
    */
-  async nip04Encrypt(
-    thirdPartyPubkey: string,
-    plaintext: string,
-  ): Promise<string> {
+  async nip44Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
+    const response = await this.sendRequest(NIP46Method.NIP44_ENCRYPT, [
+      thirdPartyPubkey,
+      plaintext,
+    ]);
+
+    if (response.error) {
+      throw new NIP46EncryptionError(`NIP-44 encryption failed: ${response.error}`);
+    }
+
+    return response.result!;
+  }
+
+  /**
+   * Decrypt a message using NIP-44 (preferred)
+   */
+  async nip44Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
+    const response = await this.sendRequest(NIP46Method.NIP44_DECRYPT, [
+      thirdPartyPubkey,
+      ciphertext,
+    ]);
+
+    if (response.error) {
+      throw new NIP46DecryptionError(`NIP-44 decryption failed: ${response.error}`);
+    }
+
+    return response.result!;
+  }
+
+  /**
+   * Encrypt a message using NIP-04 (legacy support)
+   */
+  async nip04Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP04_ENCRYPT, [
       thirdPartyPubkey,
       plaintext,
     ]);
-    if (!response.result) {
-      throw new NIP46EncryptionError("NIP-04 encryption failed");
+
+    if (response.error) {
+      throw new NIP46EncryptionError(`NIP-04 encryption failed: ${response.error}`);
     }
-    return response.result;
+
+    return response.result!;
   }
 
   /**
-   * Decrypt a message using NIP-04
+   * Decrypt a message using NIP-04 (legacy support)
    */
-  async nip04Decrypt(
-    thirdPartyPubkey: string,
-    ciphertext: string,
-  ): Promise<string> {
+  async nip04Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP04_DECRYPT, [
       thirdPartyPubkey,
       ciphertext,
     ]);
-    if (!response.result) {
-      throw new NIP46DecryptionError("NIP-04 decryption failed");
+
+    if (response.error) {
+      throw new NIP46DecryptionError(`NIP-04 decryption failed: ${response.error}`);
     }
-    return response.result;
+
+    return response.result!;
+  }
+
+  /**
+   * Get the relay list from the remote signer
+   */
+  async getRelays(): Promise<string[]> {
+    const response = await this.sendRequest(NIP46Method.GET_RELAYS, []);
+    return JSON.parse(response.result!);
   }
 
   /**
    * Disconnect from the remote signer
    */
   async disconnect(): Promise<void> {
+    // Send disconnect request to bunker if connected
+    if (this.signerPubkey && this.clientKeys.privateKey) {
+      try {
+        await this.sendRequest(NIP46Method.DISCONNECT, []);
+        this.logger.debug("Disconnect request sent to bunker");
+      } catch (e) {
+        // Ignore disconnect request errors - continue with cleanup
+        this.logger.warn("Failed to send disconnect request:", e instanceof Error ? e.message : String(e));
+      }
+    }
+
     // First cancel subscription
     if (this.subId) {
       try {
@@ -273,7 +353,7 @@ export class SimpleNIP46Client {
     this.signerPubkey = null;
 
     // Add a small delay to ensure all connections are closed
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 500).unref());
   }
 
   /**
@@ -313,7 +393,7 @@ export class SimpleNIP46Client {
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(request.id);
         reject(new NIP46TimeoutError(`Request timed out: ${method}`));
-      }, this.timeout);
+      }, this.timeout).unref(); // Don't keep process alive
 
       // Store the promise handlers with timeout cleanup
       this.pendingRequests.set(request.id, (response: NIP46Response) => {

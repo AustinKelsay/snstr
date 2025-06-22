@@ -46,12 +46,12 @@ describe("NIP-44 Format Validation", () => {
           "000000000000000000000000000000000000000000000000000000000000000g",
         ),
       ).toBe(false);
-      // Uppercase hex (should be rejected)
+      // Uppercase hex (should be accepted - case insensitive)
       expect(
         isValidPublicKeyFormat(
           "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
         ),
-      ).toBe(false);
+      ).toBe(true);
       // Empty string
       expect(isValidPublicKeyFormat("")).toBe(false);
       // Non-hex characters
@@ -134,7 +134,7 @@ describe("NIP-44 Format Validation", () => {
         isValidPublicKeyPoint(
           "D91191E30E00444B942C0E82CAD470B32AF171764C7C6C75D9893E4B0E2AD0AD",
         ),
-      ).toBe(false); // Uppercase
+      ).toBe(true); // Uppercase - case insensitive
     });
 
     it("should return false for x-coordinates that do not represent valid curve points", () => {
@@ -202,6 +202,12 @@ describe("NIP-44 Format Validation", () => {
           "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140",
         ),
       ).toBe(true); // (Order - 1)
+      // Uppercase hex (should be accepted - case insensitive)
+      expect(
+        isValidPrivateKey(
+          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
+        ),
+      ).toBe(true);
     });
 
     it("should return false for invalid private key formats", () => {
@@ -221,12 +227,6 @@ describe("NIP-44 Format Validation", () => {
       expect(
         isValidPrivateKey(
           "112233445566778899aabbccddeeff00112233445566778899aabbccddeeff0g",
-        ),
-      ).toBe(false);
-      // Uppercase hex (should be rejected)
-      expect(
-        isValidPrivateKey(
-          "ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789",
         ),
       ).toBe(false);
       // Empty string
