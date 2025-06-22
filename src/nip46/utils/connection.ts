@@ -19,7 +19,7 @@ export function buildConnectionString(options: BuildConnectionStringOptions): st
 
 import { NIP46ConnectionError, NIP46SecurityError } from "../types";
 import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
-import { NIP46Validator } from "./validator";
+import { validatePubkey, validateRelayUrl, validatePermission, sanitizeString } from "./validator";
 
 /**
  * Enhanced security patterns to detect potential injection attacks
@@ -99,7 +99,7 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
   const pubkey = delimiterStart === -1 ? afterProtocol : afterProtocol.slice(0, delimiterStart);
 
   // Validate pubkey using secure validator
-  if (!NIP46Validator.validatePubkey(pubkey)) {
+  if (!validatePubkey(pubkey)) {
     throw new NIP46ConnectionError(
       "Invalid signer public key in connection string",
     );
@@ -112,7 +112,7 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
      const allRelays = url.searchParams.getAll("relay");
      const relays = allRelays.filter(relay => {
        // Use enhanced relay validation
-       return NIP46Validator.validateRelayUrl(relay);
+       return validateRelayUrl(relay);
      });
 
     // Validate secret token if present
@@ -126,7 +126,7 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     let permissions: string[] | undefined;
     if (permissionsParam) {
       permissions = permissionsParam.split(",").map(p => p.trim()).filter(p => {
-        return NIP46Validator.validatePermission(p);
+        return validatePermission(p);
       });
     }
 
@@ -137,13 +137,13 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     const image = url.searchParams.get("image");
 
     if (name) {
-      metadata.name = NIP46Validator.sanitizeString(name, 256);
+      metadata.name = sanitizeString(name, 256);
     }
     if (metadataUrl) {
       // Basic URL validation for metadata
       try {
         new URL(metadataUrl);
-        metadata.url = NIP46Validator.sanitizeString(metadataUrl, 512);
+        metadata.url = sanitizeString(metadataUrl, 512);
       } catch {
         // Invalid URL, skip it
       }
@@ -152,7 +152,7 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
       // Basic URL validation for image
       try {
         new URL(image);
-        metadata.image = NIP46Validator.sanitizeString(image, 512);
+        metadata.image = sanitizeString(image, 512);
       } catch {
         // Invalid URL, skip it
       }
