@@ -86,12 +86,12 @@ export function validatePrivateKey(privateKey: string, context: string = "privat
  * Validate private key with comprehensive security checks (returns result)
  */
 export function validatePrivateKeyResult(privateKey: string, context: string = "private key"): SecurityValidationResult {
-  // Check for null/undefined/empty
-  if (!privateKey) {
+  // Check for null/undefined specifically
+  if (privateKey == null) {
     return {
       valid: false,
-      error: `${context} is required and cannot be empty`,
-      code: "PRIVATE_KEY_EMPTY"
+      error: `${context} is required and cannot be null or undefined`,
+      code: "PRIVATE_KEY_NULL"
     };
   }
 
@@ -192,6 +192,11 @@ export function validateEncryptionParams(
   // Validate data
   if (typeof data !== 'string') {
     throw new NIP46SecurityError(`${operation} data must be a string`);
+  }
+
+  // Check for empty or whitespace-only data
+  if (data.trim() === "") {
+    throw new NIP46SecurityError(`${operation} data must not be empty or whitespace-only`);
   }
 
   // Prevent encryption of extremely large data (DoS protection)

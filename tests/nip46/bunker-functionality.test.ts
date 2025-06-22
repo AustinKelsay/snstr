@@ -450,7 +450,7 @@ describe("NIP-46 Bunker Functionality", () => {
       // Test empty private key
       expect(() => {
         bunker.setUserPrivateKey(""); // Empty
-      }).toThrow("is required and cannot be empty");
+      }).toThrow("cannot be an empty string");
       
       // Test invalid hex format
       expect(() => {

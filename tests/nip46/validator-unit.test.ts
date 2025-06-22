@@ -529,7 +529,7 @@ describe("NIP-46 Validator Unit Tests", () => {
      test("should throw for empty private key", () => {
        expect(() => {
          validatePrivateKey("", "test key");
-       }).toThrow("test key is required and cannot be empty");
+       }).toThrow("test key cannot be an empty string");
      });
 
      test("should throw for placeholder values", () => {
@@ -616,11 +616,26 @@ describe("NIP-46 Validator Unit Tests", () => {
         }).toThrow("NIP-44 encryption data too large (max 100KB)");
       });
 
+     test("should reject empty data", () => {
+       const thirdPartyPubkey = "c".repeat(64);
+       expect(() => {
+         validateBeforeEncryption(validKeypair, thirdPartyPubkey, "");
+       }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
+     });
+
+     test("should reject whitespace-only data", () => {
+       const thirdPartyPubkey = "c".repeat(64);
+       const whitespaceData = "   \t\n\r   "; // Various whitespace characters
+       expect(() => {
+         validateBeforeEncryption(validKeypair, thirdPartyPubkey, whitespaceData);
+       }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
+     });
+
      test("should return proper validation results", () => {
        const validation = validatePrivateKeyResult("", "test");
        expect(validation.valid).toBe(false);
-       expect(validation.error).toContain("test is required and cannot be empty");
-       expect(validation.code).toBe("PRIVATE_KEY_EMPTY");
+       expect(validation.error).toContain("test cannot be an empty string");
+       expect(validation.code).toBe("PRIVATE_KEY_EMPTY_STRING");
      });
 
      test("validatePrivateKeySecure should throw production-safe errors in production", () => {
@@ -644,7 +659,7 @@ describe("NIP-46 Validator Unit Tests", () => {
        
        expect(() => {
          validatePrivateKeySecure("", "test key");
-       }).toThrow("test key is required and cannot be empty"); // Debug message
+       }).toThrow("test key cannot be an empty string"); // Debug message
        
        if (originalEnv === undefined) {
          process.env.NODE_ENV = undefined;
@@ -702,9 +717,22 @@ describe("NIP-46 Validator Unit Tests", () => {
      });
 
      test("validatePrivateKeyResult should return validation results", () => {
+       // Test null/undefined
+       const nullResult = validatePrivateKeyResult(null as any, "test key");
+       expect(nullResult.valid).toBe(false);
+       expect(nullResult.error).toContain("test key is required and cannot be null or undefined");
+       expect(nullResult.code).toBe("PRIVATE_KEY_NULL");
+       
+       const undefinedResult = validatePrivateKeyResult(undefined as any, "test key");
+       expect(undefinedResult.valid).toBe(false);
+       expect(undefinedResult.error).toContain("test key is required and cannot be null or undefined");
+       expect(undefinedResult.code).toBe("PRIVATE_KEY_NULL");
+       
+       // Test empty string
        const emptyResult = validatePrivateKeyResult("", "test key");
        expect(emptyResult.valid).toBe(false);
-       expect(emptyResult.error).toContain("test key is required and cannot be empty");
+       expect(emptyResult.error).toContain("test key cannot be an empty string");
+       expect(emptyResult.code).toBe("PRIVATE_KEY_EMPTY_STRING");
        
        const placeholderResult = validatePrivateKeyResult("undefined", "test key");
        expect(placeholderResult.valid).toBe(false);
@@ -714,8 +742,8 @@ describe("NIP-46 Validator Unit Tests", () => {
        expect(invalidResult.valid).toBe(false);
        expect(invalidResult.error).toContain("test key is not a valid private key format");
        
-       // Valid key test - need a 64-char hex string, not 32-char from generateRequestId
-       const validKey = generateRequestId() + generateRequestId(); // Combine two 32-char strings to make 64-char
+       // Valid key test - use a fixed 64-character hex string for consistent testing
+       const validKey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"; // Fixed 64-char hex
        const validResult = validatePrivateKeyResult(validKey, "test key");
        expect(validResult.valid).toBe(true);
        expect(validResult.error).toBeUndefined();

@@ -200,8 +200,8 @@ export class NostrRemoteSignerClient {
          if (this.nostr) {
            this.logger.debug("Cleaning up existing Nostr instance");
            try {
-             this.nostr.unsubscribeAll();
-             this.nostr.disconnectFromRelays();
+             await this.nostr.unsubscribeAll();
+             await this.nostr.disconnectFromRelays();
            } catch (error) {
              this.logger.warn("Error during Nostr instance cleanup", {
                error: error instanceof Error ? error.message : String(error)
