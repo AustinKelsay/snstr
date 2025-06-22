@@ -8,7 +8,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateRequestId } from "../../src/nip46/utils/request-response";
 import { NIP46RateLimiter } from "../../src/nip46/utils/rate-limiter";
 
-jest.setTimeout(10000);
+jest.setTimeout(6000); // Reduced timeout for faster failures
 
 describe("NIP-46 Performance & DoS Protection", () => {
   let relay: NostrRelay;
@@ -21,8 +21,8 @@ describe("NIP-46 Performance & DoS Protection", () => {
     await relay.start();
     userKeypair = await generateKeypair();
     
-    // Reduced initialization delay
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Further reduced initialization delay
+    await new Promise(resolve => setTimeout(resolve, 25));
   });
 
   beforeEach(async () => {
@@ -37,8 +37,8 @@ describe("NIP-46 Performance & DoS Protection", () => {
     bunker.setDefaultPermissions(["sign_event"]);
     await bunker.start();
 
-    // Reduced connection delay
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Further reduced connection delay
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     client = new SimpleNIP46Client([relay.url], { timeout: 3000 }); // Reduced timeout
   });
@@ -60,8 +60,8 @@ describe("NIP-46 Performance & DoS Protection", () => {
       // Ignore cleanup errors
     }
     
-    // Reduced cleanup delay
-    await new Promise(resolve => setTimeout(resolve, 25));
+    // Further reduced cleanup delay
+    await new Promise(resolve => setTimeout(resolve, 10));
   });
 
   afterAll(async () => {

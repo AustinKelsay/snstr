@@ -24,8 +24,8 @@ describe("NIP-46 Connection Failures", () => {
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
 
-    // Give the relay time to start properly
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Reduced relay startup delay
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }, 10000);
 
   afterAll(async () => {
@@ -313,7 +313,7 @@ describe("NIP-46 Connection Failures", () => {
         }
         
         // Allow time for cleanup
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await new Promise((resolve) => setTimeout(resolve, 25));
       }
     });
   });

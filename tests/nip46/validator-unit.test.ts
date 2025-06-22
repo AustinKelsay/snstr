@@ -326,10 +326,10 @@ describe("NIP-46 Validator Unit Tests", () => {
           debug: jest.fn(),
           trace: jest.fn(),
           setLevel: jest.fn()
-        } as any;
+        };
 
         // Initialize with custom logger
-        SecureErrorHandler.initializeSecurityLogging(mockLogger, true);
+        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, true);
         
         // Enable logging and test
         SecureErrorHandler.setSecurityLoggingEnabled(true);
@@ -347,9 +347,9 @@ describe("NIP-46 Validator Unit Tests", () => {
           debug: jest.fn(),
           trace: jest.fn(),
           setLevel: jest.fn()
-        } as any;
+        };
 
-        SecureErrorHandler.initializeSecurityLogging(mockLogger, false);
+        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, false);
         
         // Should not log when disabled
         SecureErrorHandler.logSecurityEvent("disabled_event", { key: "value" });
@@ -369,9 +369,9 @@ describe("NIP-46 Validator Unit Tests", () => {
           debug: jest.fn(),
           trace: jest.fn(),
           setLevel: jest.fn()
-        } as any;
+        };
 
-        SecureErrorHandler.initializeSecurityLogging(mockLogger, true);
+        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, true);
         SecureErrorHandler.setSecurityLoggingEnabled(true);
         
         // Log with sensitive data
@@ -718,12 +718,12 @@ describe("NIP-46 Validator Unit Tests", () => {
 
      test("validatePrivateKeyResult should return validation results", () => {
        // Test null/undefined
-       const nullResult = validatePrivateKeyResult(null as any, "test key");
+       const nullResult = validatePrivateKeyResult(null as never, "test key");
        expect(nullResult.valid).toBe(false);
        expect(nullResult.error).toContain("test key is required and cannot be null or undefined");
        expect(nullResult.code).toBe("PRIVATE_KEY_NULL");
        
-       const undefinedResult = validatePrivateKeyResult(undefined as any, "test key");
+       const undefinedResult = validatePrivateKeyResult(undefined as never, "test key");
        expect(undefinedResult.valid).toBe(false);
        expect(undefinedResult.error).toContain("test key is required and cannot be null or undefined");
        expect(undefinedResult.code).toBe("PRIVATE_KEY_NULL");

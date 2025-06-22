@@ -10,7 +10,7 @@ import {
 } from "../../src/nip46/types";
 import { parseConnectionString } from "../../src/nip46/utils/connection";
 
-jest.setTimeout(15000);
+jest.setTimeout(8000); // Reduced timeout for faster failures
 
 
 // Helper function to race a promise with a timeout that cleans up properly
@@ -647,20 +647,20 @@ describe("NIP-46 Input Validation Security", () => {
       });
 
       // Access private method for testing
-      const clientAny = clientWithWhitelist as any;
+      const isValidAuthUrl = ((clientWithWhitelist as unknown) as { isValidAuthUrl: (url: string) => boolean })['isValidAuthUrl'].bind(clientWithWhitelist);
 
       // Test allowed domains
-      expect(clientAny.isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://auth.example.com/login")).toBe(true);
+      expect(isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
+      expect(isValidAuthUrl("https://auth.example.com/login")).toBe(true);
       
       // Test subdomain matching
-      expect(clientAny.isValidAuthUrl("https://api.trusted-domain.com/oauth")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://secure.auth.example.com/callback")).toBe(true);
+      expect(isValidAuthUrl("https://api.trusted-domain.com/oauth")).toBe(true);
+      expect(isValidAuthUrl("https://secure.auth.example.com/callback")).toBe(true);
       
       // Test blocked domains
-      expect(clientAny.isValidAuthUrl("https://malicious-site.com/auth")).toBe(false);
-      expect(clientAny.isValidAuthUrl("https://evil.com/steal-keys")).toBe(false);
-      expect(clientAny.isValidAuthUrl("https://not-trusted.org/login")).toBe(false);
+      expect(isValidAuthUrl("https://malicious-site.com/auth")).toBe(false);
+      expect(isValidAuthUrl("https://evil.com/steal-keys")).toBe(false);
+      expect(isValidAuthUrl("https://not-trusted.org/login")).toBe(false);
     });
 
     test("allows all valid HTTPS URLs when no whitelist is configured", () => {
@@ -670,15 +670,15 @@ describe("NIP-46 Input Validation Security", () => {
         debug: false
       });
 
-      const clientAny = clientWithoutWhitelist as any;
+      const isValidAuthUrl = ((clientWithoutWhitelist as unknown) as { isValidAuthUrl: (url: string) => boolean })['isValidAuthUrl'].bind(clientWithoutWhitelist);
 
       // Should allow any valid HTTPS URL
-      expect(clientAny.isValidAuthUrl("https://any-domain.com/auth")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://random-site.org/login")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://valid-site.net/oauth")).toBe(true);
+      expect(isValidAuthUrl("https://any-domain.com/auth")).toBe(true);
+      expect(isValidAuthUrl("https://random-site.org/login")).toBe(true);
+      expect(isValidAuthUrl("https://valid-site.net/oauth")).toBe(true);
       
       // Should still block HTTP URLs
-      expect(clientAny.isValidAuthUrl("http://insecure.com/auth")).toBe(false);
+      expect(isValidAuthUrl("http://insecure.com/auth")).toBe(false);
     });
 
     test("handles case-insensitive domain matching", () => {
@@ -688,13 +688,13 @@ describe("NIP-46 Input Validation Security", () => {
         debug: false
       });
 
-      const clientAny = clientWithWhitelist as any;
+      const isValidAuthUrl = ((clientWithWhitelist as unknown) as { isValidAuthUrl: (url: string) => boolean })['isValidAuthUrl'].bind(clientWithWhitelist);
 
       // Test case variations
-      expect(clientAny.isValidAuthUrl("https://trusteddomain.com/auth")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://auth.EXAMPLE.com/login")).toBe(true);
-      expect(clientAny.isValidAuthUrl("https://AUTH.EXAMPLE.COM/login")).toBe(true);
+      expect(isValidAuthUrl("https://trusteddomain.com/auth")).toBe(true);
+      expect(isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth")).toBe(true);
+      expect(isValidAuthUrl("https://auth.EXAMPLE.com/login")).toBe(true);
+      expect(isValidAuthUrl("https://AUTH.EXAMPLE.COM/login")).toBe(true);
     });
 
     test("validates against all other security checks with whitelist", () => {
@@ -704,19 +704,19 @@ describe("NIP-46 Input Validation Security", () => {
         debug: false
       });
 
-      const clientAny = clientWithWhitelist as any;
+      const isValidAuthUrl = ((clientWithWhitelist as unknown) as { isValidAuthUrl: (url: string) => boolean })['isValidAuthUrl'].bind(clientWithWhitelist);
 
       // Should still enforce HTTPS requirement
-      expect(clientAny.isValidAuthUrl("http://trusted-domain.com/auth")).toBe(false);
+      expect(isValidAuthUrl("http://trusted-domain.com/auth")).toBe(false);
       
       // Should still check for dangerous characters
-      expect(clientAny.isValidAuthUrl("https://trusted-domain.com/auth<script>")).toBe(false);
+      expect(isValidAuthUrl("https://trusted-domain.com/auth<script>")).toBe(false);
       
       // Should still validate hostname format
-      expect(clientAny.isValidAuthUrl("https://")).toBe(false);
+      expect(isValidAuthUrl("https://")).toBe(false);
       
       // Valid URL should pass all checks
-      expect(clientAny.isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
+      expect(isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
     });
   });
 }); 

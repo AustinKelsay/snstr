@@ -28,12 +28,13 @@ describe("NIP-46 Permission Handling", () => {
 
     // Create client
     client = new SimpleNIP46Client([relayUrl], {
-      debug: true,
-      logLevel: LogLevel.DEBUG,
+      debug: false, // Disabled for performance
+      logLevel: LogLevel.ERROR, // Only errors for performance
+      timeout: 2000, // Reduced timeout for faster failures
     });
 
-    // Give the relay time to start properly
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Reduced relay startup delay from 1000ms to 50ms
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }, 10000);
 
   afterEach(async () => {
@@ -69,8 +70,8 @@ describe("NIP-46 Permission Handling", () => {
       // Ignore errors on disconnect
     }
 
-    // Allow time for cleanup
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    // Reduced cleanup delay from 500ms to 25ms
+    await new Promise((resolve) => setTimeout(resolve, 25));
   }, 15000);
 
   test("Bunker with default permissions allows specific kind", async () => {
@@ -80,8 +81,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -127,8 +128,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -167,8 +168,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -230,8 +231,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -278,8 +279,8 @@ describe("NIP-46 Permission Handling", () => {
       userKeypair.publicKey,
       signerKeypair.publicKey,
       {
-        debug: true,
-        logLevel: LogLevel.DEBUG,
+        debug: false, // Disabled for performance
+        logLevel: LogLevel.ERROR, // Only errors for performance
       },
     );
 
@@ -328,7 +329,7 @@ describe("NIP-46 Permission Handling", () => {
         signerPubkey: signerKeypair.publicKey,
         relays: [relayUrl],
         defaultPermissions: ["get_public_key", "ping", "sign_event"],
-        debug: true,
+        debug: false, // Disabled for performance
       });
 
       customBunker.setUserPrivateKey(userKeypair.privateKey);
@@ -338,7 +339,7 @@ describe("NIP-46 Permission Handling", () => {
 
       customClient = new SimpleNIP46Client([relayUrl], {
         timeout: 5000,
-        debug: true,
+        debug: false, // Disabled for performance
       });
     });
 

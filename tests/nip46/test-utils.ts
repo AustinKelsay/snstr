@@ -44,13 +44,13 @@ export class TestManager {
     client: SimpleNIP46Client;
     bunker: SimpleNIP46Bunker;
   }> {
-    // Create bunker with correct constructor
+    // Create bunker with reduced logging for performance
     const bunker = new SimpleNIP46Bunker(
       [setup.relayUrl],
       setup.signerKeypair.publicKey,
       undefined,
       {
-        logLevel: LogLevel.WARN, // Reduce log noise
+        logLevel: LogLevel.ERROR, // Only log errors for performance
       }
     );
 
@@ -58,11 +58,12 @@ export class TestManager {
     bunker.setSignerPrivateKey(setup.signerKeypair.privateKey);
     bunker.setUserPrivateKey(setup.userKeypair.privateKey);
 
-    // Create client with correct constructor
+    // Create client with reduced logging for performance
     const client = new SimpleNIP46Client(
       [setup.relayUrl],
       {
-        logLevel: LogLevel.WARN, // Reduce log noise
+        logLevel: LogLevel.ERROR, // Only log errors for performance
+        timeout: 2000, // Reduce timeout from default for faster failures
       }
     );
 
@@ -81,7 +82,7 @@ export class TestManager {
   }
 
   async cleanup(): Promise<void> {
-    // Clean up all setups in parallel
+    // Clean up all setups in parallel for better performance
     await Promise.all(
       this.setups.map(async (setup) => {
         try {
@@ -120,8 +121,8 @@ export class TestManager {
     // Clear setups
     this.setups = [];
 
-    // Give time for connections to fully close
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Reduce cleanup delay from 100ms to 25ms
+    await new Promise(resolve => setTimeout(resolve, 25));
   }
 }
 

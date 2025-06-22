@@ -29,7 +29,7 @@ describe("NIP-46 Bunker Functionality", () => {
     signerKeypair = await generateKeypair();
 
     // Give the relay time to start properly
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }, 15000); // Increased timeout
 
   afterAll(async () => {
@@ -46,8 +46,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         signerKeypair.publicKey,
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -64,8 +64,8 @@ describe("NIP-46 Bunker Functionality", () => {
         // Test with client
         const client = new SimpleNIP46Client([relayUrl], {
           timeout: 5000,
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         });
 
         try {
@@ -86,8 +86,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         userKeypair.publicKey, // Same as user
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -104,8 +104,8 @@ describe("NIP-46 Bunker Functionality", () => {
         // Test with client
         const client = new SimpleNIP46Client([relayUrl], {
           timeout: 5000,
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         });
 
         try {
@@ -126,8 +126,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         undefined, // No signer key provided
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -153,8 +153,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         signerKeypair.publicKey,
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -171,8 +171,8 @@ describe("NIP-46 Bunker Functionality", () => {
 
         const client = new SimpleNIP46Client([relayUrl], {
           timeout: 5000,
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         });
 
         try {
@@ -211,8 +211,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         signerKeypair.publicKey,
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -225,8 +225,8 @@ describe("NIP-46 Bunker Functionality", () => {
 
         const client = new SimpleNIP46Client([relayUrl], {
           timeout: 5000,
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         });
 
         try {
@@ -264,8 +264,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         signerKeypair.publicKey,
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -278,8 +278,8 @@ describe("NIP-46 Bunker Functionality", () => {
 
         const client = new SimpleNIP46Client([relayUrl], {
           timeout: 5000,
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         });
 
         try {
@@ -328,8 +328,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         signerKeypair.publicKey,
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
@@ -363,8 +363,8 @@ describe("NIP-46 Bunker Functionality", () => {
         userKeypair.publicKey,
         signerKeypair.publicKey,
         {
-          debug: true,
-          logLevel: LogLevel.DEBUG,
+          debug: false, // Disabled for performance
+          logLevel: LogLevel.ERROR, // Only errors for performance
         },
       );
 
