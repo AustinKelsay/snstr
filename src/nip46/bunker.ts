@@ -21,7 +21,16 @@ import {
 } from "./types";
 import { buildConnectionString } from "./utils/connection";
 import { NIP46RateLimiter } from "./utils/rate-limiter";
-import { NIP46SecurityValidator, securePermissionCheck } from "./utils/security";
+import { 
+  validateBunkerInitialization,
+  validateSecureInitialization,
+  validatePrivateKeySecure,
+  validateBeforeSigning,
+  validateBeforeEncryption,
+  validateBeforeDecryption,
+  validateKeypairForCrypto,
+  securePermissionCheck 
+} from "./utils/security";
 import { Logger, LogLevel } from "./utils/logger";
 
 export class NostrRemoteSignerBunker {
@@ -61,7 +70,7 @@ export class NostrRemoteSignerBunker {
     });
 
     // Validate bunker initialization
-    NIP46SecurityValidator.validateBunkerInitialization({
+    validateBunkerInitialization({
       userPubkey: options.userPubkey,
       signerPubkey: options.signerPubkey
     });
@@ -98,7 +107,7 @@ export class NostrRemoteSignerBunker {
     this.logger.info("Starting bunker");
 
     // Validate that private keys are properly set before starting
-    NIP46SecurityValidator.validateSecureInitialization({
+    validateSecureInitialization({
       userKeypair: this.userKeypair,
       signerKeypair: this.signerKeypair
     });
@@ -179,7 +188,7 @@ export class NostrRemoteSignerBunker {
    * Set the user's private key
    */
   setUserPrivateKey(privateKey: string): void {
-    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "user private key");
+    validatePrivateKeySecure(privateKey, "user private key");
     this.userKeypair.privateKey = privateKey;
     this.logger.debug("User private key set successfully");
   }
@@ -188,7 +197,7 @@ export class NostrRemoteSignerBunker {
    * Set the signer's private key
    */
   setSignerPrivateKey(privateKey: string): void {
-    NIP46SecurityValidator.validatePrivateKeySecure(privateKey, "signer private key");
+    validatePrivateKeySecure(privateKey, "signer private key");
     this.signerKeypair.privateKey = privateKey;
     this.logger.debug("Signer private key set successfully");
   }
@@ -641,7 +650,7 @@ export class NostrRemoteSignerBunker {
       }
 
       // Security validation before signing
-      NIP46SecurityValidator.validateBeforeSigning(this.userKeypair, eventData);
+      validateBeforeSigning(this.userKeypair, eventData);
 
       // Create and sign the event
       const signedEvent = await createSignedEvent(
@@ -739,7 +748,7 @@ export class NostrRemoteSignerBunker {
 
       switch (method) {
         case NIP46Method.NIP44_ENCRYPT:
-          NIP46SecurityValidator.validateBeforeEncryption(
+          validateBeforeEncryption(
             this.userKeypair, 
             thirdPartyPubkey, 
             data, 
@@ -749,7 +758,7 @@ export class NostrRemoteSignerBunker {
           break;
 
         case NIP46Method.NIP44_DECRYPT:
-          NIP46SecurityValidator.validateBeforeDecryption(
+          validateBeforeDecryption(
             this.userKeypair, 
             thirdPartyPubkey, 
             data, 
@@ -759,7 +768,7 @@ export class NostrRemoteSignerBunker {
           break;
 
         case NIP46Method.NIP04_ENCRYPT:
-          NIP46SecurityValidator.validateBeforeEncryption(
+          validateBeforeEncryption(
             this.userKeypair, 
             thirdPartyPubkey, 
             data, 
@@ -769,7 +778,7 @@ export class NostrRemoteSignerBunker {
           break;
 
         case NIP46Method.NIP04_DECRYPT:
-          NIP46SecurityValidator.validateBeforeDecryption(
+          validateBeforeDecryption(
             this.userKeypair, 
             thirdPartyPubkey, 
             data, 
@@ -892,8 +901,8 @@ export class NostrRemoteSignerBunker {
     metadata: NIP46Metadata,
   ): Promise<NostrEvent | undefined> {
     try {
-      // Validate that we have a private key for publishing
-      NIP46SecurityValidator.validateKeypairForCrypto(this.signerKeypair, "signer keypair");
+      // Security validation
+      validateKeypairForCrypto(this.signerKeypair, "signer keypair");
 
       const metadataEvent: NostrEvent = await createSignedEvent(
         {
@@ -931,8 +940,8 @@ export class NostrRemoteSignerBunker {
     authorPubkey: string,
   ): Promise<NIP46EncryptionResult> {
     try {
-      // Validate before decryption
-      NIP46SecurityValidator.validateBeforeDecryption(
+      // Security validation before decryption
+      validateBeforeDecryption(
         this.signerKeypair,
         authorPubkey,
         content,

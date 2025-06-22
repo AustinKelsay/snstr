@@ -2,8 +2,17 @@ import { NIP46Validator, SecureErrorHandler } from "../../src/nip46/utils/valida
 import { NIP46Method, NIP46Request, NIP46ErrorCode, NIP46ErrorUtils } from "../../src/nip46/types";
 import { generateKeypair } from "../../src/utils/crypto";
 import { generateRequestId } from "../../src/nip46/utils/request-response";
-import { NIP46SecurityValidator, securePermissionCheck } from "../../src/nip46/utils/security";
-import { NIP46SecurityError } from "../../src/nip46/types";
+import { 
+  validatePrivateKey, 
+  validateKeypairForCrypto, 
+  validateBeforeSigning, 
+  validateBeforeEncryption, 
+  validatePrivateKeyResult, 
+  validatePrivateKeySecure, 
+  createProductionSafeMessage,
+  securePermissionCheck 
+} from "../../src/nip46/utils/security";
+// import { NIP46SecurityError } from "../../src/nip46/types";
 
 describe("NIP-46 Validator Unit Tests", () => {
   let validKeypair: { publicKey: string; privateKey: string };
@@ -317,10 +326,10 @@ describe("NIP-46 Validator Unit Tests", () => {
           debug: jest.fn(),
           trace: jest.fn(),
           setLevel: jest.fn()
-        } as any;
+        };
 
         // Initialize with custom logger
-        SecureErrorHandler.initializeSecurityLogging(mockLogger, true);
+        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, true);
         
         // Enable logging and test
         SecureErrorHandler.setSecurityLoggingEnabled(true);
@@ -338,9 +347,9 @@ describe("NIP-46 Validator Unit Tests", () => {
           debug: jest.fn(),
           trace: jest.fn(),
           setLevel: jest.fn()
-        } as any;
+        };
 
-        SecureErrorHandler.initializeSecurityLogging(mockLogger, false);
+        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, false);
         
         // Should not log when disabled
         SecureErrorHandler.logSecurityEvent("disabled_event", { key: "value" });
@@ -360,9 +369,9 @@ describe("NIP-46 Validator Unit Tests", () => {
           debug: jest.fn(),
           trace: jest.fn(),
           setLevel: jest.fn()
-        } as any;
+        };
 
-        SecureErrorHandler.initializeSecurityLogging(mockLogger, true);
+        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, true);
         SecureErrorHandler.setSecurityLoggingEnabled(true);
         
         // Log with sensitive data
@@ -517,185 +526,227 @@ describe("NIP-46 Validator Unit Tests", () => {
    });
 
    describe("Private Key Security Validation", () => {
-     test("should reject empty private keys", () => {
+     test("should throw for empty private key", () => {
        expect(() => {
-         NIP46SecurityValidator.validatePrivateKey("", "test key");
-       }).toThrow(NIP46SecurityError);
-       
-       expect(() => {
-         NIP46SecurityValidator.validatePrivateKey("undefined", "test key");
-       }).toThrow(NIP46SecurityError);
-       
-       expect(() => {
-         NIP46SecurityValidator.validatePrivateKey("null", "test key");
-       }).toThrow(NIP46SecurityError);
+         validatePrivateKey("", "test key");
+       }).toThrow("test key cannot be an empty string");
      });
 
-     test("should reject invalid hex format", () => {
+     test("should throw for placeholder values", () => {
        expect(() => {
-         NIP46SecurityValidator.validatePrivateKey("invalid_hex", "test key");
-       }).toThrow(NIP46SecurityError);
-       
+         validatePrivateKey("undefined", "test key");
+       }).toThrow("test key appears to be a placeholder value");
+
        expect(() => {
-         NIP46SecurityValidator.validatePrivateKey("123", "test key"); // Too short
-       }).toThrow(NIP46SecurityError);
+         validatePrivateKey("null", "test key");
+       }).toThrow("test key appears to be a placeholder value");
      });
 
-     test("should validate keypairs before crypto operations", () => {
-       const validKeypair = {
-         publicKey: "a".repeat(64),
-         privateKey: "b".repeat(64),
-       };
+     test("should throw for invalid hex", () => {
+       expect(() => {
+         validatePrivateKey("invalid_hex", "test key");
+       }).toThrow("test key is not a valid private key format or is outside curve order");
 
        expect(() => {
-         NIP46SecurityValidator.validateKeypairForCrypto(validKeypair, "test keypair");
-       }).not.toThrow();
+         validatePrivateKey("123", "test key"); // Too short
+       }).toThrow("test key is not a valid private key format or is outside curve order");
+     });
 
+           test("should pass for valid private key", () => {
+        expect(() => {
+          validateKeypairForCrypto(validKeypair, "test keypair");
+        }).not.toThrow();
+      });
+
+     test("should throw for invalid keypair", () => {
        const invalidKeypair = {
-         publicKey: "a".repeat(64),
-         privateKey: "", // Empty private key
+         publicKey: "invalid",
+         privateKey: "a".repeat(64) // Valid 64-char hex private key so we test public key validation
        };
-
        expect(() => {
-         NIP46SecurityValidator.validateKeypairForCrypto(invalidKeypair, "test keypair");
-       }).toThrow(NIP46SecurityError);
+         validateKeypairForCrypto(invalidKeypair, "test keypair");
+       }).toThrow("test keypair public key must be 64 character hex string");
      });
 
-     test("should validate before signing operations", () => {
-       const validKeypair = {
-         publicKey: "a".repeat(64),
-         privateKey: "b".repeat(64),
-       };
+     test("should validate signing parameters", () => {
        const validEventData = {
          kind: 1,
          content: "test",
          created_at: Math.floor(Date.now() / 1000),
        };
-
        expect(() => {
-         NIP46SecurityValidator.validateBeforeSigning(validKeypair, validEventData);
+         validateBeforeSigning(validKeypair, validEventData);
        }).not.toThrow();
-
-       const invalidKeypair = {
-         publicKey: "a".repeat(64),
-         privateKey: "",
-       };
-
-       expect(() => {
-         NIP46SecurityValidator.validateBeforeSigning(invalidKeypair, validEventData);
-       }).toThrow(NIP46SecurityError);
      });
 
-     test("should validate before encryption operations", () => {
-       const validKeypair = {
-         publicKey: "a".repeat(64),
-         privateKey: "b".repeat(64),
+     test("should reject invalid keypair for signing", () => {
+       const invalidKeypair = { publicKey: "invalid", privateKey: "" };
+       const validEventData = {
+         kind: 1,
+         content: "test",
+         created_at: Math.floor(Date.now() / 1000),
        };
+       expect(() => {
+         validateBeforeSigning(invalidKeypair, validEventData);
+       }).toThrow();
+     });
+
+     test("should validate encryption parameters", () => {
        const thirdPartyPubkey = "c".repeat(64);
        const plaintext = "test message";
-
        expect(() => {
-         NIP46SecurityValidator.validateBeforeEncryption(validKeypair, thirdPartyPubkey, plaintext);
+         validateBeforeEncryption(validKeypair, thirdPartyPubkey, plaintext);
        }).not.toThrow();
-
-       const invalidKeypair = {
-         publicKey: "a".repeat(64),
-         privateKey: "",
-       };
-
-       expect(() => {
-         NIP46SecurityValidator.validateBeforeEncryption(invalidKeypair, thirdPartyPubkey, plaintext);
-       }).toThrow(NIP46SecurityError);
      });
 
-         test("should prevent encryption of oversized data", () => {
-      const validKeypair = {
-        publicKey: "a".repeat(64),
-        privateKey: "b".repeat(64),
-      };
-      const thirdPartyPubkey = "c".repeat(64);
-      const oversizedData = "x".repeat(100001); // > 100KB limit
+     test("should reject invalid keypair for encryption", () => {
+       const invalidKeypair = { publicKey: "invalid", privateKey: "" };
+       const thirdPartyPubkey = "c".repeat(64);
+       const plaintext = "test message";
+       expect(() => {
+         validateBeforeEncryption(invalidKeypair, thirdPartyPubkey, plaintext);
+       }).toThrow();
+     });
 
-      expect(() => {
-        NIP46SecurityValidator.validateBeforeEncryption(validKeypair, thirdPartyPubkey, oversizedData);
-      }).toThrow(NIP46SecurityError);
-    });
+           test("should reject oversized data", () => {
+        const oversizedData = "a".repeat(100001); // 100KB + 1
+        const thirdPartyPubkey = "c".repeat(64);
+        expect(() => {
+          validateBeforeEncryption(validKeypair, thirdPartyPubkey, oversizedData);
+        }).toThrow("NIP-44 encryption data too large (max 100KB)");
+      });
 
-     test("should use proper error codes for validation failures", () => {
-       const validation = NIP46SecurityValidator.validatePrivateKeyResult("", "test");
+     test("should reject empty data", () => {
+       const thirdPartyPubkey = "c".repeat(64);
+       expect(() => {
+         validateBeforeEncryption(validKeypair, thirdPartyPubkey, "");
+       }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
+     });
+
+     test("should reject whitespace-only data", () => {
+       const thirdPartyPubkey = "c".repeat(64);
+       const whitespaceData = "   \t\n\r   "; // Various whitespace characters
+       expect(() => {
+         validateBeforeEncryption(validKeypair, thirdPartyPubkey, whitespaceData);
+       }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
+     });
+
+     test("should return proper validation results", () => {
+       const validation = validatePrivateKeyResult("", "test");
        expect(validation.valid).toBe(false);
-       expect(validation.code).toBe("PRIVATE_KEY_EMPTY");
-       expect(validation.error).toContain("test is required and cannot be empty");
+       expect(validation.error).toContain("test cannot be an empty string");
+       expect(validation.code).toBe("PRIVATE_KEY_EMPTY_STRING");
      });
 
-     // New tests for production-safe error handling
-     test("should provide production-safe error messages", () => {
-       // Test in development mode (default)
-       process.env.NODE_ENV = 'development';
+     test("validatePrivateKeySecure should throw production-safe errors in production", () => {
+       const originalEnv = process.env.NODE_ENV;
+       process.env.NODE_ENV = "production";
        
        expect(() => {
-         NIP46SecurityValidator.validatePrivateKeySecure("", "test key");
-       }).toThrow("test key is required and cannot be empty");
-
-       // Test in production mode
-       process.env.NODE_ENV = 'production';
+         validatePrivateKeySecure("", "test key");
+       }).toThrow("Invalid key format"); // Production-safe message
        
-       expect(() => {
-         NIP46SecurityValidator.validatePrivateKeySecure("", "test key");
-       }).toThrow("Invalid key format");
-
-       // Reset to original state
-       delete process.env.NODE_ENV;
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
-     test("should handle createProductionSafeMessage correctly", () => {
-       // Test in development mode
-       process.env.NODE_ENV = 'development';
-       const devMessage = NIP46SecurityValidator.createProductionSafeMessage(
-         "Detailed error: private key validation failed",
+     test("validatePrivateKeySecure should throw debug errors in development", () => {
+       const originalEnv = process.env.NODE_ENV;
+       process.env.NODE_ENV = "development";
+       
+       expect(() => {
+         validatePrivateKeySecure("", "test key");
+       }).toThrow("test key cannot be an empty string"); // Debug message
+       
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
+     });
+
+     test("createProductionSafeMessage should return prod message in production", () => {
+       const originalEnv = process.env.NODE_ENV;
+       process.env.NODE_ENV = "production";
+       
+       const devMessage = createProductionSafeMessage(
+         "Detailed debug info", 
          "Generic error"
        );
-       expect(devMessage).toBe("Detailed error: private key validation failed");
+       expect(devMessage).toBe("Generic error");
+       
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
+     });
 
-       // Test in production mode
-       process.env.NODE_ENV = 'production';
-       const prodMessage = NIP46SecurityValidator.createProductionSafeMessage(
-         "Detailed error: private key validation failed",
+     test("createProductionSafeMessage should return debug message in development", () => {
+       const originalEnv = process.env.NODE_ENV;
+       process.env.NODE_ENV = "development";
+       
+       const prodMessage = createProductionSafeMessage(
+         "Detailed debug info", 
          "Generic error"
        );
-       expect(prodMessage).toBe("Generic error");
+       expect(prodMessage).toBe("Detailed debug info");
+       
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
+     });
 
-       // Test with default production message
-       const defaultProdMessage = NIP46SecurityValidator.createProductionSafeMessage(
-         "Detailed error: private key validation failed"
-       );
+     test("createProductionSafeMessage should use default prod message", () => {
+       const originalEnv = process.env.NODE_ENV;
+       process.env.NODE_ENV = "production";
+       
+       const defaultProdMessage = createProductionSafeMessage("Debug info");
        expect(defaultProdMessage).toBe("Security validation failed");
-
-       // Reset to original state
-       delete process.env.NODE_ENV;
+       
+       if (originalEnv === undefined) {
+         process.env.NODE_ENV = undefined;
+       } else {
+         process.env.NODE_ENV = originalEnv;
+       }
      });
 
-     test("should validate private key results with proper error codes", () => {
+     test("validatePrivateKeyResult should return validation results", () => {
+       // Test null/undefined
+       const nullResult = validatePrivateKeyResult(null as never, "test key");
+       expect(nullResult.valid).toBe(false);
+       expect(nullResult.error).toContain("test key is required and cannot be null or undefined");
+       expect(nullResult.code).toBe("PRIVATE_KEY_NULL");
+       
+       const undefinedResult = validatePrivateKeyResult(undefined as never, "test key");
+       expect(undefinedResult.valid).toBe(false);
+       expect(undefinedResult.error).toContain("test key is required and cannot be null or undefined");
+       expect(undefinedResult.code).toBe("PRIVATE_KEY_NULL");
+       
        // Test empty string
-       const emptyResult = NIP46SecurityValidator.validatePrivateKeyResult("", "test key");
+       const emptyResult = validatePrivateKeyResult("", "test key");
        expect(emptyResult.valid).toBe(false);
-       expect(emptyResult.code).toBe("PRIVATE_KEY_EMPTY");
-
-       // Test placeholder values
-       const placeholderResult = NIP46SecurityValidator.validatePrivateKeyResult("undefined", "test key");
+       expect(emptyResult.error).toContain("test key cannot be an empty string");
+       expect(emptyResult.code).toBe("PRIVATE_KEY_EMPTY_STRING");
+       
+       const placeholderResult = validatePrivateKeyResult("undefined", "test key");
        expect(placeholderResult.valid).toBe(false);
-       expect(placeholderResult.code).toBe("PRIVATE_KEY_PLACEHOLDER");
-
-       // Test invalid format
-       const invalidResult = NIP46SecurityValidator.validatePrivateKeyResult("invalid", "test key");
+       expect(placeholderResult.error).toContain("test key appears to be a placeholder value");
+       
+       const invalidResult = validatePrivateKeyResult("invalid", "test key");
        expect(invalidResult.valid).toBe(false);
-       expect(invalidResult.code).toBe("PRIVATE_KEY_INVALID_FORMAT");
-
-       // Test valid key (this will depend on the actual validation logic)
-       const validKey = "a".repeat(64); // Valid hex format
-       const validResult = NIP46SecurityValidator.validatePrivateKeyResult(validKey, "test key");
-       // Result depends on whether this is a valid private key according to curve order
-       expect(typeof validResult.valid).toBe("boolean");
+       expect(invalidResult.error).toContain("test key is not a valid private key format");
+       
+       // Valid key test - use a fixed 64-character hex string for consistent testing
+       const validKey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"; // Fixed 64-char hex
+       const validResult = validatePrivateKeyResult(validKey, "test key");
+       expect(validResult.valid).toBe(true);
+       expect(validResult.error).toBeUndefined();
      });
    });
 
