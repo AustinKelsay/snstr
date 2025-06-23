@@ -43,6 +43,13 @@ export const SECURITY_LIMITS = {
   MAX_LIMIT: 5000,
   MIN_SINCE: 946684800,
   MAX_UNTIL: 4102444800,
+  
+  // Memory limits for relay buffers (prevent memory exhaustion)
+  MAX_RELAY_EVENT_BUFFERS: 1000, // Maximum number of event buffers per relay
+  MAX_EVENTS_PER_BUFFER: 100, // Maximum events per buffer
+  MAX_REPLACEABLE_EVENT_PUBKEYS: 10000, // Maximum pubkeys to track replaceable events
+  MAX_REPLACEABLE_EVENTS_PER_PUBKEY: 50, // Maximum replaceable events per pubkey
+  MAX_ADDRESSABLE_EVENTS: 50000, // Maximum addressable events to store
 } as const;
 
 // Security error types
@@ -365,7 +372,7 @@ export function validateFilter(filter: unknown): Filter {
         );
       }
       
-      (validatedFilter as any)[key] = value.map((tagValue, _index) => {
+      (validatedFilter as Record<string, unknown>)[key] = value.map((tagValue, _index) => {
         return sanitizeString(tagValue, SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE);
       });
     }

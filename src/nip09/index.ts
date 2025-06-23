@@ -8,6 +8,11 @@
 import { createEvent } from "../nip01/event";
 import { NostrEvent, NostrKind } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 export interface DeletionRequestOptions {
   ids?: string[]; // event ids referenced with 'e' tags
@@ -53,18 +58,50 @@ export interface DeletionTargets {
 /**
  * Extract referenced ids, addresses and kinds from a deletion event
  */
-export function parseDeletionTargets(event: NostrEvent): DeletionTargets {
-  const result: DeletionTargets = { ids: [], addresses: [], kinds: [] };
+export function parseDeletionTargets(
+  event: NostrEvent,
+): DeletionTargets {
+  const result: DeletionTargets = {
+    ids: [],
+    addresses: [],
+    kinds: [],
+  };
+
   for (const tag of event.tags) {
-    if (tag[0] === "e" && tag[1]) {
-      result.ids.push(tag[1]);
-    } else if (tag[0] === "a" && tag[1]) {
-      result.addresses.push(tag[1]);
-    } else if (tag[0] === "k" && tag[1]) {
-      const k = parseInt(tag[1], 10);
-      if (!isNaN(k)) result.kinds.push(k);
+    try {
+      // Safe access to tag elements with bounds checking
+      if (!validateArrayAccess(tag, 0) || !validateArrayAccess(tag, 1)) {
+        continue; // Skip malformed tags
+      }
+      
+      const tagName = safeArrayAccess(tag, 0);
+      const tagValue = safeArrayAccess(tag, 1);
+      
+      if (typeof tagName !== "string" || typeof tagValue !== "string") {
+        continue; // Skip malformed tags
+      }
+      
+      if (tagName === "e" && tagValue) {
+        result.ids.push(tagValue);
+      } else if (tagName === "a" && tagValue) {
+        result.addresses.push(tagValue);
+      } else if (tagName === "k" && tagValue) {
+        const k = parseInt(tagValue, 10);
+        if (!isNaN(k)) {
+          result.kinds.push(k);
+        }
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        // Log bounds checking error but continue processing
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn(`NIP-09: Bounds checking error in tag processing: ${error.message}`);
+        }
+      }
+      continue;
     }
   }
+
   return result;
 }
 

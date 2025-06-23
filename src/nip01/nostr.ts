@@ -21,7 +21,16 @@ import {
   RelayUrlValidationError,
 } from "../utils/relayUrl";
 import { Logger, LogLevel } from "../nip46/utils/logger";
-import { validateFilters, validateEventContent, validateTags, validateNumber, SECURITY_LIMITS } from "../utils/security-validator";
+import { 
+  validateFilters, 
+  validateEventContent, 
+  validateTags,
+  validateNumber,
+  SecurityValidationError,
+  checkRateLimit,
+  RateLimitState,
+  SECURITY_LIMITS
+} from "../utils/security-validator";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -81,6 +90,32 @@ export class Nostr {
   };
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
   private logger: Logger;
+
+  // Rate limiting state
+  private subscribeRateLimit: RateLimitState = {
+    count: 0,
+    windowStart: Date.now(),
+    blocked: false
+  };
+  
+  private publishRateLimit: RateLimitState = {
+    count: 0,
+    windowStart: Date.now(),
+    blocked: false
+  };
+  
+  private fetchRateLimit: RateLimitState = {
+    count: 0,
+    windowStart: Date.now(),
+    blocked: false
+  };
+
+  // Rate limiting configuration
+  private readonly RATE_LIMITS = {
+    SUBSCRIBE: { limit: 50, windowMs: 60000 }, // 50 subscriptions per minute
+    PUBLISH: { limit: 100, windowMs: 60000 }, // 100 publications per minute
+    FETCH: { limit: 200, windowMs: 60000 }, // 200 fetches per minute
+  };
 
   /**
    * Create a new Nostr client
@@ -397,6 +432,24 @@ export class Nostr {
     tags: string[][] = [],
     options?: { timeout?: number },
   ): Promise<NostrEvent | null> {
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit(
+      this.publishRateLimit,
+      this.RATE_LIMITS.PUBLISH.limit,
+      this.RATE_LIMITS.PUBLISH.windowMs
+    );
+    
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Publish rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        'RATE_LIMIT_EXCEEDED',
+        'publish'
+      );
+    }
+    
+    // Update rate limit state (increment count)
+    this.publishRateLimit.count++;
+
     if (!this.privateKey || !this.publicKey) {
       throw new Error("Private key is not set");
     }
@@ -523,6 +576,24 @@ export class Nostr {
     onEOSE?: () => void,
     options: SubscriptionOptions = {},
   ): string[] {
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit(
+      this.subscribeRateLimit,
+      this.RATE_LIMITS.SUBSCRIBE.limit,
+      this.RATE_LIMITS.SUBSCRIBE.windowMs
+    );
+    
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Subscription rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        'RATE_LIMIT_EXCEEDED',
+        'subscribe'
+      );
+    }
+    
+         // Update rate limit state (increment count)
+     this.subscribeRateLimit.count++;
+
     // Validate filters before sending to relays
     try {
       const validatedFilters = validateFilters(filters);
@@ -570,14 +641,32 @@ export class Nostr {
    */
   public async fetchMany(
     filters: Filter[],
-    options?: { maxWait?: number },
+    options: { maxWait?: number; signal?: AbortSignal } = {},
   ): Promise<NostrEvent[]> {
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit(
+      this.fetchRateLimit,
+      this.RATE_LIMITS.FETCH.limit,
+      this.RATE_LIMITS.FETCH.windowMs
+    );
+    
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Fetch rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        'RATE_LIMIT_EXCEEDED',
+        'fetch'
+      );
+    }
+    
+         // Update rate limit state (increment count)
+     this.fetchRateLimit.count++;
+
     if (this.relays.size === 0) return [];
     
     // Validate inputs
     try {
       const validatedFilters = validateFilters(filters);
-      const maxWait = options?.maxWait ? 
+      const maxWait = options.maxWait ? 
         validateNumber(options.maxWait, 0, 300000, 'fetchMany.maxWait') : 5000;
 
       return new Promise((resolve) => {
