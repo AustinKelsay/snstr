@@ -27,6 +27,11 @@ import {
   supportsNostrZaps,
   buildZapCallbackUrl,
 } from "./utils";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 /**
  * Options for the ZapClient
@@ -253,21 +258,43 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
 
       // Subscribe to zap receipts
-      const subId = this.client.subscribe(
+      const subscriptionIds = this.client.subscribe(
         [filter],
         (event) => {
           events.push(event);
         },
         () => {
           // On EOSE, resolve with collected events
-          this.client.unsubscribe([subId]);
+          try {
+            if (validateArrayAccess(subscriptionIds, 0)) {
+              const subId = safeArrayAccess(subscriptionIds, 0);
+              if (typeof subId === "string") {
+                this.client.unsubscribe([subId]);
+              }
+            }
+          } catch (error) {
+            if (error instanceof SecurityValidationError) {
+              console.warn(`NIP-57: Bounds checking error in subscription cleanup: ${error.message}`);
+            }
+          }
           resolve(events);
         },
-      )[0]; // Get the first subscription ID from the array
+      );
 
       // Set a timeout in case EOSE never comes
       setTimeout(() => {
-        this.client.unsubscribe([subId]);
+        try {
+          if (validateArrayAccess(subscriptionIds, 0)) {
+            const subId = safeArrayAccess(subscriptionIds, 0);
+            if (typeof subId === "string") {
+              this.client.unsubscribe([subId]);
+            }
+          }
+        } catch (error) {
+          if (error instanceof SecurityValidationError) {
+            console.warn(`NIP-57: Bounds checking error in timeout cleanup: ${error.message}`);
+          }
+        }
         resolve(events);
       }, 10000);
     });
@@ -293,18 +320,31 @@ export class NostrZapClient {
     // Then filter to only those sent by this user
     return allZapReceipts.filter((zapReceipt) => {
       try {
-        // Find description tag
+        // Find description tag with safe access
         const descriptionTag = zapReceipt.tags.find(
-          (tag) => tag[0] === "description",
+          (tag) => {
+            try {
+              return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "description";
+            } catch {
+              return false;
+            }
+          }
         );
-        if (!descriptionTag || !descriptionTag[1]) return false;
+        
+        if (!descriptionTag || !validateArrayAccess(descriptionTag, 1)) return false;
+        
+        const descriptionValue = safeArrayAccess(descriptionTag, 1);
+        if (typeof descriptionValue !== "string") return false;
 
         // Parse zap request
-        const zapRequest = JSON.parse(descriptionTag[1]);
+        const zapRequest = JSON.parse(descriptionValue);
 
         // Check if the sender is the specified pubkey
         return zapRequest.pubkey === pubkey;
       } catch (e) {
+        if (e instanceof SecurityValidationError) {
+          console.warn(`NIP-57: Bounds checking error in zap filtering: ${e.message}`);
+        }
         return false;
       }
     });
@@ -344,21 +384,43 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
 
       // Subscribe to zap receipts
-      const subId = this.client.subscribe(
+      const subscriptionIds = this.client.subscribe(
         [filter],
         (event) => {
           events.push(event);
         },
         () => {
           // On EOSE, resolve with collected events
-          this.client.unsubscribe([subId]);
+          try {
+            if (validateArrayAccess(subscriptionIds, 0)) {
+              const subId = safeArrayAccess(subscriptionIds, 0);
+              if (typeof subId === "string") {
+                this.client.unsubscribe([subId]);
+              }
+            }
+          } catch (error) {
+            if (error instanceof SecurityValidationError) {
+              console.warn(`NIP-57: Bounds checking error in subscription cleanup: ${error.message}`);
+            }
+          }
           resolve(events);
         },
-      )[0]; // Get the first subscription ID from the array
+      );
 
       // Set a timeout in case EOSE never comes
       setTimeout(() => {
-        this.client.unsubscribe([subId]);
+        try {
+          if (validateArrayAccess(subscriptionIds, 0)) {
+            const subId = safeArrayAccess(subscriptionIds, 0);
+            if (typeof subId === "string") {
+              this.client.unsubscribe([subId]);
+            }
+          }
+        } catch (error) {
+          if (error instanceof SecurityValidationError) {
+            console.warn(`NIP-57: Bounds checking error in timeout cleanup: ${error.message}`);
+          }
+        }
         resolve(events);
       }, 10000);
     });
@@ -399,21 +461,43 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
 
       // Subscribe to zap receipts
-      const subId = this.client.subscribe(
+      const subscriptionIds = this.client.subscribe(
         [filter],
         (event) => {
           events.push(event);
         },
         () => {
           // On EOSE, resolve with collected events
-          this.client.unsubscribe([subId]);
+          try {
+            if (validateArrayAccess(subscriptionIds, 0)) {
+              const subId = safeArrayAccess(subscriptionIds, 0);
+              if (typeof subId === "string") {
+                this.client.unsubscribe([subId]);
+              }
+            }
+          } catch (error) {
+            if (error instanceof SecurityValidationError) {
+              console.warn(`NIP-57: Bounds checking error in subscription cleanup: ${error.message}`);
+            }
+          }
           resolve(events);
         },
-      )[0]; // Get the first subscription ID from the array
+      );
 
       // Set a timeout in case EOSE never comes
       setTimeout(() => {
-        this.client.unsubscribe([subId]);
+        try {
+          if (validateArrayAccess(subscriptionIds, 0)) {
+            const subId = safeArrayAccess(subscriptionIds, 0);
+            if (typeof subId === "string") {
+              this.client.unsubscribe([subId]);
+            }
+          }
+        } catch (error) {
+          if (error instanceof SecurityValidationError) {
+            console.warn(`NIP-57: Bounds checking error in timeout cleanup: ${error.message}`);
+          }
+        }
         resolve(events);
       }, 10000);
     });

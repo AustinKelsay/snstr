@@ -1,6 +1,11 @@
 import { NostrEvent } from "../types/nostr";
 import { isValidRelayUrl } from "../nip19/secure";
 import { getUnixTime } from "../utils/time";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 /** Relay list entry describing read/write preferences */
 export interface RelayListEntry {
@@ -68,14 +73,52 @@ export function parseRelayList(event: RelayListEvent): RelayListEntry[] {
     throw new Error("Invalid relay list event kind");
   }
   const result: RelayListEntry[] = [];
+  
   for (const tag of event.tags) {
-    if (tag[0] === "r" && tag[1]) {
-      const marker = tag[2];
-      if (marker === "read") result.push({ url: tag[1], read: true, write: false });
-      else if (marker === "write") result.push({ url: tag[1], read: false, write: true });
-      else result.push({ url: tag[1], read: true, write: true });
+    try {
+      // Safe access to tag elements with bounds checking
+      if (!validateArrayAccess(tag, 0) || !validateArrayAccess(tag, 1)) {
+        continue; // Skip invalid tags
+      }
+      
+      if (safeArrayAccess(tag, 0) !== "r") {
+        continue; // Skip non-r tags
+      }
+      
+      const url = safeArrayAccess(tag, 1);
+      if (typeof url !== "string" || !url.trim()) {
+        continue; // Skip invalid URLs
+      }
+      
+      // For optional fields, check array length instead of using bounds validation
+      // This prevents false positives when optional fields don't exist
+      const marker = (tag.length > 2) ? tag[2] : undefined;
+      
+      // Default to both read and write if no marker specified
+      let read = true;
+      let write = true;
+      
+      if (typeof marker === "string" && marker.trim()) {
+        const markerValue = marker.trim().toLowerCase();
+        if (markerValue === "read") {
+          read = true;
+          write = false;
+        } else if (markerValue === "write") {
+          read = false;
+          write = true;
+        }
+        // If marker exists but isn't "read" or "write", keep defaults (both true)
+      }
+      
+      result.push({ url: url.trim(), read, write });
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-65: Bounds checking error in relay list parsing: ${error.message}`);
+      }
+      continue; // Skip invalid tags
     }
   }
+  
   return result;
 }
 

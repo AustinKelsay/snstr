@@ -164,7 +164,7 @@ export function safeArrayAccess<T>(array: T[], index: number, defaultValue?: T):
 
 // Numeric validation
 export function validateNumber(value: unknown, min: number, max: number, field: string): number {
-  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+  if (typeof value !== 'number' || isNaN(value) || !Number.isFinite(value)) {
     throw new SecurityValidationError(
       `${field} must be a valid finite number`,
       'INVALID_NUMBER',

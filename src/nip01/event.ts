@@ -25,7 +25,14 @@ function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
   return /^[0-9a-f]{64}$/.test(publicKey);
 }
 import { getUnixTime } from "../utils/time";
-import { validateEventContent, validateTags, SECURITY_LIMITS, SecurityValidationError } from "../utils/security-validator";
+import { 
+  validateEventContent, 
+  validateTags, 
+  SECURITY_LIMITS, 
+  SecurityValidationError,
+  validateArrayAccess,
+  safeArrayAccess
+} from "../utils/security-validator";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 
@@ -784,7 +791,14 @@ export async function validateEvent(
 
       case NostrKind.DirectMessage: {
         // Direct messages must have exactly one p tag
-        const pTags = event.tags.filter((tag) => tag[0] === "p");
+        const pTags = event.tags.filter((tag) => {
+          try {
+            return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p";
+          } catch {
+            return false;
+          }
+        });
+        
         if (pTags.length !== 1) {
           throw new NostrValidationError(
             "Direct message event must have exactly one p tag",
@@ -793,18 +807,42 @@ export async function validateEvent(
           );
         }
 
-        // Validate the pubkey in the 'p' tag
-        const pTag = pTags[0];
-        if (
-          pTag.length < 2 ||
-          typeof pTag[1] !== "string" ||
-          !isValidPublicKeyPoint(pTag[1])
-        ) {
-          throw new NostrValidationError(
-            `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a valid secp256k1 curve point. Received: '${pTag[1]}'.`,
-            "tags",
-            event,
-          );
+        // Validate the pubkey in the 'p' tag with safe access
+        try {
+          if (!validateArrayAccess(pTags, 0)) {
+            throw new NostrValidationError(
+              "Direct message p-tag validation error: No valid p tags found",
+              "tags",
+              event,
+            );
+          }
+          
+          const pTag = safeArrayAccess(pTags, 0);
+          if (!Array.isArray(pTag) || !validateArrayAccess(pTag, 1)) {
+            throw new NostrValidationError(
+              "Direct message p-tag validation error: Invalid p tag structure",
+              "tags",
+              event,
+            );
+          }
+          
+          const pubkeyValue = safeArrayAccess(pTag, 1);
+          if (typeof pubkeyValue !== "string" || !isValidPublicKeyPoint(pubkeyValue)) {
+            throw new NostrValidationError(
+              `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a valid secp256k1 curve point. Received: '${pubkeyValue}'.`,
+              "tags",
+              event,
+            );
+          }
+        } catch (error) {
+          if (error instanceof SecurityValidationError) {
+            throw new NostrValidationError(
+              `Direct message validation bounds checking error: ${error.message}`,
+              "tags",
+              event,
+            );
+          }
+          throw error; // Re-throw NostrValidationError
         }
         break;
       }
