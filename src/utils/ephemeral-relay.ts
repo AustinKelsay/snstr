@@ -354,7 +354,22 @@ class ClientSession {
 
   constructor(relay: NostrRelay, socket: WebSocket) {
     this._relay = relay;
-    this._sid = Math.random().toString().slice(2, 8);
+    // Generate cryptographically secure session ID
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const array = new Uint8Array(3);
+      crypto.getRandomValues(array);
+      this._sid = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const nodeCrypto = require('crypto');
+        this._sid = nodeCrypto.randomBytes(3).toString('hex');
+      } catch (error) {
+        throw new Error('Secure random number generation not available for ephemeral relay session ID');
+      }
+    } else {
+      throw new Error('Secure random number generation not available for ephemeral relay session ID');
+    }
     this._socket = socket;
     this._subs = new Set();
 

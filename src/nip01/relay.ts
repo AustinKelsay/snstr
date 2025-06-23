@@ -500,7 +500,23 @@ export class Relay {
     onEOSE?: () => void,
     options: SubscriptionOptions = {},
   ): string {
-    const id = Math.random().toString(36).substring(2, 15);
+    // Generate cryptographically secure subscription ID
+    let id: string;
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const array = new Uint8Array(8);
+      crypto.getRandomValues(array);
+      id = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const nodeCrypto = require('crypto');
+        id = nodeCrypto.randomBytes(8).toString('hex');
+      } catch (error) {
+        throw new Error('Secure random number generation not available for subscription ID generation');
+      }
+    } else {
+      throw new Error('Secure random number generation not available for subscription ID generation');
+    }
 
     // Validate filters before proceeding
     const fieldsToValidate: (keyof Filter)[] = ["ids", "authors", "#e", "#p"];

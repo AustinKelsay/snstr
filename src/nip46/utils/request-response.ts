@@ -18,7 +18,8 @@ export function generateRequestId(): string {
       const crypto = require('crypto');
       return crypto.randomBytes(16).toString('hex');
     } catch (error) {
-      // Fallback if crypto is not available
+      // Don't fall back to weak randomness - fail securely
+      throw new Error('Secure random number generation not available in Node.js environment. This is required for NIP-46 security.');
     }
   }
   
@@ -29,12 +30,12 @@ export function generateRequestId(): string {
     return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
   }
   
-  // Final fallback - should only happen in very unusual environments
-  // Include timestamp to reduce collision probability
-  const timestamp = Date.now().toString(36);
-  const random1 = Math.random().toString(36).substring(2, 15);
-  const random2 = Math.random().toString(36).substring(2, 15);
-  return `${timestamp}-${random1}-${random2}`;
+  // SECURITY: Never fall back to Math.random() for cryptographic purposes
+  // This would create predictable IDs that could be exploited for:
+  // - Replay attacks
+  // - Session hijacking  
+  // - Authentication bypass
+  throw new Error('Cryptographically secure random number generation not available. NIP-46 requires crypto.getRandomValues() or Node.js crypto module for security.');
 }
 
 /**
