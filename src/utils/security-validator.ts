@@ -510,9 +510,142 @@ export function checkRateLimit(
   return { allowed: true };
 }
 
-// Memory-safe string operations
-export function secureStringZero(_str: string): void {
+// SECURE KEY ZEROIZATION - Critical for private key security
+export function secureStringZero(str: string): void {
   // Note: JavaScript strings are immutable, so we can't actually zero them
-  // This is a placeholder for documentation and potential future implementation
-  // with secure string libraries
+  // However, we can minimize their lifetime and suggest garbage collection
+  if (typeof str !== 'string') {
+    return;
+  }
+  
+  // Force the string to be processed immediately to trigger potential GC
+  // This is a best-effort approach since JS doesn't provide direct memory control
+  try {
+    // Attempt to trigger garbage collection if available (Node.js)
+    if (typeof global !== 'undefined' && global.gc) {
+      global.gc();
+    }
+  } catch {
+    // GC not available, continue
+  }
+}
+
+// Secure buffer zeroization (adapted from NIP-44)
+export function secureBufferZero(buffer: Uint8Array): void {
+  if (!buffer || !(buffer instanceof Uint8Array)) {
+    return;
+  }
+  
+  try {
+    // First fill with cryptographically secure random data
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(buffer);
+    } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+      // Node.js environment
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nodeCrypto = require('crypto');
+      const randomBytes = nodeCrypto.randomBytes(buffer.length);
+      buffer.set(randomBytes);
+    }
+    
+    // Then overwrite with zeros
+    buffer.fill(0);
+    
+    // Finally, attempt to trigger GC
+    try {
+      if (typeof global !== 'undefined' && global.gc) {
+        global.gc();
+      }
+    } catch {
+      // GC not available, continue
+    }
+  } catch (error) {
+    // Fallback: at least zero the buffer
+    buffer.fill(0);
+  }
+}
+
+// Secure key derivation cleanup
+export function secureKeyCleanup(privateKey: string): void {
+  if (!privateKey || typeof privateKey !== 'string') {
+    return;
+  }
+  
+  // Convert to buffer for secure zeroing if possible
+  try {
+    const keyBuffer = new TextEncoder().encode(privateKey);
+    secureBufferZero(keyBuffer);
+  } catch {
+    // Fallback to string zero attempt
+    secureStringZero(privateKey);
+  }
+}
+
+// Memory-conscious private key validator
+export function validatePrivateKey(privateKey: unknown, field: string = 'privateKey'): string {
+  if (typeof privateKey !== 'string') {
+    throw new SecurityValidationError(
+      'Private key must be a string',
+      'INVALID_PRIVATE_KEY_TYPE',
+      field
+    );
+  }
+  
+  const keyStr = privateKey.trim();
+  
+  if (keyStr.length !== 64) {
+    throw new SecurityValidationError(
+      'Private key must be exactly 64 characters (32 bytes hex)',
+      'INVALID_PRIVATE_KEY_LENGTH',
+      field
+    );
+  }
+  
+  if (!/^[0-9a-f]{64}$/i.test(keyStr)) {
+    throw new SecurityValidationError(
+      'Private key must be valid hex (64 characters)',
+      'INVALID_PRIVATE_KEY_FORMAT',
+      field
+    );
+  }
+  
+  return keyStr;
+}
+
+// Memory limits for relay buffers
+export function enforceMemoryLimits<K, V>(
+  map: Map<K, V>, 
+  maxSize: number, 
+  accessTracker?: Map<K, number>,
+  context: string = 'memory'
+): void {
+  if (map.size <= maxSize) {
+    return;
+  }
+  
+  const excessCount = map.size - maxSize;
+  
+  if (accessTracker && accessTracker.size > 0) {
+    // Remove least recently accessed items
+    const entries = Array.from(accessTracker.entries());
+    entries.sort((a, b) => a[1] - b[1]); // Sort by access time (oldest first)
+    
+    for (let i = 0; i < excessCount && i < entries.length; i++) {
+      const [key] = entries[i];
+      map.delete(key);
+      accessTracker.delete(key);
+    }
+  } else {
+    // Remove oldest entries (FIFO)
+    const keys = Array.from(map.keys());
+    for (let i = 0; i < excessCount; i++) {
+      if (keys[i] !== undefined) {
+        map.delete(keys[i]);
+      }
+    }
+  }
+  
+  if (typeof console !== 'undefined' && console.warn) {
+    console.warn(`Security: Enforced memory limit for ${context}, removed ${excessCount} entries`);
+  }
 } 

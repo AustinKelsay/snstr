@@ -117,10 +117,30 @@ export function isDeletionRequestForEvent(
   const targets = parseDeletionTargets(deletion);
   if (targets.ids.includes(event.id)) return true;
 
-  const dTag = event.tags.find((t) => t[0] === "d")?.[1];
-  if (dTag) {
-    const addr = `${event.kind}:${event.pubkey}:${dTag}`;
-    if (targets.addresses.includes(addr)) return true;
+  // Safe access to d-tag with bounds checking
+  try {
+    const dTag = event.tags.find((t) => {
+      try {
+        return validateArrayAccess(t, 0) && safeArrayAccess(t, 0) === "d";
+      } catch {
+        return false;
+      }
+    });
+    
+    if (dTag && validateArrayAccess(dTag, 1)) {
+      const dValue = safeArrayAccess(dTag, 1);
+      if (typeof dValue === "string") {
+        const addr = `${event.kind}:${event.pubkey}:${dValue}`;
+        if (targets.addresses.includes(addr)) return true;
+      }
+    }
+  } catch (error) {
+    if (error instanceof SecurityValidationError) {
+      if (typeof console !== 'undefined' && console.warn) {
+        console.warn(`NIP-09: Bounds checking error in d-tag processing: ${error.message}`);
+      }
+    }
   }
+  
   return false;
 }

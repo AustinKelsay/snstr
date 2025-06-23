@@ -24,6 +24,11 @@ import {
   SignMessageParams,
   NIP47ResponseResult,
 } from "./types";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 /**
  * Options for the NostrWalletService
@@ -225,8 +230,29 @@ export class NostrWalletService {
 
     // Determine the pubkey of the client making the request
     const requesterClientPubkey = event.pubkey;
-    // Determine the pubkey of the service (us) from the p-tag, if present, or default to our pubkey
-    const servicePubkeyTagged = event.tags.find((tag) => tag[0] === "p")?.[1];
+    
+    // Determine the pubkey of the service (us) from the p-tag, if present, with safe access
+    let servicePubkeyTagged: string | undefined;
+    try {
+      const pTag = event.tags.find((tag) => {
+        try {
+          return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p";
+        } catch {
+          return false;
+        }
+      });
+      
+      if (pTag && validateArrayAccess(pTag, 1)) {
+        const pubkeyValue = safeArrayAccess(pTag, 1);
+        if (typeof pubkeyValue === "string") {
+          servicePubkeyTagged = pubkeyValue;
+        }
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-47: Bounds checking error in p-tag parsing: ${error.message}`);
+      }
+    }
 
     if (!servicePubkeyTagged || servicePubkeyTagged !== this.pubkey) {
       // If there's no p-tag for us, or it's not for us, ignore.
@@ -241,11 +267,33 @@ export class NostrWalletService {
     let nip47Request: NIP47Request | undefined;
 
     try {
-      // Check for expiration (can be done before decryption)
-      const expirationTag = event.tags.find((tag) => tag[0] === "expiration");
+      // Check for expiration (can be done before decryption) with safe access
       let expirationTimestamp: number | undefined;
-      if (expirationTag && expirationTag.length > 1) {
-        expirationTimestamp = parseInt(expirationTag[1], 10);
+      try {
+        const expirationTag = event.tags.find((tag) => {
+          try {
+            return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "expiration";
+          } catch {
+            return false;
+          }
+        });
+        
+        if (expirationTag && validateArrayAccess(expirationTag, 1)) {
+          const expirationValue = safeArrayAccess(expirationTag, 1);
+          if (typeof expirationValue === "string") {
+            const parsedExpiration = parseInt(expirationValue, 10);
+            if (!isNaN(parsedExpiration)) {
+              expirationTimestamp = parsedExpiration;
+            }
+          }
+        }
+      } catch (error) {
+        if (error instanceof SecurityValidationError) {
+          console.warn(`NIP-47: Bounds checking error in expiration parsing: ${error.message}`);
+        }
+      }
+      
+      if (expirationTimestamp) {
         const now = getUnixTime();
         if (now > expirationTimestamp) {
           console.log(
