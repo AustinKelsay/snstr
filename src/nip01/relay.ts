@@ -779,10 +779,8 @@ const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
 
     const subscription = this.subscriptions.get(subscriptionId);
     if (subscription) {
-      // Buffer the event instead of immediately calling the handler
-      const buffer = this.eventBuffers.get(subscriptionId) || [];
-      buffer.push(event);
-      this.eventBuffers.set(subscriptionId, buffer);
+      // Use the proper buffer management method that enforces memory limits and LRU eviction
+      this.addToEventBuffer(subscriptionId, event);
     }
   }
 

@@ -352,7 +352,6 @@ export function parseRelayDiscoveryEvent(
           console.warn(`NIP-66: Bounds checking error in tag processing: ${error.message}`);
         }
       }
-      continue;
     }
   }
 
@@ -634,7 +633,6 @@ export function parseRelayMonitorAnnouncement(
           console.warn(`NIP-66: Bounds checking error in tag processing: ${error.message}`);
         }
       }
-      continue;
     }
   }
 

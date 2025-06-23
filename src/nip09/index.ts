@@ -98,7 +98,6 @@ export function parseDeletionTargets(
           console.warn(`NIP-09: Bounds checking error in tag processing: ${error.message}`);
         }
       }
-      continue;
     }
   }
 
