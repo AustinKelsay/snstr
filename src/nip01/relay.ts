@@ -17,7 +17,9 @@ import { NostrValidationError } from "./event";
 import { getUnixTime } from "../utils/time";
 import { Logger, LogLevel } from "../nip46/utils/logger";
 import { 
-  SECURITY_LIMITS 
+  SECURITY_LIMITS,
+  getSecureRandom,
+  getSecureRandomHex
 } from "../utils/security-validator";
 
 export class Relay {
@@ -280,20 +282,14 @@ export class Relay {
       this.maxReconnectDelay,
     );
     // Use secure random for reconnection timing (prevent timing attacks)
-const secureJitter = (() => {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    return array[0] / (0xffffffff + 1);
-  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const nodeCrypto = require('crypto');
-    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
-  }
-  // Fallback to Math.random() for non-critical reconnection timing
-  return Math.random();
-})();
-const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
+    let secureJitter: number;
+    try {
+      secureJitter = getSecureRandom();
+    } catch (error) {
+      // Fallback to Math.random() for non-critical reconnection timing if secure random is unavailable
+      secureJitter = Math.random();
+    }
+    const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
     const reconnectDelay = baseDelay + jitter;
 
 
@@ -539,22 +535,7 @@ const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
     options: SubscriptionOptions = {},
   ): string {
     // Generate cryptographically secure subscription ID
-    let id: string;
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      const array = new Uint8Array(8);
-      crypto.getRandomValues(array);
-      id = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-    } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const nodeCrypto = require('crypto');
-        id = nodeCrypto.randomBytes(8).toString('hex');
-      } catch (error) {
-        throw new Error('Secure random number generation not available for subscription ID generation');
-      }
-    } else {
-      throw new Error('Secure random number generation not available for subscription ID generation');
-    }
+    const id = getSecureRandomHex(8);
 
     // Validate filters before proceeding
     const fieldsToValidate: (keyof Filter)[] = ["ids", "authors", "#e", "#p"];

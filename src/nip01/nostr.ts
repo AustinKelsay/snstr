@@ -669,7 +669,7 @@ export class Nostr {
       const maxWait = options.maxWait ? 
         validateNumber(options.maxWait, 0, 300000, 'fetchMany.maxWait') : 5000;
 
-      return new Promise((resolve) => {
+      return new Promise((resolve, reject) => {
         const eventsMap = new Map<string, NostrEvent>();
         let eoseCount = 0;
         let isCleanedUp = false;
@@ -682,24 +682,57 @@ export class Nostr {
           () => {
             eoseCount++;
             if (eoseCount >= this.relays.size) {
-              cleanup();
+              cleanup(false);
             }
           },
         );
 
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
-        const cleanup = () => {
+        let abortListener: (() => void) | null = null;
+
+        const cleanup = (isAborted = false) => {
           if (isCleanedUp) return; // Prevent multiple cleanup executions
           isCleanedUp = true;
           
-          if (timeoutId) clearTimeout(timeoutId);
+          // Clear timeout
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          // Remove abort listener to prevent memory leaks
+          if (abortListener && options.signal) {
+            options.signal.removeEventListener('abort', abortListener);
+            abortListener = null;
+          }
+          
+          // Unsubscribe from all relays
           this.unsubscribe(subIds);
-          resolve(Array.from(eventsMap.values()));
+          
+          // Resolve or reject based on abort status
+          if (isAborted) {
+            reject(new Error('Fetch operation was aborted'));
+          } else {
+            resolve(Array.from(eventsMap.values()));
+          }
         };
+
+        // Handle AbortSignal if provided
+        if (options.signal) {
+          // Check if already aborted
+          if (options.signal.aborted) {
+            cleanup(true);
+            return;
+          }
+          
+          // Add abort listener
+          abortListener = () => cleanup(true);
+          options.signal.addEventListener('abort', abortListener);
+        }
 
         // Set timeout to ensure Promise always resolves
         if (maxWait > 0) {
-          timeoutId = setTimeout(cleanup, maxWait);
+          timeoutId = setTimeout(() => cleanup(false), maxWait);
         }
       });
     } catch (error) {
@@ -711,12 +744,12 @@ export class Nostr {
    * Retrieve the newest single event matching the filters from all relays.
    *
    * @param filters Filters to apply (limit will be forced to 1)
-   * @param options Optional max wait time in milliseconds
+   * @param options Optional max wait time in milliseconds and abort signal
    * @returns The newest matching event or null
    */
   public async fetchOne(
     filters: Filter[],
-    options?: { maxWait?: number },
+    options?: { maxWait?: number; signal?: AbortSignal },
   ): Promise<NostrEvent | null> {
     const limitedFilters = filters.map((f) => ({ ...f, limit: 1 }));
     const events = await this.fetchMany(limitedFilters, options);

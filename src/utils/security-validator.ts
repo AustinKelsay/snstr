@@ -106,6 +106,60 @@ export function secureRandomHex(length: number): string {
     .slice(0, length);
 }
 
+/**
+ * Generate a secure random number between 0 and 1
+ * Used for jitter generation and other timing operations
+ * @returns A secure random float between 0 (inclusive) and 1 (exclusive)
+ * @throws SecurityValidationError if secure random generation is not available
+ */
+export function getSecureRandom(): number {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return array[0] / (0xffffffff + 1);
+  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodeCrypto = require('crypto');
+    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+  } else {
+    throw new SecurityValidationError(
+      'Secure random number generation not available',
+      'NO_SECURE_RANDOM'
+    );
+  }
+}
+
+/**
+ * Generate a secure random hex string of specified byte length
+ * Used for subscription IDs and other cryptographic identifiers
+ * @param byteLength Number of bytes to generate (hex string will be 2x this length)
+ * @returns A secure random hex string
+ * @throws SecurityValidationError if secure random generation is not available
+ */
+export function getSecureRandomHex(byteLength: number): string {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(byteLength);
+    crypto.getRandomValues(array);
+    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nodeCrypto = require('crypto');
+      return nodeCrypto.randomBytes(byteLength).toString('hex');
+    } catch (error) {
+      throw new SecurityValidationError(
+        'Secure random number generation not available for hex string generation',
+        'NO_SECURE_RANDOM'
+      );
+    }
+  } else {
+    throw new SecurityValidationError(
+      'Secure random number generation not available for hex string generation',
+      'NO_SECURE_RANDOM'
+    );
+  }
+}
+
 // Input sanitization
 export function sanitizeString(input: unknown, maxLength: number = SECURITY_LIMITS.MAX_STRING_LENGTH): string {
   if (typeof input !== 'string') {
