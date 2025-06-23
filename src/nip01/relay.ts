@@ -255,7 +255,21 @@ export class Relay {
       1000 * Math.pow(2, this.reconnectAttempts),
       this.maxReconnectDelay,
     );
-    const jitter = Math.random() * 0.3 * baseDelay; // Add 0-30% jitter
+    // Use secure random for reconnection timing (prevent timing attacks)
+const secureJitter = (() => {
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return array[0] / (0xffffffff + 1);
+  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const nodeCrypto = require('crypto');
+    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+  }
+  // Fallback to Math.random() for non-critical reconnection timing
+  return Math.random();
+})();
+const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
     const reconnectDelay = baseDelay + jitter;
 
 

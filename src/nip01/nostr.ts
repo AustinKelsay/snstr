@@ -21,6 +21,7 @@ import {
   RelayUrlValidationError,
 } from "../utils/relayUrl";
 import { Logger, LogLevel } from "../nip46/utils/logger";
+import { validateFilters, validateEventContent, validateTags, validateNumber, SECURITY_LIMITS } from "../utils/security-validator";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -400,11 +401,23 @@ export class Nostr {
       throw new Error("Private key is not set");
     }
 
-    const noteTemplate = createTextNote(content, this.privateKey, tags);
-    const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
+    // Validate inputs
+    try {
+      const validatedContent = validateEventContent(content);
+      const validatedTags = validateTags(tags);
+      
+      if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+        throw new Error(`Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`);
+      }
 
-    const publishResult = await this.publishEvent(signedEvent, options);
-    return publishResult.success ? publishResult.event : null;
+      const noteTemplate = createTextNote(validatedContent, this.privateKey, validatedTags);
+      const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
+
+      const publishResult = await this.publishEvent(signedEvent, options);
+      return publishResult.success ? publishResult.event : null;
+    } catch (error) {
+      throw new Error(`publishTextNote validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   public async publishDirectMessage(
@@ -510,19 +523,25 @@ export class Nostr {
     onEOSE?: () => void,
     options: SubscriptionOptions = {},
   ): string[] {
-    const subscriptionIds: string[] = [];
+    // Validate filters before sending to relays
+    try {
+      const validatedFilters = validateFilters(filters);
+      const subscriptionIds: string[] = [];
 
-    this.relays.forEach((relay, url) => {
-      const id = relay.subscribe(
-        filters,
-        (event) => onEvent(event, url),
-        onEOSE,
-        options,
-      );
-      subscriptionIds.push(id);
-    });
+      this.relays.forEach((relay, url) => {
+        const id = relay.subscribe(
+          validatedFilters,
+          (event) => onEvent(event, url),
+          onEOSE,
+          options,
+        );
+        subscriptionIds.push(id);
+      });
 
-    return subscriptionIds;
+      return subscriptionIds;
+    } catch (error) {
+      throw new Error(`Filter validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   public unsubscribe(subscriptionIds: string[]): void {
@@ -554,41 +573,49 @@ export class Nostr {
     options?: { maxWait?: number },
   ): Promise<NostrEvent[]> {
     if (this.relays.size === 0) return [];
+    
+    // Validate inputs
+    try {
+      const validatedFilters = validateFilters(filters);
+      const maxWait = options?.maxWait ? 
+        validateNumber(options.maxWait, 0, 300000, 'fetchMany.maxWait') : 5000;
 
-    return new Promise((resolve) => {
-      const eventsMap = new Map<string, NostrEvent>();
-      let eoseCount = 0;
-      let isCleanedUp = false;
+      return new Promise((resolve) => {
+        const eventsMap = new Map<string, NostrEvent>();
+        let eoseCount = 0;
+        let isCleanedUp = false;
 
-      const subIds = this.subscribe(
-        filters,
-        (event) => {
-          eventsMap.set(event.id, event);
-        },
-        () => {
-          eoseCount++;
-          if (eoseCount >= this.relays.size) {
-            cleanup();
-          }
-        },
-      );
+        const subIds = this.subscribe(
+          validatedFilters,
+          (event) => {
+            eventsMap.set(event.id, event);
+          },
+          () => {
+            eoseCount++;
+            if (eoseCount >= this.relays.size) {
+              cleanup();
+            }
+          },
+        );
 
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      const cleanup = () => {
-        if (isCleanedUp) return; // Prevent multiple cleanup executions
-        isCleanedUp = true;
-        
-        if (timeoutId) clearTimeout(timeoutId);
-        this.unsubscribe(subIds);
-        resolve(Array.from(eventsMap.values()));
-      };
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        const cleanup = () => {
+          if (isCleanedUp) return; // Prevent multiple cleanup executions
+          isCleanedUp = true;
+          
+          if (timeoutId) clearTimeout(timeoutId);
+          this.unsubscribe(subIds);
+          resolve(Array.from(eventsMap.values()));
+        };
 
-      // Set default timeout if none provided to ensure Promise always resolves
-      const maxWait = options?.maxWait ?? 5000;
-      if (maxWait > 0) {
-        timeoutId = setTimeout(cleanup, maxWait);
-      }
-    });
+        // Set timeout to ensure Promise always resolves
+        if (maxWait > 0) {
+          timeoutId = setTimeout(cleanup, maxWait);
+        }
+      });
+    } catch (error) {
+      throw new Error(`fetchMany validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
