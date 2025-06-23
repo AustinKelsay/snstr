@@ -27,6 +27,11 @@ import {
   supportsNostrZaps,
   buildZapCallbackUrl,
 } from "./utils";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 /**
  * Options for the ZapClient
@@ -128,6 +133,27 @@ export class NostrZapClient {
   }) {
     this.client = options.client;
     this.defaultRelays = options.defaultRelays || [];
+  }
+
+  /**
+   * Private method to safely unsubscribe from a subscription
+   * 
+   * @param subscriptionIds Array of subscription IDs
+   * @param context Context string for error logging
+   */
+  private cleanupSubscription(subscriptionIds: string[], context: string = "cleanup"): void {
+    try {
+      if (validateArrayAccess(subscriptionIds, 0)) {
+        const subId = safeArrayAccess(subscriptionIds, 0);
+        if (typeof subId === "string") {
+          this.client.unsubscribe([subId]);
+        }
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-57: Bounds checking error in ${context}: ${error.message}`);
+      }
+    }
   }
 
   /**
@@ -253,21 +279,21 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
 
       // Subscribe to zap receipts
-      const subId = this.client.subscribe(
+      const subscriptionIds = this.client.subscribe(
         [filter],
         (event) => {
           events.push(event);
         },
         () => {
           // On EOSE, resolve with collected events
-          this.client.unsubscribe([subId]);
+          this.cleanupSubscription(subscriptionIds);
           resolve(events);
         },
-      )[0]; // Get the first subscription ID from the array
+      );
 
       // Set a timeout in case EOSE never comes
       setTimeout(() => {
-        this.client.unsubscribe([subId]);
+        this.cleanupSubscription(subscriptionIds, "timeout");
         resolve(events);
       }, 10000);
     });
@@ -293,11 +319,12 @@ export class NostrZapClient {
     // Then filter to only those sent by this user
     return allZapReceipts.filter((zapReceipt) => {
       try {
-        // Find description tag
+        // Find description tag with streamlined validation
         const descriptionTag = zapReceipt.tags.find(
-          (tag) => tag[0] === "description",
+          (tag) => Array.isArray(tag) && tag.length > 0 && tag[0] === "description"
         );
-        if (!descriptionTag || !descriptionTag[1]) return false;
+        
+        if (!Array.isArray(descriptionTag) || descriptionTag.length < 2 || typeof descriptionTag[1] !== "string") return false;
 
         // Parse zap request
         const zapRequest = JSON.parse(descriptionTag[1]);
@@ -305,6 +332,9 @@ export class NostrZapClient {
         // Check if the sender is the specified pubkey
         return zapRequest.pubkey === pubkey;
       } catch (e) {
+        if (e instanceof SecurityValidationError) {
+          console.warn(`NIP-57: Bounds checking error in zap filtering: ${e.message}`);
+        }
         return false;
       }
     });
@@ -344,21 +374,21 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
 
       // Subscribe to zap receipts
-      const subId = this.client.subscribe(
+      const subscriptionIds = this.client.subscribe(
         [filter],
         (event) => {
           events.push(event);
         },
         () => {
           // On EOSE, resolve with collected events
-          this.client.unsubscribe([subId]);
+          this.cleanupSubscription(subscriptionIds);
           resolve(events);
         },
-      )[0]; // Get the first subscription ID from the array
+      );
 
       // Set a timeout in case EOSE never comes
       setTimeout(() => {
-        this.client.unsubscribe([subId]);
+        this.cleanupSubscription(subscriptionIds, "timeout");
         resolve(events);
       }, 10000);
     });
@@ -399,21 +429,21 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
 
       // Subscribe to zap receipts
-      const subId = this.client.subscribe(
+      const subscriptionIds = this.client.subscribe(
         [filter],
         (event) => {
           events.push(event);
         },
         () => {
           // On EOSE, resolve with collected events
-          this.client.unsubscribe([subId]);
+          this.cleanupSubscription(subscriptionIds);
           resolve(events);
         },
-      )[0]; // Get the first subscription ID from the array
+      );
 
       // Set a timeout in case EOSE never comes
       setTimeout(() => {
-        this.client.unsubscribe([subId]);
+        this.cleanupSubscription(subscriptionIds, "timeout");
         resolve(events);
       }, 10000);
     });

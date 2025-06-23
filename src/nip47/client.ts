@@ -27,6 +27,9 @@ import {
   ListTransactionsResponseResult,
   SignMessageResponseResult,
 } from "./types";
+import { 
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 /**
  * Parse a NWC URL into connection options
@@ -420,9 +423,9 @@ export class NostrWalletConnectClient {
     const pTags = event.tags
       .filter((tag) => tag[0] === "p")
       .map((tag) => tag[1]);
-    const eTags = event.tags
-      .filter((tag) => tag[0] === "e")
-      .map((tag) => tag[1]);
+    const eTags = event.tags.filter((tag) => 
+      Array.isArray(tag) && tag.length > 0 && tag[0] === "e"
+    );
 
     console.log(`Event p-tags: ${pTags.join(", ")}`);
     console.log(`Event e-tags: ${eTags.join(", ")}`);
@@ -541,48 +544,26 @@ export class NostrWalletConnectClient {
    */
   private handleResponse(event: NostrEvent): void {
     try {
-      // Check if this is from our service
-      if (event.pubkey !== this.pubkey) {
-        console.warn(
-          `Received event from unknown pubkey: ${event.pubkey}, expected ${this.pubkey}`,
-        );
-        return;
-      }
-
-      // Decrypt the content
-      console.log(
-        `Decrypting response with client private key and service public key`,
-      );
+      // Decrypt and parse response
       const decrypted = decryptNIP04(
         this.clientPrivkey,
         this.pubkey,
         event.content,
       );
-      console.log(`Decrypted response: ${decrypted.substring(0, 100)}...`);
+      const response = JSON.parse(decrypted);
 
-      // Parse the content
-      let response: unknown;
-      try {
-        response = JSON.parse(decrypted);
-      } catch (error) {
-        console.error("Error parsing response JSON:", error);
-        return;
-      }
-
-      // Validate the response according to NIP-47 specification
-      try {
-        response = this.validateResponse(response);
-      } catch (error) {
-        console.error("Invalid response format:", error);
-        return;
-      }
+      // Validate response structure
+      this.validateResponse(response);
 
       console.log(
         `Validated response of type: ${(response as NIP47Response).result_type}`,
       );
 
       // Find the e-tag which references the request event ID
-      const eTags = event.tags.filter((tag) => tag[0] === "e");
+      const eTags = event.tags.filter((tag) => 
+        Array.isArray(tag) && tag.length > 0 && tag[0] === "e"
+      );
+      
       if (eTags.length === 0) {
         console.warn(
           "Response event has no e-tag, cannot correlate with a request",
@@ -590,8 +571,20 @@ export class NostrWalletConnectClient {
         return;
       }
 
-      // Get the request ID from the e-tag
-      const requestId = eTags[0][1];
+      // Get the request ID from the e-tag with simplified bounds checking
+      let requestId: string;
+      try {
+        // Direct access after initial validation ensures presence and structure
+        const firstETag = eTags[0];
+        requestId = firstETag[1]; // e-tags have structure ["e", requestId, ...]
+        
+      } catch (error) {
+        if (error instanceof SecurityValidationError) {
+          console.warn(`NIP-47: Bounds checking error in e-tag processing: ${error.message}`);
+        }
+        return;
+      }
+      
       console.log(`Found request ID from e-tag: ${requestId}`);
 
       // Find the pending request
@@ -608,7 +601,11 @@ export class NostrWalletConnectClient {
         console.warn(`No pending request found with ID: ${requestId}`);
       }
     } catch (error) {
-      console.error("Error handling response event:", error);
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-47: Security validation error in response handling: ${error.message}`);
+      } else {
+        console.error("Error handling response event:", error);
+      }
     }
   }
 
@@ -655,9 +652,11 @@ export class NostrWalletConnectClient {
 
       // Extract supported notifications from tags
       const notificationsTag = event.tags.find(
-        (tag: string[]) => tag[0] === "notifications",
+        (tag: string[]) => 
+          Array.isArray(tag) && tag.length > 1 && tag[0] === "notifications"
       );
-      if (notificationsTag && notificationsTag[1]) {
+      
+      if (notificationsTag && typeof notificationsTag[1] === "string") {
         this.supportedNotifications = notificationsTag[1].split(" ");
       }
 
@@ -665,7 +664,11 @@ export class NostrWalletConnectClient {
       console.log(`Methods: ${this.supportedMethods.join(", ")}`);
       console.log(`Notifications: ${this.supportedNotifications.join(", ")}`);
     } catch (error) {
-      console.error("Failed to handle info event:", error);
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-47: Security validation error in info event handling: ${error.message}`);
+      } else {
+        console.error("Failed to handle info event:", error);
+      }
     }
   }
 

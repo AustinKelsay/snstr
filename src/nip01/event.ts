@@ -25,6 +25,14 @@ function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
   return /^[0-9a-f]{64}$/.test(publicKey);
 }
 import { getUnixTime } from "../utils/time";
+import { 
+  validateEventContent, 
+  validateTags, 
+  SECURITY_LIMITS, 
+  SecurityValidationError,
+  validateArrayAccess,
+  safeArrayAccess
+} from "../utils/security-validator";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 
@@ -241,19 +249,38 @@ export function createTextNote(
     );
   }
 
-  if (!isValidPrivateKey(privateKey)) {
-    throw new NostrValidationError("Invalid private key", "privateKey");
+  // Apply security validation
+  try {
+    const validatedContent = validateEventContent(content);
+    const validatedTags = validateTags(tags);
+    
+    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+      throw new SecurityValidationError(
+        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        'CONTENT_TOO_LARGE',
+        'content'
+      );
+    }
+
+    if (!isValidPrivateKey(privateKey)) {
+      throw new NostrValidationError("Invalid private key", "privateKey");
+    }
+
+    const pubkey = getPublicKey(privateKey);
+
+    return {
+      pubkey,
+      created_at: getUnixTime(),
+      kind: NostrKind.ShortNote,
+      tags: validatedTags,
+      content: validatedContent,
+    };
+  } catch (error) {
+    if (error instanceof SecurityValidationError) {
+      throw new NostrValidationError(error.message, error.field);
+    }
+    throw error;
   }
-
-  const pubkey = getPublicKey(privateKey);
-
-  return {
-    pubkey,
-    created_at: getUnixTime(),
-    kind: NostrKind.ShortNote,
-    tags,
-    content,
-  };
 }
 
 /**
@@ -280,6 +307,7 @@ export async function createDirectMessage(
     );
   }
 
+  // Validate recipient public key first (outside try-catch to preserve error field)
   if (!isValidPublicKeyPoint(recipientPubkey)) {
     throw new NostrValidationError(
       "Invalid recipient public key: must be a valid secp256k1 curve point",
@@ -291,24 +319,42 @@ export async function createDirectMessage(
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
-  const pubkey = getPublicKey(privateKey);
-
+  // Apply security validation
   try {
+    const validatedContent = validateEventContent(content);
+    const validatedTags = validateTags(tags);
+    
+    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+      throw new SecurityValidationError(
+        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        'CONTENT_TOO_LARGE',
+        'content'
+      );
+    }
+
+    const pubkey = getPublicKey(privateKey);
+
     // Encrypt the content using NIP-04
     const encryptedContent = await encryptNIP04(
       privateKey,
       recipientPubkey,
-      content,
+      validatedContent,
     );
 
     return {
       pubkey,
       created_at: getUnixTime(),
       kind: NostrKind.DirectMessage,
-      tags: [["p", recipientPubkey], ...tags],
+      tags: [["p", recipientPubkey], ...validatedTags],
       content: encryptedContent,
     };
   } catch (error) {
+    if (error instanceof SecurityValidationError) {
+      throw new NostrValidationError(error.message, error.field);
+    }
+    if (error instanceof NostrValidationError) {
+      throw error;
+    }
     throw new NostrValidationError(
       `Failed to encrypt message: ${error instanceof Error ? error.message : String(error)}`,
       "encryption",
@@ -371,7 +417,8 @@ export function createAddressableEvent(
   privateKey: string,
   additionalTags: string[][] = [],
 ): UnsignedEvent {
-  if (kind < 30000 || kind >= 40000) {
+  // Apply security validation with numeric bounds checking
+  if (kind < 30000 || kind >= 40000 || !Number.isInteger(kind)) {
     throw new NostrValidationError(
       "Addressable events must have kind between 30000-39999",
       "kind",
@@ -383,6 +430,14 @@ export function createAddressableEvent(
     throw new NostrValidationError("D-tag value must be a string", "dTagValue");
   }
 
+  // Validate d-tag length for security
+  if (dTagValue.length > SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE) {
+    throw new NostrValidationError(
+      `D-tag value too long: ${dTagValue.length} chars (max ${SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE})`,
+      "dTagValue"
+    );
+  }
+
   if (!content || typeof content !== "string") {
     throw new NostrValidationError(
       "Content must be a non-empty string",
@@ -390,23 +445,41 @@ export function createAddressableEvent(
     );
   }
 
-  if (!isValidPrivateKey(privateKey)) {
-    throw new NostrValidationError("Invalid private key", "privateKey");
+  try {
+    const validatedContent = validateEventContent(content);
+    const validatedTags = validateTags(additionalTags);
+    
+    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+      throw new SecurityValidationError(
+        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        'CONTENT_TOO_LARGE',
+        'content'
+      );
+    }
+
+    if (!isValidPrivateKey(privateKey)) {
+      throw new NostrValidationError("Invalid private key", "privateKey");
+    }
+
+    const pubkey = getPublicKey(privateKey);
+
+    // Ensure the d tag is included and is the first tag
+    const dTag = ["d", dTagValue];
+    const tags = [dTag, ...validatedTags];
+
+    return {
+      pubkey,
+      created_at: getUnixTime(),
+      kind,
+      tags,
+      content: validatedContent,
+    };
+  } catch (error) {
+    if (error instanceof SecurityValidationError) {
+      throw new NostrValidationError(error.message, error.field);
+    }
+    throw error;
   }
-
-  const pubkey = getPublicKey(privateKey);
-
-  // Ensure the d tag is included and is the first tag
-  const dTag = ["d", dTagValue];
-  const tags = [dTag, ...additionalTags];
-
-  return {
-    pubkey,
-    created_at: getUnixTime(),
-    kind,
-    tags,
-    content,
-  };
 }
 
 /**
@@ -718,7 +791,14 @@ export async function validateEvent(
 
       case NostrKind.DirectMessage: {
         // Direct messages must have exactly one p tag
-        const pTags = event.tags.filter((tag) => tag[0] === "p");
+        const pTags = event.tags.filter((tag) => {
+          try {
+            return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p";
+          } catch {
+            return false;
+          }
+        });
+        
         if (pTags.length !== 1) {
           throw new NostrValidationError(
             "Direct message event must have exactly one p tag",
@@ -727,18 +807,42 @@ export async function validateEvent(
           );
         }
 
-        // Validate the pubkey in the 'p' tag
-        const pTag = pTags[0];
-        if (
-          pTag.length < 2 ||
-          typeof pTag[1] !== "string" ||
-          !isValidPublicKeyPoint(pTag[1])
-        ) {
-          throw new NostrValidationError(
-            `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a valid secp256k1 curve point. Received: '${pTag[1]}'.`,
-            "tags",
-            event,
-          );
+        // Validate the pubkey in the 'p' tag with safe access
+        try {
+          if (!validateArrayAccess(pTags, 0)) {
+            throw new NostrValidationError(
+              "Direct message p-tag validation error: No valid p tags found",
+              "tags",
+              event,
+            );
+          }
+          
+          const pTag = safeArrayAccess(pTags, 0);
+          if (!Array.isArray(pTag) || !validateArrayAccess(pTag, 1)) {
+            throw new NostrValidationError(
+              "Direct message p-tag validation error: Invalid p tag structure",
+              "tags",
+              event,
+            );
+          }
+          
+          const pubkeyValue = safeArrayAccess(pTag, 1);
+          if (typeof pubkeyValue !== "string" || !isValidPublicKeyPoint(pubkeyValue)) {
+            throw new NostrValidationError(
+              `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a valid secp256k1 curve point. Received: '${pubkeyValue}'.`,
+              "tags",
+              event,
+            );
+          }
+        } catch (error) {
+          if (error instanceof SecurityValidationError) {
+            throw new NostrValidationError(
+              `Direct message validation bounds checking error: ${error.message}`,
+              "tags",
+              event,
+            );
+          }
+          throw error; // Re-throw NostrValidationError
         }
         break;
       }
@@ -791,8 +895,27 @@ export function getTagValue<T extends keyof TagValues>(
   tagName: T,
   index: number = 0,
 ): string | undefined {
+  // Validate index is not negative
+  if (index < 0) {
+    throw new SecurityValidationError(
+      `Tag index must be non-negative: ${index}`,
+      'INVALID_TAG_INDEX',
+      'index'
+    );
+  }
+
   const tag = event.tags.find((tag) => tag[0] === tagName);
-  return tag && tag.length > index + 1 ? tag[index + 1] : undefined;
+  if (!tag || !Array.isArray(tag)) {
+    return undefined;
+  }
+  
+  // Safe bounds checking against actual tag length
+  const targetIndex = index + 1; // +1 because tag[0] is the tag name
+  if (targetIndex >= tag.length) {
+    return undefined;
+  }
+  
+  return tag[targetIndex];
 }
 
 /**

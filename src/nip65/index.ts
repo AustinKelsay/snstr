@@ -68,14 +68,35 @@ export function parseRelayList(event: RelayListEvent): RelayListEntry[] {
     throw new Error("Invalid relay list event kind");
   }
   const result: RelayListEntry[] = [];
+  
   for (const tag of event.tags) {
-    if (tag[0] === "r" && tag[1]) {
-      const marker = tag[2];
-      if (marker === "read") result.push({ url: tag[1], read: true, write: false });
-      else if (marker === "write") result.push({ url: tag[1], read: false, write: true });
-      else result.push({ url: tag[1], read: true, write: true });
+    // Validate tag structure and content in a single condition
+    if (Array.isArray(tag) && 
+        tag.length >= 2 && 
+        tag[0] === "r" && 
+        typeof tag[1] === "string" && 
+        tag[1].trim()) {
+      
+      const url = tag[1].trim();
+      const marker = (tag.length > 2 && typeof tag[2] === "string") ? tag[2].trim().toLowerCase() : undefined;
+      
+      // Default to both read and write if no marker specified
+      let read = true;
+      let write = true;
+      
+      if (marker === "read") {
+        read = true;
+        write = false;
+      } else if (marker === "write") {
+        read = false;
+        write = true;
+      }
+      // If marker exists but isn't "read" or "write", keep defaults (both true)
+      
+      result.push({ url, read, write });
     }
   }
+  
   return result;
 }
 

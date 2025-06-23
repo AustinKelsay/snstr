@@ -21,6 +21,16 @@ import {
   RelayUrlValidationError,
 } from "../utils/relayUrl";
 import { Logger, LogLevel } from "../nip46/utils/logger";
+import { 
+  validateFilters, 
+  validateEventContent, 
+  validateTags,
+  validateNumber,
+  SecurityValidationError,
+  checkRateLimit,
+  RateLimitState,
+  SECURITY_LIMITS
+} from "../utils/security-validator";
 
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
@@ -80,6 +90,32 @@ export class Nostr {
   };
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
   private logger: Logger;
+
+  // Rate limiting state
+  private subscribeRateLimit: RateLimitState = {
+    count: 0,
+    windowStart: Date.now(),
+    blocked: false
+  };
+  
+  private publishRateLimit: RateLimitState = {
+    count: 0,
+    windowStart: Date.now(),
+    blocked: false
+  };
+  
+  private fetchRateLimit: RateLimitState = {
+    count: 0,
+    windowStart: Date.now(),
+    blocked: false
+  };
+
+  // Rate limiting configuration
+  private readonly RATE_LIMITS = {
+    SUBSCRIBE: { limit: 50, windowMs: 60000 }, // 50 subscriptions per minute
+    PUBLISH: { limit: 100, windowMs: 60000 }, // 100 publications per minute
+    FETCH: { limit: 200, windowMs: 60000 }, // 200 fetches per minute
+  };
 
   /**
    * Create a new Nostr client
@@ -396,15 +432,45 @@ export class Nostr {
     tags: string[][] = [],
     options?: { timeout?: number },
   ): Promise<NostrEvent | null> {
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit(
+      this.publishRateLimit,
+      this.RATE_LIMITS.PUBLISH.limit,
+      this.RATE_LIMITS.PUBLISH.windowMs
+    );
+    
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Publish rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        'RATE_LIMIT_EXCEEDED',
+        'publish'
+      );
+    }
+    
+    // Update rate limit state (increment count)
+    this.publishRateLimit.count++;
+
     if (!this.privateKey || !this.publicKey) {
       throw new Error("Private key is not set");
     }
 
-    const noteTemplate = createTextNote(content, this.privateKey, tags);
-    const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
+    // Validate inputs
+    try {
+      const validatedContent = validateEventContent(content);
+      const validatedTags = validateTags(tags);
+      
+      if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+        throw new Error(`Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`);
+      }
 
-    const publishResult = await this.publishEvent(signedEvent, options);
-    return publishResult.success ? publishResult.event : null;
+      const noteTemplate = createTextNote(validatedContent, this.privateKey, validatedTags);
+      const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
+
+      const publishResult = await this.publishEvent(signedEvent, options);
+      return publishResult.success ? publishResult.event : null;
+    } catch (error) {
+      throw new Error(`publishTextNote validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   public async publishDirectMessage(
@@ -510,19 +576,43 @@ export class Nostr {
     onEOSE?: () => void,
     options: SubscriptionOptions = {},
   ): string[] {
-    const subscriptionIds: string[] = [];
-
-    this.relays.forEach((relay, url) => {
-      const id = relay.subscribe(
-        filters,
-        (event) => onEvent(event, url),
-        onEOSE,
-        options,
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit(
+      this.subscribeRateLimit,
+      this.RATE_LIMITS.SUBSCRIBE.limit,
+      this.RATE_LIMITS.SUBSCRIBE.windowMs
+    );
+    
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Subscription rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        'RATE_LIMIT_EXCEEDED',
+        'subscribe'
       );
-      subscriptionIds.push(id);
-    });
+    }
+    
+         // Update rate limit state (increment count)
+     this.subscribeRateLimit.count++;
 
-    return subscriptionIds;
+    // Validate filters before sending to relays
+    try {
+      const validatedFilters = validateFilters(filters);
+      const subscriptionIds: string[] = [];
+
+      this.relays.forEach((relay, url) => {
+        const id = relay.subscribe(
+          validatedFilters,
+          (event) => onEvent(event, url),
+          onEOSE,
+          options,
+        );
+        subscriptionIds.push(id);
+      });
+
+      return subscriptionIds;
+    } catch (error) {
+      throw new Error(`Filter validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   public unsubscribe(subscriptionIds: string[]): void {
@@ -551,56 +641,115 @@ export class Nostr {
    */
   public async fetchMany(
     filters: Filter[],
-    options?: { maxWait?: number },
+    options: { maxWait?: number; signal?: AbortSignal } = {},
   ): Promise<NostrEvent[]> {
-    if (this.relays.size === 0) return [];
-
-    return new Promise((resolve) => {
-      const eventsMap = new Map<string, NostrEvent>();
-      let eoseCount = 0;
-      let isCleanedUp = false;
-
-      const subIds = this.subscribe(
-        filters,
-        (event) => {
-          eventsMap.set(event.id, event);
-        },
-        () => {
-          eoseCount++;
-          if (eoseCount >= this.relays.size) {
-            cleanup();
-          }
-        },
+    // Rate limiting check
+    const rateLimitCheck = checkRateLimit(
+      this.fetchRateLimit,
+      this.RATE_LIMITS.FETCH.limit,
+      this.RATE_LIMITS.FETCH.windowMs
+    );
+    
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Fetch rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        'RATE_LIMIT_EXCEEDED',
+        'fetch'
       );
+    }
+    
+         // Update rate limit state (increment count)
+     this.fetchRateLimit.count++;
 
-      let timeoutId: ReturnType<typeof setTimeout> | null = null;
-      const cleanup = () => {
-        if (isCleanedUp) return; // Prevent multiple cleanup executions
-        isCleanedUp = true;
-        
-        if (timeoutId) clearTimeout(timeoutId);
-        this.unsubscribe(subIds);
-        resolve(Array.from(eventsMap.values()));
-      };
+    if (this.relays.size === 0) return [];
+    
+    // Validate inputs
+    try {
+      const validatedFilters = validateFilters(filters);
+      const maxWait = options.maxWait ? 
+        validateNumber(options.maxWait, 0, 300000, 'fetchMany.maxWait') : 5000;
 
-      // Set default timeout if none provided to ensure Promise always resolves
-      const maxWait = options?.maxWait ?? 5000;
-      if (maxWait > 0) {
-        timeoutId = setTimeout(cleanup, maxWait);
-      }
-    });
+      return new Promise((resolve, reject) => {
+        const eventsMap = new Map<string, NostrEvent>();
+        let eoseCount = 0;
+        let isCleanedUp = false;
+
+        const subIds = this.subscribe(
+          validatedFilters,
+          (event) => {
+            eventsMap.set(event.id, event);
+          },
+          () => {
+            eoseCount++;
+            if (eoseCount >= this.relays.size) {
+              cleanup(false);
+            }
+          },
+        );
+
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        let abortListener: (() => void) | null = null;
+
+        const cleanup = (isAborted = false) => {
+          if (isCleanedUp) return; // Prevent multiple cleanup executions
+          isCleanedUp = true;
+          
+          // Clear timeout
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
+          // Remove abort listener to prevent memory leaks
+          if (abortListener && options.signal) {
+            options.signal.removeEventListener('abort', abortListener);
+            abortListener = null;
+          }
+          
+          // Unsubscribe from all relays
+          this.unsubscribe(subIds);
+          
+          // Resolve or reject based on abort status
+          if (isAborted) {
+            reject(new Error('Fetch operation was aborted'));
+          } else {
+            resolve(Array.from(eventsMap.values()));
+          }
+        };
+
+        // Handle AbortSignal if provided
+        if (options.signal) {
+          // Check if already aborted
+          if (options.signal.aborted) {
+            cleanup(true);
+            return;
+          }
+          
+          // Add abort listener
+          abortListener = () => cleanup(true);
+          options.signal.addEventListener('abort', abortListener);
+        }
+
+        // Set timeout to ensure Promise always resolves
+        if (maxWait > 0) {
+          timeoutId = setTimeout(() => cleanup(false), maxWait);
+        }
+      });
+    } catch (error) {
+      throw new Error(`fetchMany validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
    * Retrieve the newest single event matching the filters from all relays.
    *
    * @param filters Filters to apply (limit will be forced to 1)
-   * @param options Optional max wait time in milliseconds
+   * @param options Optional max wait time in milliseconds and abort signal
    * @returns The newest matching event or null
    */
   public async fetchOne(
     filters: Filter[],
-    options?: { maxWait?: number },
+    options?: { maxWait?: number; signal?: AbortSignal },
   ): Promise<NostrEvent | null> {
     const limitedFilters = filters.map((f) => ({ ...f, limit: 1 }));
     const events = await this.fetchMany(limitedFilters, options);

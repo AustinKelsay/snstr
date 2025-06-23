@@ -8,6 +8,11 @@ import {
 } from "../types/protocol";
 import { validateEvent } from "../nip01/event";
 import { isValidPublicKeyPoint } from "../nip44";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "./security-validator";
 
 /**
  * Validates if a string is a valid 32-byte hex string (case-insensitive).
@@ -532,10 +537,23 @@ class ClientSession {
         for (const [uid, sub] of this.relay.subs.entries()) {
           for (const filter of sub.filters) {
             if (filter.kinds?.includes(24133)) {
-              // Check for #p tag filter
+              // Check for #p tag filter - safe array access
               const pTags = event.tags
-                .filter((tag) => tag[0] === "p")
-                .map((tag) => tag[1]);
+                .filter((tag) => {
+                  try {
+                    return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p";
+                  } catch {
+                    return false;
+                  }
+                })
+                .map((tag) => {
+                  try {
+                    return safeArrayAccess(tag, 1);
+                  } catch {
+                    return null;
+                  }
+                })
+                .filter((val): val is string => typeof val === "string");
               const pFilters = filter["#p"] || [];
 
               // If there's a #p filter, make sure the event matches it
@@ -546,14 +564,24 @@ class ClientSession {
                 continue;
               }
 
-              // Send to matching subscription
-              const [_clientId, subId] = uid.split("/");
-              sub.instance.send([
-                "EVENT",
-                subId,
-                event,
-              ] as NostrRelayEventMessage);
-              break;
+              // Send to matching subscription - safe array access
+              try {
+                const uidParts = uid.split("/");
+                if (validateArrayAccess(uidParts, 1)) {
+                  const subId = safeArrayAccess(uidParts, 1);
+                  sub.instance.send([
+                    "EVENT",
+                    subId,
+                    event,
+                  ] as NostrRelayEventMessage);
+                  break;
+                }
+              } catch (error) {
+                if (error instanceof SecurityValidationError) {
+                  this.log.debug(`Bounds checking error in subscription routing: ${error.message}`);
+                }
+                continue;
+              }
             }
           }
         }
@@ -718,12 +746,19 @@ class ClientSession {
 
     // For NIP-46, we need to have at least one p tag with a valid pubkey
     const hasPTag = event.tags.some(
-      (tag: string[]) =>
-        Array.isArray(tag) &&
-        tag.length >= 2 &&
-        tag[0] === "p" &&
-        typeof tag[1] === "string" &&
-        isValidPublicKeyPoint(tag[1]),
+      (tag: string[]) => {
+        try {
+          return Array.isArray(tag) &&
+            validateArrayAccess(tag, 0) &&
+            validateArrayAccess(tag, 1) &&
+            safeArrayAccess(tag, 0) === "p" &&
+            typeof safeArrayAccess(tag, 1) === "string" &&
+            isValidPublicKeyPoint(safeArrayAccess(tag, 1) as string);
+        } catch (error) {
+          // If bounds checking fails, this tag is invalid
+          return false;
+        }
+      }
     );
 
     if (!hasPTag) {
@@ -813,30 +848,53 @@ function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
 
 function match_tags(filters: string[][], tags: string[][]): boolean {
   // For each filter, we need to find at least one match in event tags
-  for (const [key, ...terms] of filters) {
+  for (const filter of filters) {
     let filterMatched = false;
 
-    // Skip empty filter terms
-    if (terms.length === 0) {
-      filterMatched = true;
-      continue;
-    }
-
-    // For each tag that matches the filter key
-    for (const [tag, ...params] of tags) {
-      if (tag !== key) continue;
-
-      // For each term in the filter
-      for (const term of terms) {
-        // If any term matches any parameter, this filter condition is satisfied
-        if (params.includes(term)) {
-          filterMatched = true;
-          break;
-        }
+    // Safe access to filter elements
+    try {
+      if (!validateArrayAccess(filter, 0)) {
+        filterMatched = true; // Empty filter matches everything
+        continue;
+      }
+      
+      const key = safeArrayAccess(filter, 0);
+      const terms = filter.slice(1);
+      
+      // Skip empty filter terms
+      if (terms.length === 0) {
+        filterMatched = true;
+        continue;
       }
 
-      // If we found a match for this filter, we can stop checking tags
-      if (filterMatched) break;
+      // For each tag that matches the filter key
+      for (const tag of tags) {
+        try {
+          if (!validateArrayAccess(tag, 0) || safeArrayAccess(tag, 0) !== key) {
+            continue;
+          }
+          
+          const params = tag.slice(1);
+
+          // For each term in the filter
+          for (const term of terms) {
+            // If any term matches any parameter, this filter condition is satisfied
+            if (params.includes(term)) {
+              filterMatched = true;
+              break;
+            }
+          }
+
+          // If we found a match for this filter, we can stop checking tags
+          if (filterMatched) break;
+        } catch (error) {
+          // Skip malformed tags
+          continue;
+        }
+      }
+    } catch (error) {
+      // Skip malformed filters
+      continue;
     }
 
     // If no match was found for this filter condition, event doesn't match

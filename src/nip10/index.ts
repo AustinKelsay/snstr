@@ -6,6 +6,11 @@
  */
 
 import { NostrEvent } from "../types/nostr";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 /** Event pointer used in thread references */
 export interface ThreadPointer {
@@ -78,7 +83,13 @@ export function createQuoteTag(pointer: ThreadPointer): string[] {
  * marked and deprecated positional e tags.
  */
 export function parseThreadReferences(event: NostrEvent): ThreadReferences {
-  const eTags = event.tags.filter((t) => t[0] === "e");
+  const eTags = event.tags.filter((t) => {
+    try {
+      return validateArrayAccess(t, 0) && safeArrayAccess(t, 0) === "e";
+    } catch {
+      return false;
+    }
+  });
 
   let root: ThreadPointer | undefined;
   let reply: ThreadPointer | undefined;
@@ -87,28 +98,56 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
   const unmarked: ThreadPointer[] = [];
 
   for (const tag of eTags) {
-    const [_, id, relay, marker, pubkey] = tag;
-    const relayValue = relay || undefined;
-    const pubkeyValue = pubkey === "" ? undefined : pubkey;
-    if (marker === "root") {
-      root = { id, relay: relayValue, pubkey: pubkeyValue };
-    } else if (marker === "reply") {
-      reply = { id, relay: relayValue, pubkey: pubkeyValue };
-    } else if (marker === "mention") {
-      quotes.push({ id, relay: relayValue, pubkey: pubkeyValue });
-    } else {
-      unmarked.push({ id, relay: relayValue, pubkey: pubkeyValue });
+    try {
+      // Skip tags that don't have an ID or have invalid ID
+      const id = tag[1];
+      if (!id || typeof id !== "string" || !id.trim()) {
+        continue;
+      }
+      
+      // Safe access to optional fields using direct array length checks
+      const relay = (tag.length > 2) ? tag[2] : undefined;
+      const marker = (tag.length > 3) ? tag[3] : undefined;
+      const pubkey = (tag.length > 4) ? tag[4] : undefined;
+      
+      const relayValue = (typeof relay === "string" && relay.trim()) ? relay : undefined;
+      const pubkeyValue = (typeof pubkey === "string" && pubkey.trim() && pubkey !== "") ? pubkey : undefined;
+      
+      if (marker === "root") {
+        root = { id, relay: relayValue, pubkey: pubkeyValue };
+      } else if (marker === "reply") {
+        reply = { id, relay: relayValue, pubkey: pubkeyValue };
+      } else if (marker === "mention") {
+        quotes.push({ id, relay: relayValue, pubkey: pubkeyValue });
+      } else {
+        unmarked.push({ id, relay: relayValue, pubkey: pubkeyValue });
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-10: Bounds checking error in thread parsing: ${error.message}`);
+      }
+      continue; // Skip invalid tags
     }
   }
 
   // Handle deprecated positional scheme if no marked tags were found
   if (!root && !reply && unmarked.length > 0) {
-    if (unmarked.length === 1) {
-      reply = unmarked[0];
-    } else {
-      root = unmarked[0];
-      reply = unmarked[unmarked.length - 1];
-      mentions.push(...unmarked.slice(1, -1));
+    try {
+      if (unmarked.length === 1) {
+        reply = unmarked[0];
+      } else {
+        root = unmarked[0];
+        reply = unmarked[unmarked.length - 1];
+        
+        // Safe slice operation for mentions
+        if (unmarked.length > 2) {
+          mentions.push(...unmarked.slice(1, -1));
+        }
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        console.warn(`NIP-10: Bounds checking error in positional parsing: ${error.message}`);
+      }
     }
   } else {
     mentions.push(...unmarked);

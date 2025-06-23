@@ -5,6 +5,11 @@ import { getUnixTime } from "../utils/time";
 import { isValidPublicKeyPoint } from "../nip44";
 import { isValidRelayUrl } from "../nip19";
 import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
+import { 
+  validateArrayAccess, 
+  safeArrayAccess,
+  SecurityValidationError
+} from "../utils/security-validator";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
 // Adjust the import path if necessary.
 
@@ -178,13 +183,25 @@ export function parseContactsFromEvent(
 
   // Use shared validators for pubkeys and relay URLs
   event.tags.forEach((tag, tagIndex) => {
-    if (tag[0] === "p" && typeof tag[1] === "string") {
+    try {
+      // Bounds check for basic tag structure
+      if (!validateArrayAccess(tag, 0) || safeArrayAccess(tag, 0) !== "p") {
+        return; // Skip non-p tags
+      }
+
+      // Safe access to tag[1] (pubkey)
+      const pubkeyValue = safeArrayAccess(tag, 1);
+      if (typeof pubkeyValue !== "string") {
+        addWarning('invalid_pubkey', `Invalid p tag structure: pubkey at index 1 must be a string`, String(pubkeyValue), { tagIndex });
+        return;
+      }
+
       // Normalize to lowercase first to accept legacy uppercase pubkeys
-      const normalizedPubkey = tag[1].toLowerCase();
+      const normalizedPubkey = pubkeyValue.toLowerCase();
 
       // Validate that the public key is a valid curve point on secp256k1
       if (!isValidPublicKeyPoint(normalizedPubkey)) {
-        addWarning('invalid_pubkey', `Invalid public key (not a valid curve point): ${tag[1]}`, tag[1], { tagIndex });
+        addWarning('invalid_pubkey', `Invalid public key (not a valid curve point): ${pubkeyValue}`, pubkeyValue, { tagIndex });
         return; // Skip invalid keys
       }
 
@@ -199,9 +216,11 @@ export function parseContactsFromEvent(
         pubkey: normalizedPubkey,
       };
       
-      if (typeof tag[2] === "string" && tag[2].length > 0) {
+      // Safe access to tag[2] (relay URL) - optional
+      const relayUrlValue = safeArrayAccess(tag, 2);
+      if (typeof relayUrlValue === "string" && relayUrlValue.length > 0) {
         // Trim and canonicalize the relay URL (lowercase scheme + host) for consistency
-        const trimmedRelayUrl = tag[2].trim();
+        const trimmedRelayUrl = relayUrlValue.trim();
         if (trimmedRelayUrl.length > 0) {
           // Require the tag value itself to include a valid ws:// or wss:// scheme.
           // This prevents "naked" hostnames from being auto-upgraded and accepted.
@@ -209,7 +228,7 @@ export function parseContactsFromEvent(
 
           if (!hasWebSocketScheme) {
             // Treat as invalid and keep relayUrl undefined but retain petname.
-            addWarning('invalid_relay_url', `Invalid relay URL (missing ws/wss scheme): ${tag[2]}`, tag[2], { 
+            addWarning('invalid_relay_url', `Invalid relay URL (missing ws/wss scheme): ${relayUrlValue}`, relayUrlValue, { 
               pubkey: normalizedPubkey, 
               tagIndex 
             });
@@ -224,7 +243,7 @@ export function parseContactsFromEvent(
             if (canonicalUrl && isValidRelayUrl(canonicalUrl)) {
               contact.relayUrl = canonicalUrl;
             } else {
-              addWarning('invalid_relay_url', `Invalid relay URL (failed validation): ${tag[2]}`, tag[2], { 
+              addWarning('invalid_relay_url', `Invalid relay URL (failed validation): ${relayUrlValue}`, relayUrlValue, { 
                 pubkey: normalizedPubkey, 
                 tagIndex 
               });
@@ -233,11 +252,18 @@ export function parseContactsFromEvent(
         }
       }
       
-      if (typeof tag[3] === "string" && tag[3].length > 0) {
-        contact.petname = tag[3];
+      // Safe access to tag[3] (petname) - optional
+      const petnameValue = safeArrayAccess(tag, 3);
+      if (typeof petnameValue === "string" && petnameValue.length > 0) {
+        contact.petname = petnameValue;
       }
       
       parsedContacts.push(contact);
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        addWarning('invalid_pubkey', `Bounds checking error: ${error.message}`, '', { tagIndex });
+      }
+      // Continue processing other tags
     }
   });
   

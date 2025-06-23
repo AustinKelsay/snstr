@@ -12,6 +12,10 @@ import { UnsignedEvent } from "../nip01/event";
 import { createEvent } from "../nip01/event";
 import { isValidRelayUrl } from "../nip19";
 import { normalizeRelayUrl as normalizeRelayUrlUtil, RelayUrlValidationError } from "../utils/relayUrl";
+import { 
+  safeArrayAccess,
+  SecurityValidationError 
+} from "../utils/security-validator";
 
 import {
   RelayDiscoveryEventOptions,
@@ -273,8 +277,11 @@ export function parseRelayDiscoveryEvent(
   event: NostrEvent,
 ): ParsedRelayDiscoveryEvent | null {
   if (event.kind !== RELAY_DISCOVERY_KIND) return null;
+
   const data: ParsedRelayDiscoveryEvent = {
     relay: "",
+    network: "",
+    relayType: "",
     supportedNips: [],
     requirements: [],
     topics: [],
@@ -285,49 +292,66 @@ export function parseRelayDiscoveryEvent(
     // Skip invalid tags - must be array with at least 2 elements
     if (!Array.isArray(tag) || tag.length < 2) continue;
     
-    switch (tag[0]) {
-      case "d":
-        data.relay = tag[1];
-        break;
-      case "n":
-        data.network = tag[1];
-        break;
-      case "T":
-        data.relayType = tag[1];
-        break;
-      case "N":
-        data.supportedNips.push(tag[1]);
-        break;
-      case "R":
-        data.requirements.push(tag[1]);
-        break;
-      case "t":
-        data.topics.push(tag[1]);
-        break;
-      case "k":
-        data.kinds.push(tag[1]);
-        break;
-      case "g":
-        data.geohash = tag[1];
-        break;
-      case "rtt-open":
-        // Parse integer with bounds checking
-        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
-          data.rttOpen = parseInt(tag[1], 10);
+    try {
+      // Safe access to tag elements with bounds checking
+      const tagName = safeArrayAccess(tag, 0);
+      const tagValue = safeArrayAccess(tag, 1);
+      
+      if (typeof tagName !== "string" || typeof tagValue !== "string") {
+        continue; // Skip malformed tags
+      }
+      
+      switch (tagName) {
+        case "d":
+          data.relay = tagValue;
+          break;
+        case "n":
+          data.network = tagValue;
+          break;
+        case "T":
+          data.relayType = tagValue;
+          break;
+        case "N":
+          data.supportedNips.push(tagValue);
+          break;
+        case "R":
+          data.requirements.push(tagValue);
+          break;
+        case "t":
+          data.topics.push(tagValue);
+          break;
+        case "k":
+          data.kinds.push(tagValue);
+          break;
+        case "g":
+          data.geohash = tagValue;
+          break;
+        case "rtt-open":
+          // Parse integer with bounds checking
+          if (tagValue && !isNaN(parseInt(tagValue, 10))) {
+            data.rttOpen = parseInt(tagValue, 10);
+          }
+          break;
+        case "rtt-read":
+          // Parse integer with bounds checking
+          if (tagValue && !isNaN(parseInt(tagValue, 10))) {
+            data.rttRead = parseInt(tagValue, 10);
+          }
+          break;
+        case "rtt-write":
+          // Parse integer with bounds checking
+          if (tagValue && !isNaN(parseInt(tagValue, 10))) {
+            data.rttWrite = parseInt(tagValue, 10);
+          }
+          break;
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        // Log bounds checking error but continue processing
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn(`NIP-66: Bounds checking error in tag processing: ${error.message}`);
         }
-        break;
-      case "rtt-read":
-        // Parse integer with bounds checking
-        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
-          data.rttRead = parseInt(tag[1], 10);
-        }
-        break;
-      case "rtt-write":
-        // Parse integer with bounds checking
-        if (tag[1] && !isNaN(parseInt(tag[1], 10))) {
-          data.rttWrite = parseInt(tag[1], 10);
-        }
-        break;
+      }
     }
   }
 
@@ -474,119 +498,141 @@ export function parseRelayMonitorAnnouncement(
     // Skip invalid tags - must be array with at least 2 elements
     if (!Array.isArray(tag) || tag.length < 2) continue;
     
-    switch (tag[0]) {
-      case "frequency":
-        // Enhanced frequency parsing with validation and error handling
-        try {
-          // Check if frequency value exists
-          if (!tag[1] || tag[1].trim() === "") {
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Skipping frequency tag with missing or empty value: ${JSON.stringify(tag)}`);
-            }
-            break;
-          }
-          
-          // Parse the frequency value
-          const frequencyValue = parseInt(tag[1], 10);
-          
-          // Validate parsed number
-          if (isNaN(frequencyValue)) {
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Skipping frequency tag with invalid numeric value: "${tag[1]}"`);
-            }
-            break;
-          }
-          
-          // Define acceptable bounds for frequency values (in seconds)
-          const MIN_FREQUENCY = 1; // 1 second minimum
-          const MAX_FREQUENCY = 86400; // 24 hours maximum (86,400 seconds)
-          
-          // Check bounds
-          if (frequencyValue < MIN_FREQUENCY || frequencyValue > MAX_FREQUENCY) {
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Skipping frequency tag with value out of bounds (${MIN_FREQUENCY}-${MAX_FREQUENCY}s): ${frequencyValue}s`);
-            }
-            break;
-          }
-          
-          // All validation passed - set frequency
-          data.frequency = frequencyValue;
-          
-        } catch (error) {
-          // Handle any unexpected errors during parsing
-          if (typeof console !== 'undefined' && console.warn) {
-            console.warn(`NIP-66: Error parsing frequency tag ${JSON.stringify(tag)}:`, error);
-          }
-          // Continue processing other tags
-        }
-        break;
-      case "timeout":
-        // Enhanced timeout parsing with comprehensive validation and error handling
-        try {
-          // Check if timeout value exists
-          if (!tag[1] || tag[1].trim() === "") {
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Skipping timeout tag with missing or empty value: ${JSON.stringify(tag)}`);
-            }
-            break;
-          }
-          
-          // Parse the timeout value
-          const timeoutValue = parseInt(tag[1], 10);
-          
-          // Validate parsed number
-          if (isNaN(timeoutValue)) {
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Skipping timeout tag with invalid numeric value: "${tag[1]}"`);
-            }
-            break;
-          }
-          
-          // Define acceptable bounds for timeout values (in milliseconds)
-          const MIN_TIMEOUT = 1; // 1ms minimum
-          const MAX_TIMEOUT = 300000; // 5 minutes maximum (300,000ms)
-          
-          // Check bounds
-          if (timeoutValue < MIN_TIMEOUT || timeoutValue > MAX_TIMEOUT) {
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Skipping timeout tag with value out of bounds (${MIN_TIMEOUT}-${MAX_TIMEOUT}ms): ${timeoutValue}ms`);
-            }
-            break;
-          }
-          
-          // Validate test parameter if present
-          let testParam: string | undefined = undefined;
-          if (tag.length > 2) {
-            if (typeof tag[2] === "string" && tag[2].trim() !== "") {
-              testParam = tag[2];
-            } else if (tag[2] !== undefined) {
+    try {
+      // Safe access to tag elements with bounds checking
+      const tagName = safeArrayAccess(tag, 0);
+      const tagValue = safeArrayAccess(tag, 1);
+      
+      if (typeof tagName !== "string") {
+        continue; // Skip malformed tags
+      }
+      
+      switch (tagName) {
+        case "frequency":
+          // Enhanced frequency parsing with validation and error handling
+          try {
+            // Check if frequency value exists
+            if (!tagValue || (typeof tagValue === "string" && tagValue.trim() === "")) {
               if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping timeout tag with invalid test parameter: ${JSON.stringify(tag[2])}`);
+                console.warn(`NIP-66: Skipping frequency tag with missing or empty value: ${JSON.stringify(tag)}`);
               }
               break;
             }
+            
+            // Parse the frequency value
+            const frequencyValue = parseInt(String(tagValue), 10);
+            
+            // Validate parsed number
+            if (isNaN(frequencyValue)) {
+              if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`NIP-66: Skipping frequency tag with invalid numeric value: "${tagValue}"`);
+              }
+              break;
+            }
+            
+            // Define acceptable bounds for frequency values (in seconds)
+            const MIN_FREQUENCY = 1; // 1 second minimum
+            const MAX_FREQUENCY = 86400; // 24 hours maximum (86,400 seconds)
+            
+            // Check bounds
+            if (frequencyValue < MIN_FREQUENCY || frequencyValue > MAX_FREQUENCY) {
+              if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`NIP-66: Skipping frequency tag with value out of bounds (${MIN_FREQUENCY}-${MAX_FREQUENCY}s): ${frequencyValue}s`);
+              }
+              break;
+            }
+            
+            // All validation passed - set frequency
+            data.frequency = frequencyValue;
+            
+          } catch (error) {
+            // Handle any unexpected errors during parsing
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Error parsing frequency tag ${JSON.stringify(tag)}:`, error);
+            }
+            // Continue processing other tags
           }
-          
-          // All validation passed - add to timeouts
-          data.timeouts.push({
-            value: timeoutValue,
-            test: testParam,
-          });
-          
-        } catch (error) {
-          // Handle any unexpected errors during parsing
-          if (typeof console !== 'undefined' && console.warn) {
-            console.warn(`NIP-66: Error parsing timeout tag ${JSON.stringify(tag)}:`, error);
+          break;
+        case "timeout":
+          // Enhanced timeout parsing with comprehensive validation and error handling
+          try {
+            // Check if timeout value exists
+            if (!tagValue || (typeof tagValue === "string" && tagValue.trim() === "")) {
+              if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`NIP-66: Skipping timeout tag with missing or empty value: ${JSON.stringify(tag)}`);
+              }
+              break;
+            }
+            
+            // Parse the timeout value
+            const timeoutValue = parseInt(String(tagValue), 10);
+            
+            // Validate parsed number
+            if (isNaN(timeoutValue)) {
+              if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`NIP-66: Skipping timeout tag with invalid numeric value: "${tagValue}"`);
+              }
+              break;
+            }
+            
+            // Define acceptable bounds for timeout values (in milliseconds)
+            const MIN_TIMEOUT = 1; // 1ms minimum
+            const MAX_TIMEOUT = 300000; // 5 minutes maximum (300,000ms)
+            
+            // Check bounds
+            if (timeoutValue < MIN_TIMEOUT || timeoutValue > MAX_TIMEOUT) {
+              if (typeof console !== 'undefined' && console.warn) {
+                console.warn(`NIP-66: Skipping timeout tag with value out of bounds (${MIN_TIMEOUT}-${MAX_TIMEOUT}ms): ${timeoutValue}ms`);
+              }
+              break;
+            }
+            
+            // Validate test parameter if present - safe access to tag[2]
+            let testParam: string | undefined = undefined;
+            if (tag.length > 2) {
+              const testValue = tag[2];
+              if (typeof testValue === "string" && testValue.trim() !== "") {
+                testParam = testValue;
+              } else if (testValue !== undefined) {
+                if (typeof console !== 'undefined' && console.warn) {
+                  console.warn(`NIP-66: Skipping timeout tag with invalid test parameter: ${JSON.stringify(testValue)}`);
+                }
+                break;
+              }
+            }
+            
+            // All validation passed - add to timeouts
+            data.timeouts.push({
+              value: timeoutValue,
+              test: testParam,
+            });
+            
+          } catch (error) {
+            // Handle any unexpected errors during parsing
+            if (typeof console !== 'undefined' && console.warn) {
+              console.warn(`NIP-66: Error parsing timeout tag ${JSON.stringify(tag)}:`, error);
+            }
+            // Continue processing other tags
           }
-          // Continue processing other tags
+          break;
+        case "c":
+          if (typeof tagValue === "string") {
+            data.checks.push(tagValue);
+          }
+          break;
+        case "g":
+          if (typeof tagValue === "string") {
+            data.geohash = tagValue;
+          }
+          break;
+      }
+    } catch (error) {
+      if (error instanceof SecurityValidationError) {
+        // Log bounds checking error but continue processing
+        if (typeof console !== 'undefined' && console.warn) {
+          console.warn(`NIP-66: Bounds checking error in tag processing: ${error.message}`);
         }
-        break;
-      case "c":
-        data.checks.push(tag[1]);
-        break;
-      case "g":
-        data.geohash = tag[1];
-        break;
+      }
     }
   }
 
