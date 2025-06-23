@@ -99,18 +99,13 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
 
   for (const tag of eTags) {
     try {
-      // Safe access to tag elements with bounds checking
-      if (!validateArrayAccess(tag, 1)) {
-        continue; // Skip invalid tags
+      // Skip tags that don't have an ID or have invalid ID
+      const id = tag[1];
+      if (!id || typeof id !== "string" || !id.trim()) {
+        continue;
       }
       
-      const id = safeArrayAccess(tag, 1);
-      if (typeof id !== "string" || !id.trim()) {
-        continue; // Skip tags with invalid IDs
-      }
-      
-      // Safe access to optional fields - don't use validateArrayAccess for optional fields
-      // Instead, check the array length directly to avoid false bounds checking errors
+      // Safe access to optional fields using direct array length checks
       const relay = (tag.length > 2) ? tag[2] : undefined;
       const marker = (tag.length > 3) ? tag[3] : undefined;
       const pubkey = (tag.length > 4) ? tag[4] : undefined;

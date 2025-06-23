@@ -895,11 +895,11 @@ export function getTagValue<T extends keyof TagValues>(
   tagName: T,
   index: number = 0,
 ): string | undefined {
-  // Apply security validation for bounds checking
-  if (index < 0 || index > SECURITY_LIMITS.MAX_TAG_SIZE) {
+  // Validate index is not negative
+  if (index < 0) {
     throw new SecurityValidationError(
-      `Tag index out of bounds: ${index} (must be between 0 and ${SECURITY_LIMITS.MAX_TAG_SIZE})`,
-      'INDEX_OUT_OF_BOUNDS',
+      `Tag index must be non-negative: ${index}`,
+      'INVALID_TAG_INDEX',
       'index'
     );
   }
@@ -909,7 +909,7 @@ export function getTagValue<T extends keyof TagValues>(
     return undefined;
   }
   
-  // Safe bounds checking before array access
+  // Safe bounds checking against actual tag length
   const targetIndex = index + 1; // +1 because tag[0] is the tag name
   if (targetIndex >= tag.length) {
     return undefined;

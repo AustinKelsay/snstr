@@ -28,8 +28,6 @@ import {
   SignMessageResponseResult,
 } from "./types";
 import { 
-  validateArrayAccess, 
-  safeArrayAccess,
   SecurityValidationError 
 } from "../utils/security-validator";
 
@@ -425,9 +423,9 @@ export class NostrWalletConnectClient {
     const pTags = event.tags
       .filter((tag) => tag[0] === "p")
       .map((tag) => tag[1]);
-    const eTags = event.tags
-      .filter((tag) => tag[0] === "e")
-      .map((tag) => tag[1]);
+    const eTags = event.tags.filter((tag) => 
+      Array.isArray(tag) && tag.length > 0 && tag[0] === "e"
+    );
 
     console.log(`Event p-tags: ${pTags.join(", ")}`);
     console.log(`Event e-tags: ${eTags.join(", ")}`);
@@ -561,14 +559,10 @@ export class NostrWalletConnectClient {
         `Validated response of type: ${(response as NIP47Response).result_type}`,
       );
 
-      // Find the e-tag which references the request event ID with safe access
-      const eTags = event.tags.filter((tag) => {
-        try {
-          return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "e";
-        } catch {
-          return false;
-        }
-      });
+      // Find the e-tag which references the request event ID
+      const eTags = event.tags.filter((tag) => 
+        Array.isArray(tag) && tag.length > 0 && tag[0] === "e"
+      );
       
       if (eTags.length === 0) {
         console.warn(
@@ -577,27 +571,13 @@ export class NostrWalletConnectClient {
         return;
       }
 
-      // Get the request ID from the e-tag with bounds checking
+      // Get the request ID from the e-tag with simplified bounds checking
       let requestId: string;
       try {
-        if (!validateArrayAccess(eTags, 0)) {
-          console.warn("No valid e-tags found");
-          return;
-        }
+        // Direct access after initial validation ensures presence and structure
+        const firstETag = eTags[0];
+        requestId = firstETag[1]; // e-tags have structure ["e", requestId, ...]
         
-        const firstETag = safeArrayAccess(eTags, 0);
-        if (!Array.isArray(firstETag) || !validateArrayAccess(firstETag, 1)) {
-          console.warn("Invalid e-tag structure");
-          return;
-        }
-        
-        const tagValue = safeArrayAccess(firstETag, 1);
-        if (typeof tagValue !== "string") {
-          console.warn("E-tag value is not a string");
-          return;
-        }
-        
-        requestId = tagValue;
       } catch (error) {
         if (error instanceof SecurityValidationError) {
           console.warn(`NIP-47: Bounds checking error in e-tag processing: ${error.message}`);
@@ -670,28 +650,14 @@ export class NostrWalletConnectClient {
         this.supportedMethods = event.content.trim().split(" ");
       }
 
-      // Extract supported notifications from tags with safe access
-      try {
-        const notificationsTag = event.tags.find(
-          (tag: string[]) => {
-            try {
-              return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "notifications";
-            } catch {
-              return false;
-            }
-          }
-        );
-        
-        if (notificationsTag && validateArrayAccess(notificationsTag, 1)) {
-          const notificationsValue = safeArrayAccess(notificationsTag, 1);
-          if (typeof notificationsValue === "string") {
-            this.supportedNotifications = notificationsValue.split(" ");
-          }
-        }
-      } catch (error) {
-        if (error instanceof SecurityValidationError) {
-          console.warn(`NIP-47: Bounds checking error in notifications parsing: ${error.message}`);
-        }
+      // Extract supported notifications from tags
+      const notificationsTag = event.tags.find(
+        (tag: string[]) => 
+          Array.isArray(tag) && tag.length > 1 && tag[0] === "notifications"
+      );
+      
+      if (notificationsTag && typeof notificationsTag[1] === "string") {
+        this.supportedNotifications = notificationsTag[1].split(" ");
       }
 
       console.log("Discovered capabilities:");

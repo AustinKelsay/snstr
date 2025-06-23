@@ -1,11 +1,6 @@
 import { NostrEvent } from "../types/nostr";
 import { isValidRelayUrl } from "../nip19/secure";
 import { getUnixTime } from "../utils/time";
-import { 
-  validateArrayAccess, 
-  safeArrayAccess,
-  SecurityValidationError 
-} from "../utils/security-validator";
 
 /** Relay list entry describing read/write preferences */
 export interface RelayListEntry {
@@ -75,47 +70,30 @@ export function parseRelayList(event: RelayListEvent): RelayListEntry[] {
   const result: RelayListEntry[] = [];
   
   for (const tag of event.tags) {
-    try {
-      // Safe access to tag elements with bounds checking
-      if (!validateArrayAccess(tag, 0) || !validateArrayAccess(tag, 1)) {
-        continue; // Skip invalid tags
-      }
+    // Validate tag structure and content in a single condition
+    if (Array.isArray(tag) && 
+        tag.length >= 2 && 
+        tag[0] === "r" && 
+        typeof tag[1] === "string" && 
+        tag[1].trim()) {
       
-      if (safeArrayAccess(tag, 0) !== "r") {
-        continue; // Skip non-r tags
-      }
-      
-      const url = safeArrayAccess(tag, 1);
-      if (typeof url !== "string" || !url.trim()) {
-        continue; // Skip invalid URLs
-      }
-      
-      // For optional fields, check array length instead of using bounds validation
-      // This prevents false positives when optional fields don't exist
-      const marker = (tag.length > 2) ? tag[2] : undefined;
+      const url = tag[1].trim();
+      const marker = (tag.length > 2 && typeof tag[2] === "string") ? tag[2].trim().toLowerCase() : undefined;
       
       // Default to both read and write if no marker specified
       let read = true;
       let write = true;
       
-      if (typeof marker === "string" && marker.trim()) {
-        const markerValue = marker.trim().toLowerCase();
-        if (markerValue === "read") {
-          read = true;
-          write = false;
-        } else if (markerValue === "write") {
-          read = false;
-          write = true;
-        }
-        // If marker exists but isn't "read" or "write", keep defaults (both true)
+      if (marker === "read") {
+        read = true;
+        write = false;
+      } else if (marker === "write") {
+        read = false;
+        write = true;
       }
+      // If marker exists but isn't "read" or "write", keep defaults (both true)
       
-      result.push({ url: url.trim(), read, write });
-    } catch (error) {
-      if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-65: Bounds checking error in relay list parsing: ${error.message}`);
-      }
-      continue; // Skip invalid tags
+      result.push({ url, read, write });
     }
   }
   

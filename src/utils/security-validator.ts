@@ -41,8 +41,10 @@ export const SECURITY_LIMITS = {
   MAX_CREATED_AT: 4102444800, // Jan 1, 2100
   MIN_LIMIT: 0,
   MAX_LIMIT: 5000,
-  MIN_SINCE: 946684800,
-  MAX_UNTIL: 4102444800,
+  MIN_SINCE: 946684800, // Jan 1, 2000
+  MAX_SINCE: 4102444800, // Jan 1, 2100
+  MIN_UNTIL: 946684800, // Jan 1, 2000
+  MAX_UNTIL: 4102444800, // Jan 1, 2100
   
   // Memory limits for relay buffers (prevent memory exhaustion)
   MAX_RELAY_EVENT_BUFFERS: 1000, // Maximum number of event buffers per relay
@@ -340,12 +342,23 @@ export function validateFilter(filter: unknown): Filter {
   
   // Validate since
   if (f.since !== undefined) {
-    validatedFilter.since = validateNumber(f.since, SECURITY_LIMITS.MIN_SINCE, SECURITY_LIMITS.MAX_UNTIL, 'filter.since');
+    validatedFilter.since = validateNumber(f.since, SECURITY_LIMITS.MIN_SINCE, SECURITY_LIMITS.MAX_SINCE, 'filter.since');
   }
   
   // Validate until
   if (f.until !== undefined) {
-    validatedFilter.until = validateNumber(f.until, SECURITY_LIMITS.MIN_SINCE, SECURITY_LIMITS.MAX_UNTIL, 'filter.until');
+    validatedFilter.until = validateNumber(f.until, SECURITY_LIMITS.MIN_UNTIL, SECURITY_LIMITS.MAX_UNTIL, 'filter.until');
+  }
+  
+  // Validate logical relationship between since and until
+  if (validatedFilter.since !== undefined && validatedFilter.until !== undefined) {
+    if (validatedFilter.since >= validatedFilter.until) {
+      throw new SecurityValidationError(
+        `Filter 'since' (${validatedFilter.since}) must be strictly less than 'until' (${validatedFilter.until})`,
+        'INVALID_TIME_RANGE',
+        'filter.since_until'
+      );
+    }
   }
   
   // Validate search
