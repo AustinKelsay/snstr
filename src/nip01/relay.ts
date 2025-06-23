@@ -19,7 +19,7 @@ import { Logger, LogLevel } from "../nip46/utils/logger";
 import { 
   SECURITY_LIMITS,
   getSecureRandom,
-  getSecureRandomHex
+  secureRandomHex
 } from "../utils/security-validator";
 
 export class Relay {
@@ -535,7 +535,7 @@ export class Relay {
     options: SubscriptionOptions = {},
   ): string {
     // Generate cryptographically secure subscription ID
-    const id = getSecureRandomHex(8);
+    const id = secureRandomHex(16);
 
     // Validate filters before proceeding
     const fieldsToValidate: (keyof Filter)[] = ["ids", "authors", "#e", "#p"];

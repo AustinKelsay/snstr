@@ -62,16 +62,38 @@ export class SecurityValidationError extends Error {
   }
 }
 
-// Secure random number generation
-export function secureRandom(): number {
+/**
+ * Core secure random generation implementation
+ * Detects available crypto sources and provides unified interface
+ * @returns Object with crypto methods for consistent random generation
+ * @throws SecurityValidationError if no secure random source is available
+ */
+function getSecureCrypto(): {
+  randomBytes: (length: number) => Uint8Array;
+  randomUint32: () => number;
+} {
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    return array[0] / (0xffffffff + 1);
+    // Browser crypto API
+    return {
+      randomBytes: (length: number) => {
+        const array = new Uint8Array(length);
+        crypto.getRandomValues(array);
+        return array;
+      },
+      randomUint32: () => {
+        const array = new Uint32Array(1);
+        crypto.getRandomValues(array);
+        return array[0];
+      }
+    };
   } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    // Node.js crypto API
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const nodeCrypto = require('crypto');
-    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+    return {
+      randomBytes: (length: number) => nodeCrypto.randomBytes(length),
+      randomUint32: () => nodeCrypto.randomInt(0, 0x100000000)
+    };
   } else {
     throw new SecurityValidationError(
       'No secure random source available',
@@ -82,24 +104,29 @@ export function secureRandom(): number {
 
 // Secure random bytes generation
 export function secureRandomBytes(length: number): Uint8Array {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint8Array(length);
-    crypto.getRandomValues(array);
-    return array;
-  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const nodeCrypto = require('crypto');
-    return nodeCrypto.randomBytes(length);
-  } else {
-    throw new SecurityValidationError(
-      'No secure random source available',
-      'NO_SECURE_RANDOM'
-    );
-  }
+  const crypto = getSecureCrypto();
+  return crypto.randomBytes(length);
 }
 
-// Secure random string generation (for IDs, nonces, etc.)
+/**
+ * Generate a secure random hex string
+ * Used for subscription IDs, nonces, and other cryptographic identifiers
+ * @param length Number of hex characters to generate (not bytes)
+ * @returns A secure random hex string of the specified length
+ * @throws SecurityValidationError if secure random generation is not available
+ * 
+ * @example
+ * secureRandomHex(16) // Returns 16-character hex string (8 bytes)
+ * secureRandomHex(64) // Returns 64-character hex string (32 bytes)
+ */
 export function secureRandomHex(length: number): string {
+  if (typeof length !== 'number' || length < 1 || !Number.isInteger(length)) {
+    throw new SecurityValidationError(
+      'Length must be a positive integer',
+      'INVALID_LENGTH'
+    );
+  }
+  
   const bytes = secureRandomBytes(Math.ceil(length / 2));
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0'))
     .join('')
@@ -113,52 +140,11 @@ export function secureRandomHex(length: number): string {
  * @throws SecurityValidationError if secure random generation is not available
  */
 export function getSecureRandom(): number {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    return array[0] / (0xffffffff + 1);
-  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const nodeCrypto = require('crypto');
-    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
-  } else {
-    throw new SecurityValidationError(
-      'Secure random number generation not available',
-      'NO_SECURE_RANDOM'
-    );
-  }
+  const crypto = getSecureCrypto();
+  return crypto.randomUint32() / (0xffffffff + 1);
 }
 
-/**
- * Generate a secure random hex string of specified byte length
- * Used for subscription IDs and other cryptographic identifiers
- * @param byteLength Number of bytes to generate (hex string will be 2x this length)
- * @returns A secure random hex string
- * @throws SecurityValidationError if secure random generation is not available
- */
-export function getSecureRandomHex(byteLength: number): string {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint8Array(byteLength);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const nodeCrypto = require('crypto');
-      return nodeCrypto.randomBytes(byteLength).toString('hex');
-    } catch (error) {
-      throw new SecurityValidationError(
-        'Secure random number generation not available for hex string generation',
-        'NO_SECURE_RANDOM'
-      );
-    }
-  } else {
-    throw new SecurityValidationError(
-      'Secure random number generation not available for hex string generation',
-      'NO_SECURE_RANDOM'
-    );
-  }
-}
+
 
 // Input sanitization
 export function sanitizeString(input: unknown, maxLength: number = SECURITY_LIMITS.MAX_STRING_LENGTH): string {
@@ -605,15 +591,9 @@ export function secureBufferZero(buffer: Uint8Array): void {
   
   try {
     // First fill with cryptographically secure random data
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-      crypto.getRandomValues(buffer);
-    } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-      // Node.js environment
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const nodeCrypto = require('crypto');
-      const randomBytes = nodeCrypto.randomBytes(buffer.length);
-      buffer.set(randomBytes);
-    }
+    const secureCrypto = getSecureCrypto();
+    const randomData = secureCrypto.randomBytes(buffer.length);
+    buffer.set(randomData);
     
     // Then overwrite with zeros
     buffer.fill(0);
@@ -690,29 +670,43 @@ export function enforceMemoryLimits<K, V>(
     return;
   }
   
-  const excessCount = map.size - maxSize;
+  const initialSize = map.size;
+  let removedCount = 0;
   
   if (accessTracker && accessTracker.size > 0) {
-    // Remove least recently accessed items
+    // Remove least recently accessed items first
     const entries = Array.from(accessTracker.entries());
     entries.sort((a, b) => a[1] - b[1]); // Sort by access time (oldest first)
     
-    for (let i = 0; i < excessCount && i < entries.length; i++) {
-      const [key] = entries[i];
-      map.delete(key);
-      accessTracker.delete(key);
-    }
-  } else {
-    // Remove oldest entries (FIFO)
-    const keys = Array.from(map.keys());
-    for (let i = 0; i < excessCount; i++) {
-      if (keys[i] !== undefined) {
-        map.delete(keys[i]);
+    for (const [key] of entries) {
+      if (map.size <= maxSize) {
+        break; // Already at target size
+      }
+      if (map.delete(key)) {
+        accessTracker.delete(key);
+        removedCount++;
       }
     }
   }
   
-  if (typeof console !== 'undefined' && console.warn) {
-    console.warn(`Security: Enforced memory limit for ${context}, removed ${excessCount} entries`);
+  // If still over limit, remove oldest entries from the map (FIFO)
+  if (map.size > maxSize) {
+    const keys = Array.from(map.keys());
+    for (const key of keys) {
+      if (map.size <= maxSize) {
+        break; // Reached target size
+      }
+      if (map.delete(key)) {
+        // Also remove from accessTracker if it exists
+        if (accessTracker) {
+          accessTracker.delete(key);
+        }
+        removedCount++;
+      }
+    }
+  }
+  
+  if (typeof console !== 'undefined' && console.warn && removedCount > 0) {
+    console.warn(`Security: Enforced memory limit for ${context}, removed ${removedCount} entries (${initialSize} -> ${map.size})`);
   }
 } 
