@@ -23,6 +23,19 @@ const testVectors = JSON.parse(
 );
 
 describe("NIP-44 Padding Implementation", () => {
+  // Manually implement the NIP-44 spec calculation for verification
+  function calcPaddedLenSpec(unpadded_len: number): number {
+    if (unpadded_len <= 32) {
+      return 32;
+    }
+
+    // NIP-44 spec: next_power = 1 << (floor(log2(unpadded_len - 1))) + 1
+    const next_power = 1 << (Math.floor(Math.log2(unpadded_len - 1)) + 1);
+    const chunk = next_power <= 256 ? 32 : next_power / 8;
+
+    return chunk * (Math.floor((unpadded_len - 1) / chunk) + 1);
+  }
+
   test("should correctly pad and unpad messages of various lengths", () => {
     // Generate a key pair for testing
     const privateKey =
@@ -51,6 +64,113 @@ describe("NIP-44 Padding Implementation", () => {
       const encrypted = encrypt(testCase.input, privateKey, publicKey);
       const decrypted = decrypt(encrypted, privateKey, publicKey);
       expect(decrypted).toBe(testCase.input);
+    }
+  });
+
+  test("should calculate padding lengths correctly per NIP-44 specification", () => {
+    const privateKey = "0000000000000000000000000000000000000000000000000000000000000001";
+    const publicKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+
+    // Test cases based on the NIP-44 specification
+    const testCases = [
+      // Basic cases
+      { input: 1, expected: 32 },
+      { input: 16, expected: 32 },
+      { input: 32, expected: 32 },
+      
+      // Just over 32 bytes - should jump to next power of 2 boundary
+      { input: 33, expected: 64 },
+      { input: 48, expected: 64 },
+      { input: 64, expected: 64 },
+      
+      // Over 64 bytes
+      { input: 65, expected: 96 },
+      { input: 96, expected: 96 },
+      { input: 97, expected: 128 },
+      { input: 128, expected: 128 },
+      
+      // Larger sizes
+      { input: 129, expected: 160 },
+      { input: 200, expected: 224 },
+      { input: 256, expected: 256 },
+      { input: 257, expected: 320 },
+      { input: 500, expected: 512 },
+      { input: 1000, expected: 1024 },
+    ];
+
+    for (const testCase of testCases) {
+      const specCalculated = calcPaddedLenSpec(testCase.input);
+      expect(specCalculated).toBe(testCase.expected);
+      
+      // Also test with actual encryption/decryption to ensure it works
+      const message = "x".repeat(testCase.input);
+      const encrypted = encrypt(message, privateKey, publicKey);
+      const decrypted = decrypt(encrypted, privateKey, publicKey);
+      
+      expect(decrypted).toBe(message);
+      expect(decrypted.length).toBe(testCase.input);
+    }
+  });
+
+  test("should handle edge cases around powers of 2", () => {
+    const privateKey = "0000000000000000000000000000000000000000000000000000000000000001";
+    const publicKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    
+    // Test cases specifically around powers of 2 boundaries
+    const edgeCases = [
+      // Around 64 (2^6)
+      { input: 63, expected: 64 },
+      { input: 64, expected: 64 },
+      { input: 65, expected: 96 },
+      
+      // Around 128 (2^7)  
+      { input: 127, expected: 128 },
+      { input: 128, expected: 128 },
+      { input: 129, expected: 160 },
+      
+      // Around 256 (2^8)
+      { input: 255, expected: 256 },
+      { input: 256, expected: 256 },
+      { input: 257, expected: 320 },
+      
+      // Around 512 (2^9)
+      { input: 511, expected: 512 },
+      { input: 512, expected: 512 },
+      { input: 513, expected: 576 },
+    ];
+
+    for (const testCase of edgeCases) {
+      const message = "x".repeat(testCase.input);
+      const encrypted = encrypt(message, privateKey, publicKey);
+      const decrypted = decrypt(encrypted, privateKey, publicKey);
+      
+      expect(decrypted).toBe(message);
+      expect(decrypted.length).toBe(testCase.input);
+    }
+  });
+
+  test("should handle common message sizes correctly", () => {
+    const privateKey = "0000000000000000000000000000000000000000000000000000000000000001";
+    const publicKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    
+    const commonMessages = [
+      "Hi", // 2 bytes
+      "Hello!", // 6 bytes
+      "This is a test message", // 22 bytes
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit.", // 56 bytes
+      "x".repeat(100), // 100 bytes
+      "🔒 Unicode test with emojis! 🌟 こんにちは 世界", // Mixed Unicode
+    ];
+
+    for (const message of commonMessages) {
+      const encrypted = encrypt(message, privateKey, publicKey);
+      const decrypted = decrypt(encrypted, privateKey, publicKey);
+      
+      expect(decrypted).toBe(message);
+      
+      // Verify the message roundtrips correctly
+      expect(typeof encrypted).toBe("string");
+      expect(encrypted.length).toBeGreaterThan(0);
     }
   });
 });

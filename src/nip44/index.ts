@@ -21,20 +21,16 @@ const MIN_SUPPORTED_VERSION = 0;
 // Maximum supported version for decryption (for future extensibility)
 const MAX_SUPPORTED_VERSION = 2;
 
-// Version-specific constants
-// NIP-44 v0: No official spec, assuming similar to v1/v2 for now but may need adjustment
-// Based on some implementations, v0 might have used a different key derivation or primitives.
-// For now, we'll assume sizes are consistent with v2 for nonce/mac if not specified,
-// but this needs verification if v0/v1 had different defined sizes.
-// The NIP-44 document implies v0 and v1 SHOULD be supported for decryption.
-// NIP-44 states "v2 uses a 32-byte nonce" and "v2 uses HMAC-SHA256 (32-byte tags)"
-// It doesn't explicitly state nonce/MAC sizes for v0/v1.
-// We will assume they are the same as v2 unless specified otherwise.
-// TODO: Verify NIP-44 v0 and v1 nonce and MAC sizes.
-// For now, using 32 for all, as per common practice and lack of specific contrary info in NIP-44 for v0/v1.
-// NIP-44 (Decryption, point 2) specifies for v0/v1 decryption:
-// "The `message_nonce` is 32 bytes, `mac` is 32 bytes."
-// This implementation uses these mandated sizes for v0/v1 decryption.
+// NIP-44 Version-specific constants
+// Per NIP-44 specification (Decryption, point 4): 
+// "Implementations MUST be able to decrypt versions 0 and 1 for compatibility, 
+// using the same algorithms as above [i.e., version 2's algorithms] with the respective version byte. 
+// The `message_nonce` is 32 bytes, `mac` is 32 bytes."
+//
+// This confirms that all versions (0, 1, 2) use:
+// - 32-byte nonces
+// - 32-byte MAC tags
+// - Same cryptographic algorithms (ChaCha20, HMAC-SHA256, HKDF with "nip44-v2" salt)
 export const NONCE_SIZE_V0 = 32;
 export const NONCE_SIZE_V1 = 32;
 export const NONCE_SIZE_V2 = 32;
@@ -61,36 +57,47 @@ const MAX_DECODED_PAYLOAD_LENGTH = 65603; // Maximum decoded payload length
 // const MIN_PAYLOAD_SIZE = MIN_CIPHERTEXT_SIZE + MAC_SIZE;
 // const MIN_BASE64_LENGTH = Math.ceil((MIN_PAYLOAD_SIZE * 4) / 3); // Minimum valid base64 length
 
-// Conversion utilities
+// RFC 4648 compliant Base64 implementation with proper environment detection
+// NIP-44 spec requires: "Base64 ([RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648), with padding)"
 function base64Encode(bytes: Uint8Array): string {
-  // Check if we're in a browser environment
-  if (typeof globalThis !== 'undefined' && typeof globalThis.btoa === 'function') {
-    // Browser environment: use btoa with binary string conversion
-    return globalThis.btoa(String.fromCharCode(...bytes));
-  } else if (typeof Buffer !== 'undefined') {
-    // Node.js environment: use Buffer
-    return Buffer.from(bytes).toString("base64");
-  } else {
-    // Fallback: manual base64 encoding
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    let result = '';
-    let i = 0;
-    
-    while (i < bytes.length) {
-      const a = bytes[i++];
-      const b = i < bytes.length ? bytes[i++] : 0;
-      const c = i < bytes.length ? bytes[i++] : 0;
-      
-      const bitmap = (a << 16) | (b << 8) | c;
-      
-      result += chars.charAt((bitmap >> 18) & 63);
-      result += chars.charAt((bitmap >> 12) & 63);
-      result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
-      result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+  // Try browser environment first (most common)
+  if (typeof globalThis?.btoa === 'function') {
+    try {
+      // Browser environment: use btoa with binary string conversion
+      return globalThis.btoa(String.fromCharCode(...bytes));
+    } catch (error) {
+      // Fall through to Node.js or manual implementation
     }
-    
-    return result;
   }
+  
+  // Try Node.js environment
+  if (typeof Buffer !== 'undefined') {
+    try {
+      return Buffer.from(bytes).toString("base64");
+    } catch (error) {
+      // Fall through to manual implementation
+    }
+  }
+  
+  // Manual RFC 4648 compliant base64 encoding
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+  let i = 0;
+  
+  while (i < bytes.length) {
+    const a = bytes[i++];
+    const b = i < bytes.length ? bytes[i++] : 0;
+    const c = i < bytes.length ? bytes[i++] : 0;
+    
+    const bitmap = (a << 16) | (b << 8) | c;
+    
+    result += chars.charAt((bitmap >> 18) & 63);
+    result += chars.charAt((bitmap >> 12) & 63);
+    result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
+    result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+  }
+  
+  return result;
 }
 
 // Base64 validation regex - compiled once for efficiency
@@ -109,9 +116,8 @@ function base64Decode(str: string): Uint8Array {
     throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
   }
   
-  // Check if we're in a browser environment
-  if (typeof globalThis !== 'undefined' && typeof globalThis.atob === 'function') {
-    // Browser environment: use atob and convert to Uint8Array
+  // Try browser environment first (most common)
+  if (typeof globalThis?.atob === 'function') {
     try {
       const binaryString = globalThis.atob(str);
       const bytes = new Uint8Array(binaryString.length);
@@ -122,53 +128,59 @@ function base64Decode(str: string): Uint8Array {
     } catch (error) {
       throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
     }
-  } else if (typeof Buffer !== 'undefined') {
-    // Node.js environment: use Buffer
-    return new Uint8Array(Buffer.from(str, "base64"));
-  } else {
-    // Fallback: manual base64 decoding
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-    const lookup = new Array(256).fill(-1);
-    
-    // Build lookup table
-    for (let i = 0; i < chars.length; i++) {
-      lookup[chars.charCodeAt(i)] = i;
-    }
-    lookup['='.charCodeAt(0)] = 0; // Padding character
-    
-    const len = str.length;
-    let bufferLength = Math.floor(len * 0.75);
-    if (str[len - 1] === '=') {
-      bufferLength--;
-      if (str[len - 2] === '=') {
-        bufferLength--;
-      }
-    }
-    
-    const bytes = new Uint8Array(bufferLength);
-    let p = 0;
-    
-    for (let i = 0; i < len; i += 4) {
-      const encoded1 = lookup[str.charCodeAt(i)];
-      const encoded2 = lookup[str.charCodeAt(i + 1)];
-      const encoded3 = lookup[str.charCodeAt(i + 2)];
-      const encoded4 = lookup[str.charCodeAt(i + 3)];
-      
-      if (encoded1 === -1 || encoded2 === -1 || encoded3 === -1 || encoded4 === -1) {
-        throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
-      }
-      
-      bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
-      if (p < bufferLength) {
-        bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
-      }
-      if (p < bufferLength) {
-        bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
-      }
-    }
-    
-    return bytes;
   }
+  
+  // Try Node.js environment
+  if (typeof Buffer !== 'undefined') {
+    try {
+      return new Uint8Array(Buffer.from(str, "base64"));
+    } catch (error) {
+      throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
+    }
+  }
+  
+  // Fallback: manual RFC 4648 compliant base64 decoding
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const lookup = new Array(256).fill(-1);
+  
+  // Build lookup table
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+  }
+  lookup['='.charCodeAt(0)] = 0; // Padding character
+  
+  const len = str.length;
+  let bufferLength = Math.floor(len * 0.75);
+  if (str[len - 1] === '=') {
+    bufferLength--;
+    if (str[len - 2] === '=') {
+      bufferLength--;
+    }
+  }
+  
+  const bytes = new Uint8Array(bufferLength);
+  let p = 0;
+  
+  for (let i = 0; i < len; i += 4) {
+    const encoded1 = lookup[str.charCodeAt(i)];
+    const encoded2 = lookup[str.charCodeAt(i + 1)];
+    const encoded3 = lookup[str.charCodeAt(i + 2)];
+    const encoded4 = lookup[str.charCodeAt(i + 3)];
+    
+    if (encoded1 === -1 || encoded2 === -1 || encoded3 === -1 || encoded4 === -1) {
+      throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
+    }
+    
+    bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
+    if (p < bufferLength) {
+      bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    }
+    if (p < bufferLength) {
+      bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
+    }
+  }
+  
+  return bytes;
 }
 
 /**
@@ -184,7 +196,7 @@ function calcPaddedLen(unpadded_len: number): number {
     return 32;
   }
 
-  const nextPower = 1 << Math.floor(Math.log2(unpadded_len - 1) + 1);
+  const nextPower = 1 << (Math.floor(Math.log2(unpadded_len - 1)) + 1);
   const chunk = nextPower <= 256 ? 32 : nextPower / 8;
 
   return chunk * (Math.floor((unpadded_len - 1) / chunk) + 1);
@@ -546,6 +558,36 @@ export function hmacWithAAD(
 
   // Concatenate the nonce (AAD) with the ciphertext, then calculate HMAC-SHA256
   return hmac(sha256, key, concatBytes(aad, message));
+}
+
+/**
+ * Securely wipe a buffer by overwriting it with random bytes, then zeros
+ * This helps prevent sensitive data from remaining in memory
+ * 
+ * Note: This is a best-effort approach. Modern JavaScript engines and
+ * garbage collectors may still leave copies of sensitive data in memory.
+ * For maximum security in high-risk environments, consider using
+ * dedicated secure memory management libraries.
+ * 
+ * @param buffer - The buffer to wipe
+ */
+export function secureWipe(buffer: Uint8Array): void {
+  if (buffer.length === 0) return;
+  
+  try {
+    // First overwrite with random data (harder to recover)
+    const randomData = randomBytes(buffer.length);
+    buffer.set(randomData);
+    
+    // Then overwrite with zeros
+    buffer.fill(0);
+    
+    // Clear the random data buffer as well
+    randomData.fill(0);
+  } catch (error) {
+    // Fallback: just zero the buffer
+    buffer.fill(0);
+  }
 }
 
 /**

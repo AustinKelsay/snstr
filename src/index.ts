@@ -73,6 +73,7 @@ export {
   generateNonce as generateNIP44Nonce,
   getSharedSecret as getNIP44SharedSecret,
   constantTimeEqual as constantTimeEqual,
+  secureWipe as secureWipeNIP44,
 } from "./nip44";
 
 // Export NIP-17 utilities
