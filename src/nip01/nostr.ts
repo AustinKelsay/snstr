@@ -32,6 +32,41 @@ import {
   SECURITY_LIMITS
 } from "../utils/security-validator";
 
+/**
+ * Rate limit configuration for different operation types
+ */
+export interface RateLimitConfig {
+  /** Maximum number of operations allowed */
+  limit: number;
+  /** Time window in milliseconds */
+  windowMs: number;
+}
+
+/**
+ * Configuration options for rate limiting different Nostr operations
+ */
+export interface NostrRateLimits {
+  /** Rate limits for subscription operations */
+  subscribe?: RateLimitConfig;
+  /** Rate limits for publish operations */
+  publish?: RateLimitConfig;
+  /** Rate limits for fetch operations */
+  fetch?: RateLimitConfig;
+}
+
+/**
+ * Options for Nostr client configuration
+ */
+export interface NostrOptions {
+  /** Options to pass to each Relay instance */
+  relayOptions?: {
+    connectionTimeout?: number;
+    bufferFlushDelay?: number;
+  };
+  /** Rate limiting configuration for different operations */
+  rateLimits?: NostrRateLimits;
+}
+
 // Types for Nostr.on() callbacks (user-provided)
 export type NostrConnectCallback = (relay: string) => void;
 export type NostrErrorCallback = (relay: string, error: unknown) => void;
@@ -111,10 +146,10 @@ export class Nostr {
   };
 
   // Rate limiting configuration
-  private readonly RATE_LIMITS = {
-    SUBSCRIBE: { limit: 50, windowMs: 60000 }, // 50 subscriptions per minute
-    PUBLISH: { limit: 100, windowMs: 60000 }, // 100 publications per minute
-    FETCH: { limit: 200, windowMs: 60000 }, // 200 fetches per minute
+  private RATE_LIMITS: {
+    SUBSCRIBE: RateLimitConfig;
+    PUBLISH: RateLimitConfig;
+    FETCH: RateLimitConfig;
   };
 
   /**
@@ -122,17 +157,21 @@ export class Nostr {
    * @param relayUrls List of relay URLs to connect to
    * @param options Client options
    * @param options.relayOptions Options to pass to each Relay instance
+   * @param options.rateLimits Rate limiting configuration for different operations
    */
   constructor(
     relayUrls: string[] = [],
-    options?: {
-      relayOptions?: {
-        connectionTimeout?: number;
-        bufferFlushDelay?: number;
-      };
-    },
+    options?: NostrOptions
   ) {
     this.relayOptions = options?.relayOptions;
+    
+    // Initialize rate limits with defaults or user-provided values
+    this.RATE_LIMITS = {
+      SUBSCRIBE: options?.rateLimits?.subscribe || { limit: 50, windowMs: 60000 }, // 50 subscriptions per minute
+      PUBLISH: options?.rateLimits?.publish || { limit: 100, windowMs: 60000 }, // 100 publications per minute
+      FETCH: options?.rateLimits?.fetch || { limit: 200, windowMs: 60000 }, // 200 fetches per minute
+    };
+    
     this.logger = new Logger({
       prefix: "Nostr",
       level: LogLevel.WARN,
@@ -339,6 +378,75 @@ export class Nostr {
 
   public getPublicKey(): string | undefined {
     return this.publicKey;
+  }
+
+  /**
+   * Get current rate limit configuration
+   * @returns Current rate limit settings
+   */
+  public getRateLimits(): NostrRateLimits {
+    return {
+      subscribe: { ...this.RATE_LIMITS.SUBSCRIBE },
+      publish: { ...this.RATE_LIMITS.PUBLISH },
+      fetch: { ...this.RATE_LIMITS.FETCH }
+    };
+  }
+
+  /**
+   * Update rate limit configuration
+   * @param rateLimits New rate limit settings (partial updates allowed)
+   */
+  public updateRateLimits(rateLimits: NostrRateLimits): void {
+    if (rateLimits.subscribe) {
+      this.RATE_LIMITS.SUBSCRIBE = { ...rateLimits.subscribe };
+      // Reset rate limit state to prevent issues with changed limits
+      this.subscribeRateLimit = {
+        count: 0,
+        windowStart: Date.now(),
+        blocked: false
+      };
+    }
+    
+    if (rateLimits.publish) {
+      this.RATE_LIMITS.PUBLISH = { ...rateLimits.publish };
+      this.publishRateLimit = {
+        count: 0,
+        windowStart: Date.now(),
+        blocked: false
+      };
+    }
+    
+    if (rateLimits.fetch) {
+      this.RATE_LIMITS.FETCH = { ...rateLimits.fetch };
+      this.fetchRateLimit = {
+        count: 0,
+        windowStart: Date.now(),
+        blocked: false
+      };
+    }
+  }
+
+  /**
+   * Reset rate limit counters for all operations
+   */
+  public resetRateLimits(): void {
+    this.subscribeRateLimit = {
+      count: 0,
+      windowStart: Date.now(),
+      blocked: false
+    };
+    
+    this.publishRateLimit = {
+      count: 0,
+      windowStart: Date.now(),
+      blocked: false
+    };
+    
+    this.fetchRateLimit = {
+      count: 0,
+      windowStart: Date.now(),
+      blocked: false
+    };
   }
 
   public async publishEvent(
