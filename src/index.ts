@@ -4,7 +4,7 @@ export { Relay } from "./nip01/relay";
 export { useWebSocketImplementation, resetWebSocketImplementation } from "./utils/websocket";
 export { RelayPool } from "./nip01/relayPool";
 
-// Export types from nip01/nostr.ts (Callback types)
+// Export types from nip01/nostr.ts (Callback types and configuration)
 export type {
   NostrConnectCallback,
   NostrErrorCallback,
@@ -13,6 +13,9 @@ export type {
   NostrClosedCallback,
   NostrAuthCallback,
   NostrEventCallback,
+  RateLimitConfig,
+  NostrRateLimits,
+  NostrOptions,
 } from "./nip01/nostr";
 
 // Export types

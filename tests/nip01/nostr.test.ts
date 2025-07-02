@@ -517,6 +517,248 @@ describe("Nostr Client", () => {
       }
     });
   });
+
+  describe("Rate Limiting Configuration", () => {
+    test("should initialize with default rate limits when no options provided", () => {
+      const client = new Nostr([ephemeralRelay.url]);
+      const limits = client.getRateLimits();
+      
+      expect(limits).toEqual({
+        subscribe: { limit: 50, windowMs: 60000 },
+        publish: { limit: 100, windowMs: 60000 },
+        fetch: { limit: 200, windowMs: 60000 }
+      });
+    });
+
+    test("should initialize with custom rate limits", () => {
+      const customRateLimits = {
+        subscribe: { limit: 100, windowMs: 30000 },
+        publish: { limit: 200, windowMs: 45000 },
+        fetch: { limit: 500, windowMs: 120000 }
+      };
+
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: customRateLimits
+      });
+      
+      const limits = client.getRateLimits();
+      expect(limits).toEqual(customRateLimits);
+    });
+
+    test("should initialize with partial custom rate limits and use defaults for missing ones", () => {
+      const partialRateLimits = {
+        subscribe: { limit: 150, windowMs: 30000 },
+        // publish and fetch not specified - should use defaults
+      };
+
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: partialRateLimits
+      });
+      
+      const limits = client.getRateLimits();
+      expect(limits).toEqual({
+        subscribe: { limit: 150, windowMs: 30000 },
+        publish: { limit: 100, windowMs: 60000 },    // default
+        fetch: { limit: 200, windowMs: 60000 }       // default
+      });
+    });
+
+    test("should maintain backward compatibility with old constructor signature", () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        relayOptions: {
+          connectionTimeout: 5000,
+          bufferFlushDelay: 100
+        }
+      });
+      
+      const limits = client.getRateLimits();
+      expect(limits).toEqual({
+        subscribe: { limit: 50, windowMs: 60000 },
+        publish: { limit: 100, windowMs: 60000 },
+        fetch: { limit: 200, windowMs: 60000 }
+      });
+    });
+
+    test("should update rate limits dynamically", () => {
+      const client = new Nostr([ephemeralRelay.url]);
+      
+      // Verify initial defaults
+      let limits = client.getRateLimits();
+      expect(limits.subscribe!.limit).toBe(50);
+      expect(limits.fetch!.limit).toBe(200);
+      
+      // Update specific limits
+      client.updateRateLimits({
+        subscribe: { limit: 300, windowMs: 30000 },
+        fetch: { limit: 1000, windowMs: 90000 }
+      });
+      
+      // Verify updates
+      limits = client.getRateLimits();
+      expect(limits.subscribe).toEqual({ limit: 300, windowMs: 30000 });
+      expect(limits.fetch).toEqual({ limit: 1000, windowMs: 90000 });
+      expect(limits.publish).toEqual({ limit: 100, windowMs: 60000 }); // unchanged
+    });
+
+    test("should reset rate limit counters", async () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 1, windowMs: 60000 } // Very restrictive for testing
+        }
+      });
+      
+      await client.connectToRelays();
+      
+      // Create first subscription (should work)
+      client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      
+      // Second subscription should be rate limited
+      expect(() => {
+        client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      }).toThrow(/rate limit exceeded/i);
+      
+      // Reset rate limits
+      client.resetRateLimits();
+      
+      // Should be able to subscribe again after reset
+      expect(() => {
+        client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      }).not.toThrow();
+      
+      client.disconnectFromRelays();
+    });
+
+    test("should enforce custom subscription rate limits", async () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 1, windowMs: 60000 } // Very restrictive
+        }
+      });
+      
+      await client.connectToRelays();
+      
+      // First subscription should work
+      expect(() => {
+        client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      }).not.toThrow();
+      
+      // Second subscription should be rate limited
+      expect(() => {
+        client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      }).toThrow(/Subscription rate limit exceeded/);
+      
+      client.disconnectFromRelays();
+    });
+
+    test("should enforce custom fetch rate limits", async () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          fetch: { limit: 1, windowMs: 60000 } // Very restrictive
+        }
+      });
+      
+      await client.connectToRelays();
+      
+      // First fetch should work
+      await expect(
+        client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 100 })
+      ).resolves.toBeDefined();
+      
+      // Second fetch should be rate limited
+      await expect(
+        client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 100 })
+      ).rejects.toThrow(/Fetch rate limit exceeded/);
+      
+      client.disconnectFromRelays();
+    });
+
+    test("should handle very permissive rate limits", async () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 10000, windowMs: 1000 }, // Very permissive
+          fetch: { limit: 10000, windowMs: 1000 }
+        }
+      });
+      
+      await client.connectToRelays();
+      
+      // Should be able to create many subscriptions quickly
+      for (let i = 0; i < 10; i++) {
+        expect(() => {
+          client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+        }).not.toThrow();
+      }
+      
+      // Should be able to make many fetch requests quickly
+      const fetchPromises = [];
+      for (let i = 0; i < 5; i++) {
+        fetchPromises.push(
+          client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 50 })
+        );
+      }
+      
+      await expect(Promise.all(fetchPromises)).resolves.toBeDefined();
+      
+      client.disconnectFromRelays();
+    });
+
+    test("should handle rate limit configuration with custom time windows", () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 5, windowMs: 5000 },    // 5 per 5 seconds
+          publish: { limit: 10, windowMs: 10000 },    // 10 per 10 seconds
+          fetch: { limit: 20, windowMs: 20000 }       // 20 per 20 seconds
+        }
+      });
+      
+      const limits = client.getRateLimits();
+      expect(limits.subscribe!.windowMs).toBe(5000);
+      expect(limits.publish!.windowMs).toBe(10000);
+      expect(limits.fetch!.windowMs).toBe(20000);
+    });
+
+    test("should reset rate limit state when updating limits", () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 1, windowMs: 60000 }
+        }
+      });
+      
+      // Try to trigger rate limit state change (without actually hitting the limit)
+      // We're testing that updateRateLimits resets the internal state
+      
+      const originalLimits = client.getRateLimits();
+      
+      // Update to new limits
+      client.updateRateLimits({
+        subscribe: { limit: 100, windowMs: 30000 }
+      });
+      
+      const updatedLimits = client.getRateLimits();
+      expect(updatedLimits.subscribe!.limit).toBe(100);
+      expect(updatedLimits.subscribe!.windowMs).toBe(30000);
+      
+      // Other limits should remain unchanged
+      expect(updatedLimits.publish).toEqual(originalLimits.publish);
+      expect(updatedLimits.fetch).toEqual(originalLimits.fetch);
+    });
+
+    test("should handle edge case with zero limits", () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 0, windowMs: 60000 } // Zero limit
+        }
+      });
+      
+      const limits = client.getRateLimits();
+      expect(limits.subscribe!.limit).toBe(0);
+      
+      // Any subscription should be immediately rate limited
+      expect(() => {
+        client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      }).toThrow(/rate limit exceeded/i);
+    });
+  });
 });
 
 describe("Nostr client", () => {

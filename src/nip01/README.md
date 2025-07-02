@@ -315,12 +315,212 @@ Use direct Relay class when you need:
 - **Fine-grained control**: Detailed control over individual relay behavior
 - **Custom connection handling**: Specific reconnection or error handling logic
 
+## Rate Limiting
+
+SNSTR includes built-in rate limiting to prevent abuse and DoS attacks on Nostr relays. Rate limits are enforced on three main operations: subscriptions, publishes, and fetch operations.
+
+### Default Rate Limits
+
+- **Subscriptions**: 50 per minute
+- **Publishes**: 100 per minute  
+- **Fetches**: 200 per minute
+
+### Configuring Rate Limits
+
+#### Basic Configuration
+
+```typescript
+import { Nostr, NostrOptions } from 'snstr';
+
+const options: NostrOptions = {
+  rateLimits: {
+    subscribe: { limit: 100, windowMs: 60000 }, // 100 subscriptions per minute
+    publish: { limit: 200, windowMs: 60000 },   // 200 publishes per minute
+    fetch: { limit: 500, windowMs: 60000 }      // 500 fetches per minute
+  }
+};
+
+const client = new Nostr(['wss://relay.nostr.band'], options);
+```
+
+#### Partial Configuration
+
+You can configure only specific limits; unspecified limits will use defaults:
+
+```typescript
+const client = new Nostr(['wss://relay.nostr.band'], {
+  rateLimits: {
+    subscribe: { limit: 200, windowMs: 30000 } // Only configure subscriptions
+    // publish and fetch will use default limits
+  }
+});
+```
+
+#### Custom Time Windows
+
+Adjust the time window for different use cases:
+
+```typescript
+const client = new Nostr(['wss://relay.nostr.band'], {
+  rateLimits: {
+    subscribe: { limit: 10, windowMs: 5000 },   // 10 per 5 seconds
+    publish: { limit: 50, windowMs: 30000 },    // 50 per 30 seconds
+    fetch: { limit: 100, windowMs: 10000 }      // 100 per 10 seconds
+  }
+});
+```
+
+### Dynamic Rate Limit Management
+
+#### Getting Current Configuration
+
+```typescript
+const currentLimits = client.getRateLimits();
+console.log('Current rate limits:', currentLimits);
+// Output: { subscribe: { limit: 50, windowMs: 60000 }, ... }
+```
+
+#### Updating Limits at Runtime
+
+```typescript
+// Update specific limits
+client.updateRateLimits({
+  subscribe: { limit: 300, windowMs: 60000 },
+  fetch: { limit: 1000, windowMs: 120000 }
+});
+
+// Partial updates are supported
+client.updateRateLimits({
+  publish: { limit: 150, windowMs: 45000 }
+});
+```
+
+#### Resetting Rate Limit Counters
+
+```typescript
+// Reset all rate limit counters
+client.resetRateLimits();
+
+// Useful when you want to clear the current usage without waiting for the window to expire
+```
+
+### Rate Limit Error Handling
+
+When rate limits are exceeded, a `SecurityValidationError` is thrown:
+
+```typescript
+import { Nostr } from 'snstr';
+
+const client = new Nostr(['wss://relay.nostr.band'], {
+  rateLimits: {
+    subscribe: { limit: 1, windowMs: 60000 } // Very restrictive for demo
+  }
+});
+
+await client.connectToRelays();
+
+try {
+  // First subscription works
+  client.subscribe([{ kinds: [1], limit: 10 }], (event) => {
+    console.log('Event:', event);
+  });
+  
+  // Second subscription will be rate limited
+  client.subscribe([{ kinds: [1], limit: 10 }], (event) => {
+    console.log('Event:', event);
+  });
+} catch (error) {
+  if (error.name === 'SecurityValidationError') {
+    console.error('Rate limit exceeded:', error.message);
+    // Handle rate limiting gracefully
+  }
+}
+```
+
+### Common Rate Limiting Scenarios
+
+#### High-Frequency Applications
+
+For applications that need to make many requests quickly:
+
+```typescript
+const client = new Nostr(['wss://relay.nostr.band'], {
+  rateLimits: {
+    subscribe: { limit: 500, windowMs: 60000 },
+    publish: { limit: 300, windowMs: 60000 },
+    fetch: { limit: 1000, windowMs: 60000 }
+  }
+});
+```
+
+#### Conservative/Public Services
+
+For public services or when you want to be conservative:
+
+```typescript
+const client = new Nostr(['wss://relay.nostr.band'], {
+  rateLimits: {
+    subscribe: { limit: 20, windowMs: 60000 },
+    publish: { limit: 30, windowMs: 60000 },
+    fetch: { limit: 50, windowMs: 60000 }
+  }
+});
+```
+
+#### Development/Testing
+
+For development where you want more permissive limits:
+
+```typescript
+const client = new Nostr(['wss://relay.nostr.band'], {
+  rateLimits: {
+    subscribe: { limit: 1000, windowMs: 60000 },
+    publish: { limit: 1000, windowMs: 60000 },
+    fetch: { limit: 2000, windowMs: 60000 }
+  }
+});
+```
+
+### Rate Limiting with RelayPool
+
+RelayPool uses the same rate limiting mechanism, applied per operation across all relays:
+
+```typescript
+import { RelayPool } from 'snstr/nip01/relayPool';
+
+const pool = new RelayPool(
+  ['wss://relay.nostr.band', 'wss://nos.lol'],
+  {
+    rateLimits: {
+      subscribe: { limit: 100, windowMs: 60000 }
+    }
+  }
+);
+
+// Rate limits apply to the total operations across all relays
+await pool.subscribe(
+  ['wss://relay.nostr.band', 'wss://nos.lol'], // 2 relays
+  [{ kinds: [1], limit: 10 }], // Each relay gets the same subscription
+  (event, relayUrl) => console.log(`Event from ${relayUrl}`)
+);
+// This counts as 2 subscription operations against the rate limit
+```
+
+### Best Practices
+
+1. **Set Appropriate Limits**: Configure limits based on your application's actual needs
+2. **Handle Errors Gracefully**: Always catch and handle `SecurityValidationError` exceptions
+3. **Monitor Usage**: Use `getRateLimits()` to monitor current configuration
+4. **Reset When Needed**: Use `resetRateLimits()` sparingly, typically only in error recovery scenarios
+5. **Consider Relay Policies**: Some relays may have their own rate limiting independent of client-side limits
+
 ## Security Considerations
 
 - Private keys are never exposed outside the library
 - Event validation follows NIP-01 requirements strictly
 - All inputs are validated to prevent injection attacks
 - WebSocket connections are properly managed to prevent leaks
+- Rate limiting prevents accidental DoS attacks on relays
 
 ## Advanced Usage
 

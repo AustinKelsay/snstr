@@ -10,6 +10,7 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - [Supported NIPs](#supported-nips)
 - [Installation](#installation)
 - [Basic Usage](#basic-usage)
+- [Configuring Rate Limits](#configuring-rate-limits)
 - [Documentation](#documentation)
 - [Examples](#examples)
 - [Testing](#testing)
@@ -146,6 +147,27 @@ async function main() {
 
 main().catch(console.error);
 ```
+
+### Configuring Rate Limits
+
+SNSTR includes built-in rate limiting to prevent abuse. Configure custom limits when creating a client:
+
+```typescript
+import { Nostr } from "snstr";
+
+const client = new Nostr(["wss://relay.nostr.band"], {
+  rateLimits: {
+    subscribe: { limit: 100, windowMs: 60000 }, // 100 per minute (default: 50)
+    publish: { limit: 200, windowMs: 60000 },   // 200 per minute (default: 100)
+    fetch: { limit: 500, windowMs: 60000 }      // 500 per minute (default: 200)
+  }
+});
+
+// Update limits dynamically
+client.updateRateLimits({ subscribe: { limit: 150, windowMs: 30000 } });
+```
+
+See [NIP-01 documentation](src/nip01/README.md#rate-limiting) for detailed configuration options.
 
 ### Using RelayPool for Multi-Relay Management
 
@@ -325,6 +347,7 @@ npm run example:verbose         # Verbose logging
 npm run example:debug           # Debug logging
 npm run example:custom-websocket # Custom WebSocket implementation
 npm run example:crypto          # Cryptographic functions
+npm run example:rate-limits     # Rate limit configuration demo
 
 # Run NIP-01 examples
 npm run example:nip01:event:ordering      # Event ordering demonstration

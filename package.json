@@ -2,8 +2,8 @@
   "name": "snstr",
   "version": "0.1.0",
   "description": "Simple Nostr Software Toolkit for Relays - A comprehensive TypeScript library for Nostr protocol implementation",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/snstr/index.js",
+  "types": "dist/snstr/index.d.ts",
   "scripts": {
     "// Build": "-------------- Build Commands --------------",
     "build": "rimraf dist && tsc",
@@ -64,6 +64,7 @@
     "example:custom-websocket": "ts-node examples/custom-websocket-example.ts",
     "example:crypto": "ts-node examples/crypto-demo.ts",
     "example:dm": "ts-node examples/nip04/direct-message.ts",
+    "example:rate-limits": "ts-node examples/rate-limit-configuration-example.ts",
     "// Example NIP-01": "-------------- NIP-01 Examples --------------",
     "example:nip01:event:ordering": "ts-node examples/nip01/event/event-ordering-demo.ts",
     "example:nip01:event:addressable": "ts-node examples/nip01/event/addressable-events.ts",
