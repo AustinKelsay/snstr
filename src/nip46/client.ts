@@ -49,7 +49,7 @@ export class NostrRemoteSignerClient {
     {
       originalRequestId: string;
       authUrl: string;
-      timeout: NodeJS.Timeout;
+      timeout: ReturnType<typeof setTimeout>;
       timestamp: number;
     }
   >();
@@ -74,7 +74,7 @@ export class NostrRemoteSignerClient {
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-CLIENT",
       includeTimestamp: true,
-      silent: process.env.NODE_ENV === "test", // Silent in test environment
+      silent: typeof process !== "undefined" && process.env?.NODE_ENV === "test", // Silent in test environment
     });
   }
 
@@ -728,7 +728,10 @@ export class NostrRemoteSignerClient {
       this.handleAuthTimeout(requestId);
     }, this.options.timeout || DEFAULT_TIMEOUT);
 
-    timeout.unref();
+    // Only call unref in Node.js environments
+    if (typeof timeout === 'object' && 'unref' in timeout) {
+      (timeout as NodeJS.Timeout).unref();
+    }
 
     this.pendingAuthChallenges.set(requestId, {
       originalRequestId: requestId,

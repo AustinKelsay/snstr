@@ -45,6 +45,7 @@ export { Logger, LogLevel } from "./utils/logger";
 
 export {
   generateRequestId,
+  initializeCrypto,
   createRequest,
   createSuccessResponse,
   createErrorResponse,

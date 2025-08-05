@@ -591,6 +591,7 @@ export class Relay {
     }
     this.subscriptions.delete(id);
     this.eventBuffers.delete(id); // Clean up the event buffer for this subscription
+    this.eventBufferAccessTimes.delete(id); // Clean up the access time tracking
 
     if (this.connected && this.ws) {
       const message = JSON.stringify(["CLOSE", id]);
@@ -1105,8 +1106,9 @@ export class Relay {
     // Sort the events according to NIP-01: newest first, then by lexical order of ID if same timestamp
     const sortedEvents = this.sortEvents(buffer);
 
-    // Reset the buffer to empty
-    this.eventBuffers.set(subscriptionId, []);
+    // Remove the buffer from the map instead of keeping an empty array
+    this.eventBuffers.delete(subscriptionId);
+    this.eventBufferAccessTimes.delete(subscriptionId);
 
     // Process all events
     for (const event of sortedEvents) {

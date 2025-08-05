@@ -134,6 +134,13 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
       return validateRelayUrl(relay);
     });
 
+    // Fail fast if all relay URLs are invalid
+    if (allRelays.length > 0 && relays.length === 0) {
+      throw new NIP46ConnectionError(
+        `All relay URLs in connection string are invalid. Provided relays: ${allRelays.join(", ")}`,
+      );
+    }
+
     // Validate secret token if present
     const secret = url.searchParams.get("secret") || undefined;
     if (secret && (secret.length < 8 || secret.length > 128)) {

@@ -356,7 +356,7 @@ export class NostrRelay {
 /* ================ [ Instance Class ] ================ */
 
 class ClientSession {
-  private readonly _sid: string;
+  private _sid: string;
   private readonly _relay: NostrRelay;
   private readonly _socket: WebSocket;
   private readonly _subs: Set<string>;
@@ -376,13 +376,33 @@ class ClientSession {
       process.versions.node
     ) {
       try {
+        // Try to use require for CommonJS environments
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const nodeCrypto = require("crypto");
         this._sid = nodeCrypto.randomBytes(3).toString("hex");
-      } catch (error) {
-        throw new Error(
-          "Secure random number generation not available for ephemeral relay session ID",
-        );
+      } catch (requireError) {
+        // If require fails (ESM environment), generate a temporary ID and
+        // schedule an async replacement
+        const tempArray = new Uint8Array(3);
+        // Use Math.random as temporary fallback
+        for (let i = 0; i < tempArray.length; i++) {
+          tempArray[i] = Math.floor(Math.random() * 256);
+        }
+        this._sid = Array.from(tempArray, (byte) =>
+          byte.toString(16).padStart(2, "0"),
+        ).join("");
+        
+        // Asynchronously replace with crypto-generated ID
+        import("crypto")
+          .then((nodeCrypto) => {
+            this._sid = nodeCrypto.randomBytes(3).toString("hex");
+          })
+          .catch(() => {
+            // Keep the Math.random generated ID if import fails
+            console.warn(
+              "Failed to import crypto module for session ID generation",
+            );
+          });
       }
     } else {
       throw new Error(
