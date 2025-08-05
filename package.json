@@ -117,6 +117,8 @@
     "example:nip47:client-service": "ts-node examples/nip47/basic-client-service.ts",
     "example:nip47:error-handling": "ts-node examples/nip47/error-handling-example.ts",
     "example:nip47:expiration": "ts-node examples/nip47/request-expiration-example.ts",
+    "example:nip47:nip44": "ts-node examples/nip47/nip44-encryption.ts",
+    "example:nip47:encryption-negotiation": "ts-node examples/nip47/encryption-negotiation.ts",
     "example:nip50": "ts-node examples/nip50/search-demo.ts",
     "example:nip57": "ts-node examples/nip57/basic-example.ts",
     "example:nip57:client": "ts-node examples/nip57/zap-client-example.ts",

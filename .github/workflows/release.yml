@@ -52,8 +52,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Run format check
-        run: npm run format
+      - name: Check formatting
+        run: npm run format -- --check
       
       - name: Run lint
         run: npm run lint
@@ -113,30 +113,26 @@ jobs:
       # Create GitHub Release
       - name: Create GitHub Release
         if: github.event.inputs.dry_run != 'true'
-        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name || format('v{0}', env.NEW_VERSION) }}
-          release_name: Release ${{ github.ref_name || format('v{0}', env.NEW_VERSION) }}
-          body: |
-            ## Changes
+        run: |
+          gh release create ${{ github.ref_name || format('v{0}', env.NEW_VERSION) }} \
+            --title "Release ${{ github.ref_name || format('v{0}', env.NEW_VERSION) }}" \
+            --notes "## Changes
             
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
             
             ## Installation
             
-            ```bash
+            \`\`\`bash
             npm install snstr@${{ env.TAG_VERSION || env.NEW_VERSION }}
-            ```
+            \`\`\`
             
             ## Package Info
             
             - **Version:** ${{ env.TAG_VERSION || env.NEW_VERSION }}
             - **Size:** [View on bundlephobia](https://bundlephobia.com/package/snstr@${{ env.TAG_VERSION || env.NEW_VERSION }})
-            - **Downloads:** [View on npm](https://www.npmjs.com/package/snstr)
-          draft: false
-          prerelease: false
+            - **Downloads:** [View on npm](https://www.npmjs.com/package/snstr)"
       
       - name: Notify Success
         if: success() && github.event.inputs.dry_run != 'true'

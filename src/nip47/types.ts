@@ -3,7 +3,14 @@ export enum NIP47EventKind {
   INFO = 13194,
   REQUEST = 23194,
   RESPONSE = 23195,
-  NOTIFICATION = 23196,
+  NOTIFICATION = 23196, // NIP-04 encrypted notifications
+  NOTIFICATION_NIP44 = 23197, // NIP-44 encrypted notifications
+}
+
+// Encryption schemes supported by NIP-47
+export enum NIP47EncryptionScheme {
+  NIP04 = "nip04",
+  NIP44_V2 = "nip44_v2",
 }
 
 // Methods defined in NIP-47
@@ -52,6 +59,7 @@ export enum NIP47ErrorCode {
   INVOICE_EXPIRED = "INVOICE_EXPIRED",
   NOT_FOUND = "NOT_FOUND",
   INTERNAL_ERROR = "INTERNAL_ERROR",
+  UNSUPPORTED_ENCRYPTION = "UNSUPPORTED_ENCRYPTION",
 
   // Request expiration (mentioned in spec)
   REQUEST_EXPIRED = "REQUEST_EXPIRED",
@@ -114,6 +122,7 @@ export const ERROR_CATEGORIES: Record<string, NIP47ErrorCategory> = {
   [NIP47ErrorCode.PUBLISH_FAILED]: NIP47ErrorCategory.NETWORK,
   [NIP47ErrorCode.ENCRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
   [NIP47ErrorCode.DECRYPTION_ERROR]: NIP47ErrorCategory.NETWORK,
+  [NIP47ErrorCode.UNSUPPORTED_ENCRYPTION]: NIP47ErrorCategory.NETWORK,
 
   [NIP47ErrorCode.INTERNAL_ERROR]: NIP47ErrorCategory.INTERNAL,
   [NIP47ErrorCode.NOT_INITIALIZED]: NIP47ErrorCategory.INTERNAL,
@@ -148,6 +157,8 @@ export const ERROR_RECOVERY_HINTS: Record<string, string> = {
     "Encryption error. Check encryption parameters",
   [NIP47ErrorCode.DECRYPTION_ERROR]:
     "Decryption error. Check if using correct keys",
+  [NIP47ErrorCode.UNSUPPORTED_ENCRYPTION]:
+    "Encryption scheme not supported by wallet service. Check supported schemes in info event",
   [NIP47ErrorCode.INVALID_INVOICE_FORMAT]:
     "Invoice format is invalid. Check the invoice",
   [NIP47ErrorCode.INVALID_AMOUNT]:
@@ -188,6 +199,11 @@ export interface NIP47ConnectionOptions {
    * List of relay URLs
    */
   relays: string[];
+  
+  /**
+   * Preferred encryption scheme (optional, defaults to NIP-44 if supported)
+   */
+  preferredEncryption?: NIP47EncryptionScheme;
 }
 
 // Base request interface
@@ -330,6 +346,7 @@ export interface GetInfoResponseResult {
   block_hash?: string;
   methods: string[];
   notifications?: string[];
+  encryption?: string[]; // Supported encryption schemes
 }
 
 export interface PaymentResponseResult {

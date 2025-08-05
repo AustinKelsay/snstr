@@ -241,6 +241,10 @@ export {
   NIP47Transaction,
   NIP47ConnectionOptions,
   TransactionType,
+  NIP47EncryptionScheme,
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
 } from "./nip47";
 
 // NIP-50 search utilities
