@@ -9,7 +9,11 @@
 import { NostrEvent } from "../types/nostr";
 import type { UnsignedEvent } from "../nip01/event";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
-import { generateKeypair, getPublicKey, verifySignature } from "../utils/crypto";
+import {
+  generateKeypair,
+  getPublicKey,
+  verifySignature,
+} from "../utils/crypto";
 import { createSignedEvent } from "../nip01/event";
 
 /**
@@ -19,19 +23,23 @@ import { createSignedEvent } from "../nip01/event";
 function randomTimestampInPast(): number {
   const twoDays = 2 * 24 * 60 * 60 * 1000;
   // Use secure random for gift wrap timing (security critical)
-const secureRandomValue = (() => {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    return array[0] / (0xffffffff + 1);
-  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const nodeCrypto = require('crypto');
-    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
-  }
-  throw new Error('No secure random source available for gift wrap timing');
-})();
-const offset = Math.floor(secureRandomValue * twoDays);
+  const secureRandomValue = (() => {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      return array[0] / (0xffffffff + 1);
+    } else if (
+      typeof process !== "undefined" &&
+      process.versions &&
+      process.versions.node
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const nodeCrypto = require("crypto");
+      return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+    }
+    throw new Error("No secure random source available for gift wrap timing");
+  })();
+  const offset = Math.floor(secureRandomValue * twoDays);
   return Math.floor((Date.now() - offset) / 1000);
 }
 

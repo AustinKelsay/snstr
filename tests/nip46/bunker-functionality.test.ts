@@ -9,9 +9,6 @@ import { LogLevel } from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { NostrEvent } from "../../src/types/nostr";
 
-
-
-
 describe("NIP-46 Bunker Functionality", () => {
   let relay: NostrRelay;
   let relayUrl: string;
@@ -189,12 +186,14 @@ describe("NIP-46 Bunker Functionality", () => {
           expect(kind1Event.kind).toBe(1);
 
           // Should not be able to sign kind 4 events
-          await expect(client.signEvent({
-            kind: 4,
-            content: "Kind 4 DM",
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [["p", "recipient"]],
-          })).rejects.toThrow(/permission|not authorized/i);
+          await expect(
+            client.signEvent({
+              kind: 4,
+              content: "Kind 4 DM",
+              created_at: Math.floor(Date.now() / 1000),
+              tags: [["p", "recipient"]],
+            }),
+          ).rejects.toThrow(/permission|not authorized/i);
         } finally {
           await client.disconnect().catch(() => {});
         }
@@ -300,8 +299,8 @@ describe("NIP-46 Bunker Functionality", () => {
 
           // All events should be different but valid
           expect(events.length).toBe(3);
-          expect(new Set(events.map(e => e.id)).size).toBe(3); // All unique IDs
-          expect(new Set(events.map(e => e.sig)).size).toBe(3); // All unique signatures
+          expect(new Set(events.map((e) => e.id)).size).toBe(3); // All unique IDs
+          expect(new Set(events.map((e) => e.sig)).size).toBe(3); // All unique signatures
 
           // All signatures should be valid
           for (const event of events) {
@@ -379,102 +378,109 @@ describe("NIP-46 Bunker Functionality", () => {
       expect(() => {
         new NostrRemoteSignerBunker({
           userPubkey: "", // Empty string
-          relays: []
+          relays: [],
         });
       }).toThrow("User public key is required for bunker initialization");
-      
+
       // Test invalid hex format - not hex characters
       expect(() => {
         new NostrRemoteSignerBunker({
-          userPubkey: "G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // Invalid character 'G'
-          relays: []
+          userPubkey:
+            "G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef", // Invalid character 'G'
+          relays: [],
         });
       }).toThrow("User public key must be 64 character hex string");
-      
+
       // Test invalid length - too short
       expect(() => {
         new NostrRemoteSignerBunker({
           userPubkey: "1234567890abcdef123456789", // 25 characters, too short
-          relays: []
+          relays: [],
         });
       }).toThrow("User public key must be 64 character hex string");
-      
+
       // Test invalid length - too long
       expect(() => {
         new NostrRemoteSignerBunker({
-          userPubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1", // 65 characters, too long
-          relays: []
+          userPubkey:
+            "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1", // 65 characters, too long
+          relays: [],
         });
       }).toThrow("User public key must be 64 character hex string");
-      
+
       // Test invalid signer pubkey format when provided
       expect(() => {
         new NostrRemoteSignerBunker({
-          userPubkey: "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+          userPubkey:
+            "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
           signerPubkey: "not-a-valid-pubkey", // Invalid format
-          relays: []
+          relays: [],
         });
       }).toThrow("Signer public key must be 64 character hex string");
     });
 
     test("should enforce private key validation on start", async () => {
       const validKeypair = await generateKeypair();
-      
+
       const bunker = new NostrRemoteSignerBunker({
         userPubkey: validKeypair.publicKey,
-        relays: [relayUrl] // Use the ephemeral relay from test setup
+        relays: [relayUrl], // Use the ephemeral relay from test setup
       });
-      
+
       // Should fail without private keys set - specific error about secure initialization
-      await expect(bunker.start()).rejects.toThrow("User private key not properly initialized");
-      
+      await expect(bunker.start()).rejects.toThrow(
+        "User private key not properly initialized",
+      );
+
       // Set valid private keys
       bunker.setUserPrivateKey(validKeypair.privateKey);
       bunker.setSignerPrivateKey(validKeypair.privateKey);
-      
+
       // Should succeed now that private keys are set with a working relay connection
       await expect(bunker.start()).resolves.not.toThrow();
-      
+
       // Clean up
       await bunker.stop().catch(() => {});
     });
 
     test("should validate private keys when setting them", async () => {
       const validKeypair = await generateKeypair();
-      
+
       const bunker = new NostrRemoteSignerBunker({
         userPubkey: validKeypair.publicKey,
-        relays: []
+        relays: [],
       });
-      
+
       // Test empty private key
       expect(() => {
         bunker.setUserPrivateKey(""); // Empty
       }).toThrow("cannot be an empty string");
-      
+
       // Test invalid hex format
       expect(() => {
-        bunker.setUserPrivateKey("G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"); // Invalid character 'G'
+        bunker.setUserPrivateKey(
+          "G234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        ); // Invalid character 'G'
       }).toThrow("is not a valid private key format or is outside curve order");
-      
+
       // Test invalid length - too short
       expect(() => {
         bunker.setUserPrivateKey("1234567890abcdef"); // 16 characters, too short
       }).toThrow("is not a valid private key format or is outside curve order");
-      
+
       // Test placeholder values that should be rejected
       expect(() => {
         bunker.setUserPrivateKey("undefined"); // Placeholder value
       }).toThrow();
-      
+
       expect(() => {
         bunker.setUserPrivateKey("null"); // Placeholder value
       }).toThrow();
-      
+
       // Test valid private key should not throw
       expect(() => {
         bunker.setUserPrivateKey(validKeypair.privateKey); // Valid
       }).not.toThrow();
     });
   });
-}); 
+});

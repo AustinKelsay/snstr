@@ -2,7 +2,7 @@
 
 /**
  * NIP-47 Encryption Negotiation Example
- * 
+ *
  * This example demonstrates how encryption negotiation works in NIP-47,
  * showing how clients and services negotiate between NIP-04 and NIP-44 encryption.
  */
@@ -52,7 +52,7 @@ async function demonstrateScenario(
   scenarioName: string,
   serviceEncryption: NIP47EncryptionScheme[],
   clientPreference: NIP47EncryptionScheme,
-  expectedEncryption: string
+  expectedEncryption: string,
 ) {
   console.log(`\n📋 Scenario: ${scenarioName}`);
   console.log(`Service supports: ${serviceEncryption.join(", ")}`);
@@ -72,7 +72,7 @@ async function demonstrateScenario(
       methods: [NIP47Method.GET_INFO, NIP47Method.GET_BALANCE],
       encryptionSchemes: serviceEncryption,
     },
-    new MinimalWallet()
+    new MinimalWallet(),
   );
 
   await service.init();
@@ -103,7 +103,9 @@ async function main() {
   console.log("🔐 NIP-47 Encryption Negotiation Example");
   console.log("========================================\n");
 
-  console.log("This example demonstrates various encryption negotiation scenarios:");
+  console.log(
+    "This example demonstrates various encryption negotiation scenarios:",
+  );
   console.log("- Services advertising their supported encryption schemes");
   console.log("- Clients choosing the best available encryption");
   console.log("- Fallback behavior for compatibility\n");
@@ -114,7 +116,7 @@ async function main() {
       "Modern client with modern service",
       [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
       NIP47EncryptionScheme.NIP44_V2,
-      "NIP-44 encryption"
+      "NIP-44 encryption",
     );
 
     // Scenario 2: Service only supports NIP-04, client prefers NIP-44
@@ -122,7 +124,7 @@ async function main() {
       "Modern client with legacy service",
       [NIP47EncryptionScheme.NIP04],
       NIP47EncryptionScheme.NIP44_V2,
-      "Falls back to NIP-04"
+      "Falls back to NIP-04",
     );
 
     // Scenario 3: Service only supports NIP-44, client prefers NIP-04
@@ -130,7 +132,7 @@ async function main() {
       "Legacy client preference with modern service",
       [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
       NIP47EncryptionScheme.NIP04,
-      "Uses NIP-04 as requested"
+      "Uses NIP-04 as requested",
     );
 
     // Scenario 4: Service only supports NIP-44
@@ -138,17 +140,22 @@ async function main() {
       "NIP-44 only service",
       [NIP47EncryptionScheme.NIP44_V2],
       NIP47EncryptionScheme.NIP04,
-      "Upgrades to NIP-44"
+      "Upgrades to NIP-44",
     );
 
     console.log("\n✨ All scenarios completed successfully!");
     console.log("\n📝 Key Takeaways:");
-    console.log("1. Services advertise supported encryption in their info events");
-    console.log("2. Clients can express preference but must support what service offers");
-    console.log("3. NIP-44 provides better security when both parties support it");
+    console.log(
+      "1. Services advertise supported encryption in their info events",
+    );
+    console.log(
+      "2. Clients can express preference but must support what service offers",
+    );
+    console.log(
+      "3. NIP-44 provides better security when both parties support it",
+    );
     console.log("4. NIP-04 remains supported for backward compatibility");
     console.log("5. The protocol gracefully handles all combinations");
-
   } catch (error) {
     console.error("\n❌ Error:", error);
     process.exit(1);

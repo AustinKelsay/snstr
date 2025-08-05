@@ -16,10 +16,10 @@ import { RelayConnectionOptions } from "../types/protocol";
 import { NostrValidationError } from "./event";
 import { getUnixTime } from "../utils/time";
 import { Logger, LogLevel } from "../nip46/utils/logger";
-import { 
+import {
   SECURITY_LIMITS,
   getSecureRandom,
-  secureRandomHex
+  secureRandomHex,
 } from "../utils/security-validator";
 
 export class Relay {
@@ -47,9 +47,11 @@ export class Relay {
   // Track replaceable and addressable events according to NIP-01 with memory limits
   private replaceableEvents: Map<string, Map<number, NostrEvent>> = new Map();
   private replaceableEventAccessTimes: Map<string, number> = new Map(); // For LRU eviction
-  private maxReplaceableEventPubkeys = SECURITY_LIMITS.MAX_REPLACEABLE_EVENT_PUBKEYS;
-  private maxReplaceableEventsPerPubkey = SECURITY_LIMITS.MAX_REPLACEABLE_EVENTS_PER_PUBKEY;
-  
+  private maxReplaceableEventPubkeys =
+    SECURITY_LIMITS.MAX_REPLACEABLE_EVENT_PUBKEYS;
+  private maxReplaceableEventsPerPubkey =
+    SECURITY_LIMITS.MAX_REPLACEABLE_EVENTS_PER_PUBKEY;
+
   private addressableEvents: Map<string, NostrEvent> = new Map();
   private addressableEventAccessTimes: Map<string, number> = new Map(); // For LRU eviction
   private maxAddressableEvents = SECURITY_LIMITS.MAX_ADDRESSABLE_EVENTS;
@@ -59,9 +61,9 @@ export class Relay {
     this.logger = new Logger({
       prefix: `Relay(${url})`,
       level: LogLevel.WARN, // Default to WARN level for production use
-      includeTimestamp: false
+      includeTimestamp: false,
     });
-    
+
     if (options.connectionTimeout !== undefined) {
       this.connectionTimeout = options.connectionTimeout;
     }
@@ -217,19 +219,19 @@ export class Relay {
     try {
       // Clear all subscriptions to prevent further processing
       this.subscriptions.clear();
-      
+
       // Clear event buffers and access times
       this.eventBuffers.clear();
       this.eventBufferAccessTimes.clear();
-      
+
       // Clear replaceable event storage and access times
       this.replaceableEvents.clear();
       this.replaceableEventAccessTimes.clear();
-      
+
       // Clear addressable event storage and access times
       this.addressableEvents.clear();
       this.addressableEventAccessTimes.clear();
-      
+
       this.clearBufferFlush(); // Clear the buffer flush interval
 
       // Close the WebSocket if it's open or connecting
@@ -291,7 +293,6 @@ export class Relay {
     }
     const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
     const reconnectDelay = baseDelay + jitter;
-
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
@@ -834,10 +835,10 @@ export class Relay {
         } else if (tagName === "a") {
           // For 'a' tags, validate the <kind>:<pubkey>:<d-identifier> structure
           // NIP-01: ["a", "<kind>:<pubkey>:<d-identifier>", <optional-relay-url>]
-          if (tag.length < 2 || typeof tag[1] !== 'string') {
+          if (tag.length < 2 || typeof tag[1] !== "string") {
             return false; // Must have at least name and value, value must be a string
           }
-          const valueParts = tag[1].split(':');
+          const valueParts = tag[1].split(":");
           if (valueParts.length !== 3) {
             // This structure must contain exactly three parts: kind, pubkey, and d-tag value (which can be empty).
             // e.g., "30023:pubkeyhex:identifier" or "10002:pubkeyhex:"
@@ -1141,39 +1142,42 @@ export class Relay {
   private addToEventBuffer(subscriptionId: string, event: NostrEvent): void {
     // Update access time for LRU
     this.eventBufferAccessTimes.set(subscriptionId, Date.now());
-    
+
     // Ensure we don't exceed max number of buffers
-    if (!this.eventBuffers.has(subscriptionId) && this.eventBuffers.size >= this.maxEventBuffers) {
+    if (
+      !this.eventBuffers.has(subscriptionId) &&
+      this.eventBuffers.size >= this.maxEventBuffers
+    ) {
       this.evictOldestEventBuffer();
     }
-    
+
     // Get or create buffer
     if (!this.eventBuffers.has(subscriptionId)) {
       this.eventBuffers.set(subscriptionId, []);
     }
-    
+
     const buffer = this.eventBuffers.get(subscriptionId)!;
-    
+
     // Ensure we don't exceed max events per buffer
     if (buffer.length >= this.maxEventsPerBuffer) {
       buffer.shift(); // Remove oldest event
     }
-    
+
     buffer.push(event);
   }
 
   // Evict oldest accessed event buffer
   private evictOldestEventBuffer(): void {
     let oldestTime = Infinity;
-    let oldestId = '';
-    
+    let oldestId = "";
+
     for (const [id, time] of this.eventBufferAccessTimes) {
       if (time < oldestTime) {
         oldestTime = time;
         oldestId = id;
       }
     }
-    
+
     if (oldestId) {
       this.eventBuffers.delete(oldestId);
       this.eventBufferAccessTimes.delete(oldestId);
@@ -1184,27 +1188,33 @@ export class Relay {
   // Process replaceable event with memory limits
   private processReplaceableEvent(event: NostrEvent): void {
     const pubkey = event.pubkey;
-    
+
     // Update access time for LRU
     this.replaceableEventAccessTimes.set(pubkey, Date.now());
-    
+
     // Ensure we don't exceed max pubkeys
-    if (!this.replaceableEvents.has(pubkey) && this.replaceableEvents.size >= this.maxReplaceableEventPubkeys) {
+    if (
+      !this.replaceableEvents.has(pubkey) &&
+      this.replaceableEvents.size >= this.maxReplaceableEventPubkeys
+    ) {
       this.evictOldestReplaceablePubkey();
     }
-    
+
     // Get or create pubkey map
     if (!this.replaceableEvents.has(pubkey)) {
       this.replaceableEvents.set(pubkey, new Map());
     }
-    
+
     const kindMap = this.replaceableEvents.get(pubkey)!;
     const existingEvent = kindMap.get(event.kind);
-    
+
     // Only store if newer or first of this kind
     if (!existingEvent || event.created_at > existingEvent.created_at) {
       // Ensure we don't exceed max events per pubkey
-      if (kindMap.size >= this.maxReplaceableEventsPerPubkey && !kindMap.has(event.kind)) {
+      if (
+        kindMap.size >= this.maxReplaceableEventsPerPubkey &&
+        !kindMap.has(event.kind)
+      ) {
         // Remove oldest event by created_at
         let oldestKind = -1;
         let oldestTime = Infinity;
@@ -1216,10 +1226,12 @@ export class Relay {
         }
         if (oldestKind !== -1) {
           kindMap.delete(oldestKind);
-          this.logger.debug(`Evicted replaceable event kind ${oldestKind} for pubkey: ${pubkey}`);
+          this.logger.debug(
+            `Evicted replaceable event kind ${oldestKind} for pubkey: ${pubkey}`,
+          );
         }
       }
-      
+
       kindMap.set(event.kind, event);
     }
   }
@@ -1227,19 +1239,21 @@ export class Relay {
   // Evict oldest accessed replaceable event pubkey
   private evictOldestReplaceablePubkey(): void {
     let oldestTime = Infinity;
-    let oldestPubkey = '';
-    
+    let oldestPubkey = "";
+
     for (const [pubkey, time] of this.replaceableEventAccessTimes) {
       if (time < oldestTime) {
         oldestTime = time;
         oldestPubkey = pubkey;
       }
     }
-    
+
     if (oldestPubkey) {
       this.replaceableEvents.delete(oldestPubkey);
       this.replaceableEventAccessTimes.delete(oldestPubkey);
-      this.logger.debug(`Evicted replaceable events for pubkey: ${oldestPubkey}`);
+      this.logger.debug(
+        `Evicted replaceable events for pubkey: ${oldestPubkey}`,
+      );
     }
   }
 
@@ -1248,21 +1262,27 @@ export class Relay {
     const dTag = event.tags.find((tag) => tag[0] === "d");
     const dValue = dTag ? dTag[1] : "";
     const addressId = `${event.kind}:${event.pubkey}:${dValue}`;
-    
+
     // Update access time for LRU
     this.addressableEventAccessTimes.set(addressId, Date.now());
-    
+
     // Ensure we don't exceed max addressable events
-    if (!this.addressableEvents.has(addressId) && this.addressableEvents.size >= this.maxAddressableEvents) {
+    if (
+      !this.addressableEvents.has(addressId) &&
+      this.addressableEvents.size >= this.maxAddressableEvents
+    ) {
       this.evictOldestAddressableEvent();
     }
-    
+
     const existingEvent = this.addressableEvents.get(addressId);
-    
+
     // Only store if newer, first, or tie-breaker with smaller ID
-    if (!existingEvent || 
-        event.created_at > existingEvent.created_at ||
-        (event.created_at === existingEvent.created_at && event.id < existingEvent.id)) {
+    if (
+      !existingEvent ||
+      event.created_at > existingEvent.created_at ||
+      (event.created_at === existingEvent.created_at &&
+        event.id < existingEvent.id)
+    ) {
       this.addressableEvents.set(addressId, event);
     }
   }
@@ -1270,15 +1290,15 @@ export class Relay {
   // Evict oldest accessed addressable event
   private evictOldestAddressableEvent(): void {
     let oldestTime = Infinity;
-    let oldestId = '';
-    
+    let oldestId = "";
+
     for (const [id, time] of this.addressableEventAccessTimes) {
       if (time < oldestTime) {
         oldestTime = time;
         oldestId = id;
       }
     }
-    
+
     if (oldestId) {
       this.addressableEvents.delete(oldestId);
       this.addressableEventAccessTimes.delete(oldestId);
@@ -1293,7 +1313,7 @@ export class Relay {
   ): NostrEvent | undefined {
     // Update access time
     this.replaceableEventAccessTimes.set(pubkey, Date.now());
-    
+
     const kindMap = this.replaceableEvents.get(pubkey);
     return kindMap?.get(kind);
   }
@@ -1305,14 +1325,12 @@ export class Relay {
     dTagValue: string = "",
   ): NostrEvent | undefined {
     const addressId = `${kind}:${pubkey}:${dTagValue}`;
-    
+
     // Update access time
     this.addressableEventAccessTimes.set(addressId, Date.now());
-    
+
     return this.addressableEvents.get(addressId);
   }
-
-
 
   /**
    * Get all addressable events for a specific pubkey

@@ -1,4 +1,10 @@
-import { createRelayListEvent, parseRelayList, getReadRelays, getWriteRelays, RelayListEvent } from "../../src/nip65";
+import {
+  createRelayListEvent,
+  parseRelayList,
+  getReadRelays,
+  getWriteRelays,
+  RelayListEvent,
+} from "../../src/nip65";
 import { generateKeypair } from "../../src/utils/crypto";
 import { createSignedEvent } from "../../src/nip01/event";
 
@@ -25,8 +31,14 @@ describe("NIP-65", () => {
       { url: "wss://c", read: true, write: false },
     ];
     const keys = await generateKeypair();
-    const unsigned = { ...createRelayListEvent(entries), pubkey: keys.publicKey };
-    const event = (await createSignedEvent(unsigned, keys.privateKey)) as RelayListEvent;
+    const unsigned = {
+      ...createRelayListEvent(entries),
+      pubkey: keys.publicKey,
+    };
+    const event = (await createSignedEvent(
+      unsigned,
+      keys.privateKey,
+    )) as RelayListEvent;
 
     const parsed = parseRelayList(event);
     expect(parsed).toEqual(entries);

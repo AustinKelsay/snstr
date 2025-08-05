@@ -199,7 +199,7 @@ export interface NIP47ConnectionOptions {
    * List of relay URLs
    */
   relays: string[];
-  
+
   /**
    * Preferred encryption scheme (optional, defaults to NIP-44 if supported)
    */

@@ -1,8 +1,8 @@
 /**
  * NIP-44 Compliance Demo
- * 
+ *
  * Run this demo with: npx tsx examples/nip44/nip44-compliance-demo.ts
- * 
+ *
  * This example demonstrates the strict NIP-44 specification compliance
  * features implemented in the decodePayload function, including:
  * - # prefix detection for non-base64 encoding
@@ -16,47 +16,52 @@ import { decodePayload, NONCE_SIZE_V0, MAC_SIZE_V0 } from "../../src/nip44";
  * Creates a minimal valid NIP-44 payload for testing
  * Structure: [version(1)] + [nonce(32)] + [ciphertext(N)] + [mac(32)]
  */
-function createMinimalValidPayload(version: number, ciphertextSize: number): string {
+function createMinimalValidPayload(
+  version: number,
+  ciphertextSize: number,
+): string {
   const versionByte = new Uint8Array([version]);
-  
+
   // Create non-zero nonce (32 bytes)
   const nonce = new Uint8Array(NONCE_SIZE_V0);
   for (let i = 0; i < nonce.length; i++) {
     nonce[i] = (i + 1) % 256; // Fill with incrementing non-zero values
   }
-  
-  // Create non-zero ciphertext 
+
+  // Create non-zero ciphertext
   const ciphertext = new Uint8Array(ciphertextSize);
   for (let i = 0; i < ciphertext.length; i++) {
     ciphertext[i] = ((i + 1) * 7) % 256; // Fill with some non-zero pattern
   }
-  
+
   // Create non-zero MAC (32 bytes)
   const mac = new Uint8Array(MAC_SIZE_V0);
   for (let i = 0; i < mac.length; i++) {
     mac[i] = ((i + 1) * 13) % 256; // Fill with some non-zero pattern
   }
-  
+
   // Concatenate all parts
-  const payload = new Uint8Array(versionByte.length + nonce.length + ciphertext.length + mac.length);
+  const payload = new Uint8Array(
+    versionByte.length + nonce.length + ciphertext.length + mac.length,
+  );
   let offset = 0;
-  
+
   payload.set(versionByte, offset);
   offset += versionByte.length;
-  
+
   payload.set(nonce, offset);
   offset += nonce.length;
-  
+
   payload.set(ciphertext, offset);
   offset += ciphertext.length;
-  
+
   payload.set(mac, offset);
-  
+
   return Buffer.from(payload).toString("base64");
 }
 
 console.log("🔒 NIP-44 Compliance Demo");
-console.log("=" .repeat(50));
+console.log("=".repeat(50));
 
 // Test 1: # Prefix Detection
 console.log("\n1. Testing # Prefix Detection (NIP-44 Decryption Step 1)");
@@ -103,11 +108,16 @@ console.log("-".repeat(30));
 // Too short when decoded (< 99 bytes)
 try {
   const shortDecodedPayload = Buffer.alloc(98).toString("base64");
-  const paddedPayload = shortDecodedPayload + "=".repeat((4 - (shortDecodedPayload.length % 4)) % 4);
+  const paddedPayload =
+    shortDecodedPayload +
+    "=".repeat((4 - (shortDecodedPayload.length % 4)) % 4);
   decodePayload(paddedPayload);
   console.log("❌ ERROR: Should have rejected short decoded payload");
 } catch (error) {
-  console.log("✅ Correctly rejected short decoded payload:", (error as Error).message);
+  console.log(
+    "✅ Correctly rejected short decoded payload:",
+    (error as Error).message,
+  );
 }
 
 // Too long when decoded (> 65,603 bytes)
@@ -116,7 +126,10 @@ try {
   decodePayload(longDecodedPayload);
   console.log("❌ ERROR: Should have rejected long decoded payload");
 } catch (error) {
-  console.log("✅ Correctly rejected long decoded payload:", (error as Error).message);
+  console.log(
+    "✅ Correctly rejected long decoded payload:",
+    (error as Error).message,
+  );
 }
 
 // Test 4: Valid Boundary Cases
@@ -130,23 +143,37 @@ try {
   const minLengthPayload = createMinimalValidPayload(0, 34); // Creates exactly 99 bytes when decoded
   const result = decodePayload(minLengthPayload);
   console.log("✅ Accepted minimum length valid payload");
-  console.log(`   Version: ${result.version}, Nonce: ${result.nonce.length} bytes, MAC: ${result.mac.length} bytes`);
-  console.log(`   Ciphertext: ${result.ciphertext.length} bytes, Total decoded: ${1 + result.nonce.length + result.ciphertext.length + result.mac.length} bytes`);
+  console.log(
+    `   Version: ${result.version}, Nonce: ${result.nonce.length} bytes, MAC: ${result.mac.length} bytes`,
+  );
+  console.log(
+    `   Ciphertext: ${result.ciphertext.length} bytes, Total decoded: ${1 + result.nonce.length + result.ciphertext.length + result.mac.length} bytes`,
+  );
 } catch (error) {
-  console.log("❌ Unexpected error with minimum length:", (error as Error).message);
+  console.log(
+    "❌ Unexpected error with minimum length:",
+    (error as Error).message,
+  );
 }
 
-// Maximum valid decoded length with proper NIP-44 structure  
+// Maximum valid decoded length with proper NIP-44 structure
 try {
   // Create a payload with maximum ciphertext: version(1) + nonce(32) + ciphertext(65537) + mac(32) = 65602 bytes
   // But we need exactly 65603 bytes maximum, so use 65538 bytes ciphertext = 65603 bytes total
   const maxDecodedPayload = createMinimalValidPayload(2, 65538); // Creates exactly 65603 bytes when decoded
   const result = decodePayload(maxDecodedPayload);
   console.log("✅ Accepted maximum decoded length valid payload (65603 bytes)");
-  console.log(`   Version: ${result.version}, Nonce: ${result.nonce.length} bytes, MAC: ${result.mac.length} bytes`);
-  console.log(`   Ciphertext: ${result.ciphertext.length} bytes, Total decoded: ${1 + result.nonce.length + result.ciphertext.length + result.mac.length} bytes`);
+  console.log(
+    `   Version: ${result.version}, Nonce: ${result.nonce.length} bytes, MAC: ${result.mac.length} bytes`,
+  );
+  console.log(
+    `   Ciphertext: ${result.ciphertext.length} bytes, Total decoded: ${1 + result.nonce.length + result.ciphertext.length + result.mac.length} bytes`,
+  );
 } catch (error) {
-  console.log("❌ Unexpected error with maximum decoded length:", (error as Error).message);
+  console.log(
+    "❌ Unexpected error with maximum decoded length:",
+    (error as Error).message,
+  );
 }
 
 // Test 5: Compliance Summary
@@ -160,4 +187,6 @@ console.log("✅ Error Messages: Clear and informative");
 
 console.log("\n🎉 All NIP-44 compliance checks passed!");
 console.log("\nThis implementation strictly follows the NIP-44 specification");
-console.log("and will interoperate correctly with other compliant implementations."); 
+console.log(
+  "and will interoperate correctly with other compliant implementations.",
+);

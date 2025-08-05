@@ -2,7 +2,7 @@
 
 /**
  * NIP-47 with NIP-44 Encryption Example
- * 
+ *
  * This example demonstrates how to use NIP-44 encryption with NIP-47 (Nostr Wallet Connect).
  * NIP-44 provides versioned, encrypted communication using ChaCha20 and HMAC-SHA256,
  * offering better security properties than NIP-04.
@@ -33,7 +33,8 @@ class DemoWalletImplementation implements WalletImplementation {
     return {
       alias: "NIP-44 Demo Wallet",
       color: "#00ff00",
-      pubkey: "0000000000000000000000000000000000000000000000000000000000000000",
+      pubkey:
+        "0000000000000000000000000000000000000000000000000000000000000000",
       network: "testnet",
       methods: [
         NIP47Method.GET_INFO,
@@ -62,7 +63,7 @@ class DemoWalletImplementation implements WalletImplementation {
     // Simulate payment
     const paymentAmount = amount || 10000; // Default 10k sats
     const fees = maxfee || 100;
-    
+
     if (this.balance < paymentAmount + fees) {
       throw {
         code: "INSUFFICIENT_BALANCE",
@@ -70,11 +71,13 @@ class DemoWalletImplementation implements WalletImplementation {
       };
     }
 
-    this.balance -= (paymentAmount + fees);
+    this.balance -= paymentAmount + fees;
 
     return {
-      preimage: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      payment_hash: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+      preimage:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      payment_hash:
+        "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
       amount: paymentAmount,
       fees_paid: fees,
     };
@@ -105,9 +108,11 @@ class DemoWalletImplementation implements WalletImplementation {
     payment_hash?: string;
     invoice?: string;
   }): Promise<NIP47Transaction> {
-    const invoice = params.payment_hash 
+    const invoice = params.payment_hash
       ? this.invoices.get(params.payment_hash)
-      : Array.from(this.invoices.values()).find(i => i.invoice === params.invoice);
+      : Array.from(this.invoices.values()).find(
+          (i) => i.invoice === params.invoice,
+        );
 
     if (!invoice) {
       throw {
@@ -139,7 +144,8 @@ class DemoWalletImplementation implements WalletImplementation {
     return [
       {
         type: TransactionType.INCOMING,
-        payment_hash: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        payment_hash:
+          "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
         amount: 50000,
         fees_paid: 0,
         created_at: Math.floor(Date.now() / 1000) - 86400,
@@ -147,7 +153,8 @@ class DemoWalletImplementation implements WalletImplementation {
       },
       {
         type: TransactionType.OUTGOING,
-        payment_hash: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+        payment_hash:
+          "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
         amount: 25000,
         fees_paid: 50,
         created_at: Math.floor(Date.now() / 1000) - 172800,
@@ -179,12 +186,17 @@ async function main() {
       relays: [relayUrl],
       pubkey: serviceKeys.publicKey,
       privkey: serviceKeys.privateKey,
-      methods: Object.values(NIP47Method).filter(m => m !== NIP47Method.UNKNOWN),
+      methods: Object.values(NIP47Method).filter(
+        (m) => m !== NIP47Method.UNKNOWN,
+      ),
       notificationTypes: Object.values(NIP47NotificationType),
       // Explicitly support both NIP-04 and NIP-44 for maximum compatibility
-      encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
+      encryptionSchemes: [
+        NIP47EncryptionScheme.NIP44_V2,
+        NIP47EncryptionScheme.NIP04,
+      ],
     },
-    new DemoWalletImplementation()
+    new DemoWalletImplementation(),
   );
 
   await service.init();
@@ -217,7 +229,9 @@ async function main() {
   if (info) {
     console.log(`Service Name: ${info.alias}`);
     console.log(`Supported Methods: ${info.methods.join(", ")}`);
-    console.log(`Supported Encryption: ${info.encryption?.join(", ") || "NIP-04 only"}`);
+    console.log(
+      `Supported Encryption: ${info.encryption?.join(", ") || "NIP-04 only"}`,
+    );
     console.log();
   }
 
@@ -259,25 +273,50 @@ async function main() {
       console.log("💸 Payment received notification!");
       const tx = notification.notification as NIP47Transaction;
       console.log(`Amount: ${tx.amount} sats`);
-    }
+    },
   );
 
   // Simulate sending a notification
   console.log("Simulating payment notification...");
+
+  // Create a properly typed transaction object
+  const paymentNotification: NIP47Transaction = {
+    type: TransactionType.INCOMING,
+    payment_hash: "notification_test_hash",
+    amount: 5000,
+    fees_paid: 0,
+    created_at: Math.floor(Date.now() / 1000),
+  };
+
+  // Type guard to validate NIP47Transaction structure
+  function isValidNIP47Transaction(obj: unknown): obj is NIP47Transaction {
+    return (
+      typeof obj === "object" &&
+      obj !== null &&
+      "type" in obj &&
+      "payment_hash" in obj &&
+      "amount" in obj &&
+      "fees_paid" in obj &&
+      "created_at" in obj
+    );
+  }
+
+  // Convert to Record<string, unknown> with validation
+  if (!isValidNIP47Transaction(paymentNotification)) {
+    throw new Error("Invalid payment notification structure");
+  }
+
+  // Safe conversion after validation - spread to create a new object
+  const notificationData: Record<string, unknown> = { ...paymentNotification };
+
   await service.sendNotification(
     clientKeys.publicKey,
     NIP47NotificationType.PAYMENT_RECEIVED,
-    {
-      type: TransactionType.INCOMING,
-      payment_hash: "notification_test_hash",
-      amount: 5000,
-      fees_paid: 0,
-      created_at: Math.floor(Date.now() / 1000),
-    } as Record<string, unknown>
+    notificationData,
   );
 
   // Wait for notification to be processed
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   // Clean up
   console.log("\n🧹 Cleaning up...");

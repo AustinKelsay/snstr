@@ -30,9 +30,7 @@ import {
   NIP47EncryptionScheme,
   GetInfoResponseResult,
 } from "./types";
-import { 
-  SecurityValidationError 
-} from "../utils/security-validator";
+import { SecurityValidationError } from "../utils/security-validator";
 
 /**
  * Parse a NWC URL into connection options
@@ -211,7 +209,10 @@ export class NostrWalletConnectClient {
   >();
   private pendingRequests = new Map<
     string,
-    (response: NIP47Response) => void
+    {
+      resolve: (response: NIP47Response) => void;
+      encryptionScheme: NIP47EncryptionScheme;
+    }
   >();
   private initialized = false;
   private subIds: string[] = [];
@@ -234,9 +235,10 @@ export class NostrWalletConnectClient {
     this.clientPubkey = getPublicKey(this.clientPrivkey);
     this.relays = options.relays;
     this.client = new Nostr(this.relays);
-    
+
     // Set preferred encryption (default to NIP-44 if not specified)
-    this.preferredEncryption = options.preferredEncryption || NIP47EncryptionScheme.NIP44_V2;
+    this.preferredEncryption =
+      options.preferredEncryption || NIP47EncryptionScheme.NIP44_V2;
   }
 
   /**
@@ -337,8 +339,8 @@ export class NostrWalletConnectClient {
 
         // Reject any pending requests
         if (this.pendingRequests.size > 0) {
-          this.pendingRequests.forEach((resolver) => {
-            resolver({
+          this.pendingRequests.forEach((pendingRequest) => {
+            pendingRequest.resolve({
               result_type: NIP47Method.GET_INFO, // Use a placeholder method
               result: null,
               error: {
@@ -382,9 +384,9 @@ export class NostrWalletConnectClient {
     // Subscribe to events from the wallet service directed to us
     const responseFilter = {
       kinds: [
-        NIP47EventKind.RESPONSE, 
+        NIP47EventKind.RESPONSE,
         NIP47EventKind.NOTIFICATION,
-        NIP47EventKind.NOTIFICATION_NIP44
+        NIP47EventKind.NOTIFICATION_NIP44,
       ],
       authors: [this.pubkey],
       "#p": [this.clientPubkey],
@@ -435,8 +437,8 @@ export class NostrWalletConnectClient {
     const pTags = event.tags
       .filter((tag) => tag[0] === "p")
       .map((tag) => tag[1]);
-    const eTags = event.tags.filter((tag) => 
-      Array.isArray(tag) && tag.length > 0 && tag[0] === "e"
+    const eTags = event.tags.filter(
+      (tag) => Array.isArray(tag) && tag.length > 0 && tag[0] === "e",
     );
 
     console.log(`Event p-tags: ${pTags.join(", ")}`);
@@ -448,10 +450,11 @@ export class NostrWalletConnectClient {
         `Processing as RESPONSE event (kind ${NIP47EventKind.RESPONSE})`,
       );
       await this.handleResponse(event);
-    } else if (event.kind === NIP47EventKind.NOTIFICATION || event.kind === NIP47EventKind.NOTIFICATION_NIP44) {
-      console.log(
-        `Processing as NOTIFICATION event (kind ${event.kind})`,
-      );
+    } else if (
+      event.kind === NIP47EventKind.NOTIFICATION ||
+      event.kind === NIP47EventKind.NOTIFICATION_NIP44
+    ) {
+      console.log(`Processing as NOTIFICATION event (kind ${event.kind})`);
       await this.handleNotification(event);
     } else if (event.kind === NIP47EventKind.INFO) {
       console.log(`Processing as INFO event (kind ${NIP47EventKind.INFO})`);
@@ -556,41 +559,65 @@ export class NostrWalletConnectClient {
    */
   private async handleResponse(event: NostrEvent): Promise<void> {
     try {
-      // Try to decrypt response - first check if response has encryption tag
+      // Find the e-tag which references the request event ID first
+      const eTags = event.tags.filter(
+        (tag) => Array.isArray(tag) && tag.length > 0 && tag[0] === "e",
+      );
+
+      if (eTags.length === 0) {
+        console.warn(
+          "Response event has no e-tag, cannot correlate with a request",
+        );
+        return;
+      }
+
+      // Get the request ID from the e-tag
+      let requestId: string;
+      try {
+        const firstETag = eTags[0];
+        requestId = firstETag[1]; // e-tags have structure ["e", requestId, ...]
+      } catch (error) {
+        if (error instanceof SecurityValidationError) {
+          console.warn(
+            `NIP-47: Bounds checking error in e-tag processing: ${error.message}`,
+          );
+        }
+        return;
+      }
+
+      // Find the pending request to get the encryption scheme
+      const pendingRequest = this.pendingRequests.get(requestId);
+      if (!pendingRequest) {
+        console.warn(`No pending request found with ID: ${requestId}`);
+        return;
+      }
+
+      // Use the tracked encryption scheme from the request
       let decrypted: string;
-      
-      // Check if the response has an encryption tag (though it's on the request, not response)
-      // The service should use the same encryption as the request
-      // For now, try NIP-44 first if we support it, then fall back to NIP-04
-      if (this.supportedEncryption.includes(NIP47EncryptionScheme.NIP44_V2)) {
-        try {
+      const { encryptionScheme } = pendingRequest;
+
+      try {
+        if (encryptionScheme === NIP47EncryptionScheme.NIP44_V2) {
           decrypted = await decryptNIP44(
             event.content,
             this.clientPrivkey,
             this.pubkey,
           );
-        } catch (nip44Error) {
-          // Fall back to NIP-04 if NIP-44 decryption fails
-          try {
-            decrypted = decryptNIP04(
-              this.clientPrivkey,
-              this.pubkey,
-              event.content,
-            );
-          } catch (nip04Error) {
-            // Both failed, throw original NIP-44 error
-            throw nip44Error;
-          }
+        } else {
+          decrypted = decryptNIP04(
+            this.clientPrivkey,
+            this.pubkey,
+            event.content,
+          );
         }
-      } else {
-        // Only NIP-04 is supported
-        decrypted = decryptNIP04(
-          this.clientPrivkey,
-          this.pubkey,
-          event.content,
+      } catch (decryptError) {
+        console.error(
+          `Failed to decrypt response with ${encryptionScheme}:`,
+          decryptError,
         );
+        throw decryptError;
       }
-      
+
       const response = JSON.parse(decrypted);
 
       // Validate response structure
@@ -600,50 +627,17 @@ export class NostrWalletConnectClient {
         `Validated response of type: ${(response as NIP47Response).result_type}`,
       );
 
-      // Find the e-tag which references the request event ID
-      const eTags = event.tags.filter((tag) => 
-        Array.isArray(tag) && tag.length > 0 && tag[0] === "e"
-      );
-      
-      if (eTags.length === 0) {
-        console.warn(
-          "Response event has no e-tag, cannot correlate with a request",
-        );
-        return;
-      }
-
-      // Get the request ID from the e-tag with simplified bounds checking
-      let requestId: string;
-      try {
-        // Direct access after initial validation ensures presence and structure
-        const firstETag = eTags[0];
-        requestId = firstETag[1]; // e-tags have structure ["e", requestId, ...]
-        
-      } catch (error) {
-        if (error instanceof SecurityValidationError) {
-          console.warn(`NIP-47: Bounds checking error in e-tag processing: ${error.message}`);
-        }
-        return;
-      }
-      
       console.log(`Found request ID from e-tag: ${requestId}`);
 
-      // Find the pending request
-      if (this.pendingRequests.has(requestId)) {
-        console.log(`Found pending request with ID: ${requestId}`);
-        const resolver = this.pendingRequests.get(requestId);
-        if (resolver) {
-          resolver(response as NIP47Response);
-          this.pendingRequests.delete(requestId);
-          console.log(`Request ${requestId} resolved successfully`);
-          return;
-        }
-      } else {
-        console.warn(`No pending request found with ID: ${requestId}`);
-      }
+      // Resolve the pending request
+      pendingRequest.resolve(response as NIP47Response);
+      this.pendingRequests.delete(requestId);
+      console.log(`Request ${requestId} resolved successfully`);
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-47: Security validation error in response handling: ${error.message}`);
+        console.warn(
+          `NIP-47: Security validation error in response handling: ${error.message}`,
+        );
       } else {
         console.error("Error handling response event:", error);
       }
@@ -657,7 +651,7 @@ export class NostrWalletConnectClient {
     try {
       // Decrypt the content with client's private key and service's public key
       let decrypted: string;
-      
+
       // Determine encryption based on event kind
       if (event.kind === NIP47EventKind.NOTIFICATION_NIP44) {
         decrypted = await decryptNIP44(
@@ -673,7 +667,7 @@ export class NostrWalletConnectClient {
           event.content,
         );
       }
-      
+
       const notification: NIP47Notification<unknown> = JSON.parse(decrypted);
 
       // Find and call the notification handlers
@@ -706,25 +700,25 @@ export class NostrWalletConnectClient {
 
       // Extract supported notifications from tags
       const notificationsTag = event.tags.find(
-        (tag: string[]) => 
-          Array.isArray(tag) && tag.length > 1 && tag[0] === "notifications"
+        (tag: string[]) =>
+          Array.isArray(tag) && tag.length > 1 && tag[0] === "notifications",
       );
-      
+
       if (notificationsTag && typeof notificationsTag[1] === "string") {
         this.supportedNotifications = notificationsTag[1].split(" ");
       }
 
       // Extract supported encryption schemes from tags
       const encryptionTag = event.tags.find(
-        (tag: string[]) => 
-          Array.isArray(tag) && tag.length > 1 && tag[0] === "encryption"
+        (tag: string[]) =>
+          Array.isArray(tag) && tag.length > 1 && tag[0] === "encryption",
       );
-      
+
       if (encryptionTag && typeof encryptionTag[1] === "string") {
         const schemes = encryptionTag[1].split(" ");
         this.supportedEncryption = schemes
-          .map(s => s as NIP47EncryptionScheme)
-          .filter(s => Object.values(NIP47EncryptionScheme).includes(s));
+          .map((s) => s as NIP47EncryptionScheme)
+          .filter((s) => Object.values(NIP47EncryptionScheme).includes(s));
       } else {
         // If no encryption tag, assume only NIP-04 is supported (backwards compatibility)
         this.supportedEncryption = [NIP47EncryptionScheme.NIP04];
@@ -736,7 +730,9 @@ export class NostrWalletConnectClient {
       console.log(`Encryption: ${this.supportedEncryption.join(", ")}`);
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-47: Security validation error in info event handling: ${error.message}`);
+        console.warn(
+          `NIP-47: Security validation error in info event handling: ${error.message}`,
+        );
       } else {
         console.error("Failed to handle info event:", error);
       }
@@ -751,12 +747,12 @@ export class NostrWalletConnectClient {
     if (this.supportedEncryption.includes(this.preferredEncryption)) {
       return this.preferredEncryption;
     }
-    
+
     // Otherwise, prefer NIP-44 if available
     if (this.supportedEncryption.includes(NIP47EncryptionScheme.NIP44_V2)) {
       return NIP47EncryptionScheme.NIP44_V2;
     }
-    
+
     // Fall back to NIP-04
     return NIP47EncryptionScheme.NIP04;
   }
@@ -797,12 +793,12 @@ export class NostrWalletConnectClient {
 
     // Choose the best encryption scheme
     const encryptionScheme = this.chooseEncryptionScheme();
-    
+
     // Add encryption tag if using NIP-44
     if (encryptionScheme === NIP47EncryptionScheme.NIP44_V2) {
       event.tags.push(["encryption", encryptionScheme]);
     }
-    
+
     // Encrypt the request
     let encryptedContent: string;
     try {
@@ -854,17 +850,20 @@ export class NostrWalletConnectClient {
         );
       }, timeoutMs);
 
-      // Store the resolve function for later
-      this.pendingRequests.set(eventId, (response: NIP47Response) => {
-        clearTimeout(timeout);
+      // Store the resolve function and encryption scheme for later
+      this.pendingRequests.set(eventId, {
+        resolve: (response: NIP47Response) => {
+          clearTimeout(timeout);
 
-        // Check for errors in the response
-        if (response.error) {
-          const error = NIP47ClientError.fromResponseError(response.error);
-          reject(error);
-        } else {
-          resolve(response);
-        }
+          // Check for errors in the response
+          if (response.error) {
+            const error = NIP47ClientError.fromResponseError(response.error);
+            reject(error);
+          } else {
+            resolve(response);
+          }
+        },
+        encryptionScheme,
       });
     });
 
@@ -914,8 +913,8 @@ export class NostrWalletConnectClient {
         }
         if (info?.encryption) {
           this.supportedEncryption = info.encryption
-            .map(s => s as NIP47EncryptionScheme)
-            .filter(s => Object.values(NIP47EncryptionScheme).includes(s));
+            .map((s) => s as NIP47EncryptionScheme)
+            .filter((s) => Object.values(NIP47EncryptionScheme).includes(s));
         } else {
           // If no encryption field, assume only NIP-04 is supported
           this.supportedEncryption = [NIP47EncryptionScheme.NIP04];

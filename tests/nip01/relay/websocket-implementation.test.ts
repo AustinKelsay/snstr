@@ -1,5 +1,8 @@
 import { Relay } from "../../../src";
-import { useWebSocketImplementation, resetWebSocketImplementation } from "../../../src/utils/websocket";
+import {
+  useWebSocketImplementation,
+  resetWebSocketImplementation,
+} from "../../../src/utils/websocket";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -32,7 +35,7 @@ describe("useWebSocketImplementation", () => {
   beforeEach(() => {
     // Save the original globalThis.WebSocket before each test
     originalGlobalWebSocket = globalThis.WebSocket;
-    
+
     MockWebSocket.instances.length = 0;
     useWebSocketImplementation(MockWebSocket as unknown as typeof WebSocket);
   });
@@ -45,7 +48,7 @@ describe("useWebSocketImplementation", () => {
       // If there was no original WebSocket, remove it from globalThis
       delete (globalThis as { WebSocket?: typeof WebSocket }).WebSocket;
     }
-    
+
     resetWebSocketImplementation();
   });
 

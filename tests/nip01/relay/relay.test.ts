@@ -560,12 +560,10 @@ describe("Relay", () => {
       const relay = new Relay(`ws://localhost:${port}`);
       await relay.connect();
 
-      const subId = relay.subscribe(
-        [{ kinds: [1] }],
-        () => {},
-        undefined,
-        { autoClose: true, eoseTimeout: 50 },
-      );
+      const subId = relay.subscribe([{ kinds: [1] }], () => {}, undefined, {
+        autoClose: true,
+        eoseTimeout: 50,
+      });
 
       expect(relay.getSubscriptionIds().has(subId)).toBe(true);
 

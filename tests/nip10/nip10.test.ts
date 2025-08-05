@@ -81,9 +81,9 @@ describe("NIP-10 utilities", () => {
   });
 
   test("createQuoteTag should include all fields when present", () => {
-    expect(createQuoteTag({ id: "abc", relay: "wss://relay", pubkey: "pub" })).toEqual([
-      "e", "abc", "wss://relay", "mention", "pub"
-    ]);
+    expect(
+      createQuoteTag({ id: "abc", relay: "wss://relay", pubkey: "pub" }),
+    ).toEqual(["e", "abc", "wss://relay", "mention", "pub"]);
   });
 
   test("parseThreadReferences collects mentions with marked tags", () => {

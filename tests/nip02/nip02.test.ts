@@ -449,14 +449,18 @@ describe("NIP-02: Contact Lists", () => {
       };
       const contacts = parseContactsFromEvent(event);
       expect(contacts.length).toBe(3); // Should only include 3 valid pubkeys
-      
+
       // Verify that the invalid uppercase pubkey is not present
-      expect(contacts.some(c => c.petname === "Invalid Uppercase")).toBe(false);
-      
+      expect(contacts.some((c) => c.petname === "Invalid Uppercase")).toBe(
+        false,
+      );
+
       // Verify that all valid entries are present
-      expect(contacts.some(c => c.petname === "Valid Entry")).toBe(true);
-      expect(contacts.some(c => c.petname === "Another Valid User")).toBe(true);
-      expect(contacts.some(c => c.petname === "Third Valid User")).toBe(true);
+      expect(contacts.some((c) => c.petname === "Valid Entry")).toBe(true);
+      expect(contacts.some((c) => c.petname === "Another Valid User")).toBe(
+        true,
+      );
+      expect(contacts.some((c) => c.petname === "Third Valid User")).toBe(true);
     });
 
     it("should skip duplicate pubkeys to ensure uniqueness in contact list", () => {
@@ -474,19 +478,23 @@ describe("NIP-02: Contact Lists", () => {
       };
       const contacts = parseContactsFromEvent(event);
       expect(contacts.length).toBe(3); // Should only include 3 unique pubkeys
-      
+
       // Verify that only the first occurrence is kept
-      const duplicateContact = contacts.find(c => c.pubkey === duplicatePubkey);
+      const duplicateContact = contacts.find(
+        (c) => c.pubkey === duplicatePubkey,
+      );
       expect(duplicateContact?.petname).toBe("First Entry");
       expect(duplicateContact?.relayUrl).toBe("ws://relay1.com");
-      
+
       // Verify that the duplicate entries' data is NOT present in contacts array
-      expect(contacts.some(c => c.petname === "Duplicate Entry")).toBe(false);
-      expect(contacts.some(c => c.petname === "Another Duplicate")).toBe(false);
-      
+      expect(contacts.some((c) => c.petname === "Duplicate Entry")).toBe(false);
+      expect(contacts.some((c) => c.petname === "Another Duplicate")).toBe(
+        false,
+      );
+
       // Verify that other unique contacts are present
-      expect(contacts.some(c => c.pubkey === userCPubKey)).toBe(true);
-      expect(contacts.some(c => c.pubkey === userAPubKey)).toBe(true);
+      expect(contacts.some((c) => c.pubkey === userCPubKey)).toBe(true);
+      expect(contacts.some((c) => c.pubkey === userAPubKey)).toBe(true);
     });
 
     it("should properly handle case normalization in duplicate detection (robustness test)", () => {
@@ -494,7 +502,7 @@ describe("NIP-02: Contact Lists", () => {
       // Even though uppercase pubkeys would be rejected by isValidPublicKeyFormat,
       // the normalization ensures consistent behavior in case validation changes
       const validLowercasePubkey = userBPubKey;
-      
+
       // Create a mock event that bypasses validation for testing normalization logic
       const event: ContactsEvent = {
         ...baseEvent,
@@ -507,9 +515,11 @@ describe("NIP-02: Contact Lists", () => {
       };
       const contacts = parseContactsFromEvent(event);
       expect(contacts.length).toBe(3);
-      
+
       // Verify that the pubkey is stored as provided by the valid input
-      const firstContact = contacts.find(c => c.pubkey === validLowercasePubkey);
+      const firstContact = contacts.find(
+        (c) => c.pubkey === validLowercasePubkey,
+      );
       expect(firstContact?.pubkey).toBe(validLowercasePubkey);
     });
   });

@@ -22,9 +22,9 @@ const MIN_SUPPORTED_VERSION = 0;
 const MAX_SUPPORTED_VERSION = 2;
 
 // NIP-44 Version-specific constants
-// Per NIP-44 specification (Decryption, point 4): 
-// "Implementations MUST be able to decrypt versions 0 and 1 for compatibility, 
-// using the same algorithms as above [i.e., version 2's algorithms] with the respective version byte. 
+// Per NIP-44 specification (Decryption, point 4):
+// "Implementations MUST be able to decrypt versions 0 and 1 for compatibility,
+// using the same algorithms as above [i.e., version 2's algorithms] with the respective version byte.
 // The `message_nonce` is 32 bytes, `mac` is 32 bytes."
 //
 // This confirms that all versions (0, 1, 2) use:
@@ -47,9 +47,9 @@ const MAX_PLAINTEXT_SIZE = 65535; // 64KB - 1
 const VERSION_BYTE_SIZE = 1;
 
 // NIP-44 payload length limits (from specification)
-const MIN_BASE64_PAYLOAD_LENGTH = 132;  // Minimum base64 payload length
-const MAX_BASE64_PAYLOAD_LENGTH = 87472; // Maximum base64 payload length  
-const MIN_DECODED_PAYLOAD_LENGTH = 99;   // Minimum decoded payload length
+const MIN_BASE64_PAYLOAD_LENGTH = 132; // Minimum base64 payload length
+const MAX_BASE64_PAYLOAD_LENGTH = 87472; // Maximum base64 payload length
+const MIN_DECODED_PAYLOAD_LENGTH = 99; // Minimum decoded payload length
 const MAX_DECODED_PAYLOAD_LENGTH = 65603; // Maximum decoded payload length
 
 // MIN_CIPHERTEXT_SIZE and MIN_PAYLOAD_SIZE will now depend on the version, so they are calculated dynamically.
@@ -61,7 +61,7 @@ const MAX_DECODED_PAYLOAD_LENGTH = 65603; // Maximum decoded payload length
 // NIP-44 spec requires: "Base64 ([RFC 4648](https://datatracker.ietf.org/doc/html/rfc4648), with padding)"
 function base64Encode(bytes: Uint8Array): string {
   // Try browser environment first (most common)
-  if (typeof globalThis?.btoa === 'function') {
+  if (typeof globalThis?.btoa === "function") {
     try {
       // Browser environment: use btoa with binary string conversion
       return globalThis.btoa(String.fromCharCode(...bytes));
@@ -69,34 +69,35 @@ function base64Encode(bytes: Uint8Array): string {
       // Fall through to Node.js or manual implementation
     }
   }
-  
+
   // Try Node.js environment
-  if (typeof Buffer !== 'undefined') {
+  if (typeof Buffer !== "undefined") {
     try {
       return Buffer.from(bytes).toString("base64");
     } catch (error) {
       // Fall through to manual implementation
     }
   }
-  
+
   // Manual RFC 4648 compliant base64 encoding
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  let result = '';
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let result = "";
   let i = 0;
-  
+
   while (i < bytes.length) {
     const a = bytes[i++];
     const b = i < bytes.length ? bytes[i++] : 0;
     const c = i < bytes.length ? bytes[i++] : 0;
-    
+
     const bitmap = (a << 16) | (b << 8) | c;
-    
+
     result += chars.charAt((bitmap >> 18) & 63);
     result += chars.charAt((bitmap >> 12) & 63);
-    result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : '=';
-    result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : '=';
+    result += i - 2 < bytes.length ? chars.charAt((bitmap >> 6) & 63) : "=";
+    result += i - 1 < bytes.length ? chars.charAt(bitmap & 63) : "=";
   }
-  
+
   return result;
 }
 
@@ -108,16 +109,17 @@ function base64Encode(bytes: Uint8Array): string {
 // - Padding characters '=' can only appear at the end, either as '=' or '=='
 // - No padding characters allowed in the middle of the string
 // - Empty strings are rejected by requiring at least one valid ending pattern
-const BASE64_VALIDATION_REGEX = /^(?:(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)$/;
+const BASE64_VALIDATION_REGEX =
+  /^(?:(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?|[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)$/;
 
 function base64Decode(str: string): Uint8Array {
   // Validate base64 alphabet before decoding to prevent silent acceptance of malformed strings
   if (!BASE64_VALIDATION_REGEX.test(str)) {
     throw new Error("NIP-44: Invalid base64 alphabet in ciphertext");
   }
-  
+
   // Try browser environment first (most common)
-  if (typeof globalThis?.atob === 'function') {
+  if (typeof globalThis?.atob === "function") {
     try {
       const binaryString = globalThis.atob(str);
       const bytes = new Uint8Array(binaryString.length);
@@ -129,48 +131,54 @@ function base64Decode(str: string): Uint8Array {
       throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
     }
   }
-  
+
   // Try Node.js environment
-  if (typeof Buffer !== 'undefined') {
+  if (typeof Buffer !== "undefined") {
     try {
       return new Uint8Array(Buffer.from(str, "base64"));
     } catch (error) {
       throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
     }
   }
-  
+
   // Fallback: manual RFC 4648 compliant base64 decoding
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   const lookup = new Array(256).fill(-1);
-  
+
   // Build lookup table
   for (let i = 0; i < chars.length; i++) {
     lookup[chars.charCodeAt(i)] = i;
   }
-  lookup['='.charCodeAt(0)] = 0; // Padding character
-  
+  lookup["=".charCodeAt(0)] = 0; // Padding character
+
   const len = str.length;
   let bufferLength = Math.floor(len * 0.75);
-  if (str[len - 1] === '=') {
+  if (str[len - 1] === "=") {
     bufferLength--;
-    if (str[len - 2] === '=') {
+    if (str[len - 2] === "=") {
       bufferLength--;
     }
   }
-  
+
   const bytes = new Uint8Array(bufferLength);
   let p = 0;
-  
+
   for (let i = 0; i < len; i += 4) {
     const encoded1 = lookup[str.charCodeAt(i)];
     const encoded2 = lookup[str.charCodeAt(i + 1)];
     const encoded3 = lookup[str.charCodeAt(i + 2)];
     const encoded4 = lookup[str.charCodeAt(i + 3)];
-    
-    if (encoded1 === -1 || encoded2 === -1 || encoded3 === -1 || encoded4 === -1) {
+
+    if (
+      encoded1 === -1 ||
+      encoded2 === -1 ||
+      encoded3 === -1 ||
+      encoded4 === -1
+    ) {
       throw new Error("NIP-44: Invalid base64 encoding in ciphertext");
     }
-    
+
     bytes[p++] = (encoded1 << 2) | (encoded2 >> 4);
     if (p < bufferLength) {
       bytes[p++] = ((encoded2 & 15) << 4) | (encoded3 >> 2);
@@ -179,7 +187,7 @@ function base64Decode(str: string): Uint8Array {
       bytes[p++] = ((encoded3 & 3) << 6) | (encoded4 & 63);
     }
   }
-  
+
   return bytes;
 }
 
@@ -292,26 +300,34 @@ function unpad(padded: Uint8Array): string {
  * For full cryptographic validation, use isValidPublicKeyPoint.
  */
 // secp256k1 field prime (P) as BigInt, defined once
-const FIELD_PRIME = BigInt("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f");
+const FIELD_PRIME = BigInt(
+  "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",
+);
 
 export function isValidPublicKeyFormat(publicKey: string): boolean {
   // Check format: must be 64 hex characters (case-insensitive)
   if (!/^[0-9a-f]{64}$/i.test(publicKey)) {
     return false;
   }
-  
+
   // Reject problematic edge cases that are invalid for cryptographic use
-  
+
   // All zeros - invalid public key (point at infinity)
-  if (publicKey === "0000000000000000000000000000000000000000000000000000000000000000") {
+  if (
+    publicKey ===
+    "0000000000000000000000000000000000000000000000000000000000000000"
+  ) {
     return false;
   }
-  
+
   // All 'f's - invalid public key (field prime - 1, not a valid x-coordinate)
-  if (publicKey === "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") {
+  if (
+    publicKey ===
+    "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+  ) {
     return false;
   }
-  
+
   // Any value ≥ field prime is invalid as an x-coordinate
   try {
     const keyValue = BigInt("0x" + publicKey);
@@ -322,7 +338,7 @@ export function isValidPublicKeyFormat(publicKey: string): boolean {
     // If BigInt conversion fails, it's not a valid hex string anyway
     return false;
   }
-  
+
   return true;
 }
 
@@ -330,7 +346,7 @@ export function isValidPublicKeyFormat(publicKey: string): boolean {
  * Validate if a hex string represents a valid point on the secp256k1 curve
  * This function does cryptographic validation in addition to format validation.
  * Use this when you need to ensure the public key is actually usable for cryptographic operations.
- * 
+ *
  * This implementation uses efficient point validation instead of expensive ECDH operations,
  * significantly improving performance while maintaining the same validation behavior.
  */
@@ -345,8 +361,8 @@ export function isValidPublicKeyPoint(publicKey: string): boolean {
   // We try both possible y-coordinates (even and odd) efficiently using
   // ProjectivePoint.fromHex which validates curve membership without
   // performing expensive ECDH operations.
-  
-  const prefixes = ['02', '03'];
+
+  const prefixes = ["02", "03"];
   for (const prefix of prefixes) {
     try {
       secp256k1.ProjectivePoint.fromHex(prefix + publicKey);
@@ -355,7 +371,7 @@ export function isValidPublicKeyPoint(publicKey: string): boolean {
       // Continue to next prefix
     }
   }
-  
+
   return false;
 }
 
@@ -563,25 +579,25 @@ export function hmacWithAAD(
 /**
  * Securely wipe a buffer by overwriting it with random bytes, then zeros
  * This helps prevent sensitive data from remaining in memory
- * 
+ *
  * Note: This is a best-effort approach. Modern JavaScript engines and
  * garbage collectors may still leave copies of sensitive data in memory.
  * For maximum security in high-risk environments, consider using
  * dedicated secure memory management libraries.
- * 
+ *
  * @param buffer - The buffer to wipe
  */
 export function secureWipe(buffer: Uint8Array): void {
   if (buffer.length === 0) return;
-  
+
   try {
     // First overwrite with random data (harder to recover)
     const randomData = randomBytes(buffer.length);
     buffer.set(randomData);
-    
+
     // Then overwrite with zeros
     buffer.fill(0);
-    
+
     // Clear the random data buffer as well
     randomData.fill(0);
   } catch (error) {
@@ -805,8 +821,10 @@ export function decodePayload(payload: string): {
   // NIP-44 Decryption Step 1: Normalize payload and check for non-base64 encoding (# prefix)
   // Trim whitespace and newlines to prevent bypass of # prefix detection
   const raw = payload.trim();
-  if (raw.length > 0 && raw[0] === '#') {
-    throw new Error("NIP-44: Unsupported version (non-base64 encoding detected)");
+  if (raw.length > 0 && raw[0] === "#") {
+    throw new Error(
+      "NIP-44: Unsupported version (non-base64 encoding detected)",
+    );
   }
 
   // NIP-44 Decryption Step 2: Validate base64 payload length bounds
@@ -815,7 +833,7 @@ export function decodePayload(payload: string): {
       `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${raw.length}.`,
     );
   }
-  
+
   if (raw.length > MAX_BASE64_PAYLOAD_LENGTH) {
     throw new Error(
       `NIP-44: Invalid ciphertext length. Base64 payload must be between ${MIN_BASE64_PAYLOAD_LENGTH} and ${MAX_BASE64_PAYLOAD_LENGTH} characters, got ${raw.length}.`,
@@ -840,7 +858,7 @@ export function decodePayload(payload: string): {
       `NIP-44: Invalid decoded payload length. Must be between ${MIN_DECODED_PAYLOAD_LENGTH} and ${MAX_DECODED_PAYLOAD_LENGTH} bytes, got ${data.length}.`,
     );
   }
-  
+
   if (data.length > MAX_DECODED_PAYLOAD_LENGTH) {
     throw new Error(
       `NIP-44: Invalid decoded payload length. Must be between ${MIN_DECODED_PAYLOAD_LENGTH} and ${MAX_DECODED_PAYLOAD_LENGTH} bytes, got ${data.length}.`,
@@ -1055,5 +1073,3 @@ export function decrypt(
     throw new Error("NIP-44: Failed to decrypt message");
   }
 }
-
-

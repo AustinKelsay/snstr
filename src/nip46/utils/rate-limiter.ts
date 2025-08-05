@@ -25,7 +25,7 @@ export class NIP46RateLimiter {
   private readonly maxRequestsPerHour: number;
   private readonly burstSize: number;
   private readonly cleanupIntervalMs: number;
-  
+
   private clientHistory = new Map<string, ClientRequestHistory>();
   private cleanupInterval: NodeJS.Timeout | null = null;
 
@@ -45,94 +45,112 @@ export class NIP46RateLimiter {
   isAllowed(clientPubkey: string): RateLimitResult {
     const now = Math.floor(Date.now() / 1000);
     const history = this.getOrCreateHistory(clientPubkey, now);
-    
+
     // Clean old requests from history
     this.cleanHistory(history, now);
-    
+
     // Check burst limit (requests in last 10 seconds)
     const burstWindow = now - 10;
-    const recentRequests = history.requests.filter(timestamp => timestamp >= burstWindow);
-    
+    const recentRequests = history.requests.filter(
+      (timestamp) => timestamp >= burstWindow,
+    );
+
     if (recentRequests.length >= this.burstSize) {
       return {
         allowed: false,
         retryAfter: 10,
-        remainingRequests: 0
+        remainingRequests: 0,
       };
     }
-    
+
     // Check per-minute limit
     const minuteWindow = now - 60;
-    const minuteRequests = history.requests.filter(timestamp => timestamp >= minuteWindow);
-    
+    const minuteRequests = history.requests.filter(
+      (timestamp) => timestamp >= minuteWindow,
+    );
+
     if (minuteRequests.length >= this.maxRequestsPerMinute) {
       // Safety check: ensure array is not empty before using Math.min
-      const oldestRequest = minuteRequests.length > 0 ? Math.min(...minuteRequests) : now;
+      const oldestRequest =
+        minuteRequests.length > 0 ? Math.min(...minuteRequests) : now;
       const retryAfter = 60 - (now - oldestRequest);
       return {
         allowed: false,
         retryAfter: Math.max(1, retryAfter),
-        remainingRequests: 0
+        remainingRequests: 0,
       };
     }
-    
+
     // Check per-hour limit
     const hourWindow = now - 3600;
-    const hourRequests = history.requests.filter(timestamp => timestamp >= hourWindow);
-    
+    const hourRequests = history.requests.filter(
+      (timestamp) => timestamp >= hourWindow,
+    );
+
     if (hourRequests.length >= this.maxRequestsPerHour) {
       // Safety check: ensure array is not empty before using Math.min
-      const oldestRequest = hourRequests.length > 0 ? Math.min(...hourRequests) : now;
+      const oldestRequest =
+        hourRequests.length > 0 ? Math.min(...hourRequests) : now;
       const retryAfter = 3600 - (now - oldestRequest);
       return {
         allowed: false,
         retryAfter: Math.max(1, retryAfter),
-        remainingRequests: 0
+        remainingRequests: 0,
       };
     }
-    
+
     // Request is allowed - record it
     history.requests.push(now);
-    
+
     return {
       allowed: true,
       remainingRequests: Math.min(
         this.maxRequestsPerMinute - minuteRequests.length - 1,
         this.maxRequestsPerHour - hourRequests.length - 1,
-        this.burstSize - recentRequests.length - 1
-      )
+        this.burstSize - recentRequests.length - 1,
+      ),
     };
   }
 
   /**
    * Get remaining requests for a client (for informational purposes)
    */
-  getRemainingRequests(clientPubkey: string): { minute: number; hour: number; burst: number } {
+  getRemainingRequests(clientPubkey: string): {
+    minute: number;
+    hour: number;
+    burst: number;
+  } {
     const now = Math.floor(Date.now() / 1000);
     const history = this.clientHistory.get(clientPubkey);
-    
+
     if (!history) {
       return {
         minute: this.maxRequestsPerMinute,
         hour: this.maxRequestsPerHour,
-        burst: this.burstSize
+        burst: this.burstSize,
       };
     }
-    
+
     this.cleanHistory(history, now);
-    
+
     const minuteWindow = now - 60;
     const hourWindow = now - 3600;
     const burstWindow = now - 10;
-    
-    const minuteRequests = history.requests.filter(timestamp => timestamp >= minuteWindow).length;
-    const hourRequests = history.requests.filter(timestamp => timestamp >= hourWindow).length;
-    const burstRequests = history.requests.filter(timestamp => timestamp >= burstWindow).length;
-    
+
+    const minuteRequests = history.requests.filter(
+      (timestamp) => timestamp >= minuteWindow,
+    ).length;
+    const hourRequests = history.requests.filter(
+      (timestamp) => timestamp >= hourWindow,
+    ).length;
+    const burstRequests = history.requests.filter(
+      (timestamp) => timestamp >= burstWindow,
+    ).length;
+
     return {
       minute: Math.max(0, this.maxRequestsPerMinute - minuteRequests),
       hour: Math.max(0, this.maxRequestsPerHour - hourRequests),
-      burst: Math.max(0, this.burstSize - burstRequests)
+      burst: Math.max(0, this.burstSize - burstRequests),
     };
   }
 
@@ -153,17 +171,20 @@ export class NIP46RateLimiter {
   /**
    * Get or create history for a client
    */
-  private getOrCreateHistory(clientPubkey: string, now: number): ClientRequestHistory {
+  private getOrCreateHistory(
+    clientPubkey: string,
+    now: number,
+  ): ClientRequestHistory {
     let history = this.clientHistory.get(clientPubkey);
-    
+
     if (!history) {
       history = {
         requests: [],
-        lastCleanup: now
+        lastCleanup: now,
       };
       this.clientHistory.set(clientPubkey, history);
     }
-    
+
     return history;
   }
 
@@ -175,10 +196,12 @@ export class NIP46RateLimiter {
     if (now - history.lastCleanup < 60) {
       return;
     }
-    
+
     // Keep only requests from the last hour
     const hourWindow = now - 3600;
-    history.requests = history.requests.filter(timestamp => timestamp >= hourWindow);
+    history.requests = history.requests.filter(
+      (timestamp) => timestamp >= hourWindow,
+    );
     history.lastCleanup = now;
   }
 
@@ -198,18 +221,20 @@ export class NIP46RateLimiter {
     const now = Math.floor(Date.now() / 1000);
     const hourWindow = now - 3600;
     const clientsToDelete: string[] = [];
-    
+
     // First pass: clean history and collect clients to delete
     for (const [clientPubkey, history] of this.clientHistory.entries()) {
       // Remove requests older than 1 hour
-      history.requests = history.requests.filter(timestamp => timestamp >= hourWindow);
-      
+      history.requests = history.requests.filter(
+        (timestamp) => timestamp >= hourWindow,
+      );
+
       // Mark clients with no recent requests for deletion
       if (history.requests.length === 0 && now - history.lastCleanup > 3600) {
         clientsToDelete.push(clientPubkey);
       }
     }
-    
+
     // Second pass: delete marked clients to avoid concurrent modification
     for (const clientPubkey of clientsToDelete) {
       this.clientHistory.delete(clientPubkey);
@@ -239,10 +264,10 @@ export class NIP46RateLimiter {
     let totalRequests = 0;
     let oldestRequest: number | null = null;
     let newestRequest: number | null = null;
-    
+
     for (const history of this.clientHistory.values()) {
       totalRequests += history.requests.length;
-      
+
       for (const timestamp of history.requests) {
         if (oldestRequest === null || timestamp < oldestRequest) {
           oldestRequest = timestamp;
@@ -252,12 +277,12 @@ export class NIP46RateLimiter {
         }
       }
     }
-    
+
     return {
       totalClients: this.clientHistory.size,
       totalRequests,
       oldestRequest,
-      newestRequest
+      newestRequest,
     };
   }
-} 
+}

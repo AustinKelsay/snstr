@@ -17,7 +17,7 @@ export const MAX_TAG_ELEMENT_LENGTH = 2048; // Maximum length per tag element
  * Validate event content size and structure
  */
 export function validateEventContent(content: string): boolean {
-  if (!content || typeof content !== 'string') {
+  if (!content || typeof content !== "string") {
     return false;
   }
 
@@ -32,17 +32,18 @@ export function validateEventContent(content: string): boolean {
     return validateEventStructure(parsed);
   } catch (error) {
     // Log parsing error for debugging while sanitizing sensitive data
-    const errorMessage = error instanceof Error ? error.message : 'Unknown JSON parsing error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown JSON parsing error";
     SecureErrorHandler.logSecurityEvent(
-      'JSON parsing failed in validateEventContent',
-      { 
+      "JSON parsing failed in validateEventContent",
+      {
         error: SecureErrorHandler.sanitizeError(
-          new Error(errorMessage), 
-          process.env.NODE_ENV !== 'production'
+          new Error(errorMessage),
+          process.env.NODE_ENV !== "production",
         ),
         contentLength: content.length,
-        contentPreview: sanitizeString(content, 50)
-      }
+        contentPreview: sanitizeString(content, 50),
+      },
     );
     return false;
   }
@@ -52,14 +53,14 @@ export function validateEventContent(content: string): boolean {
  * Validate event structure for signing requests
  */
 function validateEventStructure(event: unknown): boolean {
-  if (!event || typeof event !== 'object') {
+  if (!event || typeof event !== "object") {
     return false;
   }
 
   const eventObj = event as Record<string, unknown>;
 
   // Required fields for event signing
-  const requiredFields = ['kind', 'content', 'created_at'];
+  const requiredFields = ["kind", "content", "created_at"];
   for (const field of requiredFields) {
     if (!(field in eventObj)) {
       return false;
@@ -67,9 +68,11 @@ function validateEventStructure(event: unknown): boolean {
   }
 
   // Validate field types
-  if (typeof eventObj.kind !== 'number' || 
-      typeof eventObj.content !== 'string' ||
-      typeof eventObj.created_at !== 'number') {
+  if (
+    typeof eventObj.kind !== "number" ||
+    typeof eventObj.content !== "string" ||
+    typeof eventObj.created_at !== "number"
+  ) {
     return false;
   }
 
@@ -113,7 +116,7 @@ function validateTags(tags: unknown): boolean {
 
     // All tag elements must be strings
     for (const element of tag) {
-      if (typeof element !== 'string') {
+      if (typeof element !== "string") {
         return false;
       }
 
@@ -131,7 +134,7 @@ function validateTags(tags: unknown): boolean {
  * Validate public key format (strict hex validation)
  */
 export function validatePubkey(pubkey: string): boolean {
-  if (!pubkey || typeof pubkey !== 'string') {
+  if (!pubkey || typeof pubkey !== "string") {
     return false;
   }
 
@@ -143,7 +146,7 @@ export function validatePubkey(pubkey: string): boolean {
  * Validate event ID format
  */
 export function validateEventId(eventId: string): boolean {
-  if (!eventId || typeof eventId !== 'string') {
+  if (!eventId || typeof eventId !== "string") {
     return false;
   }
 
@@ -155,7 +158,7 @@ export function validateEventId(eventId: string): boolean {
  * Validate signature format
  */
 export function validateSignature(signature: string): boolean {
-  if (!signature || typeof signature !== 'string') {
+  if (!signature || typeof signature !== "string") {
     return false;
   }
 
@@ -167,7 +170,7 @@ export function validateSignature(signature: string): boolean {
  * Validate private key format (for internal use)
  */
 export function validatePrivateKey(privateKey: string): boolean {
-  if (!privateKey || typeof privateKey !== 'string') {
+  if (!privateKey || typeof privateKey !== "string") {
     return false;
   }
 
@@ -179,7 +182,7 @@ export function validatePrivateKey(privateKey: string): boolean {
  * Validate complete NIP-46 request payload
  */
 export function validateRequestPayload(request: NIP46Request): boolean {
-  if (!request || typeof request !== 'object') {
+  if (!request || typeof request !== "object") {
     return false;
   }
 
@@ -189,9 +192,11 @@ export function validateRequestPayload(request: NIP46Request): boolean {
   }
 
   // Validate ID format and length
-  if (typeof request.id !== 'string' || 
-      request.id.length === 0 || 
-      request.id.length > MAX_ID_LENGTH) {
+  if (
+    typeof request.id !== "string" ||
+    request.id.length === 0 ||
+    request.id.length > MAX_ID_LENGTH
+  ) {
     return false;
   }
 
@@ -235,7 +240,7 @@ export function validateParams(params: string[]): boolean {
 
   // Validate each parameter
   for (const param of params) {
-    if (typeof param !== 'string') {
+    if (typeof param !== "string") {
       return false;
     }
 
@@ -252,20 +257,20 @@ export function validateParams(params: string[]): boolean {
  * Validate relay URL format
  */
 export function validateRelayUrl(url: string): boolean {
-  if (!url || typeof url !== 'string') {
+  if (!url || typeof url !== "string") {
     return false;
   }
 
   try {
     const parsed = new URL(url);
-    
+
     // Must be WebSocket protocol
-    if (parsed.protocol !== 'ws:' && parsed.protocol !== 'wss:') {
+    if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") {
       return false;
     }
 
     // Enforce HTTPS in production (wss://)
-    if (process.env.NODE_ENV === 'production' && parsed.protocol !== 'wss:') {
+    if (process.env.NODE_ENV === "production" && parsed.protocol !== "wss:") {
       return false;
     }
 
@@ -277,17 +282,18 @@ export function validateRelayUrl(url: string): boolean {
     return true;
   } catch (error) {
     // Log URL parsing error for debugging
-    const errorMessage = error instanceof Error ? error.message : 'Unknown URL parsing error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown URL parsing error";
     SecureErrorHandler.logSecurityEvent(
-      'URL parsing failed in validateRelayUrl',
-      { 
+      "URL parsing failed in validateRelayUrl",
+      {
         error: SecureErrorHandler.sanitizeError(
-          new Error(errorMessage), 
-          process.env.NODE_ENV !== 'production'
+          new Error(errorMessage),
+          process.env.NODE_ENV !== "production",
         ),
         urlLength: url.length,
-        urlPreview: sanitizeString(url, 50)
-      }
+        urlPreview: sanitizeString(url, 50),
+      },
     );
     return false;
   }
@@ -297,21 +303,21 @@ export function validateRelayUrl(url: string): boolean {
  * Validate permission string format
  */
 export function validatePermission(permission: string): boolean {
-  if (!permission || typeof permission !== 'string') {
+  if (!permission || typeof permission !== "string") {
     return false;
   }
 
   const validPermissions = [
-    'connect',
-    'get_public_key',
-    'get_relays',
-    'sign_event',
-    'ping', 
-    'disconnect',
-    'nip04_encrypt',
-    'nip04_decrypt',
-    'nip44_encrypt',
-    'nip44_decrypt'
+    "connect",
+    "get_public_key",
+    "get_relays",
+    "sign_event",
+    "ping",
+    "disconnect",
+    "nip04_encrypt",
+    "nip04_decrypt",
+    "nip44_encrypt",
+    "nip44_decrypt",
   ];
 
   // Check for basic permissions
@@ -333,19 +339,21 @@ export function validatePermission(permission: string): boolean {
  * Validate connection string format
  */
 export function validateConnectionString(connectionString: string): boolean {
-  if (!connectionString || typeof connectionString !== 'string') {
+  if (!connectionString || typeof connectionString !== "string") {
     return false;
   }
 
   // Must start with bunker:// or nostrconnect://
-  if (!connectionString.startsWith('bunker://') && 
-      !connectionString.startsWith('nostrconnect://')) {
+  if (
+    !connectionString.startsWith("bunker://") &&
+    !connectionString.startsWith("nostrconnect://")
+  ) {
     return false;
   }
 
   try {
     const url = new URL(connectionString);
-    
+
     // Extract and validate pubkey from hostname
     const pubkey = url.hostname;
     if (!validatePubkey(pubkey)) {
@@ -353,7 +361,7 @@ export function validateConnectionString(connectionString: string): boolean {
     }
 
     // Validate relay URLs if present
-    const relays = url.searchParams.getAll('relay');
+    const relays = url.searchParams.getAll("relay");
     for (const relay of relays) {
       if (!validateRelayUrl(relay)) {
         return false;
@@ -361,9 +369,9 @@ export function validateConnectionString(connectionString: string): boolean {
     }
 
     // Validate permissions if present
-    const perms = url.searchParams.get('perms');
+    const perms = url.searchParams.get("perms");
     if (perms) {
-      const permissions = perms.split(',');
+      const permissions = perms.split(",");
       for (const perm of permissions) {
         if (!validatePermission(perm.trim())) {
           return false;
@@ -374,17 +382,18 @@ export function validateConnectionString(connectionString: string): boolean {
     return true;
   } catch (error) {
     // Log connection string parsing error for debugging
-    const errorMessage = error instanceof Error ? error.message : 'Unknown URL parsing error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown URL parsing error";
     SecureErrorHandler.logSecurityEvent(
-      'Connection string parsing failed in validateConnectionString',
-      { 
+      "Connection string parsing failed in validateConnectionString",
+      {
         error: SecureErrorHandler.sanitizeError(
-          new Error(errorMessage), 
-          process.env.NODE_ENV !== 'production'
+          new Error(errorMessage),
+          process.env.NODE_ENV !== "production",
         ),
         connectionStringLength: connectionString.length,
-        connectionStringPreview: sanitizeString(connectionString, 50)
-      }
+        connectionStringPreview: sanitizeString(connectionString, 50),
+      },
     );
     return false;
   }
@@ -393,21 +402,26 @@ export function validateConnectionString(connectionString: string): boolean {
 /**
  * Validate JSON string and return parsing result
  */
-export function validateAndParseJson(jsonString: string): { valid: boolean; data?: unknown; error?: string } {
-  if (!jsonString || typeof jsonString !== 'string') {
-    return { valid: false, error: 'Invalid JSON string' };
+export function validateAndParseJson(jsonString: string): {
+  valid: boolean;
+  data?: unknown;
+  error?: string;
+} {
+  if (!jsonString || typeof jsonString !== "string") {
+    return { valid: false, error: "Invalid JSON string" };
   }
 
   // Check for reasonable size limits
   if (jsonString.length > MAX_CONTENT_SIZE) {
-    return { valid: false, error: 'JSON string too large' };
+    return { valid: false, error: "JSON string too large" };
   }
 
   try {
     const parsed = JSON.parse(jsonString);
     return { valid: true, data: parsed };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown parsing error';
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown parsing error";
     return { valid: false, error: `JSON parsing failed: ${errorMessage}` };
   }
 }
@@ -415,22 +429,28 @@ export function validateAndParseJson(jsonString: string): { valid: boolean; data
 /**
  * Sanitize string input to prevent injection attacks
  */
-export function sanitizeString(input: string, maxLength: number = 1000): string {
-  if (!input || typeof input !== 'string') {
-    return '';
+export function sanitizeString(
+  input: string,
+  maxLength: number = 1000,
+): string {
+  if (!input || typeof input !== "string") {
+    return "";
   }
 
   return input
     .slice(0, maxLength)
-    .replace(/[<>"'&]/g, '') // Remove potentially dangerous characters
+    .replace(/[<>"'&]/g, "") // Remove potentially dangerous characters
     .trim();
 }
 
 /**
  * Validate timestamp for replay attack prevention
  */
-export function validateTimestamp(timestamp: number, maxAgeSeconds: number = 300): boolean {
-  if (typeof timestamp !== 'number' || timestamp <= 0) {
+export function validateTimestamp(
+  timestamp: number,
+  maxAgeSeconds: number = 300,
+): boolean {
+  if (typeof timestamp !== "number" || timestamp <= 0) {
     return false;
   }
 
@@ -446,18 +466,24 @@ export function validateTimestamp(timestamp: number, maxAgeSeconds: number = 300
  */
 export class SecureErrorHandler {
   private static securityLogger: Logger | null = null;
-  private static securityLoggingEnabled: boolean = process.env.NODE_ENV !== 'test';
+  private static securityLoggingEnabled: boolean =
+    process.env.NODE_ENV !== "test";
 
   /**
    * Initialize security logging with a custom logger
    */
-  static initializeSecurityLogging(logger?: Logger, enabled: boolean = true): void {
-    SecureErrorHandler.securityLogger = logger || new Logger({
-      prefix: "SECURITY",
-      level: LogLevel.WARN,
-      includeTimestamp: true,
-      silent: false
-    });
+  static initializeSecurityLogging(
+    logger?: Logger,
+    enabled: boolean = true,
+  ): void {
+    SecureErrorHandler.securityLogger =
+      logger ||
+      new Logger({
+        prefix: "SECURITY",
+        level: LogLevel.WARN,
+        includeTimestamp: true,
+        silent: false,
+      });
     SecureErrorHandler.securityLoggingEnabled = enabled;
   }
 
@@ -480,42 +506,46 @@ export class SecureErrorHandler {
    */
   static sanitizeError(error: Error, isDebug: boolean = false): string {
     const safeErrors = [
-      'Authentication failed',
-      'Permission denied', 
-      'Invalid request format',
-      'Rate limit exceeded',
-      'Connection timeout',
-      'Invalid method',
-      'Invalid parameters',
-      'Encryption failed',
-      'Decryption failed'
+      "Authentication failed",
+      "Permission denied",
+      "Invalid request format",
+      "Rate limit exceeded",
+      "Connection timeout",
+      "Invalid method",
+      "Invalid parameters",
+      "Encryption failed",
+      "Decryption failed",
     ];
 
     // In production, only return safe error messages
     if (!isDebug) {
       const message = error.message.trim();
       const isSafe = safeErrors.includes(message);
-      return isSafe ? message : 'Operation failed';
+      return isSafe ? message : "Operation failed";
     }
 
     // Even in debug mode, sanitize sensitive data
-    return error.message.replace(/[0-9a-f]{64}/gi, '[KEY_REDACTED]');
+    return error.message.replace(/[0-9a-f]{64}/gi, "[KEY_REDACTED]");
   }
 
   /**
    * Log security events without exposing sensitive data
    */
-  static logSecurityEvent(event: string, details: Record<string, unknown>, sensitive: string[] = []): void {
+  static logSecurityEvent(
+    event: string,
+    details: Record<string, unknown>,
+    sensitive: string[] = [],
+  ): void {
     if (!SecureErrorHandler.securityLoggingEnabled) {
       return;
     }
 
     const sanitizedDetails = { ...details };
-    
+
     // Remove or mask sensitive fields
     for (const field of sensitive) {
       if (sanitizedDetails[field]) {
-        sanitizedDetails[field] = '[REDACTED]';
+        sanitizedDetails[field] = "[REDACTED]";
       }
     }
 

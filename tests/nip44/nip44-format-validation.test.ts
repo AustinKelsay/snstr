@@ -1,10 +1,10 @@
-import { 
-  isValidPublicKeyFormat, 
-  isValidPublicKeyPoint, 
-  isValidPrivateKey, 
+import {
+  isValidPublicKeyFormat,
+  isValidPublicKeyPoint,
+  isValidPrivateKey,
   decodePayload,
   NONCE_SIZE_V0,
-  MAC_SIZE_V0
+  MAC_SIZE_V0,
 } from "../../src/nip44";
 
 describe("NIP-44 Format Validation", () => {
@@ -69,21 +69,21 @@ describe("NIP-44 Format Validation", () => {
           "0000000000000000000000000000000000000000000000000000000000000000",
         ),
       ).toBe(false);
-      
+
       // All 'f's - invalid public key (field prime - 1)
       expect(
         isValidPublicKeyFormat(
           "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
         ),
       ).toBe(false);
-      
+
       // secp256k1 field prime - invalid
       expect(
         isValidPublicKeyFormat(
           "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",
         ),
       ).toBe(false);
-      
+
       // Value greater than field prime - invalid
       expect(
         isValidPublicKeyFormat(
@@ -101,13 +101,13 @@ describe("NIP-44 Format Validation", () => {
           "d91191e30e00444b942c0e82cad470b32af171764c7c6c75d9893e4b0e2ad0ad",
         ),
       ).toBe(true);
-      
+
       expect(
         isValidPublicKeyPoint(
           "32e1827635450ebb3c5a7d12c1f8e7b2b514439ac10a67eef3d9fd9c5c68e245",
         ),
       ).toBe(true);
-      
+
       // Test with more known valid points
       expect(
         isValidPublicKeyPoint(
@@ -144,14 +144,14 @@ describe("NIP-44 Format Validation", () => {
           "0000000000000000000000000000000000000000000000000000000000000000",
         ),
       ).toBe(false);
-      
+
       // Point at or near curve order/field prime - likely invalid
       expect(
         isValidPublicKeyPoint(
           "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",
         ),
       ).toBe(false);
-      
+
       // Another invalid x-coordinate (carefully chosen to be invalid)
       expect(
         isValidPublicKeyPoint(
@@ -167,7 +167,7 @@ describe("NIP-44 Format Validation", () => {
         "02e49c3e6c97b1b29b4e5b3f3a1d62789a2d3c4e5f6a7b8c9d0e1f2a3b4c5d6e",
         "ffe97bd42e0b9b9f14b3b54b9f9c2a0f8b2d1e42b4f1c5d7e9f2a1b3c4d5e6f",
       ];
-      
+
       // Note: These are randomly generated and may or may not be valid points
       // The test is more about ensuring the function doesn't crash and returns consistent results
       for (const key of testKeys) {
@@ -260,7 +260,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
   describe("# prefix detection", () => {
     test("should reject payloads starting with #", () => {
       const hashPrefixedPayload = "#invalid-non-base64-payload";
-      
+
       expect(() => {
         decodePayload(hashPrefixedPayload);
       }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
@@ -268,7 +268,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
 
     test("should reject empty payloads starting with #", () => {
       const hashOnlyPayload = "#";
-      
+
       expect(() => {
         decodePayload(hashOnlyPayload);
       }).toThrow("NIP-44: Unsupported version (non-base64 encoding detected)");
@@ -279,7 +279,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
     test("should reject base64 payloads that are too short", () => {
       // Generate a valid base64 string that's shorter than 132 characters
       const shortPayload = "dGVzdA=="; // "test" in base64, only 8 characters
-      
+
       expect(() => {
         decodePayload(shortPayload);
       }).toThrow(/Invalid ciphertext length/);
@@ -289,7 +289,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // Generate a valid base64 string that's longer than 87,472 characters
       // Use 87,476 (divisible by 4) to ensure proper base64 format for testing length validation
       const longPayload = "A".repeat(87476); // 87,476 characters, exceeds limit and is valid base64 format
-      
+
       expect(() => {
         decodePayload(longPayload);
       }).toThrow(/Invalid ciphertext length/);
@@ -298,7 +298,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
     test("should accept base64 payloads at minimum length boundary", () => {
       // Generate a valid base64 string that's exactly 132 characters
       const minLengthPayload = "A".repeat(132);
-      
+
       // This should pass length validation and successfully decode (version 0 is supported for decryption)
       const result = decodePayload(minLengthPayload);
       expect(result.version).toBe(0);
@@ -310,7 +310,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
     test("should accept base64 payloads at maximum length boundary", () => {
       // Generate a valid base64 string that's exactly 87,472 characters
       const maxLengthPayload = "A".repeat(87472);
-      
+
       // This should pass length validation but may fail later validation steps
       expect(() => {
         decodePayload(maxLengthPayload);
@@ -323,8 +323,10 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // Create a valid base64 that decodes to less than 99 bytes
       // "A".repeat(132) decodes to 99 bytes, so we need something shorter
       const shortDecodedPayload = Buffer.alloc(98).toString("base64"); // 98 bytes when decoded
-      const paddedPayload = shortDecodedPayload + "=".repeat((4 - (shortDecodedPayload.length % 4)) % 4);
-      
+      const paddedPayload =
+        shortDecodedPayload +
+        "=".repeat((4 - (shortDecodedPayload.length % 4)) % 4);
+
       expect(() => {
         decodePayload(paddedPayload);
       }).toThrow(/Invalid decoded payload length/);
@@ -333,7 +335,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
     test("should reject decoded payloads that are too long", () => {
       // Create a valid base64 that decodes to more than 65,603 bytes
       const longDecodedPayload = Buffer.alloc(65604).toString("base64"); // 65,604 bytes when decoded
-      
+
       expect(() => {
         decodePayload(longDecodedPayload);
       }).toThrow(/Invalid decoded payload length/);
@@ -342,7 +344,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
     test("should accept decoded payloads at minimum length boundary", () => {
       // Create a valid base64 that decodes to exactly 99 bytes
       const minDecodedPayload = Buffer.alloc(99).toString("base64");
-      
+
       // This should pass length validation and successfully decode (version 0 is supported for decryption)
       const result = decodePayload(minDecodedPayload);
       expect(result.version).toBe(0);
@@ -354,7 +356,7 @@ describe("NIP-44 decodePayload compliance tests", () => {
     test("should accept decoded payloads at maximum length boundary", () => {
       // Create a valid base64 that decodes to exactly 65,603 bytes
       const maxDecodedPayload = Buffer.alloc(65603).toString("base64");
-      
+
       // This should pass length validation and successfully decode (version 0 is supported for decryption)
       const result = decodePayload(maxDecodedPayload);
       expect(result.version).toBe(0);
@@ -369,10 +371,10 @@ describe("Whitespace normalization for # prefix detection", () => {
   test("should reject payloads with # prefix after leading spaces", () => {
     const spacePrefixedPayloads = [
       " #invalid-payload",
-      "  #invalid-payload", 
-      "   #invalid-payload"
+      "  #invalid-payload",
+      "   #invalid-payload",
     ];
-    
+
     for (const payload of spacePrefixedPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -384,9 +386,9 @@ describe("Whitespace normalization for # prefix detection", () => {
     const tabPrefixedPayloads = [
       "\t#invalid-payload",
       "\t\t#invalid-payload",
-      "\t \t#invalid-payload"
+      "\t \t#invalid-payload",
     ];
-    
+
     for (const payload of tabPrefixedPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -399,9 +401,9 @@ describe("Whitespace normalization for # prefix detection", () => {
       "\n#invalid-payload",
       "\r\n#invalid-payload",
       "\n\n#invalid-payload",
-      "\r#invalid-payload"
+      "\r#invalid-payload",
     ];
-    
+
     for (const payload of newlinePrefixedPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -414,9 +416,9 @@ describe("Whitespace normalization for # prefix detection", () => {
       " \t#invalid-payload",
       "\n \t#invalid-payload",
       " \r\n\t #invalid-payload",
-      "\t\n \r#invalid-payload"
+      "\t\n \r#invalid-payload",
     ];
-    
+
     for (const payload of mixedWhitespacePrefixedPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -431,9 +433,9 @@ describe("Whitespace normalization for # prefix detection", () => {
       validPayloadCore + " ",
       " " + validPayloadCore + " ",
       "\t" + validPayloadCore + "\t",
-      "\n" + validPayloadCore + "\n"
+      "\n" + validPayloadCore + "\n",
     ];
-    
+
     for (const payload of whitespacePaddedPayloads) {
       // Should not throw # prefix error (may fail at later validation steps)
       expect(() => {
@@ -443,13 +445,8 @@ describe("Whitespace normalization for # prefix detection", () => {
   });
 
   test("should handle empty payload after trimming", () => {
-    const emptyAfterTrimPayloads = [
-      "   ",
-      "\t\t",
-      "\n\n",
-      " \t\n\r "
-    ];
-    
+    const emptyAfterTrimPayloads = ["   ", "\t\t", "\n\n", " \t\n\r "];
+
     for (const payload of emptyAfterTrimPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -460,7 +457,7 @@ describe("Whitespace normalization for # prefix detection", () => {
   test("should use trimmed length for length validation", () => {
     // Create a payload that's too short after trimming
     const shortPayload = " " + "A".repeat(130) + " "; // 132 chars total, but 130 after trim
-    
+
     expect(() => {
       decodePayload(shortPayload);
     }).toThrow(/Invalid ciphertext length/);
@@ -470,10 +467,10 @@ describe("Whitespace normalization for # prefix detection", () => {
 describe("Base64 alphabet validation", () => {
   test("should reject payloads with invalid base64 characters", () => {
     const invalidChars = ["@", "!", "%", "~", " ", "\n", "\t"];
-    
+
     for (const char of invalidChars) {
       const invalidPayload = "ABC" + char + "DEF" + "A".repeat(125); // Make it long enough to pass length checks
-      
+
       expect(() => {
         decodePayload(invalidPayload);
       }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
@@ -482,7 +479,7 @@ describe("Base64 alphabet validation", () => {
 
   test("should reject payloads with unicode characters", () => {
     const unicodePayload = "ABC🚀DEF" + "A".repeat(125);
-    
+
     expect(() => {
       decodePayload(unicodePayload);
     }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
@@ -490,7 +487,7 @@ describe("Base64 alphabet validation", () => {
 
   test("should reject payloads with excessive padding", () => {
     const excessivePaddingPayload = "A".repeat(129) + "==="; // 132 chars with 3 padding chars
-    
+
     expect(() => {
       decodePayload(excessivePaddingPayload);
     }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
@@ -498,7 +495,7 @@ describe("Base64 alphabet validation", () => {
 
   test("should reject payloads with padding in the middle", () => {
     const paddingInMiddlePayload = "ABC=DEF" + "A".repeat(125);
-    
+
     expect(() => {
       decodePayload(paddingInMiddlePayload);
     }).toThrow("NIP-44: Invalid base64 alphabet in ciphertext");
@@ -508,10 +505,10 @@ describe("Base64 alphabet validation", () => {
     // Create payloads that are long enough to pass length validation but have improper base64 structure
     const improperLengthPayloads = [
       "A".repeat(133), // 133 chars, not multiple of 4
-      "A".repeat(135), // 135 chars, not multiple of 4  
+      "A".repeat(135), // 135 chars, not multiple of 4
       "A".repeat(134), // 134 chars, not multiple of 4
     ];
-    
+
     for (const payload of improperLengthPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -526,7 +523,7 @@ describe("Base64 alphabet validation", () => {
       "A".repeat(124) + "A=B=C=D=", // Multiple single padding chars (132 chars total)
       "A".repeat(125) + "ABC===D", // Three padding chars (invalid) (132 chars total)
     ];
-    
+
     for (const payload of multiplePaddingPayloads) {
       expect(() => {
         decodePayload(payload);
@@ -535,8 +532,8 @@ describe("Base64 alphabet validation", () => {
   });
 
   test("should accept valid base64 strings with no padding", () => {
-    const validPayload = "A".repeat(132);  // All valid chars, no padding
-    
+    const validPayload = "A".repeat(132); // All valid chars, no padding
+
     // Should not throw base64 alphabet error (may fail at later validation steps)
     expect(() => {
       decodePayload(validPayload);
@@ -544,9 +541,9 @@ describe("Base64 alphabet validation", () => {
   });
 
   test("should accept valid base64 strings with proper padding", () => {
-    const validPayload1 = "A".repeat(131) + "=";  // 1 padding char
+    const validPayload1 = "A".repeat(131) + "="; // 1 padding char
     const validPayload2 = "A".repeat(130) + "=="; // 2 padding chars
-    
+
     // Should not throw base64 alphabet error (may fail at later validation steps)
     for (const payload of [validPayload1, validPayload2]) {
       expect(() => {
@@ -557,8 +554,10 @@ describe("Base64 alphabet validation", () => {
 
   test("should accept all valid base64 alphabet characters", () => {
     // Test with a string containing all valid base64 characters
-    const allValidChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" + "A".repeat(68);
-    
+    const allValidChars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" +
+      "A".repeat(68);
+
     expect(() => {
       decodePayload(allValidChars);
     }).not.toThrow("Invalid base64 alphabet");

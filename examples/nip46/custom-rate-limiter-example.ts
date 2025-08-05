@@ -3,7 +3,7 @@ import { generateKeypair } from "../../src/utils/crypto";
 
 /**
  * Example demonstrating how to configure custom rate limiting for NIP-46 bunker
- * 
+ *
  * This example shows how you can customize the rate limiter settings based on
  * your deployment needs - whether you need stricter limits for public services
  * or more relaxed limits for private/trusted environments.
@@ -23,12 +23,12 @@ async function main() {
     signerPubkey: signerKeypair.publicKey,
     relays: ["wss://relay.damus.io", "wss://nos.lol"],
     rateLimitConfig: {
-      maxRequestsPerMinute: 30,    // Lower minute limit
-      maxRequestsPerHour: 500,     // Lower hour limit
-      burstSize: 3,                // Smaller burst allowance
-      cleanupIntervalMs: 60000     // More frequent cleanup
+      maxRequestsPerMinute: 30, // Lower minute limit
+      maxRequestsPerHour: 500, // Lower hour limit
+      burstSize: 3, // Smaller burst allowance
+      cleanupIntervalMs: 60000, // More frequent cleanup
     },
-    debug: true
+    debug: true,
   });
 
   // Example 2: Moderate Configuration (default-like)
@@ -38,12 +38,12 @@ async function main() {
     signerPubkey: signerKeypair.publicKey,
     relays: ["wss://relay.damus.io", "wss://nos.lol"],
     rateLimitConfig: {
-      maxRequestsPerMinute: 60,    // Standard minute limit
-      maxRequestsPerHour: 1000,    // Standard hour limit
-      burstSize: 10,               // Standard burst allowance
-      cleanupIntervalMs: 300000    // Standard cleanup interval (5 minutes)
+      maxRequestsPerMinute: 60, // Standard minute limit
+      maxRequestsPerHour: 1000, // Standard hour limit
+      burstSize: 10, // Standard burst allowance
+      cleanupIntervalMs: 300000, // Standard cleanup interval (5 minutes)
     },
-    debug: true
+    debug: true,
   });
 
   // Example 3: Permissive/Private Configuration
@@ -53,12 +53,12 @@ async function main() {
     signerPubkey: signerKeypair.publicKey,
     relays: ["wss://relay.damus.io", "wss://nos.lol"],
     rateLimitConfig: {
-      maxRequestsPerMinute: 120,   // Higher minute limit
-      maxRequestsPerHour: 5000,    // Higher hour limit
-      burstSize: 25,               // Larger burst allowance
-      cleanupIntervalMs: 600000    // Less frequent cleanup (10 minutes)
+      maxRequestsPerMinute: 120, // Higher minute limit
+      maxRequestsPerHour: 5000, // Higher hour limit
+      burstSize: 25, // Larger burst allowance
+      cleanupIntervalMs: 600000, // Less frequent cleanup (10 minutes)
     },
-    debug: true
+    debug: true,
   });
 
   // Example 4: Using default configuration (no rateLimitConfig provided)
@@ -68,7 +68,7 @@ async function main() {
     signerPubkey: signerKeypair.publicKey,
     relays: ["wss://relay.damus.io", "wss://nos.lol"],
     // No rateLimitConfig provided - uses defaults
-    debug: true
+    debug: true,
   });
 
   console.log("\n=== Rate Limiter Configuration Details ===");
@@ -78,18 +78,24 @@ async function main() {
   console.log("Default:      60/min, 1000/hour, burst=10 (when no config)");
 
   console.log("\n=== Usage Scenarios ===");
-  console.log("Conservative: Public services, untrusted clients, resource-constrained");
+  console.log(
+    "Conservative: Public services, untrusted clients, resource-constrained",
+  );
   console.log("Moderate:     General purpose, typical applications");
-  console.log("Permissive:   Private networks, trusted clients, high-throughput needs");
+  console.log(
+    "Permissive:   Private networks, trusted clients, high-throughput needs",
+  );
   console.log("Default:      When you don't need custom rate limiting");
 
   console.log("\n=== All bunkers created successfully! ===");
   console.log("Rate limiter configurations are applied at construction time.");
-  console.log("The bunkers are ready to start() with their respective rate limits.");
+  console.log(
+    "The bunkers are ready to start() with their respective rate limits.",
+  );
 }
 
 if (require.main === module) {
   main().catch(console.error);
 }
 
-export { main }; 
+export { main };

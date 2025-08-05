@@ -11,31 +11,41 @@ import { NIP46Method, NIP46Request, NIP46Response } from "../types";
  */
 export function generateRequestId(): string {
   // Use Node.js crypto if available
-  if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node
+  ) {
     try {
       // Safe import without eval - use top-level import for Node.js crypto
       // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const crypto = require('crypto');
-      return crypto.randomBytes(16).toString('hex');
+      const crypto = require("crypto");
+      return crypto.randomBytes(16).toString("hex");
     } catch (error) {
       // Don't fall back to weak randomness - fail securely
-      throw new Error('Secure random number generation not available in Node.js environment. This is required for NIP-46 security.');
+      throw new Error(
+        "Secure random number generation not available in Node.js environment. This is required for NIP-46 security.",
+      );
     }
   }
-  
+
   // Use Web Crypto API if available (browsers)
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
     const array = new Uint8Array(16);
     crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
+      "",
+    );
   }
-  
+
   // SECURITY: Never fall back to Math.random() for cryptographic purposes
   // This would create predictable IDs that could be exploited for:
   // - Replay attacks
-  // - Session hijacking  
+  // - Session hijacking
   // - Authentication bypass
-  throw new Error('Cryptographically secure random number generation not available. NIP-46 requires crypto.getRandomValues() or Node.js crypto module for security.');
+  throw new Error(
+    "Cryptographically secure random number generation not available. NIP-46 requires crypto.getRandomValues() or Node.js crypto module for security.",
+  );
 }
 
 /**

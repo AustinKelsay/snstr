@@ -5,8 +5,6 @@
 import { isValidPrivateKey } from "../../nip44";
 import { NIP46SecurityError, NIP46UnsignedEventData } from "../types";
 
-
-
 /**
  * Constant-time string comparison to prevent timing attacks
  */
@@ -14,12 +12,12 @@ function constantTimeStringEqual(a: string, b: string): boolean {
   if (a.length !== b.length) {
     return false;
   }
-  
+
   let result = 0;
   for (let i = 0; i < a.length; i++) {
     result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
-  
+
   return result === 0;
 }
 
@@ -28,20 +26,20 @@ function constantTimeStringEqual(a: string, b: string): boolean {
  */
 export function securePermissionCheck(
   clientPermissions: Set<string>,
-  requiredPermission: string
+  requiredPermission: string,
 ): boolean {
   // Convert to array to avoid set enumeration timing differences
   const permissions = Array.from(clientPermissions);
-  
+
   let hasPermission = false;
-  
+
   // Check all permissions to avoid early exit timing attacks
   for (const permission of permissions) {
     if (constantTimeStringEqual(permission, requiredPermission)) {
       hasPermission = true;
     }
   }
-  
+
   return hasPermission;
 }
 
@@ -54,19 +52,25 @@ export interface SecurityValidationResult {
 /**
  * Create production-safe error message
  */
-export function createProductionSafeMessage(debugMessage: string, prodMessage: string = "Security validation failed"): string {
-  return process.env.NODE_ENV === 'production' ? prodMessage : debugMessage;
+export function createProductionSafeMessage(
+  debugMessage: string,
+  prodMessage: string = "Security validation failed",
+): string {
+  return process.env.NODE_ENV === "production" ? prodMessage : debugMessage;
 }
 
 /**
  * Enhanced private key validation with production-safe errors
  */
-export function validatePrivateKeySecure(privateKey: string, context: string = "private key"): void {
+export function validatePrivateKeySecure(
+  privateKey: string,
+  context: string = "private key",
+): void {
   const result = validatePrivateKeyResult(privateKey, context);
   if (!result.valid) {
     const prodSafeMessage = createProductionSafeMessage(
       result.error!,
-      "Invalid key format"
+      "Invalid key format",
     );
     throw new NIP46SecurityError(prodSafeMessage);
   }
@@ -75,7 +79,10 @@ export function validatePrivateKeySecure(privateKey: string, context: string = "
 /**
  * Validate private key with comprehensive security checks (throws on error)
  */
-export function validatePrivateKey(privateKey: string, context: string = "private key"): void {
+export function validatePrivateKey(
+  privateKey: string,
+  context: string = "private key",
+): void {
   const result = validatePrivateKeyResult(privateKey, context);
   if (!result.valid) {
     throw new NIP46SecurityError(result.error!);
@@ -85,13 +92,16 @@ export function validatePrivateKey(privateKey: string, context: string = "privat
 /**
  * Validate private key with comprehensive security checks (returns result)
  */
-export function validatePrivateKeyResult(privateKey: string, context: string = "private key"): SecurityValidationResult {
+export function validatePrivateKeyResult(
+  privateKey: string,
+  context: string = "private key",
+): SecurityValidationResult {
   // Check for null/undefined specifically
   if (privateKey == null) {
     return {
       valid: false,
       error: `${context} is required and cannot be null or undefined`,
-      code: "PRIVATE_KEY_NULL"
+      code: "PRIVATE_KEY_NULL",
     };
   }
 
@@ -100,7 +110,7 @@ export function validatePrivateKeyResult(privateKey: string, context: string = "
     return {
       valid: false,
       error: `${context} cannot be an empty string`,
-      code: "PRIVATE_KEY_EMPTY_STRING"
+      code: "PRIVATE_KEY_EMPTY_STRING",
     };
   }
 
@@ -110,7 +120,7 @@ export function validatePrivateKeyResult(privateKey: string, context: string = "
     return {
       valid: false,
       error: `${context} appears to be a placeholder value`,
-      code: "PRIVATE_KEY_PLACEHOLDER"
+      code: "PRIVATE_KEY_PLACEHOLDER",
     };
   }
 
@@ -119,7 +129,7 @@ export function validatePrivateKeyResult(privateKey: string, context: string = "
     return {
       valid: false,
       error: `${context} is not a valid private key format or is outside curve order`,
-      code: "PRIVATE_KEY_INVALID_FORMAT"
+      code: "PRIVATE_KEY_INVALID_FORMAT",
     };
   }
 
@@ -129,42 +139,59 @@ export function validatePrivateKeyResult(privateKey: string, context: string = "
 /**
  * Validate that keypair is properly initialized for crypto operations
  */
-export function validateKeypairForCrypto(keypair: { publicKey: string; privateKey: string }, context: string = "keypair"): void {
+export function validateKeypairForCrypto(
+  keypair: { publicKey: string; privateKey: string },
+  context: string = "keypair",
+): void {
   // Validate private key
   validatePrivateKey(keypair.privateKey, `${context} private key`);
 
   // Validate public key is not empty
   if (!keypair.publicKey || keypair.publicKey === "") {
-    throw new NIP46SecurityError(`${context} public key is required and cannot be empty`);
+    throw new NIP46SecurityError(
+      `${context} public key is required and cannot be empty`,
+    );
   }
 
   // Basic hex validation for public key (64 chars hex)
   if (!/^[0-9a-f]{64}$/i.test(keypair.publicKey)) {
-    throw new NIP46SecurityError(`${context} public key must be 64 character hex string`);
+    throw new NIP46SecurityError(
+      `${context} public key must be 64 character hex string`,
+    );
   }
 }
 
 /**
  * Validate user keypair before signing operations
  */
-export function validateUserKeypairForSigning(userKeypair: { publicKey: string; privateKey: string }): void {
+export function validateUserKeypairForSigning(userKeypair: {
+  publicKey: string;
+  privateKey: string;
+}): void {
   validateKeypairForCrypto(userKeypair, "user keypair");
 
   // Additional validation for signing context
   if (userKeypair.privateKey.length !== 64) {
-    throw new NIP46SecurityError("User private key must be exactly 64 characters");
+    throw new NIP46SecurityError(
+      "User private key must be exactly 64 characters",
+    );
   }
 }
 
 /**
  * Validate signer keypair before bunker operations
  */
-export function validateSignerKeypairForBunker(signerKeypair: { publicKey: string; privateKey: string }): void {
+export function validateSignerKeypairForBunker(signerKeypair: {
+  publicKey: string;
+  privateKey: string;
+}): void {
   validateKeypairForCrypto(signerKeypair, "signer keypair");
 
   // Additional validation for bunker context
   if (signerKeypair.privateKey.length !== 64) {
-    throw new NIP46SecurityError("Signer private key must be exactly 64 characters");
+    throw new NIP46SecurityError(
+      "Signer private key must be exactly 64 characters",
+    );
   }
 }
 
@@ -172,35 +199,42 @@ export function validateSignerKeypairForBunker(signerKeypair: { publicKey: strin
  * Validate encryption parameters
  */
 export function validateEncryptionParams(
-  privateKey: string, 
-  thirdPartyPubkey: string, 
+  privateKey: string,
+  thirdPartyPubkey: string,
   data: string,
-  operation: string = "encryption"
+  operation: string = "encryption",
 ): void {
   // Validate private key
   validatePrivateKey(privateKey, `${operation} private key`);
 
   // Validate third party public key
   if (!thirdPartyPubkey || thirdPartyPubkey === "") {
-    throw new NIP46SecurityError(`${operation} requires a valid third party public key`);
+    throw new NIP46SecurityError(
+      `${operation} requires a valid third party public key`,
+    );
   }
 
   if (!/^[0-9a-f]{64}$/i.test(thirdPartyPubkey)) {
-    throw new NIP46SecurityError(`${operation} third party public key must be 64 character hex string`);
+    throw new NIP46SecurityError(
+      `${operation} third party public key must be 64 character hex string`,
+    );
   }
 
   // Validate data
-  if (typeof data !== 'string') {
+  if (typeof data !== "string") {
     throw new NIP46SecurityError(`${operation} data must be a string`);
   }
 
   // Check for empty or whitespace-only data
   if (data.trim() === "") {
-    throw new NIP46SecurityError(`${operation} data must not be empty or whitespace-only`);
+    throw new NIP46SecurityError(
+      `${operation} data must not be empty or whitespace-only`,
+    );
   }
 
   // Prevent encryption of extremely large data (DoS protection)
-  if (data.length > 100000) { // 100KB limit
+  if (data.length > 100000) {
+    // 100KB limit
     throw new NIP46SecurityError(`${operation} data too large (max 100KB)`);
   }
 }
@@ -209,18 +243,23 @@ export function validateEncryptionParams(
  * Secure check for empty or uninitialized private keys
  */
 export function isPrivateKeyEmpty(privateKey: string): boolean {
-  return !privateKey || 
-         privateKey === "" || 
-         privateKey === "undefined" || 
-         privateKey === "null" ||
-         privateKey === "0" ||
-         /^0+$/.test(privateKey); // All zeros
+  return (
+    !privateKey ||
+    privateKey === "" ||
+    privateKey === "undefined" ||
+    privateKey === "null" ||
+    privateKey === "0" ||
+    /^0+$/.test(privateKey)
+  ); // All zeros
 }
 
 /**
  * Validate before any signing operation
  */
-export function validateBeforeSigning(userKeypair: { publicKey: string; privateKey: string }, eventData: NIP46UnsignedEventData): void {
+export function validateBeforeSigning(
+  userKeypair: { publicKey: string; privateKey: string },
+  eventData: NIP46UnsignedEventData,
+): void {
   // Validate user keypair
   validateUserKeypairForSigning(userKeypair);
 
@@ -229,28 +268,30 @@ export function validateBeforeSigning(userKeypair: { publicKey: string; privateK
     throw new NIP46SecurityError("Event data is required for signing");
   }
 
-  if (typeof eventData !== 'object') {
+  if (typeof eventData !== "object") {
     throw new NIP46SecurityError("Event data must be an object");
   }
 
   // Validate required event fields
-  const requiredFields = ['kind', 'content', 'created_at'];
+  const requiredFields = ["kind", "content", "created_at"];
   for (const field of requiredFields) {
     if (!(field in eventData)) {
-      throw new NIP46SecurityError(`Event data missing required field: ${field}`);
+      throw new NIP46SecurityError(
+        `Event data missing required field: ${field}`,
+      );
     }
   }
 
   // Validate field types
-  if (typeof eventData.kind !== 'number') {
+  if (typeof eventData.kind !== "number") {
     throw new NIP46SecurityError("Event kind must be a number");
   }
 
-  if (typeof eventData.content !== 'string') {
+  if (typeof eventData.content !== "string") {
     throw new NIP46SecurityError("Event content must be a string");
   }
 
-  if (typeof eventData.created_at !== 'number') {
+  if (typeof eventData.created_at !== "number") {
     throw new NIP46SecurityError("Event created_at must be a number");
   }
 
@@ -260,7 +301,8 @@ export function validateBeforeSigning(userKeypair: { publicKey: string; privateK
   }
 
   // Validate content size (DoS protection)
-  if (eventData.content.length > 100000) { // 100KB limit
+  if (eventData.content.length > 100000) {
+    // 100KB limit
     throw new NIP46SecurityError("Event content too large (max 100KB)");
   }
 }
@@ -272,10 +314,15 @@ export function validateBeforeEncryption(
   userKeypair: { publicKey: string; privateKey: string },
   thirdPartyPubkey: string,
   plaintext: string,
-  method: string = "NIP-44"
+  method: string = "NIP-44",
 ): void {
   validateKeypairForCrypto(userKeypair, "user keypair");
-  validateEncryptionParams(userKeypair.privateKey, thirdPartyPubkey, plaintext, `${method} encryption`);
+  validateEncryptionParams(
+    userKeypair.privateKey,
+    thirdPartyPubkey,
+    plaintext,
+    `${method} encryption`,
+  );
 }
 
 /**
@@ -285,14 +332,21 @@ export function validateBeforeDecryption(
   userKeypair: { publicKey: string; privateKey: string },
   thirdPartyPubkey: string,
   ciphertext: string,
-  method: string = "NIP-44"
+  method: string = "NIP-44",
 ): void {
   validateKeypairForCrypto(userKeypair, "user keypair");
-  validateEncryptionParams(userKeypair.privateKey, thirdPartyPubkey, ciphertext, `${method} decryption`);
+  validateEncryptionParams(
+    userKeypair.privateKey,
+    thirdPartyPubkey,
+    ciphertext,
+    `${method} decryption`,
+  );
 
   // Additional validation for ciphertext
   if (!ciphertext || ciphertext.trim() === "") {
-    throw new NIP46SecurityError(`${method} decryption requires non-empty ciphertext`);
+    throw new NIP46SecurityError(
+      `${method} decryption requires non-empty ciphertext`,
+    );
   }
 }
 
@@ -307,16 +361,22 @@ export function validateBunkerInitialization(options: {
 }): void {
   // Validate user public key
   if (!options.userPubkey || options.userPubkey === "") {
-    throw new NIP46SecurityError("User public key is required for bunker initialization");
+    throw new NIP46SecurityError(
+      "User public key is required for bunker initialization",
+    );
   }
 
   if (!/^[0-9a-f]{64}$/i.test(options.userPubkey)) {
-    throw new NIP46SecurityError("User public key must be 64 character hex string");
+    throw new NIP46SecurityError(
+      "User public key must be 64 character hex string",
+    );
   }
 
   // Validate signer public key if provided
   if (options.signerPubkey && !/^[0-9a-f]{64}$/i.test(options.signerPubkey)) {
-    throw new NIP46SecurityError("Signer public key must be 64 character hex string");
+    throw new NIP46SecurityError(
+      "Signer public key must be 64 character hex string",
+    );
   }
 
   // Validate keypairs if provided
@@ -338,15 +398,19 @@ export function validateSecureInitialization(bunkerInstance: {
 }): void {
   // Check user keypair
   if (isPrivateKeyEmpty(bunkerInstance.userKeypair.privateKey)) {
-    throw new NIP46SecurityError("User private key not properly initialized - cannot perform cryptographic operations");
+    throw new NIP46SecurityError(
+      "User private key not properly initialized - cannot perform cryptographic operations",
+    );
   }
 
   // Check signer keypair
   if (isPrivateKeyEmpty(bunkerInstance.signerKeypair.privateKey)) {
-    throw new NIP46SecurityError("Signer private key not properly initialized - cannot perform cryptographic operations");
+    throw new NIP46SecurityError(
+      "Signer private key not properly initialized - cannot perform cryptographic operations",
+    );
   }
 
   // Validate both keypairs
   validateUserKeypairForSigning(bunkerInstance.userKeypair);
   validateSignerKeypairForBunker(bunkerInstance.signerKeypair);
-} 
+}

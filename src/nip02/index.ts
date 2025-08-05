@@ -5,10 +5,10 @@ import { getUnixTime } from "../utils/time";
 import { isValidPublicKeyPoint } from "../nip44";
 import { isValidRelayUrl } from "../nip19";
 import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
-import { 
-  validateArrayAccess, 
+import {
+  validateArrayAccess,
   safeArrayAccess,
-  SecurityValidationError
+  SecurityValidationError,
 } from "../utils/security-validator";
 // Assuming NostrEvent and NostrTag are defined in a central types file.
 // Adjust the import path if necessary.
@@ -52,7 +52,7 @@ export interface WarningContext {
  */
 export interface ParseWarning {
   /** The type of warning. */
-  type: 'invalid_relay_url' | 'invalid_pubkey' | 'duplicate_pubkey';
+  type: "invalid_relay_url" | "invalid_pubkey" | "duplicate_pubkey";
   /** Human-readable warning message. */
   message: string;
   /** The invalid value that triggered the warning. */
@@ -150,15 +150,15 @@ export function createContactListEvent(
  */
 export function parseContactsFromEvent(
   event: ContactsEvent,
-  options?: { logger?: Logger; returnWarnings?: false }
+  options?: { logger?: Logger; returnWarnings?: false },
 ): Contact[];
 export function parseContactsFromEvent(
   event: ContactsEvent,
-  options: { logger?: Logger; returnWarnings: true }
+  options: { logger?: Logger; returnWarnings: true },
 ): ParseContactsResult;
 export function parseContactsFromEvent(
   event: ContactsEvent,
-  options: { logger?: Logger; returnWarnings?: boolean } = {}
+  options: { logger?: Logger; returnWarnings?: boolean } = {},
 ): Contact[] | ParseContactsResult {
   // Assuming ContactsEvent is suitable
   if (event.kind !== 3) {
@@ -168,8 +168,13 @@ export function parseContactsFromEvent(
   const parsedContacts: Contact[] = [];
   const warnings: ParseWarning[] = [];
   const seenPubkeys = new Set<string>();
-  
-  const addWarning = (type: ParseWarning['type'], message: string, value: string, context?: WarningContext) => {
+
+  const addWarning = (
+    type: ParseWarning["type"],
+    message: string,
+    value: string,
+    context?: WarningContext,
+  ) => {
     const warning: ParseWarning = { type, message, value, context };
     warnings.push(warning);
     if (options.logger) {
@@ -192,7 +197,12 @@ export function parseContactsFromEvent(
       // Safe access to tag[1] (pubkey)
       const pubkeyValue = safeArrayAccess(tag, 1);
       if (typeof pubkeyValue !== "string") {
-        addWarning('invalid_pubkey', `Invalid p tag structure: pubkey at index 1 must be a string`, String(pubkeyValue), { tagIndex });
+        addWarning(
+          "invalid_pubkey",
+          `Invalid p tag structure: pubkey at index 1 must be a string`,
+          String(pubkeyValue),
+          { tagIndex },
+        );
         return;
       }
 
@@ -201,13 +211,23 @@ export function parseContactsFromEvent(
 
       // Validate that the public key is a valid curve point on secp256k1
       if (!isValidPublicKeyPoint(normalizedPubkey)) {
-        addWarning('invalid_pubkey', `Invalid public key (not a valid curve point): ${pubkeyValue}`, pubkeyValue, { tagIndex });
+        addWarning(
+          "invalid_pubkey",
+          `Invalid public key (not a valid curve point): ${pubkeyValue}`,
+          pubkeyValue,
+          { tagIndex },
+        );
         return; // Skip invalid keys
       }
 
       // Skip duplicate pubkeys (normalize to lowercase for consistent deduplication)
       if (seenPubkeys.has(normalizedPubkey)) {
-        addWarning('duplicate_pubkey', `Duplicate public key: ${normalizedPubkey}`, normalizedPubkey, { tagIndex });
+        addWarning(
+          "duplicate_pubkey",
+          `Duplicate public key: ${normalizedPubkey}`,
+          normalizedPubkey,
+          { tagIndex },
+        );
         return;
       }
       seenPubkeys.add(normalizedPubkey);
@@ -215,7 +235,7 @@ export function parseContactsFromEvent(
       const contact: Contact = {
         pubkey: normalizedPubkey,
       };
-      
+
       // Safe access to tag[2] (relay URL) - optional
       const relayUrlValue = safeArrayAccess(tag, 2);
       if (typeof relayUrlValue === "string" && relayUrlValue.length > 0) {
@@ -228,10 +248,15 @@ export function parseContactsFromEvent(
 
           if (!hasWebSocketScheme) {
             // Treat as invalid and keep relayUrl undefined but retain petname.
-            addWarning('invalid_relay_url', `Invalid relay URL (missing ws/wss scheme): ${relayUrlValue}`, relayUrlValue, { 
-              pubkey: normalizedPubkey, 
-              tagIndex 
-            });
+            addWarning(
+              "invalid_relay_url",
+              `Invalid relay URL (missing ws/wss scheme): ${relayUrlValue}`,
+              relayUrlValue,
+              {
+                pubkey: normalizedPubkey,
+                tagIndex,
+              },
+            );
           } else {
             let canonicalUrl: string | undefined;
             try {
@@ -243,34 +268,44 @@ export function parseContactsFromEvent(
             if (canonicalUrl && isValidRelayUrl(canonicalUrl)) {
               contact.relayUrl = canonicalUrl;
             } else {
-              addWarning('invalid_relay_url', `Invalid relay URL (failed validation): ${relayUrlValue}`, relayUrlValue, { 
-                pubkey: normalizedPubkey, 
-                tagIndex 
-              });
+              addWarning(
+                "invalid_relay_url",
+                `Invalid relay URL (failed validation): ${relayUrlValue}`,
+                relayUrlValue,
+                {
+                  pubkey: normalizedPubkey,
+                  tagIndex,
+                },
+              );
             }
           }
         }
       }
-      
+
       // Safe access to tag[3] (petname) - optional
       const petnameValue = safeArrayAccess(tag, 3);
       if (typeof petnameValue === "string" && petnameValue.length > 0) {
         contact.petname = petnameValue;
       }
-      
+
       parsedContacts.push(contact);
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        addWarning('invalid_pubkey', `Bounds checking error: ${error.message}`, '', { tagIndex });
+        addWarning(
+          "invalid_pubkey",
+          `Bounds checking error: ${error.message}`,
+          "",
+          { tagIndex },
+        );
       }
       // Continue processing other tags
     }
   });
-  
+
   if (options.returnWarnings) {
     return { contacts: parsedContacts, warnings };
   }
-  
+
   return parsedContacts;
 }
 
@@ -285,7 +320,7 @@ export function parseContactsFromEvent(
  */
 export function parseContactsFromEventWithWarnings(
   event: ContactsEvent,
-  logger?: Logger
+  logger?: Logger,
 ): ParseContactsResult {
   return parseContactsFromEvent(event, { logger, returnWarnings: true });
 }

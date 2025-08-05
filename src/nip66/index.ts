@@ -11,10 +11,13 @@ import { NostrEvent } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
 import { createEvent } from "../nip01/event";
 import { isValidRelayUrl } from "../nip19";
-import { normalizeRelayUrl as normalizeRelayUrlUtil, RelayUrlValidationError } from "../utils/relayUrl";
-import { 
+import {
+  normalizeRelayUrl as normalizeRelayUrlUtil,
+  RelayUrlValidationError,
+} from "../utils/relayUrl";
+import {
   safeArrayAccess,
-  SecurityValidationError 
+  SecurityValidationError,
 } from "../utils/security-validator";
 
 import {
@@ -69,18 +72,22 @@ export function createRelayDiscoveryEvent(
   if (!options) {
     throw new Error("Options object is required");
   }
-  
+
   if (!pubkey || typeof pubkey !== "string" || pubkey.trim() === "") {
     throw new Error("Valid pubkey is required");
   }
-  
-  if (!options.relay || typeof options.relay !== "string" || options.relay.trim() === "") {
+
+  if (
+    !options.relay ||
+    typeof options.relay !== "string" ||
+    options.relay.trim() === ""
+  ) {
     throw new Error("Valid relay URL is required");
   }
 
   // Trim and canonicalize the relay URL to ensure consistent formatting
   const trimmedRelay = options.relay.trim();
-  
+
   // Canonicalize the relay URL by lowercasing scheme and host
   // This prevents duplicate entries due to case differences (e.g., WSS://RELAY.COM vs wss://relay.com)
   let canonicalizedRelay: string;
@@ -99,64 +106,88 @@ export function createRelayDiscoveryEvent(
   if (!isValidRelayUrl(canonicalizedRelay)) {
     throw new Error("Relay URL must start with ws:// or wss:// and be valid");
   }
-  
+
   // Validate RTT values (must be non-negative numbers if provided)
   if (options.rttOpen !== undefined) {
-    if (typeof options.rttOpen !== "number" || options.rttOpen < 0 || !isFinite(options.rttOpen)) {
+    if (
+      typeof options.rttOpen !== "number" ||
+      options.rttOpen < 0 ||
+      !isFinite(options.rttOpen)
+    ) {
       throw new Error("rttOpen must be a non-negative number");
     }
   }
-  
+
   if (options.rttRead !== undefined) {
-    if (typeof options.rttRead !== "number" || options.rttRead < 0 || !isFinite(options.rttRead)) {
+    if (
+      typeof options.rttRead !== "number" ||
+      options.rttRead < 0 ||
+      !isFinite(options.rttRead)
+    ) {
       throw new Error("rttRead must be a non-negative number");
     }
   }
-  
+
   if (options.rttWrite !== undefined) {
-    if (typeof options.rttWrite !== "number" || options.rttWrite < 0 || !isFinite(options.rttWrite)) {
+    if (
+      typeof options.rttWrite !== "number" ||
+      options.rttWrite < 0 ||
+      !isFinite(options.rttWrite)
+    ) {
       throw new Error("rttWrite must be a non-negative number");
     }
   }
-  
+
   // Validate array fields
-  if (options.supportedNips !== undefined && !Array.isArray(options.supportedNips)) {
+  if (
+    options.supportedNips !== undefined &&
+    !Array.isArray(options.supportedNips)
+  ) {
     throw new Error("supportedNips must be an array");
   }
-  
-  if (options.requirements !== undefined && !Array.isArray(options.requirements)) {
+
+  if (
+    options.requirements !== undefined &&
+    !Array.isArray(options.requirements)
+  ) {
     throw new Error("requirements must be an array");
   }
-  
+
   if (options.topics !== undefined && !Array.isArray(options.topics)) {
     throw new Error("topics must be an array");
   }
-  
+
   if (options.kinds !== undefined && !Array.isArray(options.kinds)) {
     throw new Error("kinds must be an array");
   }
-  
-  if (options.additionalTags !== undefined && !Array.isArray(options.additionalTags)) {
+
+  if (
+    options.additionalTags !== undefined &&
+    !Array.isArray(options.additionalTags)
+  ) {
     throw new Error("additionalTags must be an array");
   }
-  
+
   // Validate geohash format if provided
   validateGeohash(options.geohash);
-  
+
   // Validate network if provided
   if (options.network !== undefined) {
     if (typeof options.network !== "string" || options.network.trim() === "") {
       throw new Error("network must be a non-empty string");
     }
   }
-  
+
   // Validate relayType if provided
   if (options.relayType !== undefined) {
-    if (typeof options.relayType !== "string" || options.relayType.trim() === "") {
+    if (
+      typeof options.relayType !== "string" ||
+      options.relayType.trim() === ""
+    ) {
       throw new Error("relayType must be a non-empty string");
     }
   }
-  
+
   // Validate supportedNips values
   if (options.supportedNips) {
     for (const nip of options.supportedNips) {
@@ -167,14 +198,16 @@ export function createRelayDiscoveryEvent(
       } else if (typeof nip === "string") {
         const parsed = parseInt(nip, 10);
         if (isNaN(parsed) || parsed < 0) {
-          throw new Error("supportedNips must contain valid positive integers or integer strings");
+          throw new Error(
+            "supportedNips must contain valid positive integers or integer strings",
+          );
         }
       } else {
         throw new Error("supportedNips must contain numbers or strings");
       }
     }
   }
-  
+
   // Validate kinds values
   if (options.kinds) {
     for (const kind of options.kinds) {
@@ -185,14 +218,16 @@ export function createRelayDiscoveryEvent(
       } else if (typeof kind === "string") {
         const parsed = parseInt(kind, 10);
         if (isNaN(parsed) || parsed < 0) {
-          throw new Error("kinds must contain valid non-negative integers or integer strings");
+          throw new Error(
+            "kinds must contain valid non-negative integers or integer strings",
+          );
         }
       } else {
         throw new Error("kinds must contain numbers or strings");
       }
     }
   }
-  
+
   // Validate string arrays
   if (options.requirements) {
     for (const req of options.requirements) {
@@ -201,7 +236,7 @@ export function createRelayDiscoveryEvent(
       }
     }
   }
-  
+
   if (options.topics) {
     for (const topic of options.topics) {
       if (typeof topic !== "string" || topic.trim() === "") {
@@ -209,7 +244,7 @@ export function createRelayDiscoveryEvent(
       }
     }
   }
-  
+
   // Validate additionalTags structure
   if (options.additionalTags) {
     for (const tag of options.additionalTags) {
@@ -223,7 +258,7 @@ export function createRelayDiscoveryEvent(
       }
     }
   }
-  
+
   const tags: string[][] = [["d", canonicalizedRelay]];
 
   if (options.network) tags.push(["n", options.network]);
@@ -291,16 +326,16 @@ export function parseRelayDiscoveryEvent(
   for (const tag of event.tags) {
     // Skip invalid tags - must be array with at least 2 elements
     if (!Array.isArray(tag) || tag.length < 2) continue;
-    
+
     try {
       // Safe access to tag elements with bounds checking
       const tagName = safeArrayAccess(tag, 0);
       const tagValue = safeArrayAccess(tag, 1);
-      
+
       if (typeof tagName !== "string" || typeof tagValue !== "string") {
         continue; // Skip malformed tags
       }
-      
+
       switch (tagName) {
         case "d":
           data.relay = tagValue;
@@ -348,8 +383,10 @@ export function parseRelayDiscoveryEvent(
     } catch (error) {
       if (error instanceof SecurityValidationError) {
         // Log bounds checking error but continue processing
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn(`NIP-66: Bounds checking error in tag processing: ${error.message}`);
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn(
+            `NIP-66: Bounds checking error in tag processing: ${error.message}`,
+          );
         }
       }
     }
@@ -377,71 +414,84 @@ export function createRelayMonitorAnnouncement(
   if (!options) {
     throw new Error("Options object is required");
   }
-  
+
   if (!pubkey || typeof pubkey !== "string" || pubkey.trim() === "") {
     throw new Error("Valid pubkey is required");
   }
-  
+
   if (options.frequency === undefined || options.frequency === null) {
     throw new Error("frequency is required");
   }
-  
-  if (typeof options.frequency !== "number" || options.frequency <= 0 || !Number.isFinite(options.frequency) || !Number.isInteger(options.frequency)) {
+
+  if (
+    typeof options.frequency !== "number" ||
+    options.frequency <= 0 ||
+    !Number.isFinite(options.frequency) ||
+    !Number.isInteger(options.frequency)
+  ) {
     throw new Error("frequency must be a positive integer");
   }
-  
+
   // Validate timeouts array if provided
   if (options.timeouts !== undefined) {
     if (!Array.isArray(options.timeouts)) {
       throw new Error("timeouts must be an array");
     }
-    
+
     for (const timeout of options.timeouts) {
       if (!timeout || typeof timeout !== "object") {
         throw new Error("timeouts must contain timeout definition objects");
       }
-      
+
       if (timeout.value === undefined || timeout.value === null) {
         throw new Error("timeout value is required");
       }
-      
-      if (typeof timeout.value !== "number" || timeout.value <= 0 || !Number.isFinite(timeout.value) || !Number.isInteger(timeout.value)) {
+
+      if (
+        typeof timeout.value !== "number" ||
+        timeout.value <= 0 ||
+        !Number.isFinite(timeout.value) ||
+        !Number.isInteger(timeout.value)
+      ) {
         throw new Error("timeout value must be a positive integer");
       }
-      
-      if (timeout.test !== undefined && (typeof timeout.test !== "string" || timeout.test.trim() === "")) {
+
+      if (
+        timeout.test !== undefined &&
+        (typeof timeout.test !== "string" || timeout.test.trim() === "")
+      ) {
         throw new Error("timeout test must be a non-empty string if provided");
       }
     }
   }
-  
+
   // Validate checks array if provided
   if (options.checks !== undefined) {
     if (!Array.isArray(options.checks)) {
       throw new Error("checks must be an array");
     }
-    
+
     for (const check of options.checks) {
       if (typeof check !== "string" || check.trim() === "") {
         throw new Error("checks must contain non-empty strings");
       }
     }
   }
-  
+
   // Validate geohash format if provided
   validateGeohash(options.geohash);
-  
+
   // Validate content if provided
   if (options.content !== undefined && typeof options.content !== "string") {
     throw new Error("content must be a string");
   }
-  
+
   // Validate additionalTags structure
   if (options.additionalTags !== undefined) {
     if (!Array.isArray(options.additionalTags)) {
       throw new Error("additionalTags must be an array");
     }
-    
+
     for (const tag of options.additionalTags) {
       if (!Array.isArray(tag)) {
         throw new Error("additionalTags must be an array of string arrays");
@@ -453,7 +503,7 @@ export function createRelayMonitorAnnouncement(
       }
     }
   }
-  
+
   const tags: string[][] = [["frequency", options.frequency.toString()]];
 
   if (options.timeouts) {
@@ -497,58 +547,72 @@ export function parseRelayMonitorAnnouncement(
   for (const tag of event.tags) {
     // Skip invalid tags - must be array with at least 2 elements
     if (!Array.isArray(tag) || tag.length < 2) continue;
-    
+
     try {
       // Safe access to tag elements with bounds checking
       const tagName = safeArrayAccess(tag, 0);
       const tagValue = safeArrayAccess(tag, 1);
-      
+
       if (typeof tagName !== "string") {
         continue; // Skip malformed tags
       }
-      
+
       switch (tagName) {
         case "frequency":
           // Enhanced frequency parsing with validation and error handling
           try {
             // Check if frequency value exists
-            if (!tagValue || (typeof tagValue === "string" && tagValue.trim() === "")) {
-              if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping frequency tag with missing or empty value: ${JSON.stringify(tag)}`);
+            if (
+              !tagValue ||
+              (typeof tagValue === "string" && tagValue.trim() === "")
+            ) {
+              if (typeof console !== "undefined" && console.warn) {
+                console.warn(
+                  `NIP-66: Skipping frequency tag with missing or empty value: ${JSON.stringify(tag)}`,
+                );
               }
               break;
             }
-            
+
             // Parse the frequency value
             const frequencyValue = parseInt(String(tagValue), 10);
-            
+
             // Validate parsed number
             if (isNaN(frequencyValue)) {
-              if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping frequency tag with invalid numeric value: "${tagValue}"`);
+              if (typeof console !== "undefined" && console.warn) {
+                console.warn(
+                  `NIP-66: Skipping frequency tag with invalid numeric value: "${tagValue}"`,
+                );
               }
               break;
             }
-            
+
             // Define acceptable bounds for frequency values (in seconds)
             const MIN_FREQUENCY = 1; // 1 second minimum
             const MAX_FREQUENCY = 86400; // 24 hours maximum (86,400 seconds)
-            
+
             // Check bounds
-            if (frequencyValue < MIN_FREQUENCY || frequencyValue > MAX_FREQUENCY) {
-              if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping frequency tag with value out of bounds (${MIN_FREQUENCY}-${MAX_FREQUENCY}s): ${frequencyValue}s`);
+            if (
+              frequencyValue < MIN_FREQUENCY ||
+              frequencyValue > MAX_FREQUENCY
+            ) {
+              if (typeof console !== "undefined" && console.warn) {
+                console.warn(
+                  `NIP-66: Skipping frequency tag with value out of bounds (${MIN_FREQUENCY}-${MAX_FREQUENCY}s): ${frequencyValue}s`,
+                );
               }
               break;
             }
-            
+
             // All validation passed - set frequency
             data.frequency = frequencyValue;
-            
           } catch (error) {
             // Handle any unexpected errors during parsing
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Error parsing frequency tag ${JSON.stringify(tag)}:`, error);
+            if (typeof console !== "undefined" && console.warn) {
+              console.warn(
+                `NIP-66: Error parsing frequency tag ${JSON.stringify(tag)}:`,
+                error,
+              );
             }
             // Continue processing other tags
           }
@@ -557,36 +621,45 @@ export function parseRelayMonitorAnnouncement(
           // Enhanced timeout parsing with comprehensive validation and error handling
           try {
             // Check if timeout value exists
-            if (!tagValue || (typeof tagValue === "string" && tagValue.trim() === "")) {
-              if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping timeout tag with missing or empty value: ${JSON.stringify(tag)}`);
+            if (
+              !tagValue ||
+              (typeof tagValue === "string" && tagValue.trim() === "")
+            ) {
+              if (typeof console !== "undefined" && console.warn) {
+                console.warn(
+                  `NIP-66: Skipping timeout tag with missing or empty value: ${JSON.stringify(tag)}`,
+                );
               }
               break;
             }
-            
+
             // Parse the timeout value
             const timeoutValue = parseInt(String(tagValue), 10);
-            
+
             // Validate parsed number
             if (isNaN(timeoutValue)) {
-              if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping timeout tag with invalid numeric value: "${tagValue}"`);
+              if (typeof console !== "undefined" && console.warn) {
+                console.warn(
+                  `NIP-66: Skipping timeout tag with invalid numeric value: "${tagValue}"`,
+                );
               }
               break;
             }
-            
+
             // Define acceptable bounds for timeout values (in milliseconds)
             const MIN_TIMEOUT = 1; // 1ms minimum
             const MAX_TIMEOUT = 300000; // 5 minutes maximum (300,000ms)
-            
+
             // Check bounds
             if (timeoutValue < MIN_TIMEOUT || timeoutValue > MAX_TIMEOUT) {
-              if (typeof console !== 'undefined' && console.warn) {
-                console.warn(`NIP-66: Skipping timeout tag with value out of bounds (${MIN_TIMEOUT}-${MAX_TIMEOUT}ms): ${timeoutValue}ms`);
+              if (typeof console !== "undefined" && console.warn) {
+                console.warn(
+                  `NIP-66: Skipping timeout tag with value out of bounds (${MIN_TIMEOUT}-${MAX_TIMEOUT}ms): ${timeoutValue}ms`,
+                );
               }
               break;
             }
-            
+
             // Validate test parameter if present - safe access to tag[2]
             let testParam: string | undefined = undefined;
             if (tag.length > 2) {
@@ -594,23 +667,27 @@ export function parseRelayMonitorAnnouncement(
               if (typeof testValue === "string" && testValue.trim() !== "") {
                 testParam = testValue;
               } else if (testValue !== undefined) {
-                if (typeof console !== 'undefined' && console.warn) {
-                  console.warn(`NIP-66: Skipping timeout tag with invalid test parameter: ${JSON.stringify(testValue)}`);
+                if (typeof console !== "undefined" && console.warn) {
+                  console.warn(
+                    `NIP-66: Skipping timeout tag with invalid test parameter: ${JSON.stringify(testValue)}`,
+                  );
                 }
                 break;
               }
             }
-            
+
             // All validation passed - add to timeouts
             data.timeouts.push({
               value: timeoutValue,
               test: testParam,
             });
-            
           } catch (error) {
             // Handle any unexpected errors during parsing
-            if (typeof console !== 'undefined' && console.warn) {
-              console.warn(`NIP-66: Error parsing timeout tag ${JSON.stringify(tag)}:`, error);
+            if (typeof console !== "undefined" && console.warn) {
+              console.warn(
+                `NIP-66: Error parsing timeout tag ${JSON.stringify(tag)}:`,
+                error,
+              );
             }
             // Continue processing other tags
           }
@@ -629,8 +706,10 @@ export function parseRelayMonitorAnnouncement(
     } catch (error) {
       if (error instanceof SecurityValidationError) {
         // Log bounds checking error but continue processing
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn(`NIP-66: Bounds checking error in tag processing: ${error.message}`);
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn(
+            `NIP-66: Bounds checking error in tag processing: ${error.message}`,
+          );
         }
       }
     }
@@ -639,4 +718,3 @@ export function parseRelayMonitorAnnouncement(
   data.content = event.content || "";
   return data;
 }
-

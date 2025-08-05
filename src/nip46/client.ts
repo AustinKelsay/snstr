@@ -44,12 +44,15 @@ export class NostrRemoteSignerClient {
   private subId: string | null = null;
   private logger: Logger;
   private debug: boolean;
-  private pendingAuthChallenges = new Map<string, {
-    originalRequestId: string;
-    authUrl: string;
-    timeout: NodeJS.Timeout;
-    timestamp: number;
-  }>();
+  private pendingAuthChallenges = new Map<
+    string,
+    {
+      originalRequestId: string;
+      authUrl: string;
+      timeout: NodeJS.Timeout;
+      timestamp: number;
+    }
+  >();
 
   constructor(options: NIP46ClientOptions = {}) {
     this.options = {
@@ -65,13 +68,13 @@ export class NostrRemoteSignerClient {
     this.nostr = new Nostr(this.options.relays);
     this.authWindow = null;
     this.debug = options.debug || false;
-    
+
     // Initialize logger
     this.logger = new Logger({
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-CLIENT",
       includeTimestamp: true,
-      silent: process.env.NODE_ENV === 'test' // Silent in test environment
+      silent: process.env.NODE_ENV === "test", // Silent in test environment
     });
   }
 
@@ -82,7 +85,9 @@ export class NostrRemoteSignerClient {
     this.logger.debug("Setting up subscription");
 
     if (this.subId) {
-      this.logger.debug("Cleaning up previous subscription", { subId: this.subId });
+      this.logger.debug("Cleaning up previous subscription", {
+        subId: this.subId,
+      });
       this.nostr.unsubscribe([this.subId]);
     }
 
@@ -102,7 +107,7 @@ export class NostrRemoteSignerClient {
 
     this.logger.debug("Subscribing with filter", {
       filter: JSON.stringify(filter),
-      clientPubkey: this.clientKeypair.publicKey
+      clientPubkey: this.clientKeypair.publicKey,
     });
 
     this.subId = this.nostr.subscribe([filter], (event) =>
@@ -118,7 +123,7 @@ export class NostrRemoteSignerClient {
   private async cleanup(): Promise<void> {
     // Set disconnected state FIRST to prevent new requests
     this.connected = false;
-    
+
     // Clean up pending requests BEFORE unsubscribing to prevent race conditions
     this.pendingRequests.forEach((request) => {
       clearTimeout(request.timeout);
@@ -144,14 +149,14 @@ export class NostrRemoteSignerClient {
         await this.nostr.unsubscribe([this.subId]);
         this.subId = null;
       } catch (error) {
-        this.logger.error('Unsubscription failed', { error });
+        this.logger.error("Unsubscription failed", { error });
       }
     }
 
     try {
       await this.nostr.disconnectFromRelays();
     } catch (error) {
-      this.logger.error('Relay disconnection failed', { error });
+      this.logger.error("Relay disconnection failed", { error });
     }
 
     // Clear other state
@@ -170,13 +175,15 @@ export class NostrRemoteSignerClient {
       // Generate client keypair if needed
       if (!this.clientKeypair) {
         this.clientKeypair = await generateKeypair();
-        this.logger.debug("Generated client keypair", { 
-          publicKey: this.clientKeypair.publicKey 
+        this.logger.debug("Generated client keypair", {
+          publicKey: this.clientKeypair.publicKey,
         });
       }
 
       // Connect to relays
-      this.logger.debug("Connecting to relays", { relays: this.options.relays });
+      this.logger.debug("Connecting to relays", {
+        relays: this.options.relays,
+      });
       await this.nostr.connectToRelays();
       this.logger.info("Connected to relays");
 
@@ -187,37 +194,37 @@ export class NostrRemoteSignerClient {
         signerPubkey: this.signerPubkey,
         type: connectionInfo.type,
         relays: connectionInfo.relays,
-        hasSecret: !!connectionInfo.secret
+        hasSecret: !!connectionInfo.secret,
       });
 
-             // Connect to signer's relays if provided
-       if (connectionInfo.relays?.length) {
-         this.logger.debug("Connecting to signer relays", { 
-           relays: connectionInfo.relays 
-         });
-         
-         // Clean up existing Nostr instance if it exists
-         if (this.nostr) {
-           this.logger.debug("Cleaning up existing Nostr instance");
-           try {
-             await this.nostr.unsubscribeAll();
-             await this.nostr.disconnectFromRelays();
-           } catch (error) {
-             this.logger.warn("Error during Nostr instance cleanup", {
-               error: error instanceof Error ? error.message : String(error)
-             });
-           }
-         }
-         
-         // Create a new Nostr instance with combined relays
-         const allRelays = [
-           ...(this.options.relays || []),
-           ...connectionInfo.relays,
-         ];
-         this.nostr = new Nostr(Array.from(new Set(allRelays)));
-         await this.nostr.connectToRelays();
-         this.logger.info("Connected to combined relays");
-       }
+      // Connect to signer's relays if provided
+      if (connectionInfo.relays?.length) {
+        this.logger.debug("Connecting to signer relays", {
+          relays: connectionInfo.relays,
+        });
+
+        // Clean up existing Nostr instance if it exists
+        if (this.nostr) {
+          this.logger.debug("Cleaning up existing Nostr instance");
+          try {
+            await this.nostr.unsubscribeAll();
+            await this.nostr.disconnectFromRelays();
+          } catch (error) {
+            this.logger.warn("Error during Nostr instance cleanup", {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        // Create a new Nostr instance with combined relays
+        const allRelays = [
+          ...(this.options.relays || []),
+          ...connectionInfo.relays,
+        ];
+        this.nostr = new Nostr(Array.from(new Set(allRelays)));
+        await this.nostr.connectToRelays();
+        this.logger.info("Connected to combined relays");
+      }
 
       // Set up subscription to receive responses
       await this.setupSubscription();
@@ -241,7 +248,7 @@ export class NostrRemoteSignerClient {
       this.connected = true;
       this.logger.info("Connected to signer successfully", {
         signerPubkey: this.signerPubkey,
-        connectResult: response.result
+        connectResult: response.result,
       });
 
       // Return the connect result (should be "ack" or secret)
@@ -268,8 +275,8 @@ export class NostrRemoteSignerClient {
         this.logger.info("Disconnect request sent");
       }
     } catch (error) {
-      this.logger.error("Error during disconnect", { 
-        error: error instanceof Error ? error.message : String(error) 
+      this.logger.error("Error during disconnect", {
+        error: error instanceof Error ? error.message : String(error),
       });
     } finally {
       await this.cleanup();
@@ -320,11 +327,15 @@ export class NostrRemoteSignerClient {
     const response = await this.sendRequest(NIP46Method.GET_PUBLIC_KEY, []);
 
     if (response.error) {
-      throw new NIP46ConnectionError(`Failed to get public key: ${response.error}`);
+      throw new NIP46ConnectionError(
+        `Failed to get public key: ${response.error}`,
+      );
     }
 
     this.userPubkey = response.result!;
-    this.logger.info("User public key retrieved", { userPubkey: this.userPubkey });
+    this.logger.info("User public key retrieved", {
+      userPubkey: this.userPubkey,
+    });
 
     return this.userPubkey;
   }
@@ -513,7 +524,7 @@ export class NostrRemoteSignerClient {
     if (!this.connected && method !== NIP46Method.CONNECT) {
       throw new NIP46ConnectionError("Client is not connected");
     }
-    
+
     const id = this.generateRequestId();
     const request: NIP46Request = { id, method, params };
 
@@ -534,9 +545,9 @@ export class NostrRemoteSignerClient {
       this.sendEncryptedRequest(request).catch((error) => {
         this.pendingRequests.delete(id);
         clearTimeout(timeout);
-        this.logger.error("Failed to send encrypted request", { 
-          requestId: id, 
-          error: error instanceof Error ? error.message : String(error) 
+        this.logger.error("Failed to send encrypted request", {
+          requestId: id,
+          error: error instanceof Error ? error.message : String(error),
         });
         reject(error);
       });
@@ -573,11 +584,10 @@ export class NostrRemoteSignerClient {
 
       await this.nostr.publishEvent(requestEvent);
       this.logger.debug("Encrypted request sent", { requestId: request.id });
-
     } catch (error) {
-      this.logger.error("Failed to send encrypted request", { 
+      this.logger.error("Failed to send encrypted request", {
         requestId: request.id,
-        error: error instanceof Error ? error.message : String(error) 
+        error: error instanceof Error ? error.message : String(error),
       });
       throw new NIP46ConnectionError(
         `Failed to send request: ${error instanceof Error ? error.message : String(error)}`,
@@ -594,26 +604,31 @@ export class NostrRemoteSignerClient {
 
     try {
       // Decrypt the response
-      const decryptResult = await this.decryptContent(event.content, event.pubkey);
+      const decryptResult = await this.decryptContent(
+        event.content,
+        event.pubkey,
+      );
 
       if (!decryptResult.success) {
-        this.logger.error("Failed to decrypt response", { 
+        this.logger.error("Failed to decrypt response", {
           error: decryptResult.error,
-          eventId: event.id 
+          eventId: event.id,
         });
         return;
       }
 
-      this.logger.debug("Decrypted response data", { data: decryptResult.data });
+      this.logger.debug("Decrypted response data", {
+        data: decryptResult.data,
+      });
 
       let response: NIP46Response;
       try {
         response = JSON.parse(decryptResult.data!);
         this.logger.debug("Parsed response", { response });
       } catch (error) {
-        this.logger.error("Failed to parse response JSON", { 
+        this.logger.error("Failed to parse response JSON", {
           error: error instanceof Error ? error.message : String(error),
-          data: decryptResult.data 
+          data: decryptResult.data,
         });
         return;
       }
@@ -621,20 +636,21 @@ export class NostrRemoteSignerClient {
       // Handle pending request
       const pendingRequest = this.pendingRequests.get(response.id);
       if (pendingRequest) {
-        this.logger.debug("Resolving pending request", { requestId: response.id });
+        this.logger.debug("Resolving pending request", {
+          requestId: response.id,
+        });
         clearTimeout(pendingRequest.timeout);
         this.pendingRequests.delete(response.id);
         pendingRequest.resolve(response);
       } else {
-        this.logger.warn("Received response for unknown request", { 
-          requestId: response.id 
+        this.logger.warn("Received response for unknown request", {
+          requestId: response.id,
         });
       }
-
     } catch (error) {
-      this.logger.error("Error handling response", { 
+      this.logger.error("Error handling response", {
         eventId: event.id,
-        error: error instanceof Error ? error.message : String(error) 
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -669,10 +685,11 @@ export class NostrRemoteSignerClient {
         data: decrypted,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error("NIP-44 decryption failed", { 
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error("NIP-44 decryption failed", {
         error: errorMessage,
-        authorPubkey 
+        authorPubkey,
       });
       return {
         success: false,
@@ -694,40 +711,48 @@ export class NostrRemoteSignerClient {
 
     // Validate auth URL
     if (!this.isValidAuthUrl(response.auth_url)) {
-      this.logger.error("Invalid auth URL received", { authUrl: response.auth_url });
+      this.logger.error("Invalid auth URL received", {
+        authUrl: response.auth_url,
+      });
       return;
     }
 
     const requestId = response.id;
-    this.logger.info("Handling auth challenge", { 
-      requestId, 
-      authUrl: response.auth_url 
+    this.logger.info("Handling auth challenge", {
+      requestId,
+      authUrl: response.auth_url,
     });
 
     // Store the auth challenge
     const timeout = setTimeout(() => {
       this.handleAuthTimeout(requestId);
     }, this.options.timeout || DEFAULT_TIMEOUT);
-    
+
     timeout.unref();
 
     this.pendingAuthChallenges.set(requestId, {
       originalRequestId: requestId,
       authUrl: response.auth_url,
       timeout,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // For browser environment, open the auth URL
-    if (typeof window !== 'undefined') {
-      this.authWindow = window.open(response.auth_url, '_blank', 'width=600,height=700');
+    if (typeof window !== "undefined") {
+      this.authWindow = window.open(
+        response.auth_url,
+        "_blank",
+        "width=600,height=700",
+      );
       if (this.authWindow) {
         this.monitorAuthWindow(requestId);
       } else {
         this.logger.error("Failed to open auth window");
       }
     } else {
-      this.logger.info("Auth URL for manual opening", { authUrl: response.auth_url });
+      this.logger.info("Auth URL for manual opening", {
+        authUrl: response.auth_url,
+      });
     }
   }
 
@@ -738,9 +763,9 @@ export class NostrRemoteSignerClient {
   private isValidAuthUrl(url: string): boolean {
     try {
       const parsed = new URL(url);
-      
+
       // Only allow HTTPS URLs for security
-      if (parsed.protocol !== 'https:') {
+      if (parsed.protocol !== "https:") {
         this.logger.warn("Auth URL must use HTTPS", { url });
         return false;
       }
@@ -752,40 +777,53 @@ export class NostrRemoteSignerClient {
       }
 
       // Prevent potential XSS in URL
-      if (url.includes('<') || url.includes('>') || url.includes('"') || url.includes("'")) {
+      if (
+        url.includes("<") ||
+        url.includes(">") ||
+        url.includes('"') ||
+        url.includes("'")
+      ) {
         this.logger.warn("Auth URL contains dangerous characters", { url });
         return false;
       }
 
       // Check against domain whitelist if configured
-      if (this.options.authDomainWhitelist && this.options.authDomainWhitelist.length > 0) {
+      if (
+        this.options.authDomainWhitelist &&
+        this.options.authDomainWhitelist.length > 0
+      ) {
         const hostname = parsed.hostname.toLowerCase();
-        const isAllowed = this.options.authDomainWhitelist.some(allowedDomain => {
-          const normalizedDomain = allowedDomain.toLowerCase();
-          // Support exact match or subdomain matching
-          return hostname === normalizedDomain || hostname.endsWith('.' + normalizedDomain);
-        });
+        const isAllowed = this.options.authDomainWhitelist.some(
+          (allowedDomain) => {
+            const normalizedDomain = allowedDomain.toLowerCase();
+            // Support exact match or subdomain matching
+            return (
+              hostname === normalizedDomain ||
+              hostname.endsWith("." + normalizedDomain)
+            );
+          },
+        );
 
         if (!isAllowed) {
-          this.logger.warn("Auth URL hostname not in domain whitelist", { 
+          this.logger.warn("Auth URL hostname not in domain whitelist", {
             hostname,
             whitelist: this.options.authDomainWhitelist,
-            url 
+            url,
           });
           return false;
         }
-        
-        this.logger.debug("Auth URL hostname validated against whitelist", { 
+
+        this.logger.debug("Auth URL hostname validated against whitelist", {
           hostname,
-          whitelist: this.options.authDomainWhitelist 
+          whitelist: this.options.authDomainWhitelist,
         });
       }
 
       return true;
     } catch (error) {
-      this.logger.error("Failed to parse auth URL", { 
-        url, 
-        error: error instanceof Error ? error.message : String(error) 
+      this.logger.error("Failed to parse auth URL", {
+        url,
+        error: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
@@ -802,7 +840,7 @@ export class NostrRemoteSignerClient {
       if (this.authWindow?.closed) {
         this.logger.info("Auth window closed", { requestId });
         this.authWindow = null;
-        
+
         // Clean up the auth challenge
         const challenge = this.pendingAuthChallenges.get(requestId);
         if (challenge) {
@@ -824,11 +862,11 @@ export class NostrRemoteSignerClient {
    */
   private handleAuthTimeout(requestId: string): void {
     this.logger.error("Auth challenge timed out", { requestId });
-    
+
     const challenge = this.pendingAuthChallenges.get(requestId);
     if (challenge) {
       this.pendingAuthChallenges.delete(requestId);
-      
+
       // Close auth window if open
       if (this.authWindow && !this.authWindow.closed) {
         this.authWindow.close();
@@ -866,29 +904,29 @@ export class NostrRemoteSignerClient {
     if (!clientPubkey || clientPubkey.trim() === "") {
       throw new NIP46ConnectionError("Client pubkey cannot be empty");
     }
-    
+
     const params = new URLSearchParams();
-    
+
     if (options.relays?.length) {
-      options.relays.forEach(relay => params.append("relay", relay));
+      options.relays.forEach((relay) => params.append("relay", relay));
     }
-    
+
     // Always include a secret if not provided
     const secret = options.secret || generateRequestId();
     params.append("secret", secret);
-    
+
     if (options.permissions?.length) {
       params.append("perms", options.permissions.join(","));
     }
-    
+
     if (options.name) {
       params.append("name", options.name);
     }
-    
+
     if (options.url) {
       params.append("url", options.url);
     }
-    
+
     if (options.image) {
       params.append("image", options.image);
     }
@@ -897,4 +935,3 @@ export class NostrRemoteSignerClient {
     return `nostrconnect://${clientPubkey}?${queryString}`;
   }
 }
-

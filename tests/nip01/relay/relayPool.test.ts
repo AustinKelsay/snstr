@@ -29,7 +29,9 @@ describe("RelayPool", () => {
     const event = await createSignedEvent(unsigned, keys.privateKey);
 
     try {
-      const results = await Promise.all(pool.publish([relay1.url, relay2.url], event));
+      const results = await Promise.all(
+        pool.publish([relay1.url, relay2.url], event),
+      );
       expect(results).toHaveLength(2);
       results.forEach((r) => expect(r.success).toBe(true));
     } finally {
@@ -55,8 +57,14 @@ describe("RelayPool", () => {
         },
       );
 
-      const ev1 = await createSignedEvent(createTextNote("from1", keys.privateKey), keys.privateKey);
-      const ev2 = await createSignedEvent(createTextNote("from2", keys.privateKey), keys.privateKey);
+      const ev1 = await createSignedEvent(
+        createTextNote("from1", keys.privateKey),
+        keys.privateKey,
+      );
+      const ev2 = await createSignedEvent(
+        createTextNote("from2", keys.privateKey),
+        keys.privateKey,
+      );
 
       await Promise.all(pool.publish([relay1.url], ev1));
       await Promise.all(pool.publish([relay2.url], ev2));
@@ -77,8 +85,14 @@ describe("RelayPool", () => {
 
     try {
       // Publish some test events
-      const event1 = await createSignedEvent(createTextNote("query test 1", keys.privateKey), keys.privateKey);
-      const event2 = await createSignedEvent(createTextNote("query test 2", keys.privateKey), keys.privateKey);
+      const event1 = await createSignedEvent(
+        createTextNote("query test 1", keys.privateKey),
+        keys.privateKey,
+      );
+      const event2 = await createSignedEvent(
+        createTextNote("query test 2", keys.privateKey),
+        keys.privateKey,
+      );
 
       await Promise.all(pool.publish([relay1.url], event1));
       await Promise.all(pool.publish([relay2.url], event2));
@@ -90,11 +104,15 @@ describe("RelayPool", () => {
       const events = await pool.querySync(
         [relay1.url, relay2.url],
         { kinds: [1], authors: [keys.publicKey] },
-        { timeout: 2000 }
+        { timeout: 2000 },
       );
 
       expect(events.length).toBeGreaterThan(0);
-      expect(events.some(e => e.content === "query test 1" || e.content === "query test 2")).toBe(true);
+      expect(
+        events.some(
+          (e) => e.content === "query test 1" || e.content === "query test 2",
+        ),
+      ).toBe(true);
     } finally {
       await pool.close();
     }
@@ -106,7 +124,10 @@ describe("RelayPool", () => {
 
     try {
       // Publish a test event
-      const testEvent = await createSignedEvent(createTextNote("get test", keys.privateKey), keys.privateKey);
+      const testEvent = await createSignedEvent(
+        createTextNote("get test", keys.privateKey),
+        keys.privateKey,
+      );
       await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
 
       // Wait for event to be stored
@@ -116,7 +137,7 @@ describe("RelayPool", () => {
       const event = await pool.get(
         [relay1.url, relay2.url],
         { kinds: [1], authors: [keys.publicKey] },
-        { timeout: 2000 }
+        { timeout: 2000 },
       );
 
       expect(event).not.toBeNull();
@@ -129,13 +150,13 @@ describe("RelayPool", () => {
 
   test("should handle timeout in querySync", async () => {
     const pool = new RelayPool([relay1.url, relay2.url]);
-    
+
     try {
       // Query with very short timeout
       const events = await pool.querySync(
         [relay1.url, relay2.url],
         { kinds: [1], limit: 10 },
-        { timeout: 1 } // 1ms timeout
+        { timeout: 1 }, // 1ms timeout
       );
 
       // Should complete quickly due to timeout
@@ -152,8 +173,12 @@ describe("RelayPool", () => {
     try {
       const event = await pool.get(
         [relay1.url, relay2.url],
-        { kinds: [1], authors: [keys.publicKey], since: Math.floor(Date.now() / 1000) + 3600 }, // Future timestamp
-        { timeout: 1000 }
+        {
+          kinds: [1],
+          authors: [keys.publicKey],
+          since: Math.floor(Date.now() / 1000) + 3600,
+        }, // Future timestamp
+        { timeout: 1000 },
       );
 
       expect(event).toBeNull();
@@ -186,7 +211,10 @@ describe("RelayPool", () => {
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       // Publish events to working relays
-      const testEvent = await createSignedEvent(createTextNote("partial failure test", keys.privateKey), keys.privateKey);
+      const testEvent = await createSignedEvent(
+        createTextNote("partial failure test", keys.privateKey),
+        keys.privateKey,
+      );
       await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
 
       // Wait for events to be received
@@ -195,7 +223,9 @@ describe("RelayPool", () => {
 
       // Should still receive events from working relays despite one relay failing
       expect(received.length).toBeGreaterThan(0);
-      expect(received.some(e => e.content === "partial failure test")).toBe(true);
+      expect(received.some((e) => e.content === "partial failure test")).toBe(
+        true,
+      );
     } finally {
       await pool.close();
     }
@@ -225,13 +255,18 @@ describe("RelayPool", () => {
       expect(closeTime).toBeLessThan(50);
 
       // Verify no events are processed after close
-      const testEvent = await createSignedEvent(createTextNote("after close test", keys.privateKey), keys.privateKey);
+      const testEvent = await createSignedEvent(
+        createTextNote("after close test", keys.privateKey),
+        keys.privateKey,
+      );
       await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
-      
+
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       // Should not receive the event published after close
-      const afterCloseEvents = received.filter(e => e.content === "after close test");
+      const afterCloseEvents = received.filter(
+        (e) => e.content === "after close test",
+      );
       expect(afterCloseEvents).toHaveLength(0);
     } finally {
       await pool.close();
@@ -253,7 +288,11 @@ describe("RelayPool", () => {
 
     try {
       console.warn = (...args: unknown[]) => {
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('Error processing event')) {
+        if (
+          args[0] &&
+          typeof args[0] === "string" &&
+          args[0].includes("Error processing event")
+        ) {
           errors.push(new Error(args[0]));
         }
       };
@@ -263,8 +302,11 @@ describe("RelayPool", () => {
         [{ kinds: [1], since: testTimestamp, authors: [keys.publicKey] }],
         (event) => {
           // Only process events from our test
-          if (event.pubkey === keys.publicKey && 
-              (event.content === "normal event" || event.content === "error event")) {
+          if (
+            event.pubkey === keys.publicKey &&
+            (event.content === "normal event" ||
+              event.content === "error event")
+          ) {
             received.push(event);
             // Throw error on specific event to test error handling
             if (event.content === "error event") {
@@ -275,8 +317,14 @@ describe("RelayPool", () => {
       );
 
       // Publish normal event and error-triggering event
-      const normalEvent = await createSignedEvent(createTextNote("normal event", keys.privateKey), keys.privateKey);
-      const errorEvent = await createSignedEvent(createTextNote("error event", keys.privateKey), keys.privateKey);
+      const normalEvent = await createSignedEvent(
+        createTextNote("normal event", keys.privateKey),
+        keys.privateKey,
+      );
+      const errorEvent = await createSignedEvent(
+        createTextNote("error event", keys.privateKey),
+        keys.privateKey,
+      );
 
       await Promise.all(pool.publish([relay1.url], normalEvent));
       await Promise.all(pool.publish([relay2.url], errorEvent));
@@ -286,9 +334,9 @@ describe("RelayPool", () => {
 
       // Should have received both events even though one caused an error
       expect(received.length).toBe(2);
-      expect(received.some(e => e.content === "normal event")).toBe(true);
-      expect(received.some(e => e.content === "error event")).toBe(true);
-      
+      expect(received.some((e) => e.content === "normal event")).toBe(true);
+      expect(received.some((e) => e.content === "error event")).toBe(true);
+
       // Should have logged the error
       expect(errors.length).toBeGreaterThan(0);
     } finally {
@@ -300,7 +348,7 @@ describe("RelayPool", () => {
 
   test("should handle multiple close calls safely", async () => {
     const pool = new RelayPool([relay1.url, relay2.url]);
-    
+
     try {
       const sub = await pool.subscribe(
         [relay1.url, relay2.url],
@@ -321,7 +369,7 @@ describe("RelayPool", () => {
 
   test("should work with only invalid relays", async () => {
     const pool = new RelayPool();
-    
+
     try {
       // Subscribe to only non-existent relays
       const sub = await pool.subscribe(
@@ -335,7 +383,7 @@ describe("RelayPool", () => {
 
       // Should complete without throwing errors
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       expect(() => sub.close()).not.toThrow();
     } finally {
       await pool.close();
@@ -355,7 +403,10 @@ describe("RelayPool", () => {
       );
 
       // Publish an event to ensure connections are active
-      const testEvent = await createSignedEvent(createTextNote("close test", keys.privateKey), keys.privateKey);
+      const testEvent = await createSignedEvent(
+        createTextNote("close test", keys.privateKey),
+        keys.privateKey,
+      );
       await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
 
       // Close the subscription first
@@ -390,7 +441,10 @@ describe("RelayPool", () => {
       );
 
       // Publish an event to ensure the relays have something to send
-      const testEvent = await createSignedEvent(createTextNote("eose test", keys.privateKey), keys.privateKey);
+      const testEvent = await createSignedEvent(
+        createTextNote("eose test", keys.privateKey),
+        keys.privateKey,
+      );
       await Promise.all(pool.publish([relay1.url, relay2.url], testEvent));
 
       // Wait for EOSE to be called (should happen once all relays finish sending stored events)
@@ -409,6 +463,4 @@ describe("RelayPool", () => {
       await pool.close();
     }
   });
-
-
 });

@@ -17,13 +17,17 @@ import {
   NIP47Notification,
 } from "../../src/nip47";
 import { NostrEvent } from "../../src/types/nostr";
-import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../../src/nip04";
+import {
+  encrypt as encryptNIP04,
+  decrypt as decryptNIP04,
+} from "../../src/nip04";
 import { decrypt as decryptNIP44 } from "../../src/nip44";
+import { createSignedEvent } from "../../src/nip01/event";
 
 // Mock Implementation that tracks encryption
 class MockWalletImplementation implements WalletImplementation {
   private balance: number = 50000000; // 50,000 sats
-  
+
   async getInfo(): Promise<GetInfoResponseResult> {
     return {
       alias: "NIP-44 Test Wallet",
@@ -51,17 +55,23 @@ class MockWalletImplementation implements WalletImplementation {
 
   async payInvoice(_invoice: string): Promise<PaymentResponseResult> {
     return {
-      preimage: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-      payment_hash: "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+      preimage:
+        "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      payment_hash:
+        "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
       amount: 1000,
       fees_paid: 10,
     };
   }
 
-  async makeInvoice(amount: number, _description: string): Promise<MakeInvoiceResponseResult> {
+  async makeInvoice(
+    amount: number,
+    _description: string,
+  ): Promise<MakeInvoiceResponseResult> {
     return {
       invoice: "lnbc10n1ptest",
-      payment_hash: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      payment_hash:
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       amount,
       created_at: Math.floor(Date.now() / 1000),
       expires_at: Math.floor(Date.now() / 1000) + 3600,
@@ -71,7 +81,8 @@ class MockWalletImplementation implements WalletImplementation {
   async lookupInvoice(): Promise<NIP47Transaction> {
     return {
       type: TransactionType.INCOMING,
-      payment_hash: "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      payment_hash:
+        "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
       amount: 1000,
       fees_paid: 0,
       created_at: Math.floor(Date.now() / 1000) - 3600,
@@ -92,7 +103,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
 
   beforeAll(async () => {
     // Set up ephemeral relay
-    relay = new NostrRelay(3048); // Use port 3048 for NIP-44 tests
+    relay = new NostrRelay(3051); // Use port 3051 for NIP-44 tests
     await relay.start();
 
     // Generate keys
@@ -121,9 +132,12 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           pubkey: serviceKeys.publicKey,
           privkey: serviceKeys.privateKey,
           methods: [NIP47Method.GET_INFO, NIP47Method.GET_BALANCE],
-          encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
+          encryptionSchemes: [
+            NIP47EncryptionScheme.NIP44_V2,
+            NIP47EncryptionScheme.NIP04,
+          ],
         },
-        walletImpl
+        walletImpl,
       );
 
       await service.init();
@@ -135,8 +149,10 @@ describe("NIP-47 with NIP-44 Encryption", () => {
       const events = relay.cache;
       const infoEvent = events.find((e: NostrEvent) => e.kind === 13194);
       expect(infoEvent).toBeDefined();
-      
-      const encryptionTag = infoEvent?.tags.find((tag: string[]) => tag[0] === "encryption");
+
+      const encryptionTag = infoEvent?.tags.find(
+        (tag: string[]) => tag[0] === "encryption",
+      );
       expect(encryptionTag).toBeDefined();
       expect(encryptionTag?.[1]).toContain("nip44_v2");
       expect(encryptionTag?.[1]).toContain("nip04");
@@ -145,7 +161,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
     it("should only publish NIP-44 support when configured", async () => {
       // Clear relay cache for a clean test
       relay.cache.length = 0;
-      
+
       const walletImpl = new MockWalletImplementation();
       const nip44OnlyService = new NostrWalletService(
         {
@@ -155,16 +171,20 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           methods: [NIP47Method.GET_INFO],
           encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2],
         },
-        walletImpl
+        walletImpl,
       );
 
       await nip44OnlyService.init();
       await new Promise((resolve) => setTimeout(resolve, 100));
 
       const events = relay.cache;
-      const infoEvent = events.find((e) => e.kind === 13194 && e.pubkey === serviceKeys.publicKey);
-      const encryptionTag = infoEvent?.tags.find((tag) => tag[0] === "encryption");
-      
+      const infoEvent = events.find(
+        (e) => e.kind === 13194 && e.pubkey === serviceKeys.publicKey,
+      );
+      const encryptionTag = infoEvent?.tags.find(
+        (tag) => tag[0] === "encryption",
+      );
+
       expect(encryptionTag?.[1]).toBe("nip44_v2");
       expect(encryptionTag?.[1]).not.toContain("nip04");
 
@@ -176,7 +196,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
     beforeEach(async () => {
       // Clear relay events
       relay.cache.length = 0;
-      
+
       // Set up service with both encryption types
       const walletImpl = new MockWalletImplementation();
       service = new NostrWalletService(
@@ -184,10 +204,17 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           relays: [relay.url],
           pubkey: serviceKeys.publicKey,
           privkey: serviceKeys.privateKey,
-          methods: [NIP47Method.GET_INFO, NIP47Method.GET_BALANCE, NIP47Method.PAY_INVOICE],
-          encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
+          methods: [
+            NIP47Method.GET_INFO,
+            NIP47Method.GET_BALANCE,
+            NIP47Method.PAY_INVOICE,
+          ],
+          encryptionSchemes: [
+            NIP47EncryptionScheme.NIP44_V2,
+            NIP47EncryptionScheme.NIP04,
+          ],
         },
-        walletImpl
+        walletImpl,
       );
 
       await service.init();
@@ -222,24 +249,32 @@ describe("NIP-47 with NIP-44 Encryption", () => {
       // Check that the request used NIP-44 encryption
       await new Promise((resolve) => setTimeout(resolve, 100));
       const events = relay.cache;
-      const requestEvent = events.find((e) => e.kind === 23194 && e.pubkey === clientKeys.publicKey);
-      
+      const requestEvent = events.find(
+        (e) => e.kind === 23194 && e.pubkey === clientKeys.publicKey,
+      );
+
       expect(requestEvent).toBeDefined();
-      const encryptionTag = requestEvent?.tags.find((tag) => tag[0] === "encryption");
+      const encryptionTag = requestEvent?.tags.find(
+        (tag) => tag[0] === "encryption",
+      );
       expect(encryptionTag?.[1]).toBe("nip44_v2");
 
       // Verify the content is actually NIP-44 encrypted by trying to decrypt
       if (requestEvent) {
         // Should fail with NIP-04
-        await expect(async () => {
-          decryptNIP04(clientKeys.privateKey, serviceKeys.publicKey, requestEvent.content);
-        }).rejects.toThrow();
+        expect(() => {
+          decryptNIP04(
+            clientKeys.privateKey,
+            serviceKeys.publicKey,
+            requestEvent.content,
+          );
+        }).toThrow();
 
         // Should succeed with NIP-44
         const decrypted = await decryptNIP44(
           requestEvent.content,
           serviceKeys.privateKey,
-          clientKeys.publicKey
+          clientKeys.publicKey,
         );
         const request = JSON.parse(decrypted);
         expect(request.method).toBe("get_balance");
@@ -249,10 +284,10 @@ describe("NIP-47 with NIP-44 Encryption", () => {
     it("should fall back to NIP-04 when service doesn't support NIP-44", async () => {
       // First disconnect the default service that supports both
       await service.disconnect();
-      
+
       // Clear relay cache to ensure clean state
       relay.cache.length = 0;
-      
+
       // Create a service that only supports NIP-04
       const nip04Service = new NostrWalletService(
         {
@@ -262,11 +297,11 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           methods: [NIP47Method.GET_INFO, NIP47Method.GET_BALANCE],
           encryptionSchemes: [NIP47EncryptionScheme.NIP04],
         },
-        new MockWalletImplementation()
+        new MockWalletImplementation(),
       );
 
       await nip04Service.init();
-      
+
       // Wait for the info event to be published
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -286,10 +321,14 @@ describe("NIP-47 with NIP-44 Encryption", () => {
       // Check that the request fell back to NIP-04
       await new Promise((resolve) => setTimeout(resolve, 100));
       const events = relay.cache;
-      const requestEvent = events.find((e) => e.kind === 23194 && e.pubkey === clientKeys.publicKey);
-      
+      const requestEvent = events.find(
+        (e) => e.kind === 23194 && e.pubkey === clientKeys.publicKey,
+      );
+
       // No encryption tag means NIP-04
-      const encryptionTag = requestEvent?.tags.find((tag) => tag[0] === "encryption");
+      const encryptionTag = requestEvent?.tags.find(
+        (tag) => tag[0] === "encryption",
+      );
       expect(encryptionTag).toBeUndefined();
 
       await nip04Service.disconnect();
@@ -326,9 +365,12 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           privkey: serviceKeys.privateKey,
           methods: [NIP47Method.GET_INFO],
           notificationTypes: [NIP47NotificationType.PAYMENT_RECEIVED],
-          encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
+          encryptionSchemes: [
+            NIP47EncryptionScheme.NIP44_V2,
+            NIP47EncryptionScheme.NIP04,
+          ],
         },
-        walletImpl
+        walletImpl,
       );
 
       await service.init();
@@ -343,7 +385,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           amount: 1000,
           fees_paid: 0,
           created_at: Math.floor(Date.now() / 1000),
-        }
+        },
       );
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -361,7 +403,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
         const decrypted = decryptNIP04(
           clientKeys.privateKey,
           serviceKeys.publicKey,
-          nip04Notification.content
+          nip04Notification.content,
         );
         const notification = JSON.parse(decrypted);
         expect(notification.notification_type).toBe("payment_received");
@@ -372,7 +414,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
         const decrypted = await decryptNIP44(
           nip44Notification.content,
           clientKeys.privateKey,
-          serviceKeys.publicKey
+          serviceKeys.publicKey,
         );
         const notification = JSON.parse(decrypted);
         expect(notification.notification_type).toBe("payment_received");
@@ -388,9 +430,12 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           privkey: serviceKeys.privateKey,
           methods: [NIP47Method.GET_INFO],
           notificationTypes: [NIP47NotificationType.PAYMENT_RECEIVED],
-          encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
+          encryptionSchemes: [
+            NIP47EncryptionScheme.NIP44_V2,
+            NIP47EncryptionScheme.NIP04,
+          ],
         },
-        walletImpl
+        walletImpl,
       );
 
       await service.init();
@@ -404,12 +449,14 @@ describe("NIP-47 with NIP-44 Encryption", () => {
       client = new NostrWalletConnectClient(connectionOptions);
       await client.init();
 
-      let receivedNotification: NIP47Notification<NIP47Transaction> | null = null;
+      let receivedNotification: NIP47Notification<NIP47Transaction> | null =
+        null;
       client.onNotification(
         NIP47NotificationType.PAYMENT_RECEIVED,
         (notification) => {
-          receivedNotification = notification as NIP47Notification<NIP47Transaction>;
-        }
+          receivedNotification =
+            notification as NIP47Notification<NIP47Transaction>;
+        },
       );
 
       // Send notification from service
@@ -422,7 +469,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           amount: 2000,
           fees_paid: 0,
           created_at: Math.floor(Date.now() / 1000),
-        }
+        },
       );
 
       // Wait for notification to be received
@@ -439,7 +486,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
       // Generate new keys for this test to avoid conflicts
       const testServiceKeys = await generateKeypair();
       const testClientKeys = await generateKeypair();
-      
+
       // Create service that only supports NIP-44
       const walletImpl = new MockWalletImplementation();
       const nip44OnlyService = new NostrWalletService(
@@ -450,11 +497,11 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           methods: [NIP47Method.GET_INFO],
           encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2],
         },
-        walletImpl
+        walletImpl,
       );
 
       await nip44OnlyService.init();
-      
+
       // Wait for service to be ready
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -469,7 +516,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
         content: encryptNIP04(
           testClientKeys.privateKey,
           testServiceKeys.publicKey,
-          JSON.stringify(request)
+          JSON.stringify(request),
         ),
         tags: [
           ["p", testServiceKeys.publicKey],
@@ -479,12 +526,11 @@ describe("NIP-47 with NIP-44 Encryption", () => {
         pubkey: testClientKeys.publicKey,
       };
 
-      // Publish the request
-      const event: NostrEvent = {
-        ...eventTemplate,
-        id: "test_id",
-        sig: "test_sig",
-      };
+      // Create a properly signed event
+      const event = await createSignedEvent(
+        eventTemplate,
+        testClientKeys.privateKey,
+      );
 
       // Add event directly to relay cache for testing
       relay.cache.push(event);
@@ -494,9 +540,13 @@ describe("NIP-47 with NIP-44 Encryption", () => {
 
       // Check that no response was sent
       const events = relay.cache;
-      const responseEvent = events.find((e) => e.kind === 23195 && e.tags.some(tag => tag[0] === "e" && tag[1] === event.id));
+      const responseEvent = events.find(
+        (e) =>
+          e.kind === 23195 &&
+          e.tags.some((tag) => tag[0] === "e" && tag[1] === event.id),
+      );
       expect(responseEvent).toBeUndefined();
-      
+
       // Clean up
       await nip44OnlyService.disconnect();
     });
@@ -512,8 +562,7 @@ describe("NIP-47 with NIP-44 Encryption", () => {
       await client.init();
 
       // Manually create a response with corrupted encryption
-      const responseEvent: NostrEvent = {
-        id: "test_response",
+      const responseEventTemplate = {
         kind: 23195,
         content: "invalid_encrypted_content",
         tags: [
@@ -522,15 +571,20 @@ describe("NIP-47 with NIP-44 Encryption", () => {
         ],
         created_at: Math.floor(Date.now() / 1000),
         pubkey: serviceKeys.publicKey,
-        sig: "test_sig",
       };
+
+      // Create a properly signed event (even though content is invalid)
+      const responseEvent = await createSignedEvent(
+        responseEventTemplate,
+        serviceKeys.privateKey,
+      );
 
       // This should not throw but handle gracefully
       relay.cache.push(responseEvent);
-      
+
       // Wait for processing
       await new Promise((resolve) => setTimeout(resolve, 100));
-      
+
       // Client should continue functioning
       expect(client).toBeDefined();
     });
@@ -545,9 +599,12 @@ describe("NIP-47 with NIP-44 Encryption", () => {
           pubkey: serviceKeys.publicKey,
           privkey: serviceKeys.privateKey,
           methods: [NIP47Method.GET_INFO],
-          encryptionSchemes: [NIP47EncryptionScheme.NIP44_V2, NIP47EncryptionScheme.NIP04],
+          encryptionSchemes: [
+            NIP47EncryptionScheme.NIP44_V2,
+            NIP47EncryptionScheme.NIP04,
+          ],
         },
-        walletImpl
+        walletImpl,
       );
 
       await service.init();

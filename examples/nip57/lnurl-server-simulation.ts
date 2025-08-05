@@ -75,7 +75,6 @@ interface LnurlErrorResponse {
   reason: string;
 }
 
-
 // Mock of LN infrastructure
 class MockLightningWallet {
   private invoices: Map<string, Invoice> = new Map();

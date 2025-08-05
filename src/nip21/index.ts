@@ -47,4 +47,3 @@ export function decodeNostrURI(uri: string): DecodedEntity {
   const entity = uri.slice(NOSTR_URI_PREFIX.length) as Bech32String;
   return decode(entity);
 }
-

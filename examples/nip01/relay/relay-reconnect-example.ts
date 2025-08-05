@@ -112,7 +112,9 @@ async function main() {
 
   // Also demonstrate how to control reconnection programmatically
   console.log("\nReconnection control methods:");
-  console.log("- relay.setAutoReconnect(false) - Disable automatic reconnection");
+  console.log(
+    "- relay.setAutoReconnect(false) - Disable automatic reconnection",
+  );
   console.log("- relay.setAutoReconnect(true) - Enable automatic reconnection");
   console.log(
     "- relay.setMaxReconnectAttempts(10) - Set maximum reconnection attempts",

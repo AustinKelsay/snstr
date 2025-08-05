@@ -21,7 +21,8 @@ describe("NIP-21: nostr URI scheme", () => {
 
   test("encodeNostrURI rejects nsec", () => {
     // Create a proper nsec using a valid private key to test rejection
-    const privateKey = "d55f1f2d59c62fb6fa5b1d88adf3e9aad291d63f9d0fcef6b5c8139a400f3dd6";
+    const privateKey =
+      "d55f1f2d59c62fb6fa5b1d88adf3e9aad291d63f9d0fcef6b5c8139a400f3dd6";
     const nsec = encodePrivateKey(privateKey);
     expect(() => encodeNostrURI(nsec)).toThrow(/nsec/);
   });

@@ -41,7 +41,7 @@ function isValidHostname(hostname: string): boolean {
 
   // Split into labels and validate each
   const labels = hostname.split(".");
-  
+
   // Must have at least one label
   if (labels.length === 0) {
     return false;
@@ -145,7 +145,10 @@ export function isValidRelayUrl(url: RelayUrl): boolean {
 
     // Ensure the host doesn't contain any suspicious characters
     // Handle IPv6 addresses (bracketed) and regular hostnames separately
-    if (parsedUrl.hostname.startsWith("[") && parsedUrl.hostname.endsWith("]")) {
+    if (
+      parsedUrl.hostname.startsWith("[") &&
+      parsedUrl.hostname.endsWith("]")
+    ) {
       // IPv6 literal - brackets are required and content can contain colons
       // We trust the URL parser's validation for IPv6 format
       const ipv6Content = parsedUrl.hostname.slice(1, -1);
