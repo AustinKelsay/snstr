@@ -115,9 +115,11 @@ jobs:
         if: github.event.inputs.dry_run != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.NEW_VERSION) }}
+          RELEASE_VERSION: ${{ env.TAG_VERSION || env.NEW_VERSION }}
         run: |
-          gh release create ${{ github.ref_name || format('v{0}', env.NEW_VERSION) }} \
-            --title "Release ${{ github.ref_name || format('v{0}', env.NEW_VERSION) }}" \
+          gh release create ${{ env.RELEASE_TAG }} \
+            --title "Release ${{ env.RELEASE_TAG }}" \
             --notes "## Changes
 
             See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
@@ -125,17 +127,20 @@ jobs:
             ## Installation
 
             \`\`\`bash
-            npm install snstr@${{ env.TAG_VERSION || env.NEW_VERSION }}
+            npm install snstr@${{ env.RELEASE_VERSION }}
             \`\`\`
 
             ## Package Info
 
-            - **Version:** ${{ env.TAG_VERSION || env.NEW_VERSION }}
-            - **Size:** [View on bundlephobia](https://bundlephobia.com/package/snstr@${{ env.TAG_VERSION || env.NEW_VERSION }})
+            - **Version:** ${{ env.RELEASE_VERSION }}
+            - **Size:** [View on bundlephobia](https://bundlephobia.com/package/snstr@${{ env.RELEASE_VERSION }})
             - **Downloads:** [View on npm](https://www.npmjs.com/package/snstr)"
       - name: Notify Success
         if: success() && github.event.inputs.dry_run != 'true'
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.NEW_VERSION) }}
+          RELEASE_VERSION: ${{ env.TAG_VERSION || env.NEW_VERSION }}
         run: |
-          echo "🎉 Successfully released snstr@${{ env.TAG_VERSION || env.NEW_VERSION }} to NPM!"
+          echo "🎉 Successfully released snstr@${{ env.RELEASE_VERSION }} to NPM!"
           echo "📦 Package: https://www.npmjs.com/package/snstr"
-          echo "🏷️ GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name || format('v{0}', env.NEW_VERSION) }}"
+          echo "🏷️ GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}"

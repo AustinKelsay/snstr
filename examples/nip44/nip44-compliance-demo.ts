@@ -10,7 +10,13 @@
  * - Decoded payload length validation (99 to 65,603 bytes)
  */
 
-import { decodePayload, NONCE_SIZE_V0, MAC_SIZE_V0 } from "../../src/nip44";
+import { 
+  decodePayload, 
+  NONCE_SIZE_V0, 
+  MAC_SIZE_V0,
+  NONCE_SIZE_V2,
+  MAC_SIZE_V2 
+} from "../../src/nip44";
 
 /**
  * Creates a minimal valid NIP-44 payload for testing
@@ -22,8 +28,12 @@ function createMinimalValidPayload(
 ): string {
   const versionByte = new Uint8Array([version]);
 
-  // Create non-zero nonce (32 bytes)
-  const nonce = new Uint8Array(NONCE_SIZE_V0);
+  // Use version-specific constants for nonce and MAC sizes
+  const nonceSize = version === 2 ? NONCE_SIZE_V2 : NONCE_SIZE_V0;
+  const macSize = version === 2 ? MAC_SIZE_V2 : MAC_SIZE_V0;
+
+  // Create non-zero nonce with version-specific size
+  const nonce = new Uint8Array(nonceSize);
   for (let i = 0; i < nonce.length; i++) {
     nonce[i] = (i + 1) % 256; // Fill with incrementing non-zero values
   }
@@ -34,8 +44,8 @@ function createMinimalValidPayload(
     ciphertext[i] = ((i + 1) * 7) % 256; // Fill with some non-zero pattern
   }
 
-  // Create non-zero MAC (32 bytes)
-  const mac = new Uint8Array(MAC_SIZE_V0);
+  // Create non-zero MAC with version-specific size
+  const mac = new Uint8Array(macSize);
   for (let i = 0; i < mac.length; i++) {
     mac[i] = ((i + 1) * 13) % 256; // Fill with some non-zero pattern
   }

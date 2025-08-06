@@ -332,6 +332,7 @@ export class NostrWalletService {
 
           // Store the encryption scheme temporarily for the error response
           this.requestEncryption.set(event.id, requestEncryption);
+          encryptionSchemeStored = true;
 
           // Send error response for already expired request
           // The recipient is the original requester (event.pubkey)
@@ -366,6 +367,7 @@ export class NostrWalletService {
 
         // Store the encryption scheme temporarily for the error response
         this.requestEncryption.set(event.id, requestEncryption);
+        encryptionSchemeStored = true;
 
         await this.sendErrorResponse(
           requesterClientPubkey,
