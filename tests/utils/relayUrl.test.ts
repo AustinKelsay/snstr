@@ -1,8 +1,8 @@
-import { 
-  preprocessRelayUrl, 
-  normalizeRelayUrl, 
+import {
+  preprocessRelayUrl,
+  normalizeRelayUrl,
   validateAndNormalizeRelayUrl,
-  RelayUrlValidationError 
+  RelayUrlValidationError,
 } from "../../src/utils/relayUrl";
 
 describe("relayUrl utils", () => {
@@ -12,20 +12,20 @@ describe("relayUrl utils", () => {
       const testCases = [
         {
           input: "2001:db8::1:8080/chat",
-          expected: "wss://[2001:db8::1]:8080/chat"
+          expected: "wss://[2001:db8::1]:8080/chat",
         },
         {
           input: "2001:db8::1:8080/path/to/resource",
-          expected: "wss://[2001:db8::1]:8080/path/to/resource"
+          expected: "wss://[2001:db8::1]:8080/path/to/resource",
         },
         {
           input: "::1:8080/ws",
-          expected: "wss://[::1]:8080/ws"
+          expected: "wss://[::1]:8080/ws",
         },
         {
           input: "fe80::1:3000/relay?param=value#fragment",
-          expected: "wss://[fe80::1]:3000/relay?param=value#fragment"
-        }
+          expected: "wss://[fe80::1]:3000/relay?param=value#fragment",
+        },
       ];
 
       testCases.forEach(({ input, expected }) => {
@@ -37,12 +37,12 @@ describe("relayUrl utils", () => {
       const testCases = [
         {
           input: "[2001:db8::1]/chat",
-          expected: "wss://[2001:db8::1]/chat"
+          expected: "wss://[2001:db8::1]/chat",
         },
         {
           input: "[::1]/ws",
-          expected: "wss://[::1]/ws"
-        }
+          expected: "wss://[::1]/ws",
+        },
       ];
 
       testCases.forEach(({ input, expected }) => {
@@ -54,12 +54,12 @@ describe("relayUrl utils", () => {
       const testCases = [
         {
           input: "example.com/chat",
-          expected: "wss://example.com/chat"
+          expected: "wss://example.com/chat",
         },
         {
           input: "relay.example.com:8080/ws/path",
-          expected: "wss://relay.example.com:8080/ws/path"
-        }
+          expected: "wss://relay.example.com:8080/ws/path",
+        },
       ];
 
       testCases.forEach(({ input, expected }) => {
@@ -73,16 +73,22 @@ describe("relayUrl utils", () => {
     });
 
     test("should reject invalid schemes with RelayUrlValidationError", () => {
-      expect(() => preprocessRelayUrl("http://example.com")).toThrow(RelayUrlValidationError);
-      expect(() => preprocessRelayUrl("https://example.com")).toThrow(RelayUrlValidationError);
-      
+      expect(() => preprocessRelayUrl("http://example.com")).toThrow(
+        RelayUrlValidationError,
+      );
+      expect(() => preprocessRelayUrl("https://example.com")).toThrow(
+        RelayUrlValidationError,
+      );
+
       // Test specific error properties
       try {
         preprocessRelayUrl("http://example.com");
       } catch (error) {
         expect(error).toBeInstanceOf(RelayUrlValidationError);
-        expect((error as RelayUrlValidationError).errorType).toBe('scheme');
-        expect((error as RelayUrlValidationError).invalidUrl).toBe("http://example.com");
+        expect((error as RelayUrlValidationError).errorType).toBe("scheme");
+        expect((error as RelayUrlValidationError).invalidUrl).toBe(
+          "http://example.com",
+        );
       }
     });
 
@@ -90,13 +96,13 @@ describe("relayUrl utils", () => {
       expect(() => preprocessRelayUrl("")).toThrow(RelayUrlValidationError);
       expect(() => preprocessRelayUrl("   ")).toThrow(RelayUrlValidationError);
       expect(preprocessRelayUrl("//example.com")).toBe("wss://example.com");
-      
+
       // Test specific error properties for format errors
       try {
         preprocessRelayUrl("");
       } catch (error) {
         expect(error).toBeInstanceOf(RelayUrlValidationError);
-        expect((error as RelayUrlValidationError).errorType).toBe('format');
+        expect((error as RelayUrlValidationError).errorType).toBe("format");
       }
     });
   });
@@ -109,8 +115,10 @@ describe("relayUrl utils", () => {
     });
 
     test("should preserve case in paths, queries, and fragments", () => {
-      const input = "WSS://EXAMPLE.COM:8080/Path/To/Resource?Query=Value#Fragment";
-      const expected = "wss://example.com:8080/Path/To/Resource?Query=Value#Fragment";
+      const input =
+        "WSS://EXAMPLE.COM:8080/Path/To/Resource?Query=Value#Fragment";
+      const expected =
+        "wss://example.com:8080/Path/To/Resource?Query=Value#Fragment";
       expect(normalizeRelayUrl(input)).toBe(expected);
     });
 
@@ -130,7 +138,9 @@ describe("relayUrl utils", () => {
       // Note: "invalid-url" actually gets normalized to "wss://invalid-url" which may be valid
       // Let's test with truly invalid URLs
       expect(validateAndNormalizeRelayUrl("")).toBeUndefined();
-      expect(validateAndNormalizeRelayUrl("http://example.com")).toBeUndefined();
+      expect(
+        validateAndNormalizeRelayUrl("http://example.com"),
+      ).toBeUndefined();
     });
   });
-}); 
+});

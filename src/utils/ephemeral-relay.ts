@@ -8,10 +8,10 @@ import {
 } from "../types/protocol";
 import { validateEvent } from "../nip01/event";
 import { isValidPublicKeyPoint } from "../nip44";
-import { 
-  validateArrayAccess, 
+import {
+  validateArrayAccess,
   safeArrayAccess,
-  SecurityValidationError 
+  SecurityValidationError,
 } from "./security-validator";
 
 /**
@@ -120,12 +120,16 @@ export class NostrRelay {
       this.wss.on("listening", () => {
         // Capture the actual assigned port when port 0 was used
         const address = this.wss.address();
-        if (address && typeof address === 'object' && 'port' in address) {
+        if (address && typeof address === "object" && "port" in address) {
           this._actualPort = address.port;
         }
-        
-        DEBUG && console.log("[ relay ] running on port:", this._actualPort || this._port);
-        
+
+        DEBUG &&
+          console.log(
+            "[ relay ] running on port:",
+            this._actualPort || this._port,
+          );
+
         if (this._purge !== null) {
           DEBUG &&
             console.log(
@@ -352,7 +356,7 @@ export class NostrRelay {
 /* ================ [ Instance Class ] ================ */
 
 class ClientSession {
-  private readonly _sid: string;
+  private _sid: string;
   private readonly _relay: NostrRelay;
   private readonly _socket: WebSocket;
   private readonly _subs: Set<string>;
@@ -360,20 +364,50 @@ class ClientSession {
   constructor(relay: NostrRelay, socket: WebSocket) {
     this._relay = relay;
     // Generate cryptographically secure session ID
-    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
       const array = new Uint8Array(3);
       crypto.getRandomValues(array);
-      this._sid = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-    } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+      this._sid = Array.from(array, (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+    } else if (
+      typeof process !== "undefined" &&
+      process.versions &&
+      process.versions.node
+    ) {
       try {
+        // Try to use require for CommonJS environments
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const nodeCrypto = require('crypto');
-        this._sid = nodeCrypto.randomBytes(3).toString('hex');
-      } catch (error) {
-        throw new Error('Secure random number generation not available for ephemeral relay session ID');
+        const nodeCrypto = require("crypto");
+        this._sid = nodeCrypto.randomBytes(3).toString("hex");
+      } catch (requireError) {
+        // If require fails (ESM environment), generate a temporary ID and
+        // schedule an async replacement
+        const tempArray = new Uint8Array(3);
+        // Use Math.random as temporary fallback
+        for (let i = 0; i < tempArray.length; i++) {
+          tempArray[i] = Math.floor(Math.random() * 256);
+        }
+        this._sid = Array.from(tempArray, (byte) =>
+          byte.toString(16).padStart(2, "0"),
+        ).join("");
+        
+        // Asynchronously replace with crypto-generated ID
+        import("crypto")
+          .then((nodeCrypto) => {
+            this._sid = nodeCrypto.randomBytes(3).toString("hex");
+          })
+          .catch(() => {
+            // Keep the Math.random generated ID if import fails
+            console.warn(
+              "Failed to import crypto module for session ID generation",
+            );
+          });
       }
     } else {
-      throw new Error('Secure random number generation not available for ephemeral relay session ID');
+      throw new Error(
+        "Secure random number generation not available for ephemeral relay session ID",
+      );
     }
     this._socket = socket;
     this._subs = new Set();
@@ -541,7 +575,10 @@ class ClientSession {
               const pTags = event.tags
                 .filter((tag) => {
                   try {
-                    return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p";
+                    return (
+                      validateArrayAccess(tag, 0) &&
+                      safeArrayAccess(tag, 0) === "p"
+                    );
                   } catch {
                     return false;
                   }
@@ -578,7 +615,9 @@ class ClientSession {
                 }
               } catch (error) {
                 if (error instanceof SecurityValidationError) {
-                  this.log.debug(`Bounds checking error in subscription routing: ${error.message}`);
+                  this.log.debug(
+                    `Bounds checking error in subscription routing: ${error.message}`,
+                  );
                 }
                 continue;
               }
@@ -745,21 +784,21 @@ class ClientSession {
     }
 
     // For NIP-46, we need to have at least one p tag with a valid pubkey
-    const hasPTag = event.tags.some(
-      (tag: string[]) => {
-        try {
-          return Array.isArray(tag) &&
-            validateArrayAccess(tag, 0) &&
-            validateArrayAccess(tag, 1) &&
-            safeArrayAccess(tag, 0) === "p" &&
-            typeof safeArrayAccess(tag, 1) === "string" &&
-            isValidPublicKeyPoint(safeArrayAccess(tag, 1) as string);
-        } catch (error) {
-          // If bounds checking fails, this tag is invalid
-          return false;
-        }
+    const hasPTag = event.tags.some((tag: string[]) => {
+      try {
+        return (
+          Array.isArray(tag) &&
+          validateArrayAccess(tag, 0) &&
+          validateArrayAccess(tag, 1) &&
+          safeArrayAccess(tag, 0) === "p" &&
+          typeof safeArrayAccess(tag, 1) === "string" &&
+          isValidPublicKeyPoint(safeArrayAccess(tag, 1) as string)
+        );
+      } catch (error) {
+        // If bounds checking fails, this tag is invalid
+        return false;
       }
-    );
+    });
 
     if (!hasPTag) {
       // For debugging, log the tags structure
@@ -857,10 +896,10 @@ function match_tags(filters: string[][], tags: string[][]): boolean {
         filterMatched = true; // Empty filter matches everything
         continue;
       }
-      
+
       const key = safeArrayAccess(filter, 0);
       const terms = filter.slice(1);
-      
+
       // Skip empty filter terms
       if (terms.length === 0) {
         filterMatched = true;
@@ -873,7 +912,7 @@ function match_tags(filters: string[][], tags: string[][]): boolean {
           if (!validateArrayAccess(tag, 0) || safeArrayAccess(tag, 0) !== key) {
             continue;
           }
-          
+
           const params = tag.slice(1);
 
           // For each term in the filter

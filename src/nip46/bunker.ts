@@ -21,7 +21,7 @@ import {
 } from "./types";
 import { buildConnectionString } from "./utils/connection";
 import { NIP46RateLimiter } from "./utils/rate-limiter";
-import { 
+import {
   validateBunkerInitialization,
   validateSecureInitialization,
   validatePrivateKeySecure,
@@ -29,7 +29,7 @@ import {
   validateBeforeEncryption,
   validateBeforeDecryption,
   validateKeypairForCrypto,
-  securePermissionCheck 
+  securePermissionCheck,
 } from "./utils/security";
 import { Logger, LogLevel } from "./utils/logger";
 
@@ -43,7 +43,13 @@ export class NostrRemoteSignerBunker {
   private subId: string | null;
   private logger: Logger;
   private rateLimiter: NIP46RateLimiter;
-  private permissionHandler: ((clientPubkey: string, method: string, params: string[]) => boolean | null) | null = null;
+  private permissionHandler:
+    | ((
+        clientPubkey: string,
+        method: string,
+        params: string[],
+      ) => boolean | null)
+    | null = null;
   private usedRequestIds: Map<string, number> = new Map(); // Request ID -> timestamp
   private cleanupInterval: NodeJS.Timeout | null = null; // For cleanup interval management
 
@@ -53,26 +59,28 @@ export class NostrRemoteSignerBunker {
     this.connectedClients = new Map();
     this.pendingAuthChallenges = new Map();
     this.subId = null;
-    
+
     // Initialize logger
     this.logger = new Logger({
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-BUNKER",
       includeTimestamp: true,
-      silent: process.env.NODE_ENV === 'test' // Silent in test environment
+      silent: process.env.NODE_ENV === "test", // Silent in test environment
     });
 
     // Initialize rate limiter with configurable options
-    this.rateLimiter = new NIP46RateLimiter(options.rateLimitConfig || {
-      maxRequestsPerMinute: 60,
-      maxRequestsPerHour: 1000,
-      burstSize: 10
-    });
+    this.rateLimiter = new NIP46RateLimiter(
+      options.rateLimitConfig || {
+        maxRequestsPerMinute: 60,
+        maxRequestsPerHour: 1000,
+        burstSize: 10,
+      },
+    );
 
     // Validate bunker initialization
     validateBunkerInitialization({
       userPubkey: options.userPubkey,
-      signerPubkey: options.signerPubkey
+      signerPubkey: options.signerPubkey,
     });
 
     // Initialize keypairs with empty private keys (will be validated before use)
@@ -92,7 +100,7 @@ export class NostrRemoteSignerBunker {
       userPubkey: options.userPubkey,
       signerPubkey: options.signerPubkey || options.userPubkey,
       relays: options.relays,
-      defaultPermissions: options.defaultPermissions || "none"
+      defaultPermissions: options.defaultPermissions || "none",
     });
   }
 
@@ -109,7 +117,7 @@ export class NostrRemoteSignerBunker {
     // Validate that private keys are properly set before starting
     validateSecureInitialization({
       userKeypair: this.userKeypair,
-      signerKeypair: this.signerKeypair
+      signerKeypair: this.signerKeypair,
     });
 
     // Connect to relays
@@ -156,7 +164,7 @@ export class NostrRemoteSignerBunker {
         await this.nostr.unsubscribe([this.subId]);
         this.subId = null;
       } catch (error) {
-        this.logger.error('Failed to unsubscribe', { error });
+        this.logger.error("Failed to unsubscribe", { error });
       }
     }
 
@@ -165,7 +173,7 @@ export class NostrRemoteSignerBunker {
       try {
         await this.nostr.disconnectFromRelays();
       } catch (error) {
-        this.logger.error('Failed to disconnect from relays', { error });
+        this.logger.error("Failed to disconnect from relays", { error });
       }
     }
 
@@ -173,14 +181,14 @@ export class NostrRemoteSignerBunker {
     try {
       this.rateLimiter.destroy();
     } catch (error) {
-      this.logger.error('Failed to destroy rate limiter', { error });
+      this.logger.error("Failed to destroy rate limiter", { error });
     }
 
     // Clear all data structures
     this.connectedClients.clear();
     this.pendingAuthChallenges.clear();
     this.usedRequestIds.clear();
-    
+
     this.logger.info("Bunker stopped successfully");
   }
 
@@ -218,7 +226,11 @@ export class NostrRemoteSignerBunker {
    *                  - null: Use default permission checking
    */
   setPermissionHandler(
-    handler: (clientPubkey: string, method: string, params: string[]) => boolean | null
+    handler: (
+      clientPubkey: string,
+      method: string,
+      params: string[],
+    ) => boolean | null,
   ): void {
     this.permissionHandler = handler;
     this.logger.debug("Custom permission handler set");
@@ -239,20 +251,20 @@ export class NostrRemoteSignerBunker {
   private isReplayAttack(requestId: string): boolean {
     const now = Date.now();
     const requestTime = this.usedRequestIds.get(requestId);
-    
+
     if (requestTime !== undefined) {
       // This request ID has been seen before
-      this.logger.warn("Replay attack detected", { 
+      this.logger.warn("Replay attack detected", {
         requestId,
         originalTime: new Date(requestTime).toISOString(),
-        attemptTime: new Date(now).toISOString()
+        attemptTime: new Date(now).toISOString(),
       });
       return true;
     }
 
     // Store the request ID with current timestamp
     this.usedRequestIds.set(requestId, now);
-    
+
     return false;
   }
 
@@ -283,33 +295,39 @@ export class NostrRemoteSignerBunker {
    * @returns true if the challenge was found and resolved, false otherwise
    */
   resolveAuthChallenge(pubkey: string): boolean {
-    for (const [challengeId, challenge] of this.pendingAuthChallenges.entries()) {
+    for (const [
+      challengeId,
+      challenge,
+    ] of this.pendingAuthChallenges.entries()) {
       if (challenge.clientPubkey === pubkey) {
         this.pendingAuthChallenges.delete(challengeId);
-        
+
         // Create client session with permissions from the challenge
         const permissions = new Set([
           ...(this.options.defaultPermissions || []),
-          ...(challenge.permissions || [])
+          ...(challenge.permissions || []),
         ]);
 
         this.connectedClients.set(pubkey, {
           permissions,
-          lastSeen: Date.now()
+          lastSeen: Date.now(),
         });
-        
-        this.logger.info("Auth challenge resolved and client session created", { 
+
+        this.logger.info("Auth challenge resolved and client session created", {
           challengeId,
           clientPubkey: pubkey,
-          permissions: Array.from(permissions)
+          permissions: Array.from(permissions),
         });
         return true;
       }
     }
-    
-    this.logger.warn("Auth challenge resolution failed - no pending challenge found", {
-      clientPubkey: pubkey
-    });
+
+    this.logger.warn(
+      "Auth challenge resolution failed - no pending challenge found",
+      {
+        clientPubkey: pubkey,
+      },
+    );
     return false;
   }
 
@@ -319,7 +337,10 @@ export class NostrRemoteSignerBunker {
    * @param permissions The permissions being requested
    * @returns The auth challenge object
    */
-  private createAuthChallenge(clientPubkey: string, permissions?: string[]): NIP46AuthChallenge {
+  private createAuthChallenge(
+    clientPubkey: string,
+    permissions?: string[],
+  ): NIP46AuthChallenge {
     const challenge: NIP46AuthChallenge = {
       id: generateRequestId(),
       clientPubkey,
@@ -333,9 +354,9 @@ export class NostrRemoteSignerBunker {
     setTimeout(() => {
       if (this.pendingAuthChallenges.has(challenge.id)) {
         this.pendingAuthChallenges.delete(challenge.id);
-        this.logger.warn("Auth challenge expired", { 
+        this.logger.warn("Auth challenge expired", {
           challengeId: challenge.id,
-          clientPubkey
+          clientPubkey,
         });
       }
     }, this.options.authTimeout || 300000).unref(); // 5 minutes default
@@ -343,7 +364,7 @@ export class NostrRemoteSignerBunker {
     this.logger.debug("Auth challenge created", {
       challengeId: challenge.id,
       clientPubkey,
-      permissions
+      permissions,
     });
 
     return challenge;
@@ -354,17 +375,20 @@ export class NostrRemoteSignerBunker {
    */
   private cleanup(): void {
     this.cleanupOldRequestIds();
-    
+
     // Clean up expired auth challenges
     const now = Date.now();
     const authTimeout = this.options.authTimeout || 300000; // 5 minutes
-    
-    for (const [challengeId, challenge] of this.pendingAuthChallenges.entries()) {
+
+    for (const [
+      challengeId,
+      challenge,
+    ] of this.pendingAuthChallenges.entries()) {
       if (now - challenge.timestamp > authTimeout) {
         this.pendingAuthChallenges.delete(challengeId);
         this.logger.debug("Expired auth challenge cleaned up", {
           challengeId,
-          clientPubkey: challenge.clientPubkey
+          clientPubkey: challenge.clientPubkey,
         });
       }
     }
@@ -377,11 +401,11 @@ export class NostrRemoteSignerBunker {
   private async handleRequest(event: NostrEvent): Promise<void> {
     try {
       const clientPubkey = event.pubkey;
-      
+
       this.logger.debug("Received request event", {
         eventId: event.id,
         clientPubkey,
-        eventKind: event.kind
+        eventKind: event.kind,
       });
 
       // Check rate limiting FIRST - Critical DoS protection
@@ -390,26 +414,31 @@ export class NostrRemoteSignerBunker {
         this.logger.warn("Request rate limited", {
           clientPubkey,
           retryAfter: rateLimitResult.retryAfter,
-          remainingRequests: rateLimitResult.remainingRequests
+          remainingRequests: rateLimitResult.remainingRequests,
         });
-        
+
         // Send rate limit error response
         await this.sendResponse(
-          clientPubkey, 
+          clientPubkey,
           "unknown", // We don't have the request ID yet
-          null, 
-          NIP46ErrorUtils.getErrorDescription(NIP46ErrorCode.RATE_LIMITED) + 
-          (rateLimitResult.retryAfter ? ` Retry after ${rateLimitResult.retryAfter} seconds.` : "")
+          null,
+          NIP46ErrorUtils.getErrorDescription(NIP46ErrorCode.RATE_LIMITED) +
+            (rateLimitResult.retryAfter
+              ? ` Retry after ${rateLimitResult.retryAfter} seconds.`
+              : ""),
         );
         return;
       }
 
       // Decrypt and parse the request
-      const decryptResult = await this.decryptContent(event.content, clientPubkey);
+      const decryptResult = await this.decryptContent(
+        event.content,
+        clientPubkey,
+      );
       if (!decryptResult.success) {
         this.logger.error("Failed to decrypt request", {
           clientPubkey,
-          error: decryptResult.error
+          error: decryptResult.error,
         });
         return;
       }
@@ -420,7 +449,7 @@ export class NostrRemoteSignerBunker {
       } catch (error) {
         this.logger.error("Failed to parse request JSON", {
           clientPubkey,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         return;
       }
@@ -430,29 +459,29 @@ export class NostrRemoteSignerBunker {
         this.logger.error("Invalid request structure", {
           clientPubkey,
           hasId: !!request.id,
-          hasMethod: !!request.method
+          hasMethod: !!request.method,
         });
         return;
       }
 
       // Check for replay attacks
       if (this.isReplayAttack(request.id)) {
-        this.logger.warn("Ignoring replay attack", { 
+        this.logger.warn("Ignoring replay attack", {
           requestId: request.id,
-          clientPubkey
+          clientPubkey,
         });
         return;
       }
 
       // Route the request to the appropriate handler
       let response: NIP46Response;
-      
+
       const method = request.method;
       this.logger.debug("Processing request", {
         requestId: request.id,
         method,
         clientPubkey,
-        paramsCount: request.params?.length || 0
+        paramsCount: request.params?.length || 0,
       });
 
       switch (method) {
@@ -478,11 +507,14 @@ export class NostrRemoteSignerBunker {
           response = await this.handleEncryption(request, clientPubkey);
           break;
         default:
-          this.logger.warn("Unknown method requested", { method, clientPubkey });
+          this.logger.warn("Unknown method requested", {
+            method,
+            clientPubkey,
+          });
           response = NIP46ErrorUtils.createErrorResponse(
             request.id,
             NIP46ErrorCode.METHOD_NOT_SUPPORTED,
-            `Method ${method} is not supported`
+            `Method ${method} is not supported`,
           );
       }
 
@@ -492,14 +524,13 @@ export class NostrRemoteSignerBunker {
         response.id,
         response.result || null,
         response.error,
-        response.auth_url
+        response.auth_url,
       );
-
     } catch (error) {
       this.logger.error("Error handling request", {
         error: error instanceof Error ? error.message : String(error),
         eventId: event.id,
-        clientPubkey: event.pubkey
+        clientPubkey: event.pubkey,
       });
     }
   }
@@ -514,13 +545,13 @@ export class NostrRemoteSignerBunker {
   ): Promise<NIP46Response> {
     try {
       const [remotePubkey, secret, permissionsString] = request.params;
-      
+
       this.logger.debug("Processing connect request", {
         requestId: request.id,
         clientPubkey,
         remotePubkey,
         hasSecret: !!secret,
-        permissions: permissionsString
+        permissions: permissionsString,
       });
 
       // Validate that the remote pubkey matches our signer pubkey
@@ -529,12 +560,12 @@ export class NostrRemoteSignerBunker {
           requestId: request.id,
           clientPubkey,
           expectedPubkey: this.signerKeypair.publicKey,
-          providedPubkey: remotePubkey
+          providedPubkey: remotePubkey,
         });
         return NIP46ErrorUtils.createErrorResponse(
           request.id,
           NIP46ErrorCode.CONNECTION_REJECTED,
-          "Remote pubkey does not match signer pubkey"
+          "Remote pubkey does not match signer pubkey",
         );
       }
 
@@ -542,69 +573,77 @@ export class NostrRemoteSignerBunker {
       if (this.options.secret && secret !== this.options.secret) {
         this.logger.warn("Connect request with invalid secret", {
           requestId: request.id,
-          clientPubkey
+          clientPubkey,
         });
         return NIP46ErrorUtils.createErrorResponse(
           request.id,
           NIP46ErrorCode.INVALID_SECRET,
-          "Invalid secret provided"
+          "Invalid secret provided",
         );
       }
 
       // Parse requested permissions
       const requestedPermissions = permissionsString
-        ? permissionsString.split(",").map(p => p.trim()).filter(p => p)
+        ? permissionsString
+            .split(",")
+            .map((p) => p.trim())
+            .filter((p) => p)
         : [];
 
       // Handle authentication challenges if required
-      if (this.options.requireAuthChallenge && !this.isClientAuthorized(clientPubkey)) {
-        const authChallenge = this.createAuthChallenge(clientPubkey, requestedPermissions);
+      if (
+        this.options.requireAuthChallenge &&
+        !this.isClientAuthorized(clientPubkey)
+      ) {
+        const authChallenge = this.createAuthChallenge(
+          clientPubkey,
+          requestedPermissions,
+        );
         const authUrl = this.options.authUrl || "https://example.com/auth";
-        
+
         this.logger.info("Auth challenge required for connection", {
           requestId: request.id,
           clientPubkey,
-          challengeId: authChallenge.id
+          challengeId: authChallenge.id,
         });
-        
+
         return {
           id: request.id,
           result: "auth_required",
-          auth_url: `${authUrl}?challenge=${authChallenge.id}&pubkey=${clientPubkey}`
+          auth_url: `${authUrl}?challenge=${authChallenge.id}&pubkey=${clientPubkey}`,
         };
       }
 
       // Create client session with permissions
       const permissions = new Set([
         ...(this.options.defaultPermissions || []),
-        ...requestedPermissions
+        ...requestedPermissions,
       ]);
 
       this.connectedClients.set(clientPubkey, {
         permissions,
-        lastSeen: Date.now()
+        lastSeen: Date.now(),
       });
 
-      this.logger.info("Client connected successfully", { 
+      this.logger.info("Client connected successfully", {
         clientPubkey,
-        permissions: Array.from(permissions)
+        permissions: Array.from(permissions),
       });
 
       return {
         id: request.id,
-        result: "ack"
+        result: "ack",
       };
-
     } catch (error) {
       this.logger.error("Error in connect handler", {
         requestId: request.id,
         clientPubkey,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return NIP46ErrorUtils.createErrorResponse(
         request.id,
         NIP46ErrorCode.INTERNAL_ERROR,
-        "Internal error during connection"
+        "Internal error during connection",
       );
     }
   }
@@ -619,15 +658,22 @@ export class NostrRemoteSignerBunker {
   ): Promise<NIP46Response> {
     try {
       // Check if client is connected and has permission
-      if (!this.hasPermission(clientPubkey, "sign_event", request.method, request.params)) {
+      if (
+        !this.hasPermission(
+          clientPubkey,
+          "sign_event",
+          request.method,
+          request.params,
+        )
+      ) {
         this.logger.warn("Sign event permission denied", {
           requestId: request.id,
-          clientPubkey
+          clientPubkey,
         });
         return NIP46ErrorUtils.createErrorResponse(
           request.id,
           NIP46ErrorCode.PERMISSION_DENIED,
-          "Permission denied for signing events"
+          "Permission denied for signing events",
         );
       }
 
@@ -640,12 +686,12 @@ export class NostrRemoteSignerBunker {
         this.logger.error("Invalid event data JSON", {
           requestId: request.id,
           clientPubkey,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
         return NIP46ErrorUtils.createErrorResponse(
           request.id,
           NIP46ErrorCode.INVALID_PARAMETERS,
-          "Invalid event data format"
+          "Invalid event data format",
         );
       }
 
@@ -659,31 +705,30 @@ export class NostrRemoteSignerBunker {
           pubkey: this.userKeypair.publicKey, // Add missing pubkey field
           tags: eventData.tags || [], // Ensure tags is always an array
         },
-        this.userKeypair.privateKey
+        this.userKeypair.privateKey,
       );
 
       this.logger.info("Event signed successfully", {
         requestId: request.id,
         clientPubkey,
         eventKind: eventData.kind,
-        eventId: signedEvent.id
+        eventId: signedEvent.id,
       });
 
       return {
         id: request.id,
-        result: JSON.stringify(signedEvent)
+        result: JSON.stringify(signedEvent),
       };
-
     } catch (error) {
       this.logger.error("Error signing event", {
         requestId: request.id,
         clientPubkey,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return NIP46ErrorUtils.createErrorResponse(
         request.id,
         NIP46ErrorCode.SIGNING_FAILED,
-        error instanceof Error ? error.message : "Event signing failed"
+        error instanceof Error ? error.message : "Event signing failed",
       );
     }
   }
@@ -697,7 +742,7 @@ export class NostrRemoteSignerBunker {
   ): Promise<NIP46Response> {
     return {
       id: request.id,
-      result: this.userKeypair.publicKey
+      result: this.userKeypair.publicKey,
     };
   }
 
@@ -714,7 +759,7 @@ export class NostrRemoteSignerBunker {
 
     return {
       id: request.id,
-      result: "ack"
+      result: "ack",
     };
   }
 
@@ -735,12 +780,12 @@ export class NostrRemoteSignerBunker {
         this.logger.warn("Encryption permission denied", {
           requestId: request.id,
           clientPubkey,
-          method
+          method,
         });
         return NIP46ErrorUtils.createErrorResponse(
           request.id,
           NIP46ErrorCode.PERMISSION_DENIED,
-          `Permission denied for ${method}`
+          `Permission denied for ${method}`,
         );
       }
 
@@ -749,49 +794,65 @@ export class NostrRemoteSignerBunker {
       switch (method) {
         case NIP46Method.NIP44_ENCRYPT:
           validateBeforeEncryption(
-            this.userKeypair, 
-            thirdPartyPubkey, 
-            data, 
-            "NIP-44"
+            this.userKeypair,
+            thirdPartyPubkey,
+            data,
+            "NIP-44",
           );
-          result = await encryptNIP44(data, this.userKeypair.privateKey, thirdPartyPubkey);
+          result = await encryptNIP44(
+            data,
+            this.userKeypair.privateKey,
+            thirdPartyPubkey,
+          );
           break;
 
         case NIP46Method.NIP44_DECRYPT:
           validateBeforeDecryption(
-            this.userKeypair, 
-            thirdPartyPubkey, 
-            data, 
-            "NIP-44"
+            this.userKeypair,
+            thirdPartyPubkey,
+            data,
+            "NIP-44",
           );
-          result = await decryptNIP44(data, this.userKeypair.privateKey, thirdPartyPubkey);
+          result = await decryptNIP44(
+            data,
+            this.userKeypair.privateKey,
+            thirdPartyPubkey,
+          );
           break;
 
         case NIP46Method.NIP04_ENCRYPT:
           validateBeforeEncryption(
-            this.userKeypair, 
-            thirdPartyPubkey, 
-            data, 
-            "NIP-04"
+            this.userKeypair,
+            thirdPartyPubkey,
+            data,
+            "NIP-04",
           );
-          result = await encryptNIP04(data, this.userKeypair.privateKey, thirdPartyPubkey);
+          result = await encryptNIP04(
+            data,
+            this.userKeypair.privateKey,
+            thirdPartyPubkey,
+          );
           break;
 
         case NIP46Method.NIP04_DECRYPT:
           validateBeforeDecryption(
-            this.userKeypair, 
-            thirdPartyPubkey, 
-            data, 
-            "NIP-04"
+            this.userKeypair,
+            thirdPartyPubkey,
+            data,
+            "NIP-04",
           );
-          result = await decryptNIP04(data, this.userKeypair.privateKey, thirdPartyPubkey);
+          result = await decryptNIP04(
+            data,
+            this.userKeypair.privateKey,
+            thirdPartyPubkey,
+          );
           break;
 
         default:
           return NIP46ErrorUtils.createErrorResponse(
             request.id,
             NIP46ErrorCode.METHOD_NOT_SUPPORTED,
-            `Encryption method ${method} not supported`
+            `Encryption method ${method} not supported`,
           );
       }
 
@@ -799,25 +860,24 @@ export class NostrRemoteSignerBunker {
         requestId: request.id,
         clientPubkey,
         method,
-        thirdPartyPubkey
+        thirdPartyPubkey,
       });
 
       return {
         id: request.id,
-        result
+        result,
       };
-
     } catch (error) {
       this.logger.error("Encryption operation failed", {
         requestId: request.id,
         clientPubkey,
         method: request.method,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return NIP46ErrorUtils.createErrorResponse(
         request.id,
         NIP46ErrorCode.ENCRYPTION_FAILED,
-        error instanceof Error ? error.message : "Encryption operation failed"
+        error instanceof Error ? error.message : "Encryption operation failed",
       );
     }
   }
@@ -845,7 +905,7 @@ export class NostrRemoteSignerBunker {
       const encryptedContent = await encryptNIP44(
         responseJson,
         this.signerKeypair.privateKey,
-        clientPubkey
+        clientPubkey,
       );
 
       const responseEvent: NostrEvent = await createSignedEvent(
@@ -856,24 +916,23 @@ export class NostrRemoteSignerBunker {
           created_at: getUnixTime(),
           tags: [["p", clientPubkey]],
         },
-        this.signerKeypair.privateKey
+        this.signerKeypair.privateKey,
       );
 
       await this.nostr.publishEvent(responseEvent);
-      
+
       this.logger.debug("Response sent to client", {
         responseId: id,
         clientPubkey,
         hasResult: !!result,
         hasError: !!error,
-        hasAuthUrl: !!auth_url
+        hasAuthUrl: !!auth_url,
       });
-
     } catch (error) {
       this.logger.error("Failed to send response", {
         responseId: id,
         clientPubkey,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -917,7 +976,7 @@ export class NostrRemoteSignerBunker {
           created_at: getUnixTime(),
           tags: [],
         },
-        this.signerKeypair.privateKey
+        this.signerKeypair.privateKey,
       );
 
       await this.nostr.publishEvent(metadataEvent);
@@ -925,7 +984,7 @@ export class NostrRemoteSignerBunker {
       return metadataEvent;
     } catch (error) {
       this.logger.error("Failed to publish metadata", {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return undefined;
     }
@@ -945,13 +1004,13 @@ export class NostrRemoteSignerBunker {
         this.signerKeypair,
         authorPubkey,
         content,
-        "NIP-44"
+        "NIP-44",
       );
 
       const decrypted = await decryptNIP44(
         content,
         this.signerKeypair.privateKey,
-        authorPubkey
+        authorPubkey,
       );
 
       return {
@@ -960,10 +1019,11 @@ export class NostrRemoteSignerBunker {
         data: decrypted,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error("NIP-44 decryption failed", { 
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error("NIP-44 decryption failed", {
         error: errorMessage,
-        authorPubkey
+        authorPubkey,
       });
       return {
         success: false,
@@ -973,13 +1033,18 @@ export class NostrRemoteSignerBunker {
     }
   }
 
-  private hasPermission(clientPubkey: string, permission: string, method?: string, params?: string[]): boolean {
+  private hasPermission(
+    clientPubkey: string,
+    permission: string,
+    method?: string,
+    params?: string[],
+  ): boolean {
     // Check if client is connected
     const session = this.connectedClients.get(clientPubkey);
     if (!session) {
       this.logger.warn("Permission check failed - client not connected", {
         clientPubkey,
-        permission
+        permission,
       });
       return false;
     }
@@ -995,7 +1060,7 @@ export class NostrRemoteSignerBunker {
           clientPubkey,
           method,
           permission,
-          result: customResult
+          result: customResult,
         });
         return customResult;
       }
@@ -1017,7 +1082,7 @@ export class NostrRemoteSignerBunker {
       } catch (error) {
         this.logger.error("Failed to parse event data for permission check", {
           clientPubkey,
-          error: error instanceof Error ? error.message : String(error)
+          error: error instanceof Error ? error.message : String(error),
         });
       }
     }
@@ -1025,7 +1090,7 @@ export class NostrRemoteSignerBunker {
     this.logger.debug("Permission denied", {
       clientPubkey,
       permission,
-      availablePermissions: Array.from(session.permissions)
+      availablePermissions: Array.from(session.permissions),
     });
     return false;
   }

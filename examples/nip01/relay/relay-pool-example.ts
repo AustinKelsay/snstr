@@ -66,7 +66,9 @@ async function main() {
   await new Promise((resolve) => setTimeout(resolve, 1000));
   sub.close();
 
-  console.log("\nDemonstrating error handling with mixed relay availability...");
+  console.log(
+    "\nDemonstrating error handling with mixed relay availability...",
+  );
   const receivedWithErrors: Record<string, NostrEvent[]> = {};
   let eoseWithErrorsReceived = false;
 
@@ -78,7 +80,7 @@ async function main() {
 
   // Add a non-existent relay to test error handling
   const mixedRelays = [...relayUrls, "ws://localhost:9999"];
-  
+
   const errorSub = await pool.subscribe(
     mixedRelays,
     [{ kinds: [1], since: event.created_at - 60 }],
@@ -98,7 +100,7 @@ async function main() {
   );
 
   await new Promise((resolve) => setTimeout(resolve, 500));
-  
+
   console.log("Testing immediate close capability...");
   const immediateCloseStart = Date.now();
   errorSub.close();
@@ -108,13 +110,15 @@ async function main() {
   // Wait for EOSE callback to complete before reading the flag
   await Promise.race([
     eoseCallbackPromise,
-    new Promise<void>((resolve) => setTimeout(resolve, 100)) // Timeout fallback
+    new Promise<void>((resolve) => setTimeout(resolve, 100)), // Timeout fallback
   ]);
 
   // Demonstrate that the subscription continues to work despite some relay failures
   if (eoseWithErrorsReceived) {
     const workingRelayCount = Object.keys(receivedWithErrors).length;
-    console.log(`Successfully subscribed to ${workingRelayCount} out of ${mixedRelays.length} relays`);
+    console.log(
+      `Successfully subscribed to ${workingRelayCount} out of ${mixedRelays.length} relays`,
+    );
   } else {
     console.log("EOSE callback did not complete within timeout");
   }
@@ -123,7 +127,7 @@ async function main() {
   const recentEvents = await pool.querySync(
     relayUrls,
     { kinds: [1], since: Math.floor(Date.now() / 1000) - 300 }, // Last 5 minutes
-    { timeout: 2000 }
+    { timeout: 2000 },
   );
   console.log(`Found ${recentEvents.length} recent events via querySync`);
 
@@ -131,10 +135,12 @@ async function main() {
   const latestEvent = await pool.get(
     relayUrls,
     { kinds: [1] },
-    { timeout: 2000 }
+    { timeout: 2000 },
   );
   if (latestEvent) {
-    console.log(`Most recent event: "${latestEvent.content}" (${new Date(latestEvent.created_at * 1000).toISOString()})`);
+    console.log(
+      `Most recent event: "${latestEvent.content}" (${new Date(latestEvent.created_at * 1000).toISOString()})`,
+    );
   } else {
     console.log("No events found");
   }

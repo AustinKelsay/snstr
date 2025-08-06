@@ -227,9 +227,10 @@ async function main() {
       );
 
       // Use the same relay URL as above so unsubscribeAll works in either mode
-      const testRelayUrl = USE_EPHEMERAL && ephemeralRelay
-        ? ephemeralRelay.url
-        : "wss://relay.nostr.band";
+      const testRelayUrl =
+        USE_EPHEMERAL && ephemeralRelay
+          ? ephemeralRelay.url
+          : "wss://relay.nostr.band";
 
       // Create a Nostr client instance for this part of the test
       console.log(

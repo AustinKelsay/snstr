@@ -1,22 +1,22 @@
 /**
  * NIP-10 Example: Text Notes and Threads
- * 
+ *
  * This example demonstrates NIP-10 threading functionality:
  * - Creating reply threads
  * - Quoting other events
  * - Building thread hierarchies
  * - Parsing thread references
- * 
+ *
  * How to run:
  * npm run example:nip10
  */
 
-import { 
-  NostrEvent, 
-  createReplyTags, 
-  createQuoteTag, 
+import {
+  NostrEvent,
+  createReplyTags,
+  createQuoteTag,
   parseThreadReferences,
-  ThreadPointer
+  ThreadPointer,
 } from "../../src";
 
 console.log("🧵 NIP-10: Text Notes and Threads Demo\n");
@@ -26,13 +26,18 @@ async function main() {
 
   // Mock event IDs and pubkeys for demonstration
   // NOTE: These are example IDs for demo purposes only - not actual Nostr event IDs
-  const alicePubkey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-  const bobPubkey = "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-  const charliePubkey = "2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  const alicePubkey =
+    "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  const bobPubkey =
+    "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  const charliePubkey =
+    "2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
   // Valid 64-character hexadecimal event IDs for demo purposes
-  const rootEventId = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456";
-  const replyEventId = "b2c3d4e5f67890123456789012345678901234567890abcdef1234567890abcd";
+  const rootEventId =
+    "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456";
+  const replyEventId =
+    "b2c3d4e5f67890123456789012345678901234567890abcdef1234567890abcd";
 
   console.log(`Alice:   ${alicePubkey.slice(0, 16)}...`);
   console.log(`Bob:     ${bobPubkey.slice(0, 16)}...`);
@@ -40,43 +45,43 @@ async function main() {
 
   // 1. Demonstrate simple reply
   console.log("💬 Creating simple reply tags...");
-  const rootPointer: ThreadPointer = { 
-    id: rootEventId, 
+  const rootPointer: ThreadPointer = {
+    id: rootEventId,
     pubkey: alicePubkey,
-    relay: "wss://relay.example.com"
+    relay: "wss://relay.example.com",
   };
-  
+
   const simpleReplyTags = [
     ...createReplyTags(rootPointer),
-    ["p", alicePubkey] // Add mandatory 'p' tag for root author
+    ["p", alicePubkey], // Add mandatory 'p' tag for root author
   ];
   console.log("Simple reply tags:", JSON.stringify(simpleReplyTags, null, 2));
   console.log();
 
   // 2. Demonstrate nested reply (with both root and reply)
   console.log("🔄 Creating nested reply tags...");
-  const replyPointer: ThreadPointer = { 
-    id: replyEventId, 
+  const replyPointer: ThreadPointer = {
+    id: replyEventId,
     pubkey: bobPubkey,
-    relay: "wss://relay.example.com"
+    relay: "wss://relay.example.com",
   };
-  
+
   const nestedReplyTags = [
     ...createReplyTags(rootPointer, replyPointer),
     ["p", alicePubkey], // Root author
-    ["p", bobPubkey]    // Reply author being responded to
+    ["p", bobPubkey], // Reply author being responded to
   ];
   console.log("Nested reply tags:", JSON.stringify(nestedReplyTags, null, 2));
   console.log();
 
   // 3. Demonstrate quote tag
   console.log("📖 Creating quote tag...");
-  const quotePointer: ThreadPointer = { 
-    id: rootEventId, 
+  const quotePointer: ThreadPointer = {
+    id: rootEventId,
     pubkey: alicePubkey,
-    relay: "wss://relay.example.com"
+    relay: "wss://relay.example.com",
   };
-  
+
   const quoteTag = createQuoteTag(quotePointer);
   console.log("Quote tag:", JSON.stringify(quoteTag, null, 2));
   console.log();
@@ -92,7 +97,7 @@ async function main() {
     created_at: Math.floor(Date.now() / 1000),
     pubkey: alicePubkey,
     id: rootEventId,
-    sig: "mock_signature"
+    sig: "mock_signature",
   };
 
   // Mock simple reply event
@@ -103,7 +108,7 @@ async function main() {
     created_at: Math.floor(Date.now() / 1000) + 60,
     pubkey: bobPubkey,
     id: replyEventId,
-    sig: "mock_signature"
+    sig: "mock_signature",
   };
 
   // Mock nested reply event
@@ -114,65 +119,81 @@ async function main() {
     created_at: Math.floor(Date.now() / 1000) + 120,
     pubkey: charliePubkey,
     id: "c3d4e5f67890123456789012345678901234567890abcdef1234567890abcdef",
-    sig: "mock_signature"
+    sig: "mock_signature",
   };
 
   // Mock quote event
   const quoteEvent: NostrEvent = {
     kind: 1,
-    content: "This post really got me thinking about the future of social media.",
+    content:
+      "This post really got me thinking about the future of social media.",
     tags: [
       quoteTag,
-      ["p", alicePubkey] // Mention the original author
+      ["p", alicePubkey], // Mention the original author
     ],
     created_at: Math.floor(Date.now() / 1000) + 180,
     pubkey: charliePubkey,
     id: "d4e5f67890123456789012345678901234567890abcdef1234567890abcdef12",
-    sig: "mock_signature"
+    sig: "mock_signature",
   };
 
   const events = [rootEvent, replyEvent, nestedReplyEvent, quoteEvent];
-  const eventTypes = ["Root Post", "Simple Reply", "Nested Reply", "Quote Event"];
+  const eventTypes = [
+    "Root Post",
+    "Simple Reply",
+    "Nested Reply",
+    "Quote Event",
+  ];
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
     const eventType = eventTypes[i];
-    
+
     console.log(`📋 ${eventType} (${event.id.slice(0, 8)}...)`);
     console.log(`   Author: ${event.pubkey.slice(0, 8)}...`);
-    console.log(`   Content: "${event.content.slice(0, 50)}${event.content.length > 50 ? '...' : ''}"`);
-    
+    console.log(
+      `   Content: "${event.content.slice(0, 50)}${event.content.length > 50 ? "..." : ""}"`,
+    );
+
     const threadRefs = parseThreadReferences(event);
-    
+
     if (threadRefs.root) {
-      console.log(`   🌳 Root: ${threadRefs.root.id.slice(0, 8)}... (${threadRefs.root.pubkey?.slice(0, 8)}...)`);
+      console.log(
+        `   🌳 Root: ${threadRefs.root.id.slice(0, 8)}... (${threadRefs.root.pubkey?.slice(0, 8)}...)`,
+      );
     }
     if (threadRefs.reply) {
-      console.log(`   💬 Reply to: ${threadRefs.reply.id.slice(0, 8)}... (${threadRefs.reply.pubkey?.slice(0, 8)}...)`);
+      console.log(
+        `   💬 Reply to: ${threadRefs.reply.id.slice(0, 8)}... (${threadRefs.reply.pubkey?.slice(0, 8)}...)`,
+      );
     }
     if (threadRefs.mentions.length > 0) {
       console.log(`   👥 Mentions: ${threadRefs.mentions.length} event(s)`);
     }
     if (threadRefs.quotes.length > 0) {
-      console.log(`   📖 Quotes: ${threadRefs.quotes.map(q => q.id.slice(0, 8) + '...').join(', ')}`);
+      console.log(
+        `   📖 Quotes: ${threadRefs.quotes.map((q) => q.id.slice(0, 8) + "...").join(", ")}`,
+      );
     }
     console.log();
   }
 
   // 5. Demonstrate thread hierarchy visualization
   console.log("🌳 Thread Hierarchy Visualization:\n");
-  
+
   console.log("📝 Root Post (Alice)");
-  console.log("   \"This is the start of an interesting thread about Nostr!\"");
+  console.log('   "This is the start of an interesting thread about Nostr!"');
   console.log("   │");
   console.log("   ├── 💬 Reply 1 (Bob)");
-  console.log("   │   \"Great topic! I think Nostr has huge potential.\"");
+  console.log('   │   "Great topic! I think Nostr has huge potential."');
   console.log("   │   │");
   console.log("   │   └── 🔄 Nested Reply (Charlie)");
-  console.log("   │       \"I agree with Bob! The decentralized nature is revolutionary.\"");
+  console.log(
+    '   │       "I agree with Bob! The decentralized nature is revolutionary."',
+  );
   console.log("   │");
   console.log("   └── 📖 Quote (Charlie)");
-  console.log("       \"This post really got me thinking about the future...\"");
+  console.log('       "This post really got me thinking about the future..."');
   console.log();
 
   // 6. Show tag structure examples
@@ -200,11 +221,13 @@ async function main() {
   console.log();
 
   console.log("🎉 NIP-10 threading demo completed successfully!");
-  console.log("💡 This demonstrates how to build threaded conversations in Nostr");
+  console.log(
+    "💡 This demonstrates how to build threaded conversations in Nostr",
+  );
   console.log("📚 See examples/nip10/README.md for more details");
 }
 
 main().catch((error) => {
   console.error("❌ Demo failed:", error);
   process.exit(1);
-}); 
+});

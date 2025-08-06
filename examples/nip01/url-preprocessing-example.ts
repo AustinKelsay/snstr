@@ -1,6 +1,6 @@
 /**
  * Example demonstrating the enhanced URL preprocessing in NIP-01 Nostr class
- * 
+ *
  * This example shows how the improved URL handling prevents the original bug
  * where "wss://" was incorrectly prefixed to URLs that already had schemes,
  * creating malformed URLs like "wss://http://example.com"
@@ -19,7 +19,10 @@ try {
   nostr.addRelay("wss://relay.example.com");
   console.log("   → wss://relay.example.com: SUCCESS");
 } catch (error) {
-  console.log("   → wss://relay.example.com: FAILED -", (error as Error).message);
+  console.log(
+    "   → wss://relay.example.com: FAILED -",
+    (error as Error).message,
+  );
 }
 
 try {
@@ -34,16 +37,23 @@ console.log("   ✓ Plain hostnames get wss:// prefix automatically");
 
 try {
   nostr.addRelay("relay.example.com");
-  console.log("   → relay.example.com: SUCCESS (becomes wss://relay.example.com)");
+  console.log(
+    "   → relay.example.com: SUCCESS (becomes wss://relay.example.com)",
+  );
 } catch (error) {
   console.log("   → relay.example.com: FAILED -", (error as Error).message);
 }
 
 try {
   nostr.addRelay("relay.example.com:8080");
-  console.log("   → relay.example.com:8080: SUCCESS (becomes wss://relay.example.com:8080)");
+  console.log(
+    "   → relay.example.com:8080: SUCCESS (becomes wss://relay.example.com:8080)",
+  );
 } catch (error) {
-  console.log("   → relay.example.com:8080: FAILED -", (error as Error).message);
+  console.log(
+    "   → relay.example.com:8080: FAILED -",
+    (error as Error).message,
+  );
 }
 
 console.log("\n3. Case-insensitive scheme handling:");
@@ -53,7 +63,10 @@ try {
   nostr.addRelay("WSS://relay.example.com");
   console.log("   → WSS://relay.example.com: SUCCESS");
 } catch (error) {
-  console.log("   → WSS://relay.example.com: FAILED -", (error as Error).message);
+  console.log(
+    "   → WSS://relay.example.com: FAILED -",
+    (error as Error).message,
+  );
 }
 
 try {
@@ -65,18 +78,20 @@ try {
 
 console.log("\n4. Prevention of malformed URL construction:");
 console.log("   ✗ URLs with incompatible schemes are rejected immediately");
-console.log("   ⚠️  This prevents the original bug: 'wss://http://example.com'");
+console.log(
+  "   ⚠️  This prevents the original bug: 'wss://http://example.com'",
+);
 
 const incompatibleUrls = [
   "http://example.com",
-  "https://example.com", 
+  "https://example.com",
   "ftp://files.example.com",
   "javascript:alert('xss')",
   "file:///path/to/file",
-  "custom-protocol://example.com"
+  "custom-protocol://example.com",
 ];
 
-incompatibleUrls.forEach(url => {
+incompatibleUrls.forEach((url) => {
   try {
     nostr.addRelay(url);
     console.log(`   → ${url}: UNEXPECTED SUCCESS`);
@@ -94,7 +109,7 @@ const invalidInputs: (string | null | undefined | number)[] = [
   "   ",
   null,
   undefined,
-  123
+  123,
 ];
 
 invalidInputs.forEach((input, index) => {
@@ -109,29 +124,30 @@ invalidInputs.forEach((input, index) => {
 });
 
 console.log("\n6. Consistent behavior across methods:");
-console.log("   ✓ addRelay, getRelay, and removeRelay handle URLs consistently");
+console.log(
+  "   ✓ addRelay, getRelay, and removeRelay handle URLs consistently",
+);
 
 try {
   // Add a relay with no scheme
   nostr.addRelay("consistent.example.com");
   console.log("   → Added: consistent.example.com");
-  
+
   // Retrieve using same format
   const relay1 = nostr.getRelay("consistent.example.com");
   console.log("   → Retrieved with no scheme:", relay1 ? "SUCCESS" : "FAILED");
-  
+
   // Retrieve using full URL
   const relay2 = nostr.getRelay("wss://consistent.example.com");
   console.log("   → Retrieved with full URL:", relay2 ? "SUCCESS" : "FAILED");
-  
+
   // Remove using original format
   nostr.removeRelay("consistent.example.com");
   console.log("   → Removed using original format");
-  
+
   // Verify removal
   const relay3 = nostr.getRelay("consistent.example.com");
   console.log("   → Verified removal:", relay3 ? "FAILED" : "SUCCESS");
-  
 } catch (error) {
   console.log("   → Consistency test FAILED:", (error as Error).message);
 }
@@ -152,12 +168,20 @@ try {
 }
 
 console.log("\n=== Summary ===");
-console.log("✅ Problem solved: No more malformed URLs like 'wss://http://example.com'");
-console.log("✅ Fast fail: Invalid schemes are rejected immediately with clear errors");
+console.log(
+  "✅ Problem solved: No more malformed URLs like 'wss://http://example.com'",
+);
+console.log(
+  "✅ Fast fail: Invalid schemes are rejected immediately with clear errors",
+);
 console.log("✅ Backward compatible: Existing valid usage patterns still work");
 console.log("✅ Developer friendly: High-quality error messages for debugging");
-console.log("✅ Robust: Handles edge cases, mixed case, ports, and various input types");
-console.log("✅ Consistent: All relay methods use the same URL processing logic");
+console.log(
+  "✅ Robust: Handles edge cases, mixed case, ports, and various input types",
+);
+console.log(
+  "✅ Consistent: All relay methods use the same URL processing logic",
+);
 
 // Clean up
-nostr.disconnectFromRelays(); 
+nostr.disconnectFromRelays();

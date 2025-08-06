@@ -16,7 +16,9 @@ export function resetWebSocketImplementation() {
 
 export function getWebSocketImplementation(): typeof WebSocket {
   if (!WebSocketImpl) {
-    throw new Error("WebSocket implementation not available. Make sure websocket-polyfill is properly loaded.");
+    throw new Error(
+      "WebSocket implementation not available. Make sure websocket-polyfill is properly loaded.",
+    );
   }
   return WebSocketImpl;
 }

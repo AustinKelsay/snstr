@@ -13,7 +13,9 @@ async function main() {
   console.log("1. Connect to bunker (connection establishment)");
   console.log("2. Call get_public_key to retrieve user's signing key");
   console.log("3. Demonstrate permission-based signing");
-  console.log("4. Show difference between remote-signer-pubkey and user-pubkey");
+  console.log(
+    "4. Show difference between remote-signer-pubkey and user-pubkey",
+  );
   console.log("");
 
   // Use an ephemeral relay for testing - in production you'd use public relays
@@ -29,7 +31,9 @@ async function main() {
   const signerKeypair = await generateKeypair();
 
   console.log(`User public key (for signing): ${userKeypair.publicKey}`);
-  console.log(`Signer public key (for communication): ${signerKeypair.publicKey}`);
+  console.log(
+    `Signer public key (for communication): ${signerKeypair.publicKey}`,
+  );
 
   // Create and configure bunker
   console.log("\nStarting bunker...");
@@ -75,8 +79,14 @@ async function main() {
     console.log("\nGetting user public key from bunker...");
     const userPubkey = await client.getPublicKey();
     console.log("User public key from bunker:", userPubkey);
-    console.log("Matches original user key:", userPubkey === userKeypair.publicKey ? "Yes" : "No");
-    console.log("Different from signer key:", userPubkey !== signerKeypair.publicKey ? "Yes" : "No");
+    console.log(
+      "Matches original user key:",
+      userPubkey === userKeypair.publicKey ? "Yes" : "No",
+    );
+    console.log(
+      "Different from signer key:",
+      userPubkey !== signerKeypair.publicKey ? "Yes" : "No",
+    );
 
     // Test ping
     console.log("\nSending ping to verify connection...");
@@ -100,7 +110,9 @@ async function main() {
     console.log("Event to sign:", JSON.stringify(eventToSign));
     const signedEvent = await client.signEvent(eventToSign);
     console.log("Signed event:", JSON.stringify(signedEvent, null, 2));
-    console.log(`Event signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`);
+    console.log(
+      `Event signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`,
+    );
 
     // Test NIP-04 encryption
     console.log("\nTesting NIP-04 encryption...");

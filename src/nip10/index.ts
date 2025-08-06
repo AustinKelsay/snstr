@@ -6,10 +6,10 @@
  */
 
 import { NostrEvent } from "../types/nostr";
-import { 
-  validateArrayAccess, 
+import {
+  validateArrayAccess,
   safeArrayAccess,
-  SecurityValidationError 
+  SecurityValidationError,
 } from "../utils/security-validator";
 
 /** Event pointer used in thread references */
@@ -104,15 +104,19 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       if (!id || typeof id !== "string" || !id.trim()) {
         continue;
       }
-      
+
       // Safe access to optional fields using direct array length checks
-      const relay = (tag.length > 2) ? tag[2] : undefined;
-      const marker = (tag.length > 3) ? tag[3] : undefined;
-      const pubkey = (tag.length > 4) ? tag[4] : undefined;
-      
-      const relayValue = (typeof relay === "string" && relay.trim()) ? relay : undefined;
-      const pubkeyValue = (typeof pubkey === "string" && pubkey.trim() && pubkey !== "") ? pubkey : undefined;
-      
+      const relay = tag.length > 2 ? tag[2] : undefined;
+      const marker = tag.length > 3 ? tag[3] : undefined;
+      const pubkey = tag.length > 4 ? tag[4] : undefined;
+
+      const relayValue =
+        typeof relay === "string" && relay.trim() ? relay : undefined;
+      const pubkeyValue =
+        typeof pubkey === "string" && pubkey.trim() && pubkey !== ""
+          ? pubkey
+          : undefined;
+
       if (marker === "root") {
         root = { id, relay: relayValue, pubkey: pubkeyValue };
       } else if (marker === "reply") {
@@ -124,7 +128,9 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-10: Bounds checking error in thread parsing: ${error.message}`);
+        console.warn(
+          `NIP-10: Bounds checking error in thread parsing: ${error.message}`,
+        );
       }
       continue; // Skip invalid tags
     }
@@ -138,7 +144,7 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       } else {
         root = unmarked[0];
         reply = unmarked[unmarked.length - 1];
-        
+
         // Safe slice operation for mentions
         if (unmarked.length > 2) {
           mentions.push(...unmarked.slice(1, -1));
@@ -146,7 +152,9 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-10: Bounds checking error in positional parsing: ${error.message}`);
+        console.warn(
+          `NIP-10: Bounds checking error in positional parsing: ${error.message}`,
+        );
       }
     }
   } else {
@@ -155,4 +163,3 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
 
   return { root, reply, mentions, quotes };
 }
-

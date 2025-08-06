@@ -9,8 +9,36 @@
 import { NostrEvent } from "../types/nostr";
 import type { UnsignedEvent } from "../nip01/event";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
-import { generateKeypair, getPublicKey, verifySignature } from "../utils/crypto";
+import {
+  generateKeypair,
+  getPublicKey,
+  verifySignature,
+} from "../utils/crypto";
 import { createSignedEvent } from "../nip01/event";
+
+// Cache for the dynamically imported crypto module
+let nodeCryptoModule: { randomInt: (min: number, max: number) => number } | null = null;
+let cryptoInitialized = false;
+
+/**
+ * Initialize crypto module for ESM environments
+ * This should be called once during application startup if using ESM
+ */
+export async function initializeCrypto(): Promise<void> {
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node &&
+    !cryptoInitialized
+  ) {
+    try {
+      nodeCryptoModule = await import("crypto");
+      cryptoInitialized = true;
+    } catch (error) {
+      // Ignore error - will fall back to globalThis.crypto
+    }
+  }
+}
 
 /**
  * Generate a timestamp up to two days in the past.
@@ -19,19 +47,33 @@ import { createSignedEvent } from "../nip01/event";
 function randomTimestampInPast(): number {
   const twoDays = 2 * 24 * 60 * 60 * 1000;
   // Use secure random for gift wrap timing (security critical)
-const secureRandomValue = (() => {
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const array = new Uint32Array(1);
-    crypto.getRandomValues(array);
-    return array[0] / (0xffffffff + 1);
-  } else if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const nodeCrypto = require('crypto');
-    return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
-  }
-  throw new Error('No secure random source available for gift wrap timing');
-})();
-const offset = Math.floor(secureRandomValue * twoDays);
+  const secureRandomValue = (() => {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const array = new Uint32Array(1);
+      crypto.getRandomValues(array);
+      return array[0] / (0xffffffff + 1);
+    } else if (
+      typeof process !== "undefined" &&
+      process.versions &&
+      process.versions.node
+    ) {
+      // Try to use pre-imported crypto module first
+      if (nodeCryptoModule) {
+        return nodeCryptoModule.randomInt(0, 0x100000000) / 0x100000000;
+      }
+      // Fallback to require for CommonJS environments
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const nodeCrypto = require("crypto");
+        return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+      } catch (requireError) {
+        // If require fails in ESM, throw informative error
+        throw new Error("No secure random source available for gift wrap timing. In ESM environments, call initializeCrypto() before using NIP-17 functions.");
+      }
+    }
+    throw new Error("No secure random source available for gift wrap timing");
+  })();
+  const offset = Math.floor(secureRandomValue * twoDays);
   return Math.floor((Date.now() - offset) / 1000);
 }
 

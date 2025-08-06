@@ -1,1 +1,6 @@
-export type { RelayInfo, RelayLimitation, RelayFees, FeeSchedule } from "../types/nostr";
+export type {
+  RelayInfo,
+  RelayLimitation,
+  RelayFees,
+  FeeSchedule,
+} from "../types/nostr";

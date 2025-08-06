@@ -28,7 +28,9 @@ async function main() {
     const userKeypair = await generateKeypair();
     const signerKeypair = await generateKeypair();
     console.log(`\nUser pubkey (for signing): ${userKeypair.publicKey}`);
-    console.log(`Signer pubkey (for communication): ${signerKeypair.publicKey}`);
+    console.log(
+      `Signer pubkey (for communication): ${signerKeypair.publicKey}`,
+    );
 
     // Create and start bunker
     console.log("\nStarting bunker...");
@@ -63,13 +65,17 @@ async function main() {
       // Connect establishes the connection
       const connectResult = await client.connect(connectionString);
       console.log(`Connected! Result: ${connectResult}`);
-      
+
       // Get user pubkey (required after connect per NIP-46 spec)
       console.log("\nGetting user public key...");
       const userPubkey = await client.getPublicKey();
       console.log(`Retrieved user pubkey: ${userPubkey}`);
-      console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`);
-      console.log(`Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey}`);
+      console.log(
+        `Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`,
+      );
+      console.log(
+        `Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey}`,
+      );
 
       // Test ping
       console.log("\nTesting ping...");

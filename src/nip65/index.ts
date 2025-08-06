@@ -42,7 +42,7 @@ export function createRelayListEvent(
       continue;
     }
     let marker: string | undefined;
-    const read = r.read ?? true;  // default to true if undefined
+    const read = r.read ?? true; // default to true if undefined
     const write = r.write ?? true; // default to true if undefined
 
     if (read && !write) marker = "read";
@@ -68,22 +68,26 @@ export function parseRelayList(event: RelayListEvent): RelayListEntry[] {
     throw new Error("Invalid relay list event kind");
   }
   const result: RelayListEntry[] = [];
-  
+
   for (const tag of event.tags) {
     // Validate tag structure and content in a single condition
-    if (Array.isArray(tag) && 
-        tag.length >= 2 && 
-        tag[0] === "r" && 
-        typeof tag[1] === "string" && 
-        tag[1].trim()) {
-      
+    if (
+      Array.isArray(tag) &&
+      tag.length >= 2 &&
+      tag[0] === "r" &&
+      typeof tag[1] === "string" &&
+      tag[1].trim()
+    ) {
       const url = tag[1].trim();
-      const marker = (tag.length > 2 && typeof tag[2] === "string") ? tag[2].trim().toLowerCase() : undefined;
-      
+      const marker =
+        tag.length > 2 && typeof tag[2] === "string"
+          ? tag[2].trim().toLowerCase()
+          : undefined;
+
       // Default to both read and write if no marker specified
       let read = true;
       let write = true;
-      
+
       if (marker === "read") {
         read = true;
         write = false;
@@ -92,22 +96,26 @@ export function parseRelayList(event: RelayListEvent): RelayListEntry[] {
         write = true;
       }
       // If marker exists but isn't "read" or "write", keep defaults (both true)
-      
+
       result.push({ url, read, write });
     }
   }
-  
+
   return result;
 }
 
 /** Get relay URLs marked for writing */
-export function getWriteRelays(input: RelayListEntry[] | RelayListEvent): string[] {
+export function getWriteRelays(
+  input: RelayListEntry[] | RelayListEvent,
+): string[] {
   const entries = Array.isArray(input) ? input : parseRelayList(input);
   return entries.filter((e) => e.write).map((e) => e.url);
 }
 
 /** Get relay URLs marked for reading */
-export function getReadRelays(input: RelayListEntry[] | RelayListEvent): string[] {
+export function getReadRelays(
+  input: RelayListEntry[] | RelayListEvent,
+): string[] {
   const entries = Array.isArray(input) ? input : parseRelayList(input);
   return entries.filter((e) => e.read).map((e) => e.url);
 }

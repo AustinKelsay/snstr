@@ -29,7 +29,9 @@ async function main() {
   const signerKeypair = await generateKeypair(); // Different keypair for the signer
 
   console.log(`User pubkey (for signing): ${userKeypair.publicKey}`);
-  console.log(`Remote signer pubkey (for communication): ${signerKeypair.publicKey}`);
+  console.log(
+    `Remote signer pubkey (for communication): ${signerKeypair.publicKey}`,
+  );
   console.log("");
 
   try {
@@ -57,7 +59,9 @@ async function main() {
 
     const connectionString = bunker.getConnectionString();
     console.log(`Connection string: ${connectionString}`);
-    console.log("(Note the remote signer pubkey in the URL, not the user pubkey)");
+    console.log(
+      "(Note the remote signer pubkey in the URL, not the user pubkey)",
+    );
     console.log("");
 
     // Create client and connect to bunker
@@ -68,13 +72,17 @@ async function main() {
     // connect() establishes the connection but doesn't return user pubkey
     const connectResult = await client.connect(connectionString);
     console.log(`Connected! Connect result: ${connectResult}`);
-    
+
     // Must call get_public_key after connect to get the user's signing pubkey
     console.log("\nGetting user public key from bunker...");
     const userPubkey = await client.getPublicKey();
     console.log(`Retrieved user pubkey: ${userPubkey}`);
-    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`);
-    console.log(`Pubkey is NOT the signer pubkey: ${userPubkey !== signerKeypair.publicKey}`);
+    console.log(
+      `Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`,
+    );
+    console.log(
+      `Pubkey is NOT the signer pubkey: ${userPubkey !== signerKeypair.publicKey}`,
+    );
     console.log("");
 
     // Test ping
@@ -107,8 +115,12 @@ async function main() {
       signedEvent.pubkey,
     );
     console.log(`Signature valid: ${valid}`);
-    console.log(`Pubkey matches user pubkey: ${signedEvent.pubkey === userKeypair.publicKey}`);
-    console.log(`Pubkey is NOT the signer pubkey: ${signedEvent.pubkey !== signerKeypair.publicKey}`);
+    console.log(
+      `Pubkey matches user pubkey: ${signedEvent.pubkey === userKeypair.publicKey}`,
+    );
+    console.log(
+      `Pubkey is NOT the signer pubkey: ${signedEvent.pubkey !== signerKeypair.publicKey}`,
+    );
     console.log("");
 
     // Clean up

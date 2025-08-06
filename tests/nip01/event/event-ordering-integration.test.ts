@@ -5,7 +5,10 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
-import { useWebSocketImplementation, resetWebSocketImplementation } from "../../../src/utils/websocket";
+import {
+  useWebSocketImplementation,
+  resetWebSocketImplementation,
+} from "../../../src/utils/websocket";
 import { jest } from "@jest/globals";
 
 /**

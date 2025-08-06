@@ -33,7 +33,7 @@ async function main() {
     () => {
       console.log("EOSE received, subscription will close");
     },
-    { autoClose: true, eoseTimeout: 5000 }
+    { autoClose: true, eoseTimeout: 5000 },
   );
 
   console.log(`Subscription created with id ${subId}`);
@@ -53,12 +53,10 @@ async function main() {
   // if EOSE was not emitted. This demonstrates the timeout fallback behavior.
   await new Promise((r) => setTimeout(r, 5500));
 
-  console.log(
-    `Subscription active: ${relay.getSubscriptionIds().has(subId)}`
-  );
-  
+  console.log(`Subscription active: ${relay.getSubscriptionIds().has(subId)}`);
+
   // The subscription should be closed at this point either due to:
-  // 1. EOSE being received (immediate closure), or 
+  // 1. EOSE being received (immediate closure), or
   // 2. eoseTimeout expiring after 5000ms (fallback closure)
 
   // Ensure relay fully disconnects before closing ephemeral relay to prevent race conditions

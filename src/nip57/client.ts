@@ -27,10 +27,10 @@ import {
   supportsNostrZaps,
   buildZapCallbackUrl,
 } from "./utils";
-import { 
-  validateArrayAccess, 
+import {
+  validateArrayAccess,
   safeArrayAccess,
-  SecurityValidationError 
+  SecurityValidationError,
 } from "../utils/security-validator";
 
 /**
@@ -137,11 +137,14 @@ export class NostrZapClient {
 
   /**
    * Private method to safely unsubscribe from a subscription
-   * 
+   *
    * @param subscriptionIds Array of subscription IDs
    * @param context Context string for error logging
    */
-  private cleanupSubscription(subscriptionIds: string[], context: string = "cleanup"): void {
+  private cleanupSubscription(
+    subscriptionIds: string[],
+    context: string = "cleanup",
+  ): void {
     try {
       if (validateArrayAccess(subscriptionIds, 0)) {
         const subId = safeArrayAccess(subscriptionIds, 0);
@@ -151,7 +154,9 @@ export class NostrZapClient {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-57: Bounds checking error in ${context}: ${error.message}`);
+        console.warn(
+          `NIP-57: Bounds checking error in ${context}: ${error.message}`,
+        );
       }
     }
   }
@@ -321,10 +326,16 @@ export class NostrZapClient {
       try {
         // Find description tag with streamlined validation
         const descriptionTag = zapReceipt.tags.find(
-          (tag) => Array.isArray(tag) && tag.length > 0 && tag[0] === "description"
+          (tag) =>
+            Array.isArray(tag) && tag.length > 0 && tag[0] === "description",
         );
-        
-        if (!Array.isArray(descriptionTag) || descriptionTag.length < 2 || typeof descriptionTag[1] !== "string") return false;
+
+        if (
+          !Array.isArray(descriptionTag) ||
+          descriptionTag.length < 2 ||
+          typeof descriptionTag[1] !== "string"
+        )
+          return false;
 
         // Parse zap request
         const zapRequest = JSON.parse(descriptionTag[1]);
@@ -333,7 +344,9 @@ export class NostrZapClient {
         return zapRequest.pubkey === pubkey;
       } catch (e) {
         if (e instanceof SecurityValidationError) {
-          console.warn(`NIP-57: Bounds checking error in zap filtering: ${e.message}`);
+          console.warn(
+            `NIP-57: Bounds checking error in zap filtering: ${e.message}`,
+          );
         }
         return false;
       }

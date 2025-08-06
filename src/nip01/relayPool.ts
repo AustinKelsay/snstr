@@ -6,9 +6,7 @@ import {
   PublishResponse,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
-import {
-  normalizeRelayUrl as normalizeRelayUrlUtil,
-} from "../utils/relayUrl";
+import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../utils/relayUrl";
 
 /**
  * Result enum for removeRelay operations to provide clear error diagnostics
@@ -17,24 +15,31 @@ export enum RemoveRelayResult {
   /** The relay was successfully removed */
   Removed = "removed",
   /** No relay was found with the given URL */
-  NotFound = "not_found", 
+  NotFound = "not_found",
   /** The provided URL is invalid and cannot be normalized */
-  InvalidUrl = "invalid_url"
+  InvalidUrl = "invalid_url",
 }
 
 export class RelayPool {
   private relays: Map<string, Relay> = new Map();
   private relayOptions?: RelayConnectionOptions;
 
-  constructor(relayUrls: string[] = [], options?: { relayOptions?: RelayConnectionOptions }) {
+  constructor(
+    relayUrls: string[] = [],
+    options?: { relayOptions?: RelayConnectionOptions },
+  ) {
     this.relayOptions = options?.relayOptions;
     relayUrls.forEach((url) => {
       try {
         this.addRelay(url);
       } catch (error) {
         // Log the error but continue processing remaining URLs
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`Failed to add relay "${url}" during pool construction:`, errorMessage);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        console.warn(
+          `Failed to add relay "${url}" during pool construction:`,
+          errorMessage,
+        );
       }
     });
   }
@@ -42,34 +47,42 @@ export class RelayPool {
   /**
    * Normalize a relay URL by preprocessing, case normalizing, and validating.
    * This ensures consistent URL keys in the relay map and prevents duplicates.
-   * 
+   *
    * @param url - The input URL string to normalize
    * @returns The canonicalized URL
    * @throws Error if the URL is invalid or normalization fails
    */
   private normalizeRelayUrl(url: string): string {
     const normalizedUrl = normalizeRelayUrlUtil(url);
-    
+
     // Guard against unexpected undefined/null return values or invalid types
-    if (normalizedUrl === undefined || normalizedUrl === null || typeof normalizedUrl !== 'string') {
-      throw new Error(`Failed to normalize relay URL "${url}": received invalid result`);
+    if (
+      normalizedUrl === undefined ||
+      normalizedUrl === null ||
+      typeof normalizedUrl !== "string"
+    ) {
+      throw new Error(
+        `Failed to normalize relay URL "${url}": received invalid result`,
+      );
     }
-    
+
     // Additional safeguard: ensure the result is a non-empty string
     if (normalizedUrl.length === 0) {
-      throw new Error(`Failed to normalize relay URL "${url}": received empty string`);
+      throw new Error(
+        `Failed to normalize relay URL "${url}": received empty string`,
+      );
     }
-    
+
     return normalizedUrl;
   }
 
   /**
    * Add a relay to the pool or update an existing relay's configuration.
-   * 
+   *
    * @param url - The relay URL to add
    * @param options - Connection options for the relay
    * @returns The relay instance (new or existing)
-   * 
+   *
    * Note: If the relay already exists, most options will be merged into the existing
    * relay's configuration. However, `bufferFlushDelay` can only be set during
    * relay construction and will be ignored for existing relays.
@@ -101,23 +114,24 @@ export class RelayPool {
 
   public removeRelay(url: string): RemoveRelayResult {
     let normalizedUrl: string;
-    
+
     // First, attempt to normalize the URL - this is where input validation errors occur
     try {
       normalizedUrl = this.normalizeRelayUrl(url);
     } catch (error) {
       // URL normalization failed - this is a user input error, not a programmer bug
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.warn(`Invalid relay URL "${url}":`, errorMessage);
       return RemoveRelayResult.InvalidUrl;
     }
-    
+
     // Check if the relay exists in our pool
     const relay = this.relays.get(normalizedUrl);
     if (!relay) {
       return RemoveRelayResult.NotFound;
     }
-    
+
     // Relay exists, disconnect and remove it
     // Note: relay.disconnect() handles errors internally and doesn't throw
     try {
@@ -127,8 +141,11 @@ export class RelayPool {
     } catch (error) {
       // This should be rare since disconnect() handles errors internally,
       // but if it does occur, it's likely a programmer bug and should be re-thrown
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`Unexpected error during relay removal for "${url}": ${errorMessage}`);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Unexpected error during relay removal for "${url}": ${errorMessage}`,
+      );
     }
   }
 
@@ -152,20 +169,25 @@ export class RelayPool {
           if (relay) relay.disconnect();
         } catch (error) {
           // Log the error for debugging purposes, but continue processing other URLs
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
           console.warn(`Failed to close relay "${url}":`, errorMessage);
         }
       });
     } else {
       this.relays.forEach((relay) => relay.disconnect());
     }
-    
+
     // Add a small delay to ensure WebSocket connections have time to close properly
     // This helps prevent Jest open handle warnings
-    await new Promise(resolve => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 
-  public publish(relays: string[], event: NostrEvent, options?: PublishOptions): Promise<PublishResponse>[] {
+  public publish(
+    relays: string[],
+    event: NostrEvent,
+    options?: PublishOptions,
+  ): Promise<PublishResponse>[] {
     return relays.map(async (url) => {
       const relay = await this.ensureRelay(url);
       return relay.publish(event, options);
@@ -190,26 +212,38 @@ export class RelayPool {
       try {
         onEvent(event, relayUrl);
       } catch (eventError) {
-        console.warn(`Error processing event from ${relayUrl}:`, eventError, event);
+        console.warn(
+          `Error processing event from ${relayUrl}:`,
+          eventError,
+          event,
+        );
       }
     };
 
     // Track subscription promises individually to handle partial failures
-    const subscriptionPromises = relays.map(async (url): Promise<{ success: true; url: string; relay: Relay } | { success: false; url: string; error: string }> => {
-      try {
-        const relay = await this.ensureRelay(url);
-        // We'll set up the subscription with EOSE handler after we know the final count
-        return { success: true, url, relay };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`Failed to subscribe to relay ${url}:`, errorMessage);
-        return { success: false, url, error: errorMessage };
-      }
-    });
+    const subscriptionPromises = relays.map(
+      async (
+        url,
+      ): Promise<
+        | { success: true; url: string; relay: Relay }
+        | { success: false; url: string; error: string }
+      > => {
+        try {
+          const relay = await this.ensureRelay(url);
+          // We'll set up the subscription with EOSE handler after we know the final count
+          return { success: true, url, relay };
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.warn(`Failed to subscribe to relay ${url}:`, errorMessage);
+          return { success: false, url, error: errorMessage };
+        }
+      },
+    );
 
     // Wait for all subscription attempts to complete (success or failure)
     const results = await Promise.all(subscriptionPromises);
-    
+
     // Process results to determine successful relays
     const successfulRelays: { url: string; relay: Relay }[] = [];
     results.forEach((result) => {
@@ -230,7 +264,7 @@ export class RelayPool {
           eoseSent = true;
           onEOSE();
         } catch (eoseError) {
-          console.warn('Error in EOSE callback:', eoseError);
+          console.warn("Error in EOSE callback:", eoseError);
         }
       }
     };
@@ -243,7 +277,7 @@ export class RelayPool {
           (ev) => safeOnEvent(ev, url),
           safeOnEOSE,
         );
-        
+
         // Mark as ready and add to subscriptions
         const subscription = { relay, id, ready: true };
         subscriptions.push(subscription);
@@ -253,12 +287,20 @@ export class RelayPool {
         if (successfulRelayCount > 0) {
           successfulRelayCount--;
           // Check if we've now reached the condition where EOSE should be called
-          if (eoseCount >= successfulRelayCount && onEOSE && !isClosed && !eoseSent) {
+          if (
+            eoseCount >= successfulRelayCount &&
+            onEOSE &&
+            !isClosed &&
+            !eoseSent
+          ) {
             try {
               eoseSent = true;
               onEOSE();
             } catch (eoseError) {
-              console.warn('Error in EOSE callback (after subscription failure):', eoseError);
+              console.warn(
+                "Error in EOSE callback (after subscription failure):",
+                eoseError,
+              );
             }
           }
         }
@@ -271,7 +313,7 @@ export class RelayPool {
         eoseSent = true;
         onEOSE();
       } catch (eoseError) {
-        console.warn('Error in EOSE callback (all relays failed):', eoseError);
+        console.warn("Error in EOSE callback (all relays failed):", eoseError);
       }
     }
 
@@ -286,7 +328,7 @@ export class RelayPool {
           try {
             relay.unsubscribe(id);
           } catch (unsubError) {
-            console.warn('Error during unsubscribe:', unsubError);
+            console.warn("Error during unsubscribe:", unsubError);
           }
         }
       });
@@ -322,7 +364,7 @@ export class RelayPool {
             sub.close();
           } catch (cleanupError) {
             // Ignore cleanup errors, but log them if needed
-            console.warn('Error during subscription cleanup:', cleanupError);
+            console.warn("Error during subscription cleanup:", cleanupError);
           }
           sub = null;
         }
@@ -354,7 +396,7 @@ export class RelayPool {
             try {
               events.push(ev);
             } catch (eventError) {
-              console.warn('Error processing event:', eventError, ev);
+              console.warn("Error processing event:", eventError, ev);
               // Continue processing other events instead of failing completely
             }
           },
@@ -362,22 +404,36 @@ export class RelayPool {
             // EOSE callback - all relays finished sending stored events
             safeResolve(events);
           },
-        ).then((subscription) => {
-          try {
-            sub = subscription;
-            if (options.timeout && options.timeout > 0) {
-              timer = setTimeout(() => {
-                safeResolve(events);
-              }, options.timeout);
+        )
+          .then((subscription) => {
+            try {
+              sub = subscription;
+              if (options.timeout && options.timeout > 0) {
+                timer = setTimeout(() => {
+                  safeResolve(events);
+                }, options.timeout);
+              }
+            } catch (subscriptionError) {
+              safeReject(
+                new Error(
+                  `Failed to setup subscription: ${subscriptionError instanceof Error ? subscriptionError.message : String(subscriptionError)}`,
+                ),
+              );
             }
-          } catch (subscriptionError) {
-            safeReject(new Error(`Failed to setup subscription: ${subscriptionError instanceof Error ? subscriptionError.message : String(subscriptionError)}`));
-          }
-        }).catch((subscribeError) => {
-          safeReject(new Error(`Failed to subscribe to relays: ${subscribeError.message}`));
-        });
+          })
+          .catch((subscribeError) => {
+            safeReject(
+              new Error(
+                `Failed to subscribe to relays: ${subscribeError.message}`,
+              ),
+            );
+          });
       } catch (error) {
-        safeReject(new Error(`Failed to initialize querySync: ${error instanceof Error ? error.message : String(error)}`));
+        safeReject(
+          new Error(
+            `Failed to initialize querySync: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
       }
     });
   }

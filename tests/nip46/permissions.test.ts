@@ -272,7 +272,7 @@ describe("NIP-46 Permission Handling", () => {
   }, 7000);
 
   test("Bunker with NIP-04 encryption permissions (deprecated - use NIP-44 instead)", async () => {
-    // Create bunker with NIP-04 encryption permissions  
+    // Create bunker with NIP-04 encryption permissions
     // Note: NIP-04 is considered deprecated due to security concerns, prefer NIP-44
     bunker = new SimpleNIP46Bunker(
       [relayUrl],
@@ -353,7 +353,7 @@ describe("NIP-46 Permission Handling", () => {
       } catch (error) {
         // Ignore cleanup errors
       }
-      
+
       // Stop bunker second
       try {
         if (customBunker) {
@@ -363,7 +363,7 @@ describe("NIP-46 Permission Handling", () => {
       } catch (error) {
         // Ignore cleanup errors
       }
-      
+
       // Give time for all resources to cleanup
       await new Promise((resolve) => setTimeout(resolve, 300));
     });
@@ -401,7 +401,7 @@ describe("NIP-46 Permission Handling", () => {
           content: "This should fail",
           created_at: Math.floor(Date.now() / 1000),
           tags: [["p", "recipient"]],
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -419,7 +419,7 @@ describe("NIP-46 Permission Handling", () => {
           content: "Should fail",
           created_at: Math.floor(Date.now() / 1000),
           tags: [],
-        })
+        }),
       ).rejects.toThrow();
 
       // Clear handler and add default permissions

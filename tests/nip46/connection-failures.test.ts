@@ -220,7 +220,7 @@ describe("NIP-46 Connection Failures", () => {
         const connectionString = bunker.getConnectionString();
         const userPubkey = await shortTimeoutClient.connect(connectionString);
         expect(userPubkey).toBe(userKeypair.publicKey);
-        
+
         // Fast operations should still work
         expect(await shortTimeoutClient.ping()).toBe(true);
       } finally {
@@ -239,7 +239,9 @@ describe("NIP-46 Connection Failures", () => {
       try {
         // Create a connection string that specifies no relays
         const connectionString = `bunker://${signerKeypair.publicKey}`;
-        await expect(noRelayClient.connect(connectionString)).rejects.toThrow(/connection|relay|failed/i);
+        await expect(noRelayClient.connect(connectionString)).rejects.toThrow(
+          /connection|relay|failed/i,
+        );
       } finally {
         await noRelayClient.disconnect().catch(() => {});
       }
@@ -250,13 +252,13 @@ describe("NIP-46 Connection Failures", () => {
       let isolatedRelay: NostrRelay | null = null;
       let isolatedClient: SimpleNIP46Client | null = null;
       let isolatedBunker: SimpleNIP46Bunker | null = null;
-      
+
       try {
         // Start isolated relay
         isolatedRelay = new NostrRelay(0);
         await isolatedRelay.start();
         const isolatedRelayUrl = isolatedRelay.url;
-        
+
         // Wait for relay to be fully ready
         await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -284,34 +286,33 @@ describe("NIP-46 Connection Failures", () => {
 
         const connectionString = isolatedBunker.getConnectionString();
         await isolatedClient.connect(connectionString);
-        
+
         // Verify connection works
         expect(await isolatedClient.ping()).toBe(true);
-        
+
         // Stop the isolated relay to simulate disconnection
         await isolatedRelay.close();
         isolatedRelay = null; // Mark as closed
-        
+
         // Operations should now fail gracefully
         expect(await isolatedClient.ping()).toBe(false);
-        
       } finally {
         // Clean up isolated resources
         if (isolatedClient) {
           await isolatedClient.disconnect().catch(() => {});
           isolatedClient = null;
         }
-        
+
         if (isolatedBunker) {
           await isolatedBunker.stop().catch(() => {});
           isolatedBunker = null;
         }
-        
+
         if (isolatedRelay) {
           await isolatedRelay.close().catch(() => {});
           isolatedRelay = null;
         }
-        
+
         // Allow time for cleanup
         await new Promise((resolve) => setTimeout(resolve, 25));
       }

@@ -17,7 +17,11 @@ import {
   createDirectMessage,
   decryptDirectMessage,
   generateKeypair,
+  initializeNIP17Crypto, // Only needed for ESM environments
 } from 'snstr';
+
+// For ESM environments, initialize crypto once at startup
+await initializeNIP17Crypto();
 
 const alice = await generateKeypair();
 const bob = await generateKeypair();
@@ -26,5 +30,7 @@ const wrapped = await createDirectMessage('hello', alice.privateKey, bob.publicK
 const message = decryptDirectMessage(wrapped, bob.privateKey);
 console.log(message.content); // "hello"
 ```
+
+**Note for ESM users:** If you're using this library in a pure ESM environment (e.g., with `"type": "module"` in package.json), call `initializeNIP17Crypto()` once during application startup to ensure crypto functions work correctly.
 
 See the example in `examples/nip17` for a more complete demonstration.

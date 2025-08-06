@@ -44,7 +44,9 @@ async function main() {
     const signerKeypair = await generateKeypair();
 
     console.log(`User public key (for signing): ${userKeypair.publicKey}`);
-    console.log(`Remote signer public key (for communication): ${signerKeypair.publicKey}`);
+    console.log(
+      `Remote signer public key (for communication): ${signerKeypair.publicKey}`,
+    );
 
     // 3. Create and configure bunker
     console.log("\nStarting bunker...");
@@ -67,12 +69,14 @@ async function main() {
     // 4. Get connection string that clients will use to connect
     const connectionString = bunker.getConnectionString();
     console.log(`Connection string: ${connectionString}`);
-    console.log(`(Note: Contains remote-signer-pubkey: ${signerKeypair.publicKey})`);
+    console.log(
+      `(Note: Contains remote-signer-pubkey: ${signerKeypair.publicKey})`,
+    );
 
     // 5. Create and connect client
     console.log("\nConnecting client...");
     const client = new SimpleNIP46Client(relays, { timeout: 5000 });
-    
+
     // Connect to the bunker (this establishes the connection but doesn't return user pubkey)
     const connectResult = await client.connect(connectionString);
     console.log(`Connected successfully! Connect result: ${connectResult}`);
@@ -81,8 +85,12 @@ async function main() {
     console.log("\nGetting user public key...");
     const userPubkey = await client.getPublicKey();
     console.log(`User public key: ${userPubkey}`);
-    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey ? "Yes" : "No"}`);
-    console.log(`Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey ? "Yes" : "No"}`);
+    console.log(
+      `Matches original user pubkey: ${userPubkey === userKeypair.publicKey ? "Yes" : "No"}`,
+    );
+    console.log(
+      `Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey ? "Yes" : "No"}`,
+    );
 
     // 7. Test connection with ping
     console.log("\nTesting connection with ping...");
@@ -103,7 +111,9 @@ async function main() {
     console.log(`  ID: ${signedEvent.id}`);
     console.log(`  Pubkey: ${signedEvent.pubkey}`);
     console.log(`  Signature: ${signedEvent.sig.substring(0, 20)}...`);
-    console.log(`  Signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`);
+    console.log(
+      `  Signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`,
+    );
 
     // 9. Verify the signature
     const isValid = await verifySignature(

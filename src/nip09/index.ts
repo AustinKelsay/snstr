@@ -8,10 +8,10 @@
 import { createEvent } from "../nip01/event";
 import { NostrEvent, NostrKind } from "../types/nostr";
 import { UnsignedEvent } from "../nip01/event";
-import { 
-  validateArrayAccess, 
+import {
+  validateArrayAccess,
   safeArrayAccess,
-  SecurityValidationError 
+  SecurityValidationError,
 } from "../utils/security-validator";
 
 export interface DeletionRequestOptions {
@@ -58,9 +58,7 @@ export interface DeletionTargets {
 /**
  * Extract referenced ids, addresses and kinds from a deletion event
  */
-export function parseDeletionTargets(
-  event: NostrEvent,
-): DeletionTargets {
+export function parseDeletionTargets(event: NostrEvent): DeletionTargets {
   const result: DeletionTargets = {
     ids: [],
     addresses: [],
@@ -73,14 +71,14 @@ export function parseDeletionTargets(
       if (!validateArrayAccess(tag, 0) || !validateArrayAccess(tag, 1)) {
         continue; // Skip malformed tags
       }
-      
+
       const tagName = safeArrayAccess(tag, 0);
       const tagValue = safeArrayAccess(tag, 1);
-      
+
       if (typeof tagName !== "string" || typeof tagValue !== "string") {
         continue; // Skip malformed tags
       }
-      
+
       if (tagName === "e" && tagValue) {
         result.ids.push(tagValue);
       } else if (tagName === "a" && tagValue) {
@@ -94,8 +92,10 @@ export function parseDeletionTargets(
     } catch (error) {
       if (error instanceof SecurityValidationError) {
         // Log bounds checking error but continue processing
-        if (typeof console !== 'undefined' && console.warn) {
-          console.warn(`NIP-09: Bounds checking error in tag processing: ${error.message}`);
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn(
+            `NIP-09: Bounds checking error in tag processing: ${error.message}`,
+          );
         }
       }
     }
@@ -125,7 +125,7 @@ export function isDeletionRequestForEvent(
         return false;
       }
     });
-    
+
     if (dTag && validateArrayAccess(dTag, 1)) {
       const dValue = safeArrayAccess(dTag, 1);
       if (typeof dValue === "string") {
@@ -135,11 +135,13 @@ export function isDeletionRequestForEvent(
     }
   } catch (error) {
     if (error instanceof SecurityValidationError) {
-      if (typeof console !== 'undefined' && console.warn) {
-        console.warn(`NIP-09: Bounds checking error in d-tag processing: ${error.message}`);
+      if (typeof console !== "undefined" && console.warn) {
+        console.warn(
+          `NIP-09: Bounds checking error in d-tag processing: ${error.message}`,
+        );
       }
     }
   }
-  
+
   return false;
 }
