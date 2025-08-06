@@ -7,18 +7,22 @@ import { NIP46SecurityError, NIP46UnsignedEventData } from "../types";
 
 /**
  * Constant-time string comparison to prevent timing attacks
+ * Always runs in time proportional to the longer string to avoid length-based timing leaks
  */
 function constantTimeStringEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    return false;
+  const maxLength = Math.max(a.length, b.length);
+  let lengthMismatch = a.length ^ b.length;
+  let contentMismatch = 0;
+
+  for (let i = 0; i < maxLength; i++) {
+    // Use conditional masking to handle out-of-bounds access without branching
+    const aChar = i < a.length ? a.charCodeAt(i) : 0;
+    const bChar = i < b.length ? b.charCodeAt(i) : 0;
+    contentMismatch |= aChar ^ bChar;
   }
 
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-
-  return result === 0;
+  // Combine length and content mismatches
+  return (lengthMismatch | contentMismatch) === 0;
 }
 
 /**

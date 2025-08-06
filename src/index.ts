@@ -90,6 +90,7 @@ export {
   FILE_KIND,
   GIFT_WRAP_KIND,
   SEAL_KIND,
+  initializeCrypto as initializeNIP17Crypto,
 } from "./nip17";
 
 // Export NIP-19 utilities

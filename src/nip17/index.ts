@@ -16,6 +16,30 @@ import {
 } from "../utils/crypto";
 import { createSignedEvent } from "../nip01/event";
 
+// Cache for the dynamically imported crypto module
+let nodeCryptoModule: { randomInt: (min: number, max: number) => number } | null = null;
+let cryptoInitialized = false;
+
+/**
+ * Initialize crypto module for ESM environments
+ * This should be called once during application startup if using ESM
+ */
+export async function initializeCrypto(): Promise<void> {
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node &&
+    !cryptoInitialized
+  ) {
+    try {
+      nodeCryptoModule = await import("crypto");
+      cryptoInitialized = true;
+    } catch (error) {
+      // Ignore error - will fall back to globalThis.crypto
+    }
+  }
+}
+
 /**
  * Generate a timestamp up to two days in the past.
  * Used to obscure creation time as recommended by the spec.
@@ -33,9 +57,19 @@ function randomTimestampInPast(): number {
       process.versions &&
       process.versions.node
     ) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const nodeCrypto = require("crypto");
-      return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+      // Try to use pre-imported crypto module first
+      if (nodeCryptoModule) {
+        return nodeCryptoModule.randomInt(0, 0x100000000) / 0x100000000;
+      }
+      // Fallback to require for CommonJS environments
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const nodeCrypto = require("crypto");
+        return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
+      } catch (requireError) {
+        // If require fails in ESM, throw informative error
+        throw new Error("No secure random source available for gift wrap timing. In ESM environments, call initializeCrypto() before using NIP-17 functions.");
+      }
     }
     throw new Error("No secure random source available for gift wrap timing");
   })();

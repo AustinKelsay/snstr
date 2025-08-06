@@ -695,7 +695,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       }).toThrow("Invalid key format"); // Production-safe message
 
       if (originalEnv === undefined) {
-        process.env.NODE_ENV = undefined;
+        delete process.env.NODE_ENV;
       } else {
         process.env.NODE_ENV = originalEnv;
       }
@@ -710,7 +710,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       }).toThrow("test key cannot be an empty string"); // Debug message
 
       if (originalEnv === undefined) {
-        process.env.NODE_ENV = undefined;
+        delete process.env.NODE_ENV;
       } else {
         process.env.NODE_ENV = originalEnv;
       }
@@ -727,7 +727,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(devMessage).toBe("Generic error");
 
       if (originalEnv === undefined) {
-        process.env.NODE_ENV = undefined;
+        delete process.env.NODE_ENV;
       } else {
         process.env.NODE_ENV = originalEnv;
       }
@@ -744,7 +744,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(prodMessage).toBe("Detailed debug info");
 
       if (originalEnv === undefined) {
-        process.env.NODE_ENV = undefined;
+        delete process.env.NODE_ENV;
       } else {
         process.env.NODE_ENV = originalEnv;
       }
@@ -758,7 +758,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(defaultProdMessage).toBe("Security validation failed");
 
       if (originalEnv === undefined) {
-        process.env.NODE_ENV = undefined;
+        delete process.env.NODE_ENV;
       } else {
         process.env.NODE_ENV = originalEnv;
       }
