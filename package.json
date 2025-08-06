@@ -1,7 +1,7 @@
 {
   "name": "snstr",
   "version": "0.1.0",
-  "description": "Simple Nostr Software Toolkit for Retards - A comprehensive TypeScript library for Nostr protocol implementation",
+  "description": "Secure Nostr Software Toolkit for Renegades - A comprehensive TypeScript library for Nostr protocol implementation",
   "main": "dist/snstr/index.js",
   "types": "dist/snstr/index.d.ts",
   "scripts": {

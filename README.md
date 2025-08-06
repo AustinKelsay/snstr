@@ -1,10 +1,18 @@
-# SNSTR - Simple Nostr Software Toolkit for Retards
+# SNSTR - Secure Nostr Software Toolkit for Renegades
 
-### Alpha Release 🚧
+### Beta Release 🚧
 
-SNSTR is a lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies. 
+SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
 
-**⚠️ Important**: This library is in active alpha testing. While functional, it should be used with caution in production environments. We encourage users to be adversarial in their testing and report any issues or unexpected behavior.
+*SNSTR is fierce. Fierce in its speed, in its flexibility, and most of all its security.*
+
+*SNSTR is steadfast, ever persistent, watching, waiting.*
+
+*SNSTR has vengeance on its mind.*
+
+*SNSTR is a Nostr Development Kit for people that go swimming in jeans*
+
+**⚠️ Important**: This library is in beta testing. While mostly stable, some features may still undergo changes. We encourage users to test thoroughly and report any issues or unexpected behavior.
 
 ## Table of Contents
 
@@ -77,10 +85,10 @@ For detailed information on each implementation, see the corresponding directori
 
 ## Installation
 
-⚠️ **ALPHA WARNING**: SNSTR 0.1.0 is now available on npm, but this library is in active alpha development. Users should be adversarial and careful when using it in production environments. Expect potential breaking changes and thoroughly test all functionality before deploying to production.
+⚠️ **BETA WARNING**: SNSTR 0.1.0 is now available on npm. This library is in beta development. While the core API is stabilizing, some features may still change. Please test thoroughly before deploying to production.
 
 ```bash
-# Install from npm (alpha release)
+# Install from npm (beta release)
 npm install snstr
 
 # Or clone and build locally for development:

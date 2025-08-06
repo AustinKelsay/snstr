@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SNSTR (Simple Nostr Software Toolkit for Retards) is a comprehensive TypeScript library for the Nostr protocol. It implements multiple NIPs (Nostr Implementation Possibilities) with a focus on security, performance, and ease of use.
+SNSTR (Secure Nostr Software Toolkit for Renegades) is a comprehensive TypeScript library for the Nostr protocol. It implements multiple NIPs (Nostr Implementation Possibilities) with a focus on security, performance, and ease of use.
 
 ## Essential Commands
 
