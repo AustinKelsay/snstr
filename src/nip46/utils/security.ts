@@ -11,7 +11,7 @@ import { NIP46SecurityError, NIP46UnsignedEventData } from "../types";
  */
 function constantTimeStringEqual(a: string, b: string): boolean {
   const maxLength = Math.max(a.length, b.length);
-  let lengthMismatch = a.length ^ b.length;
+  const lengthMismatch = a.length ^ b.length;
   let contentMismatch = 0;
 
   for (let i = 0; i < maxLength; i++) {

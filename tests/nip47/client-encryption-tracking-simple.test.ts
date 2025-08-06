@@ -15,8 +15,18 @@ import {
   NIP47Method,
   NIP47EncryptionScheme,
   NIP47ConnectionOptions,
+  NIP47Request,
 } from "../../src/nip47/types";
+import { NostrEvent } from "../../src/types/nostr";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+
+// Type-safe interface for accessing private client methods in tests
+interface ClientWithPrivateMethods {
+  sendRequest: (request: NIP47Request, expiration?: number) => Promise<unknown>;
+  handleResponse: (event: NostrEvent) => Promise<void>;
+  chooseEncryptionScheme: () => NIP47EncryptionScheme;
+  pendingRequests: Map<string, { encryptionScheme: NIP47EncryptionScheme; resolve: (response: unknown) => void }>;
+}
 
 describe("NIP-47: Client encryption tracking (simplified)", () => {
   let relay: NostrRelay;
@@ -85,12 +95,15 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     let requestEncryption: NIP47EncryptionScheme | undefined;
     let responseDecryption: NIP47EncryptionScheme | undefined;
 
+    // Create a type-safe wrapper for accessing private methods
+    const clientWithPrivates = client as unknown as ClientWithPrivateMethods;
+    
     // Spy on the client's sendRequest to see what encryption it uses
-    const originalSendRequest = (client as any).sendRequest.bind(client);
-    (client as any).sendRequest = jest.fn(
-      async (request: any, expiration?: number) => {
+    const originalSendRequest = clientWithPrivates.sendRequest.bind(client);
+    clientWithPrivates.sendRequest = jest.fn(
+      async (request: NIP47Request, expiration?: number) => {
         // Check the encryption scheme being used
-        const chooseEncryption = (client as any).chooseEncryptionScheme.bind(
+        const chooseEncryption = clientWithPrivates.chooseEncryptionScheme.bind(
           client,
         );
         requestEncryption = chooseEncryption();
@@ -99,13 +112,10 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     );
 
     // Spy on handleResponse to see what decryption is used
-    const originalHandleResponse = (client as any).handleResponse.bind(client);
-    (client as any).handleResponse = jest.fn(async (event: any) => {
+    const originalHandleResponse = clientWithPrivates.handleResponse.bind(client);
+    clientWithPrivates.handleResponse = jest.fn(async (event: NostrEvent) => {
       // The handleResponse now uses tracked encryption
-      const pendingRequests = (client as any).pendingRequests as Map<
-        string,
-        any
-      >;
+      const pendingRequests = clientWithPrivates.pendingRequests;
 
       // Get request ID from e-tag
       const eTag = event.tags.find((tag: string[]) => tag[0] === "e");
@@ -179,10 +189,13 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     // Track encryption
     let requestEncryption: NIP47EncryptionScheme | undefined;
 
-    const originalSendRequest = (client as any).sendRequest.bind(client);
-    (client as any).sendRequest = jest.fn(
-      async (request: any, expiration?: number) => {
-        const chooseEncryption = (client as any).chooseEncryptionScheme.bind(
+    // Use the same type-safe interface
+    const clientWithPrivates2 = client as unknown as ClientWithPrivateMethods;
+    
+    const originalSendRequest = clientWithPrivates2.sendRequest.bind(client);
+    clientWithPrivates2.sendRequest = jest.fn(
+      async (request: NIP47Request, expiration?: number) => {
+        const chooseEncryption = clientWithPrivates2.chooseEncryptionScheme.bind(
           client,
         );
         requestEncryption = chooseEncryption();
