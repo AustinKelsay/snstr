@@ -3,10 +3,10 @@ import {
   SimpleNIP46Bunker,
   generateKeypair,
 } from "../../src";
-import { NostrRemoteSignerClient } from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { NIP46SecurityError } from "../../src/nip46/types";
 import { parseConnectionString } from "../../src/nip46/utils/connection";
+import { isValidAuthUrl } from "../../src/nip46/utils/auth";
 
 jest.setTimeout(30000); // 30 second timeout for NIP-46 operations
 
@@ -697,50 +697,29 @@ describe("NIP-46 Input Validation Security", () => {
 
   describe("Auth URL Domain Whitelist Validation", () => {
     test("validates auth URLs against domain whitelist", () => {
-      // Create client with domain whitelist
-      const clientWithWhitelist = new NostrRemoteSignerClient({
-        relays: ["wss://relay.example.com"],
-        authDomainWhitelist: ["trusted-domain.com", "auth.example.com"],
-        debug: false,
-      });
-
-      // Access private method for testing
-      const isValidAuthUrl = (
-        clientWithWhitelist as unknown as {
-          isValidAuthUrl: (url: string) => boolean;
-        }
-      )["isValidAuthUrl"].bind(clientWithWhitelist);
+      // Test with domain whitelist configured
+      const authDomainWhitelist = ["trusted-domain.com", "auth.example.com"];
 
       // Test allowed domains
-      expect(isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
-      expect(isValidAuthUrl("https://auth.example.com/login")).toBe(true);
+      expect(isValidAuthUrl("https://trusted-domain.com/auth", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://auth.example.com/login", { authDomainWhitelist })).toBe(true);
 
       // Test subdomain matching
-      expect(isValidAuthUrl("https://api.trusted-domain.com/oauth")).toBe(true);
-      expect(isValidAuthUrl("https://secure.auth.example.com/callback")).toBe(
+      expect(isValidAuthUrl("https://api.trusted-domain.com/oauth", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://secure.auth.example.com/callback", { authDomainWhitelist })).toBe(
         true,
       );
 
       // Test blocked domains
-      expect(isValidAuthUrl("https://malicious-site.com/auth")).toBe(false);
-      expect(isValidAuthUrl("https://evil.com/steal-keys")).toBe(false);
-      expect(isValidAuthUrl("https://not-trusted.org/login")).toBe(false);
+      expect(isValidAuthUrl("https://malicious-site.com/auth", { authDomainWhitelist })).toBe(false);
+      expect(isValidAuthUrl("https://evil.com/steal-keys", { authDomainWhitelist })).toBe(false);
+      expect(isValidAuthUrl("https://not-trusted.org/login", { authDomainWhitelist })).toBe(false);
     });
 
     test("allows all valid HTTPS URLs when no whitelist is configured", () => {
-      // Create client without domain whitelist
-      const clientWithoutWhitelist = new NostrRemoteSignerClient({
-        relays: ["wss://relay.example.com"],
-        debug: false,
-      });
-
-      const isValidAuthUrl = (
-        clientWithoutWhitelist as unknown as {
-          isValidAuthUrl: (url: string) => boolean;
-        }
-      )["isValidAuthUrl"].bind(clientWithoutWhitelist);
-
-      // Should allow any valid HTTPS URL
+      // Test without domain whitelist (undefined or empty)
+      
+      // Should allow any valid HTTPS URL when no whitelist
       expect(isValidAuthUrl("https://any-domain.com/auth")).toBe(true);
       expect(isValidAuthUrl("https://random-site.org/login")).toBe(true);
       expect(isValidAuthUrl("https://valid-site.net/oauth")).toBe(true);
@@ -750,51 +729,31 @@ describe("NIP-46 Input Validation Security", () => {
     });
 
     test("handles case-insensitive domain matching", () => {
-      const clientWithWhitelist = new NostrRemoteSignerClient({
-        relays: ["wss://relay.example.com"],
-        authDomainWhitelist: ["TrustedDomain.com", "AUTH.example.com"],
-        debug: false,
-      });
-
-      const isValidAuthUrl = (
-        clientWithWhitelist as unknown as {
-          isValidAuthUrl: (url: string) => boolean;
-        }
-      )["isValidAuthUrl"].bind(clientWithWhitelist);
+      const authDomainWhitelist = ["TrustedDomain.com", "AUTH.example.com"];
 
       // Test case variations
-      expect(isValidAuthUrl("https://trusteddomain.com/auth")).toBe(true);
-      expect(isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth")).toBe(true);
-      expect(isValidAuthUrl("https://auth.EXAMPLE.com/login")).toBe(true);
-      expect(isValidAuthUrl("https://AUTH.EXAMPLE.COM/login")).toBe(true);
+      expect(isValidAuthUrl("https://trusteddomain.com/auth", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://auth.EXAMPLE.com/login", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://AUTH.EXAMPLE.COM/login", { authDomainWhitelist })).toBe(true);
     });
 
     test("validates against all other security checks with whitelist", () => {
-      const clientWithWhitelist = new NostrRemoteSignerClient({
-        relays: ["wss://relay.example.com"],
-        authDomainWhitelist: ["trusted-domain.com"],
-        debug: false,
-      });
-
-      const isValidAuthUrl = (
-        clientWithWhitelist as unknown as {
-          isValidAuthUrl: (url: string) => boolean;
-        }
-      )["isValidAuthUrl"].bind(clientWithWhitelist);
+      const authDomainWhitelist = ["trusted-domain.com"];
 
       // Should still enforce HTTPS requirement
-      expect(isValidAuthUrl("http://trusted-domain.com/auth")).toBe(false);
+      expect(isValidAuthUrl("http://trusted-domain.com/auth", { authDomainWhitelist })).toBe(false);
 
       // Should still check for dangerous characters
-      expect(isValidAuthUrl("https://trusted-domain.com/auth<script>")).toBe(
+      expect(isValidAuthUrl("https://trusted-domain.com/auth<script>", { authDomainWhitelist })).toBe(
         false,
       );
 
       // Should still validate hostname format
-      expect(isValidAuthUrl("https://")).toBe(false);
+      expect(isValidAuthUrl("https://", { authDomainWhitelist })).toBe(false);
 
       // Valid URL should pass all checks
-      expect(isValidAuthUrl("https://trusted-domain.com/auth")).toBe(true);
+      expect(isValidAuthUrl("https://trusted-domain.com/auth", { authDomainWhitelist })).toBe(true);
     });
   });
 });

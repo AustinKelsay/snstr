@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, jest } from "@jest/globals";
+import { describe, it, expect, beforeAll, afterAll, jest, beforeEach } from "@jest/globals";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import {
@@ -20,6 +20,9 @@ import {
   NIP47Notification,
 } from "../../src/nip47";
 import { NIP47ClientError } from "../../src/nip47/client";
+import { createEvent, createSignedEvent } from "../../src/nip01/event";
+import { encrypt as encryptNIP04 } from "../../src/nip04";
+import { getUnixTime } from "../../src/utils/time";
 
 // Mock Implementation
 class MockWalletImplementation implements WalletImplementation {
@@ -140,6 +143,12 @@ type ServiceWithMockAccess = {
     }) => Promise<NIP47Transaction>;
   };
 };
+
+// Interface for accessing private members in tests
+interface ServiceWithPrivates {
+  requestEncryption: Map<string, import("../../src/nip47/types").NIP47EncryptionScheme>;
+  handleEvent: (event: import("../../src/types/nostr").NostrEvent) => Promise<void>;
+}
 
 describe("NIP-47: Nostr Wallet Connect", () => {
   let relay: NostrRelay;
@@ -490,6 +499,210 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         // Restore original implementation
         serviceMock.walletImpl.lookupInvoice = originalLookup;
       }
+    });
+
+    describe("Request encryption cleanup", () => {
+      let unauthorizedKeys: { publicKey: string; privateKey: string };
+
+      beforeEach(async () => {
+        // Generate unauthorized keys for testing
+        unauthorizedKeys = await generateKeypair();
+      });
+
+      it("should clean up requestEncryption map on expired request", async () => {
+        // Create an expired request
+        const request = {
+          method: NIP47Method.GET_INFO,
+          params: {},
+        };
+
+        const eventTemplate = {
+          kind: 23194, // NIP47EventKind.REQUEST
+          content: encryptNIP04(
+            clientKeypair.privateKey,
+            serviceKeypair.publicKey,
+            JSON.stringify(request),
+          ),
+          tags: [
+            ["p", serviceKeypair.publicKey],
+            ["expiration", (getUnixTime() - 10).toString()], // Expired 10 seconds ago
+          ],
+        };
+
+        const event = await createSignedEvent(
+          createEvent(eventTemplate, clientKeypair.publicKey),
+          clientKeypair.privateKey,
+        );
+
+        // Access private map for testing
+        const serviceWithPrivates = service as unknown as ServiceWithPrivates;
+        const requestEncryptionMap = serviceWithPrivates.requestEncryption;
+        const initialSize = requestEncryptionMap.size;
+
+        // Handle the event
+        await serviceWithPrivates.handleEvent(event);
+
+        // Wait a bit for async operations
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Verify the map was not increased (no leak)
+        expect(requestEncryptionMap.size).toBe(initialSize);
+        expect(requestEncryptionMap.has(event.id)).toBe(false);
+      });
+
+      it("should clean up requestEncryption map on unauthorized client", async () => {
+        const request = {
+          method: NIP47Method.GET_INFO,
+          params: {},
+        };
+
+        const eventTemplate = {
+          kind: 23194, // NIP47EventKind.REQUEST
+          content: encryptNIP04(
+            unauthorizedKeys.privateKey,
+            serviceKeypair.publicKey,
+            JSON.stringify(request),
+          ),
+          tags: [["p", serviceKeypair.publicKey]],
+        };
+
+        const event = await createSignedEvent(
+          createEvent(eventTemplate, unauthorizedKeys.publicKey),
+          unauthorizedKeys.privateKey,
+        );
+
+        const serviceWithPrivates = service as unknown as ServiceWithPrivates;
+        const requestEncryptionMap = serviceWithPrivates.requestEncryption;
+        const initialSize = requestEncryptionMap.size;
+
+        // Handle the event
+        await serviceWithPrivates.handleEvent(event);
+
+        // Wait a bit for async operations
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Verify the map was not increased (no leak)
+        expect(requestEncryptionMap.size).toBe(initialSize);
+        expect(requestEncryptionMap.has(event.id)).toBe(false);
+      });
+
+      it("should clean up requestEncryption map on decryption failure", async () => {
+        const eventTemplate = {
+          kind: 23194, // NIP47EventKind.REQUEST
+          content: "invalid_encrypted_content", // This will fail decryption
+          tags: [["p", serviceKeypair.publicKey]],
+        };
+
+        const event = await createSignedEvent(
+          createEvent(eventTemplate, clientKeypair.publicKey),
+          clientKeypair.privateKey,
+        );
+
+        const serviceWithPrivates = service as unknown as ServiceWithPrivates;
+        const requestEncryptionMap = serviceWithPrivates.requestEncryption;
+        const initialSize = requestEncryptionMap.size;
+
+        // Spy on console.error to verify the error is logged
+        const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+        // Handle the event
+        await serviceWithPrivates.handleEvent(event);
+
+        // Wait a bit for async operations
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Verify the error was logged
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining(
+            `Failed to decrypt message for event ${event.id}:`,
+          ),
+          expect.any(Error),
+        );
+
+        // Verify the map was cleaned up
+        expect(requestEncryptionMap.size).toBe(initialSize);
+        expect(requestEncryptionMap.has(event.id)).toBe(false);
+
+        consoleErrorSpy.mockRestore();
+      });
+
+      it("should clean up requestEncryption map on successful request", async () => {
+        const request = {
+          method: NIP47Method.GET_INFO,
+          params: {},
+        };
+
+        const eventTemplate = {
+          kind: 23194, // NIP47EventKind.REQUEST
+          content: encryptNIP04(
+            clientKeypair.privateKey,
+            serviceKeypair.publicKey,
+            JSON.stringify(request),
+          ),
+          tags: [["p", serviceKeypair.publicKey]],
+        };
+
+        const event = await createSignedEvent(
+          createEvent(eventTemplate, clientKeypair.publicKey),
+          clientKeypair.privateKey,
+        );
+
+        const serviceWithPrivates = service as unknown as ServiceWithPrivates;
+        const requestEncryptionMap = serviceWithPrivates.requestEncryption;
+        const initialSize = requestEncryptionMap.size;
+
+        // Handle the event
+        await serviceWithPrivates.handleEvent(event);
+
+        // Wait a bit for async operations to complete
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        // Verify the map was cleaned up after successful processing
+        expect(requestEncryptionMap.size).toBe(initialSize);
+        expect(requestEncryptionMap.has(event.id)).toBe(false);
+      });
+
+      it("should clean up requestEncryption map on JSON parse error", async () => {
+        const eventTemplate = {
+          kind: 23194, // NIP47EventKind.REQUEST
+          content: encryptNIP04(
+            clientKeypair.privateKey,
+            serviceKeypair.publicKey,
+            "invalid json {{{", // This will decrypt but fail JSON parsing
+          ),
+          tags: [["p", serviceKeypair.publicKey]],
+        };
+
+        const event = await createSignedEvent(
+          createEvent(eventTemplate, clientKeypair.publicKey),
+          clientKeypair.privateKey,
+        );
+
+        const serviceWithPrivates = service as unknown as ServiceWithPrivates;
+        const requestEncryptionMap = serviceWithPrivates.requestEncryption;
+        const initialSize = requestEncryptionMap.size;
+
+        // Spy on console.error to verify the error is logged
+        const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+        // Handle the event
+        await serviceWithPrivates.handleEvent(event);
+
+        // Wait a bit for async operations
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        // Verify the error was logged
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining(`Error processing request ${event.id}:`),
+          expect.any(Error),
+        );
+
+        // Verify the map was cleaned up
+        expect(requestEncryptionMap.size).toBe(initialSize);
+        expect(requestEncryptionMap.has(event.id)).toBe(false);
+
+        consoleErrorSpy.mockRestore();
+      });
     });
   });
 

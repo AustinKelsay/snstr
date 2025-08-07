@@ -279,7 +279,7 @@ describe("NIP-19: Comprehensive Security Tests", () => {
         },
       ];
 
-      testCases.forEach(({ url, _description, shouldBeValid }) => {
+      testCases.forEach(({ url, description: _description, shouldBeValid }) => {
         expect(isValidRelayUrl(url)).toBe(shouldBeValid);
       });
     });

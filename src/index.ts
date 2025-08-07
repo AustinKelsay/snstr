@@ -190,6 +190,7 @@ export {
   NIP46BunkerOptions,
   NIP46Metadata,
 } from "./nip46/index";
+export { isValidAuthUrl } from "./nip46/utils/auth";
 
 // NIP-57: Lightning Zaps
 export {

@@ -7,6 +7,7 @@ import { createSignedEvent } from "../nip01/event";
 import { parseConnectionString } from "./utils/connection";
 import { Logger, LogLevel } from "./utils/logger";
 import { generateRequestId } from "./utils/request-response";
+import { isValidAuthUrl } from "./utils/auth";
 import {
   NIP46Method,
   NIP46Request,
@@ -710,7 +711,10 @@ export class NostrRemoteSignerClient {
     }
 
     // Validate auth URL
-    if (!this.isValidAuthUrl(response.auth_url)) {
+    if (!isValidAuthUrl(response.auth_url, { 
+      authDomainWhitelist: this.options.authDomainWhitelist,
+      logger: this.logger 
+    })) {
       this.logger.error("Invalid auth URL received", {
         authUrl: response.auth_url,
       });
@@ -759,78 +763,6 @@ export class NostrRemoteSignerClient {
     }
   }
 
-  /**
-   * Validate if an auth URL is safe to open
-   * @private
-   */
-  private isValidAuthUrl(url: string): boolean {
-    try {
-      const parsed = new URL(url);
-
-      // Only allow HTTPS URLs for security
-      if (parsed.protocol !== "https:") {
-        this.logger.warn("Auth URL must use HTTPS", { url });
-        return false;
-      }
-
-      // Basic hostname validation
-      if (!parsed.hostname || parsed.hostname.length < 3) {
-        this.logger.warn("Invalid hostname in auth URL", { url });
-        return false;
-      }
-
-      // Prevent potential XSS in URL
-      if (
-        url.includes("<") ||
-        url.includes(">") ||
-        url.includes('"') ||
-        url.includes("'")
-      ) {
-        this.logger.warn("Auth URL contains dangerous characters", { url });
-        return false;
-      }
-
-      // Check against domain whitelist if configured
-      if (
-        this.options.authDomainWhitelist &&
-        this.options.authDomainWhitelist.length > 0
-      ) {
-        const hostname = parsed.hostname.toLowerCase();
-        const isAllowed = this.options.authDomainWhitelist.some(
-          (allowedDomain) => {
-            const normalizedDomain = allowedDomain.toLowerCase();
-            // Support exact match or subdomain matching
-            return (
-              hostname === normalizedDomain ||
-              hostname.endsWith("." + normalizedDomain)
-            );
-          },
-        );
-
-        if (!isAllowed) {
-          this.logger.warn("Auth URL hostname not in domain whitelist", {
-            hostname,
-            whitelist: this.options.authDomainWhitelist,
-            url,
-          });
-          return false;
-        }
-
-        this.logger.debug("Auth URL hostname validated against whitelist", {
-          hostname,
-          whitelist: this.options.authDomainWhitelist,
-        });
-      }
-
-      return true;
-    } catch (error) {
-      this.logger.error("Failed to parse auth URL", {
-        url,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return false;
-    }
-  }
 
   /**
    * Monitor auth window for completion
