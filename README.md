@@ -89,8 +89,6 @@ For detailed information on each implementation, see the corresponding directori
 
 ## Installation
 
-⚠️ **BETA WARNING**: SNSTR 0.1.0 is now available on npm. This library is in beta development. While the core API is stabilizing, some features may still change. Please test thoroughly before deploying to production.
-
 ```bash
 # Install from npm (beta release)
 npm install snstr
