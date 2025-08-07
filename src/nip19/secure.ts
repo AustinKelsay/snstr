@@ -145,11 +145,18 @@ export function isValidRelayUrl(url: RelayUrl): boolean {
 
     // Ensure the host doesn't contain any suspicious characters
     // Handle IPv6 addresses (bracketed) and regular hostnames separately
+    //
+    // Note: Both parsedUrl.hostname and parsedUrl.host preserve IPv6 brackets
+    // in modern Node.js and browsers. We use hostname here because:
+    // - hostname: "[2001:db8::1]" (IPv6 address only)
+    // - host: "[2001:db8::1]:8080" (IPv6 address + port)
+    // We want to validate the address itself, not the address+port combination
     if (
       parsedUrl.hostname.startsWith("[") &&
       parsedUrl.hostname.endsWith("]")
     ) {
       // IPv6 literal - brackets are required and content can contain colons
+      // RFC 3986 Section 3.2.2: IPv6 addresses must be enclosed in brackets
       // We trust the URL parser's validation for IPv6 format
       const ipv6Content = parsedUrl.hostname.slice(1, -1);
       if (ipv6Content.length === 0) {

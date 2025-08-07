@@ -105,10 +105,10 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
         continue;
       }
 
-      // Safe access to optional fields using direct array length checks
-      const relay = tag.length > 2 ? tag[2] : undefined;
-      const marker = tag.length > 3 ? tag[3] : undefined;
-      const pubkey = tag.length > 4 ? tag[4] : undefined;
+      // Safe access to optional fields using safeArrayAccess helper
+      const relay = safeArrayAccess(tag, 2);
+      const marker = safeArrayAccess(tag, 3);
+      const pubkey = safeArrayAccess(tag, 4);
 
       const relayValue =
         typeof relay === "string" && relay.trim() ? relay : undefined;

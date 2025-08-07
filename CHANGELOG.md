@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated project name to "Secure Nostr Software Toolkit for Renegades"
 - Improved warning messages from alpha to beta status
+- Renamed `initializeCrypto` export to `initializeNIP17Crypto` for clarity
+
+### Deprecated
+- `initializeCrypto` export - use `initializeNIP17Crypto` instead (backward compatibility alias provided)
 
 ## [0.1.0] - 2025-07-01
 

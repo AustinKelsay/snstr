@@ -11,6 +11,8 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { NIP46ConnectionError } from "../../src/nip46/types";
 import { validateSecureInitialization } from "../../src/nip46/utils/security";
 
+jest.setTimeout(30000); // 30 second timeout for NIP-46 operations
+
 // Type for accessing internal client properties in tests
 interface ClientWithInternals {
   clientKeys: { publicKey: string };

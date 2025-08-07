@@ -13,12 +13,10 @@ import {
   Contact,
 } from "../../src/nip02";
 
-const RELAY_PORT = 8088; // Using a different port for NIP-02 tests
-const RELAY_URL = `ws://localhost:${RELAY_PORT}`;
-
 describe("NIP-02: Contact Lists", () => {
   let relay: NostrRelay;
   let client: Nostr;
+  let RELAY_URL: string;
 
   let userAPrivKey: string;
   let userAPubKey: string;
@@ -28,20 +26,26 @@ describe("NIP-02: Contact Lists", () => {
 
   const contactB: Contact = { pubkey: "" };
   const contactC: Contact = { pubkey: "" };
-  const contactBWithDetails: Contact = {
-    pubkey: "",
-    relayUrl: RELAY_URL,
-    petname: "UserB_Pet",
-  };
-  const contactCWithDetails: Contact = {
-    pubkey: "",
-    relayUrl: RELAY_URL,
-    petname: "UserC_Pet",
-  };
+  let contactBWithDetails: Contact;
+  let contactCWithDetails: Contact;
 
   beforeAll(async () => {
-    relay = new NostrRelay(RELAY_PORT);
+    relay = new NostrRelay(0); // Let OS assign port
     await relay.start();
+    RELAY_URL = relay.url; // Get actual URL after relay starts
+    
+    // Initialize contacts with proper relay URL
+    contactBWithDetails = {
+      pubkey: "",
+      relayUrl: RELAY_URL,
+      petname: "UserB_Pet",
+    };
+    contactCWithDetails = {
+      pubkey: "",
+      relayUrl: RELAY_URL,
+      petname: "UserC_Pet",
+    };
+    
     client = new Nostr([RELAY_URL]);
     await client.connectToRelays();
 

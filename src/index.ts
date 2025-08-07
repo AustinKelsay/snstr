@@ -66,6 +66,10 @@ export {
   relaySupportsNIPs,
   getRelayPaymentInfo,
   relayRequiresPayment,
+} from "./nip11";
+
+// Export NIP-11 types
+export type {
   RelayInfo,
   RelayLimitation,
   RelayFees,
@@ -274,3 +278,10 @@ export {
   createRelayMonitorAnnouncement,
   parseRelayMonitorAnnouncement,
 } from "./nip66";
+
+// Deprecated alias for backward compatibility
+import { initializeCrypto as initializeNIP17CryptoImport } from "./nip17";
+/**
+ * @deprecated Use initializeNIP17Crypto instead. This alias will be removed in the next major version.
+ */
+export const initializeCrypto = initializeNIP17CryptoImport;

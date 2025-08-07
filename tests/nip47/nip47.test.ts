@@ -151,7 +151,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
 
   beforeAll(async () => {
     // Start ephemeral relay
-    relay = new NostrRelay(3047); // Use port 3047 for NIP-47 tests
+    relay = new NostrRelay(0);
     await relay.start();
 
     // Generate keypairs for service and client

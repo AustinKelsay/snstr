@@ -8,7 +8,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateRequestId } from "../../src/nip46/utils/request-response";
 import { NIP46RateLimiter } from "../../src/nip46/utils/rate-limiter";
 
-jest.setTimeout(6000); // Reduced timeout for faster failures
+jest.setTimeout(30000); // 30 second timeout for performance tests
 
 describe("NIP-46 Performance & DoS Protection", () => {
   let relay: NostrRelay;

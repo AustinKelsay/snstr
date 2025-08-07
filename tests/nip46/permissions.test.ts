@@ -16,13 +16,22 @@ describe("NIP-46 Permission Handling", () => {
   let bunker: SimpleNIP46Bunker;
   let client: SimpleNIP46Client;
 
-  beforeEach(async () => {
-    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+  beforeAll(async () => {
+    // Start ephemeral relay once for all tests
     relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
+  });
 
-    // Generate keypairs
+  afterAll(async () => {
+    // Clean up relay after all tests
+    if (relay) {
+      await relay.close();
+    }
+  });
+
+  beforeEach(async () => {
+    // Generate fresh keypairs for each test
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
 
@@ -50,17 +59,6 @@ describe("NIP-46 Permission Handling", () => {
       } catch (error) {
         console.error("Error stopping bunker:", error);
       }
-    }
-
-    try {
-      await Promise.race([
-        relay.close(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Relay close timeout")), 5000),
-        ),
-      ]);
-    } catch (error) {
-      console.error("Error closing relay:", error);
     }
 
     // Ensure we've disconnected the client

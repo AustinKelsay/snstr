@@ -21,7 +21,7 @@ import {
 } from "../../types";
 
 // Ephemeral relay port for tests
-const RELAY_TEST_PORT = 3444;
+const RELAY_TEST_PORT = 0;
 
 describe("Relay", () => {
   // Setup ephemeral relay for integration tests
@@ -95,6 +95,9 @@ describe("Relay", () => {
       const result = await connectPromise;
       expect(result).toBe(false);
       expect(errorEvent).toBe(true);
+      
+      // Clean up to prevent async warnings
+      relay.disconnect();
     });
 
     test("should allow setting connection timeout after creation", () => {
@@ -447,6 +450,9 @@ describe("Relay", () => {
       const connectionErrorResult = await nonRoutableRelay.publish(event);
       expect(connectionErrorResult.success).toBe(false);
       expect(connectionErrorResult.reason).toContain("connection");
+      
+      // Clean up non-routable relay
+      nonRoutableRelay.disconnect();
 
       // For timeout error
       jest.useFakeTimers();

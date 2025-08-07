@@ -196,8 +196,14 @@ export function createRelayDiscoveryEvent(
           throw new Error("supportedNips must contain valid positive integers");
         }
       } else if (typeof nip === "string") {
-        const parsed = parseInt(nip, 10);
-        if (isNaN(parsed) || parsed < 0) {
+        // Strict validation: ensure string contains only digits
+        if (!/^\d+$/.test(nip)) {
+          throw new Error(
+            "supportedNips must contain valid positive integers or integer strings (digits only)",
+          );
+        }
+        const parsed = Number(nip);
+        if (parsed < 0) {
           throw new Error(
             "supportedNips must contain valid positive integers or integer strings",
           );
@@ -216,8 +222,14 @@ export function createRelayDiscoveryEvent(
           throw new Error("kinds must contain valid non-negative integers");
         }
       } else if (typeof kind === "string") {
-        const parsed = parseInt(kind, 10);
-        if (isNaN(parsed) || parsed < 0) {
+        // Strict validation: ensure string contains only digits
+        if (!/^\d+$/.test(kind)) {
+          throw new Error(
+            "kinds must contain valid non-negative integers or integer strings (digits only)",
+          );
+        }
+        const parsed = Number(kind);
+        if (parsed < 0) {
           throw new Error(
             "kinds must contain valid non-negative integers or integer strings",
           );
@@ -362,21 +374,21 @@ export function parseRelayDiscoveryEvent(
           data.geohash = tagValue;
           break;
         case "rtt-open":
-          // Parse integer with bounds checking
-          if (tagValue && !isNaN(parseInt(tagValue, 10))) {
-            data.rttOpen = parseInt(tagValue, 10);
+          // Strict validation: ensure tagValue contains only digits
+          if (tagValue && /^\d+$/.test(tagValue)) {
+            data.rttOpen = Number(tagValue);
           }
           break;
         case "rtt-read":
-          // Parse integer with bounds checking
-          if (tagValue && !isNaN(parseInt(tagValue, 10))) {
-            data.rttRead = parseInt(tagValue, 10);
+          // Strict validation: ensure tagValue contains only digits
+          if (tagValue && /^\d+$/.test(tagValue)) {
+            data.rttRead = Number(tagValue);
           }
           break;
         case "rtt-write":
-          // Parse integer with bounds checking
-          if (tagValue && !isNaN(parseInt(tagValue, 10))) {
-            data.rttWrite = parseInt(tagValue, 10);
+          // Strict validation: ensure tagValue contains only digits
+          if (tagValue && /^\d+$/.test(tagValue)) {
+            data.rttWrite = Number(tagValue);
           }
           break;
       }
@@ -574,10 +586,13 @@ export function parseRelayMonitorAnnouncement(
               break;
             }
 
-            // Parse the frequency value
-            const frequencyValue = parseInt(String(tagValue), 10);
-
-            // Validate parsed number
+            // Convert to string for validation
+            const tagValueStr = String(tagValue);
+            
+            // Parse the frequency value using parseInt (consistent with timeout parsing)
+            const frequencyValue = parseInt(tagValueStr, 10);
+            
+            // Check if parsing resulted in a valid number
             if (isNaN(frequencyValue)) {
               if (typeof console !== "undefined" && console.warn) {
                 console.warn(
@@ -633,10 +648,14 @@ export function parseRelayMonitorAnnouncement(
               break;
             }
 
-            // Parse the timeout value
-            const timeoutValue = parseInt(String(tagValue), 10);
-
-            // Validate parsed number
+            // Convert to string for validation
+            const tagValueStr = String(tagValue);
+            
+            // Parse the timeout value using parseInt (like NIP-66 spec expects)
+            // This will handle decimal numbers by truncating them
+            const timeoutValue = parseInt(tagValueStr, 10);
+            
+            // Check if parsing resulted in a valid number
             if (isNaN(timeoutValue)) {
               if (typeof console !== "undefined" && console.warn) {
                 console.warn(

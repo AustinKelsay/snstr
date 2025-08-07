@@ -13,8 +13,9 @@ import {
   SubscriptionOptions,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
-import { NostrValidationError } from "./event";
+import { NostrValidationError, getEventHash } from "./event";
 import { getUnixTime } from "../utils/time";
+import { verifySignature } from "../utils/crypto";
 import { Logger, LogLevel } from "../nip46/utils/logger";
 import {
   SECURITY_LIMITS,
@@ -953,10 +954,6 @@ export class Relay {
         tags: event.tags,
         content: event.content,
       };
-
-      // Import the verification functions dynamically to avoid circular dependencies
-      const { getEventHash } = await import("./event");
-      const { verifySignature } = await import("../utils/crypto");
 
       // Step 1: Validate event ID by comparing with calculated hash
       const calculatedId = await getEventHash(eventData);

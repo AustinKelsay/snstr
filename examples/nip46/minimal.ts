@@ -18,14 +18,14 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
  */
 async function run() {
   // Create a local ephemeral relay for testing
-  const relay = new NostrRelay(4000);
-  const relays = [relay.url];
+  const relay = new NostrRelay(0);
 
   try {
     console.log("=== NIP-46 Minimal Example ===");
 
     // 1. Start the relay
     await relay.start();
+    const relays = [relay.url]; // Capture URL after relay starts
     console.log(`Using local ephemeral relay: ${relay.url}`);
 
     // 2. Generate test keypairs

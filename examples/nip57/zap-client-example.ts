@@ -48,7 +48,7 @@ async function main() {
     console.log("----------------------------------------------------\n");
 
     // Set up an ephemeral relay for testing
-    relay = new NostrRelay(3000);
+    relay = new NostrRelay(0);
     await relay.start();
     console.log(`🔌 Ephemeral relay started at ${relay.url}\n`);
 

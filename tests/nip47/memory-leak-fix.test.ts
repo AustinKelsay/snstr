@@ -27,7 +27,7 @@ describe("NIP-47: Request encryption map cleanup", () => {
   let clientKeys: { publicKey: string; privateKey: string };
 
   beforeAll(async () => {
-    relay = new NostrRelay(3049); // Use different port
+    relay = new NostrRelay(0); // Use different port
     await relay.start();
 
     serviceKeys = await generateKeypair();

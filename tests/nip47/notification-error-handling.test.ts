@@ -23,7 +23,7 @@ describe("NIP-47: Notification error handling", () => {
   let relay: NostrRelay;
 
   beforeAll(async () => {
-    relay = new NostrRelay(3050); // Use different port to avoid conflicts
+    relay = new NostrRelay(0);
     await relay.start();
   });
 

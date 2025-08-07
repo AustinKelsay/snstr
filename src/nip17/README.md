@@ -17,11 +17,11 @@ import {
   createDirectMessage,
   decryptDirectMessage,
   generateKeypair,
-  initializeNIP17Crypto, // Only needed for ESM environments
+  initializeCrypto, // Only needed for ESM environments
 } from 'snstr';
 
 // For ESM environments, initialize crypto once at startup
-await initializeNIP17Crypto();
+await initializeCrypto();
 
 const alice = await generateKeypair();
 const bob = await generateKeypair();

@@ -381,10 +381,10 @@ class ClientSession {
         const nodeCrypto = require("crypto");
         this._sid = nodeCrypto.randomBytes(3).toString("hex");
       } catch (requireError) {
-        // If require fails (ESM environment), generate a temporary ID and
-        // schedule an async replacement
+        // If require fails (ESM environment), generate a fallback ID
+        // that will remain immutable for the session lifetime
         const tempArray = new Uint8Array(3);
-        // Use Math.random as temporary fallback
+        // Use Math.random as permanent fallback
         for (let i = 0; i < tempArray.length; i++) {
           tempArray[i] = Math.floor(Math.random() * 256);
         }
@@ -392,22 +392,17 @@ class ClientSession {
           byte.toString(16).padStart(2, "0"),
         ).join("");
         
-        // Asynchronously replace with crypto-generated ID
-        import("crypto")
-          .then((nodeCrypto) => {
-            this._sid = nodeCrypto.randomBytes(3).toString("hex");
-          })
-          .catch(() => {
-            // Keep the Math.random generated ID if import fails
-            console.warn(
-              "Failed to import crypto module for session ID generation",
-            );
-          });
+        // Log warning but keep the generated ID immutable
+        console.warn(
+          "Using Math.random for session ID generation. For production use, ensure crypto module is available.",
+        );
       }
     } else {
-      throw new Error(
-        "Secure random number generation not available for ephemeral relay session ID",
-      );
+      // As a last resort, use Math.random with a timestamp component
+      // to ensure uniqueness even without crypto
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 0xffffff);
+      this._sid = ((timestamp & 0xffffff) ^ random).toString(16).padStart(6, "0");
     }
     this._socket = socket;
     this._subs = new Set();

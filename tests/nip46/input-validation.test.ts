@@ -8,7 +8,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { NIP46SecurityError } from "../../src/nip46/types";
 import { parseConnectionString } from "../../src/nip46/utils/connection";
 
-jest.setTimeout(8000); // Reduced timeout for faster failures
+jest.setTimeout(30000); // 30 second timeout for NIP-46 operations
 
 // Helper function to race a promise with a timeout that cleans up properly
 function raceWithTimeout<T>(

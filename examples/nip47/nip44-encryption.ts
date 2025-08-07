@@ -23,6 +23,7 @@ import {
   PaymentResponseResult,
   MakeInvoiceResponseResult,
 } from "../../src";
+import { randomUUID } from "crypto";
 
 // Simple in-memory wallet implementation for demonstration
 class DemoWalletImplementation implements WalletImplementation {
@@ -89,7 +90,8 @@ class DemoWalletImplementation implements WalletImplementation {
     description_hash?: string,
     expiry?: number,
   ): Promise<MakeInvoiceResponseResult> {
-    const payment_hash = `invoice_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    // Generate a proper UUID for the payment hash to ensure uniqueness
+    const payment_hash = randomUUID();
     const invoice = {
       invoice: `lnbc${amount}n1p${payment_hash.substring(0, 10)}`,
       payment_hash,

@@ -102,8 +102,8 @@ describe("NIP-47 with NIP-44 Encryption", () => {
   let client: NostrWalletConnectClient;
 
   beforeAll(async () => {
-    // Set up ephemeral relay
-    relay = new NostrRelay(3051); // Use port 3051 for NIP-44 tests
+    // Set up ephemeral relay with dynamic port (0 = let system assign)
+    relay = new NostrRelay(0);
     await relay.start();
 
     // Generate keys

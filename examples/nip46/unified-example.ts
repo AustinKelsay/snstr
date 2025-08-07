@@ -28,12 +28,12 @@ async function main() {
   console.log("=== NIP-46 Remote Signing Example ===");
 
   // Create a local ephemeral relay for testing
-  const relay = new NostrRelay(4000);
-  const relays = [relay.url];
+  const relay = new NostrRelay(0);
 
   try {
-    // 1. Start the relay
+    // 1. Start the relay first to get the actual assigned port
     await relay.start();
+    const relays = [relay.url]; // Now relay.url contains the actual port
     console.log(`Using local relay at: ${relay.url}`);
 
     // 2. Generate keypairs

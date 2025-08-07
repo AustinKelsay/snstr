@@ -18,8 +18,7 @@ async function main() {
 
   try {
     // Start an ephemeral relay
-    const port = 4571;
-    const relay = new NostrRelay(port);
+    const relay = new NostrRelay(0);
     await relay.start();
     const relayUrl = relay.url;
     console.log(`Started relay at ${relayUrl}`);

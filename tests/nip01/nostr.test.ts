@@ -6,7 +6,6 @@ import { createMetadataEvent } from "../../src/nip01/event";
 import { getNostrInternals, asTestRelay, testUtils } from "../types";
 
 // Use ephemeral relay for all tests
-const RELAY_TEST_PORT = 3555;
 let ephemeralRelay: NostrRelay;
 
 /**
@@ -41,7 +40,7 @@ async function waitForCondition(
 describe("Nostr Client", () => {
   // Setup ephemeral relay for tests
   beforeAll(async () => {
-    ephemeralRelay = new NostrRelay(RELAY_TEST_PORT);
+    ephemeralRelay = new NostrRelay(0);
     await ephemeralRelay.start();
   });
 

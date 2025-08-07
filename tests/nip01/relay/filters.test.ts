@@ -42,7 +42,7 @@ describe("Enhanced NostrFilter Types", () => {
 
   beforeAll(async () => {
     // Start ephemeral relay
-    ephemeralRelay = new NostrRelay(3999);
+    ephemeralRelay = new NostrRelay(0);
     await ephemeralRelay.start();
 
     // Connect to the relay

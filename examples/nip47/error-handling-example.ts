@@ -352,7 +352,7 @@ async function main() {
   console.log("Starting NIP-47 Error Handling Example...");
 
   // Setup relay, service, and client
-  const relay = new NostrRelay(3100);
+  const relay = new NostrRelay(0);
   await relay.start();
   console.log(`Started ephemeral relay at ${relay.url}`);
 

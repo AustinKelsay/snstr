@@ -19,7 +19,7 @@ async function main() {
   console.log("");
 
   // Use an ephemeral relay for testing - in production you'd use public relays
-  const relay = new NostrRelay(3000);
+  const relay = new NostrRelay(0);
   await relay.start();
   console.log("Started ephemeral relay at:", relay.url);
 

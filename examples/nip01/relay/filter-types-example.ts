@@ -21,7 +21,7 @@ async function main() {
   console.log("Starting Filter Types Example");
 
   // Start an ephemeral relay for testing
-  const ephemeralRelay = new NostrRelay(3700);
+  const ephemeralRelay = new NostrRelay(0);
   await ephemeralRelay.start();
   console.log(`Started ephemeral relay at ${ephemeralRelay.url}`);
 

@@ -17,7 +17,7 @@ import { Relay, RelayEvent } from "../../../src/index";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
-const RELAY_PORT = 3337;
+const RELAY_PORT = 0;
 
 // Configure logging based on environment variables
 const verbose = process.env.VERBOSE === "1";

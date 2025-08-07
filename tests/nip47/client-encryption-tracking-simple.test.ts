@@ -32,7 +32,7 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
   let relay: NostrRelay;
 
   beforeAll(async () => {
-    relay = new NostrRelay(3053); // Use unique port
+    relay = new NostrRelay(0);
     await relay.start();
   });
 
