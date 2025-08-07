@@ -1,8 +1,20 @@
-# SNSTR - Simple Nostr Software Toolkit for Retards
+# SNSTR - Secure Nostr Software Toolkit for Renegades
 
-### Still Under Construction 🚧
+![SNSTR Logo](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr.jpg)
 
-SNSTR is a lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
+### Beta Release 🚧
+
+SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
+
+*SNSTR is fierce. Fierce in its speed, in its flexibility, and most of all its security.*
+
+*SNSTR is steadfast, ever persistent, watching, waiting.*
+
+*SNSTR has vengeance on its mind.*
+
+*SNSTR is a Nostr Development Kit for people that go swimming in jeans*
+
+**⚠️ Important**: This library is in beta testing. While mostly stable, some features may still undergo changes. We encourage users to test thoroughly and report any issues or unexpected behavior.
 
 ## Table of Contents
 
@@ -24,6 +36,8 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
 - [Release Process](#release-process)
 
 ## Features
+
+![SNSTR Starter Pack](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr-starter-pack.png)
 
 ### Core Functionality
 
@@ -75,18 +89,18 @@ For detailed information on each implementation, see the corresponding directori
 
 ## Installation
 
+⚠️ **BETA WARNING**: SNSTR 0.1.0 is now available on npm. This library is in beta development. While the core API is stabilizing, some features may still change. Please test thoroughly before deploying to production.
+
 ```bash
-# Install from npm (coming soon)
+# Install from npm (beta release)
 npm install snstr
 
-# For now, clone and build locally:
+# Or clone and build locally for development:
 git clone https://github.com/AustinKelsay/snstr.git
 cd snstr
 npm install
 npm run build
 ```
-
-**Note**: The library is currently in development and not yet published to npm. Use the local build method above until the first release is published.
 
 ## Basic Usage
 

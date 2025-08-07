@@ -183,7 +183,7 @@ async function main() {
   console.log("Starting NIP-47 Request Expiration Example...");
 
   // Set up relay, service, and client
-  const relay = new NostrRelay(3200);
+  const relay = new NostrRelay(0);
   await relay.start();
   console.log(`Started ephemeral relay at ${relay.url}`);
 

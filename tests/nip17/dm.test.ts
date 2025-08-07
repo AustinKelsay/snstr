@@ -1,4 +1,9 @@
-import { createDirectMessage, decryptDirectMessage, DM_KIND, GIFT_WRAP_KIND } from "../../src/nip17";
+import {
+  createDirectMessage,
+  decryptDirectMessage,
+  DM_KIND,
+  GIFT_WRAP_KIND,
+} from "../../src/nip17";
 import { generateKeypair } from "../../src/utils/crypto";
 
 /**
@@ -10,7 +15,11 @@ describe("NIP-17 Gift Wrap", () => {
     const alice = await generateKeypair();
     const bob = await generateKeypair();
 
-    const wrap = await createDirectMessage("hello", alice.privateKey, bob.publicKey);
+    const wrap = await createDirectMessage(
+      "hello",
+      alice.privateKey,
+      bob.publicKey,
+    );
     expect(wrap.kind).toBe(GIFT_WRAP_KIND);
 
     const rumor = decryptDirectMessage(wrap, bob.privateKey);
@@ -24,7 +33,11 @@ describe("NIP-17 Gift Wrap", () => {
     const bob = await generateKeypair();
     const eve = await generateKeypair();
 
-    const wrap = await createDirectMessage("secret", alice.privateKey, bob.publicKey);
+    const wrap = await createDirectMessage(
+      "secret",
+      alice.privateKey,
+      bob.publicKey,
+    );
     expect(() => decryptDirectMessage(wrap, eve.privateKey)).toThrow();
   });
 });

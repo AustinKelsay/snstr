@@ -16,7 +16,7 @@ async function main() {
   console.log("");
 
   // Start an ephemeral relay for testing
-  const relay = new NostrRelay(3333);
+  const relay = new NostrRelay(0);
   await relay.start();
   console.log("Started ephemeral relay at:", relay.url);
 
@@ -29,7 +29,10 @@ async function main() {
     const signerKeypair = await generateKeypair(); // Different keypair for the signer
 
     console.log("User pubkey (for signing):", userKeypair.publicKey);
-    console.log("Remote signer pubkey (for communication):", signerKeypair.publicKey);
+    console.log(
+      "Remote signer pubkey (for communication):",
+      signerKeypair.publicKey,
+    );
 
     // Create and start bunker
     console.log("\nStarting bunker...");
@@ -68,8 +71,14 @@ async function main() {
     console.log("\nGetting user public key from bunker...");
     const userPubkey = await client.getPublicKey();
     console.log("User public key from bunker:", userPubkey);
-    console.log("Matches original user pubkey:", userPubkey === userKeypair.publicKey);
-    console.log("Different from signer pubkey:", userPubkey !== signerKeypair.publicKey);
+    console.log(
+      "Matches original user pubkey:",
+      userPubkey === userKeypair.publicKey,
+    );
+    console.log(
+      "Different from signer pubkey:",
+      userPubkey !== signerKeypair.publicKey,
+    );
 
     // Test ping command
     console.log("\nPinging bunker...");
@@ -91,7 +100,10 @@ async function main() {
     console.log("Signed note ID:", signedNote.id);
     console.log("Signed with pubkey:", signedNote.pubkey);
     console.log("Signature:", signedNote.sig.substring(0, 20) + "...");
-    console.log("Pubkey matches user pubkey:", signedNote.pubkey === userPubkey);
+    console.log(
+      "Pubkey matches user pubkey:",
+      signedNote.pubkey === userPubkey,
+    );
 
     // Verify the signature is valid
     const validSig = await verifySignature(

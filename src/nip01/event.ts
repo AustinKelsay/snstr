@@ -25,18 +25,16 @@ function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
   return /^[0-9a-f]{64}$/.test(publicKey);
 }
 import { getUnixTime } from "../utils/time";
-import { 
-  validateEventContent, 
-  validateTags, 
-  SECURITY_LIMITS, 
+import {
+  validateEventContent,
+  validateTags,
+  SECURITY_LIMITS,
   SecurityValidationError,
   validateArrayAccess,
-  safeArrayAccess
+  safeArrayAccess,
 } from "../utils/security-validator";
 
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
-
-
 
 /**
  * Custom error class for Nostr event validation errors
@@ -166,7 +164,7 @@ export function createEvent(
   if (!isValidLowercasePublicKeyFormat(pubkey)) {
     throw new NostrValidationError(
       "Invalid pubkey format: must be a 64-character lowercase hex string",
-      "pubkey"
+      "pubkey",
     );
   }
 
@@ -174,7 +172,7 @@ export function createEvent(
   if (!isValidPublicKeyPoint(pubkey)) {
     throw new NostrValidationError(
       "Invalid pubkey: not a valid point on the secp256k1 curve",
-      "pubkey"
+      "pubkey",
     );
   }
 
@@ -253,12 +251,14 @@ export function createTextNote(
   try {
     const validatedContent = validateEventContent(content);
     const validatedTags = validateTags(tags);
-    
-    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+
+    // Calculate actual UTF-8 byte length for proper size validation
+    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
-        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
-        'CONTENT_TOO_LARGE',
-        'content'
+        `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        "CONTENT_TOO_LARGE",
+        "content",
       );
     }
 
@@ -323,12 +323,14 @@ export async function createDirectMessage(
   try {
     const validatedContent = validateEventContent(content);
     const validatedTags = validateTags(tags);
-    
-    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+
+    // Calculate actual UTF-8 byte length for proper size validation
+    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
-        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
-        'CONTENT_TOO_LARGE',
-        'content'
+        `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        "CONTENT_TOO_LARGE",
+        "content",
       );
     }
 
@@ -380,9 +382,7 @@ export function createMetadataEvent(
     );
   }
 
-  if (
-    !isValidPrivateKey(privateKey)
-  ) {
+  if (!isValidPrivateKey(privateKey)) {
     throw new NostrValidationError("Invalid private key", "privateKey");
   }
 
@@ -434,7 +434,7 @@ export function createAddressableEvent(
   if (dTagValue.length > SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE) {
     throw new NostrValidationError(
       `D-tag value too long: ${dTagValue.length} chars (max ${SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE})`,
-      "dTagValue"
+      "dTagValue",
     );
   }
 
@@ -448,12 +448,14 @@ export function createAddressableEvent(
   try {
     const validatedContent = validateEventContent(content);
     const validatedTags = validateTags(additionalTags);
-    
-    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+
+    // Calculate actual UTF-8 byte length for proper size validation
+    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
-        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
-        'CONTENT_TOO_LARGE',
-        'content'
+        `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        "CONTENT_TOO_LARGE",
+        "content",
       );
     }
 
@@ -691,7 +693,6 @@ export async function validateEvent(
 
   // 6. Validate content format based on kind
   if (validateContent) {
-
     switch (event.kind) {
       case NostrKind.Metadata:
         try {
@@ -793,12 +794,14 @@ export async function validateEvent(
         // Direct messages must have exactly one p tag
         const pTags = event.tags.filter((tag) => {
           try {
-            return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p";
+            return (
+              validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "p"
+            );
           } catch {
             return false;
           }
         });
-        
+
         if (pTags.length !== 1) {
           throw new NostrValidationError(
             "Direct message event must have exactly one p tag",
@@ -816,7 +819,7 @@ export async function validateEvent(
               event,
             );
           }
-          
+
           const pTag = safeArrayAccess(pTags, 0);
           if (!Array.isArray(pTag) || !validateArrayAccess(pTag, 1)) {
             throw new NostrValidationError(
@@ -825,9 +828,12 @@ export async function validateEvent(
               event,
             );
           }
-          
+
           const pubkeyValue = safeArrayAccess(pTag, 1);
-          if (typeof pubkeyValue !== "string" || !isValidPublicKeyPoint(pubkeyValue)) {
+          if (
+            typeof pubkeyValue !== "string" ||
+            !isValidPublicKeyPoint(pubkeyValue)
+          ) {
             throw new NostrValidationError(
               `Invalid 'p' tag in Direct Message: Pubkey at tag[1] (pTag[1]) must be a valid secp256k1 curve point. Received: '${pubkeyValue}'.`,
               "tags",
@@ -899,8 +905,8 @@ export function getTagValue<T extends keyof TagValues>(
   if (index < 0) {
     throw new SecurityValidationError(
       `Tag index must be non-negative: ${index}`,
-      'INVALID_TAG_INDEX',
-      'index'
+      "INVALID_TAG_INDEX",
+      "index",
     );
   }
 
@@ -908,13 +914,13 @@ export function getTagValue<T extends keyof TagValues>(
   if (!tag || !Array.isArray(tag)) {
     return undefined;
   }
-  
+
   // Safe bounds checking against actual tag length
   const targetIndex = index + 1; // +1 because tag[0] is the tag name
   if (targetIndex >= tag.length) {
     return undefined;
   }
-  
+
   return tag[targetIndex];
 }
 

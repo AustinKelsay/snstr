@@ -5,15 +5,13 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { createSearchFilter } from "../../src/nip50";
 import { Filter, NostrEvent } from "../../src/types/nostr";
 
-const PORT = 4099;
-
 describe("NIP-50 Search Filter", () => {
   let relay: NostrRelay;
   let client: Nostr;
   let keys: { privateKey: string; publicKey: string };
 
   beforeAll(async () => {
-    relay = new NostrRelay(PORT);
+    relay = new NostrRelay(0);
     await relay.start();
 
     client = new Nostr([relay.url]);

@@ -266,7 +266,7 @@ async function main() {
   console.log("Starting NIP-47 Basic Client-Service Example...");
 
   // Step 1: Start an ephemeral relay for the demo
-  const relay = new NostrRelay(3333);
+  const relay = new NostrRelay(0);
   await relay.start();
   console.log(`Started ephemeral relay at ${relay.url}`);
 

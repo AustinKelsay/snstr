@@ -6,7 +6,6 @@ import { createMetadataEvent } from "../../src/nip01/event";
 import { getNostrInternals, asTestRelay, testUtils } from "../types";
 
 // Use ephemeral relay for all tests
-const RELAY_TEST_PORT = 3555;
 let ephemeralRelay: NostrRelay;
 
 /**
@@ -24,24 +23,24 @@ async function createEphemeralRelay(): Promise<NostrRelay> {
 async function waitForCondition(
   condition: () => boolean | Promise<boolean>,
   timeoutMs: number = 5000,
-  intervalMs: number = 10
+  intervalMs: number = 10,
 ): Promise<void> {
   const startTime = Date.now();
-  
+
   while (Date.now() - startTime < timeoutMs) {
     if (await condition()) {
       return;
     }
-    await new Promise(resolve => setTimeout(resolve, intervalMs));
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  
+
   throw new Error(`Condition not met within ${timeoutMs}ms timeout`);
 }
 
 describe("Nostr Client", () => {
   // Setup ephemeral relay for tests
   beforeAll(async () => {
-    ephemeralRelay = new NostrRelay(RELAY_TEST_PORT);
+    ephemeralRelay = new NostrRelay(0);
     await ephemeralRelay.start();
   });
 
@@ -305,12 +304,9 @@ describe("Nostr Client", () => {
     test("should forward autoClose option to relays", async () => {
       await client.connectToRelays();
 
-      const subIds = client.subscribe(
-        [{ kinds: [1] }],
-        () => {},
-        undefined,
-        { autoClose: true },
-      );
+      const subIds = client.subscribe([{ kinds: [1] }], () => {}, undefined, {
+        autoClose: true,
+      });
 
       const relayMap = getNostrInternals(client).relays as Map<string, Relay>;
       const relay = Array.from(relayMap.values())[0] as Relay;
@@ -372,7 +368,9 @@ describe("Nostr Client", () => {
   describe("Fetch helpers", () => {
     test("fetchMany should return empty array when no relays", async () => {
       const emptyClient = new Nostr();
-      const events = await emptyClient.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+      const events = await emptyClient.fetchMany([{ kinds: [1] }], {
+        maxWait: 100,
+      });
       expect(events).toEqual([]);
     });
 
@@ -385,14 +383,18 @@ describe("Nostr Client", () => {
 
       // Wait for the relay to store the events, using polling
       await waitForCondition(async () => {
-        const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        const events = await client.fetchMany([{ kinds: [1] }], {
+          maxWait: 100,
+        });
         return events.length >= 2;
       }, 2000);
 
       const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 500 });
 
       const contents = events.map((e) => e.content);
-      expect(contents).toEqual(expect.arrayContaining(["note-one", "note-two"]));
+      expect(contents).toEqual(
+        expect.arrayContaining(["note-one", "note-two"]),
+      );
     });
 
     test("fetchOne should return the newest event", async () => {
@@ -400,21 +402,25 @@ describe("Nostr Client", () => {
       await client.connectToRelays();
 
       await client.publishTextNote("first-note");
-      
+
       // Wait for the first event to be stored
       await waitForCondition(async () => {
-        const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        const events = await client.fetchMany([{ kinds: [1] }], {
+          maxWait: 100,
+        });
         return events.length >= 1;
       }, 2000);
-      
+
       // Ensure we get a different timestamp by waiting at least 1 second
-      await new Promise(resolve => setTimeout(resolve, 1100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
       await client.publishTextNote("second-note");
 
       // Wait for the second event to be stored
       await waitForCondition(async () => {
-        const events = await client.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        const events = await client.fetchMany([{ kinds: [1] }], {
+          maxWait: 100,
+        });
         return events.length >= 2;
       }, 2000);
 
@@ -433,11 +439,13 @@ describe("Nostr Client", () => {
       await multi.connectToRelays();
 
       await multi.publishTextNote("multi-note");
-      
+
       // Wait for events to be stored and available, using polling
       // Note: Due to deduplication, the same event will only appear once even if received from multiple relays
       await waitForCondition(async () => {
-        const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        const events = await multi.fetchMany([{ kinds: [1] }], {
+          maxWait: 100,
+        });
         return events.length >= 1; // Should get the event (deduplicated across relays)
       }, 2000);
 
@@ -465,23 +473,27 @@ describe("Nostr Client", () => {
       await multi.connectToRelays();
 
       await multi.publishTextNote("old-note");
-      
+
       // Wait for first event to be stored, using polling
       // Note: Due to deduplication, the same event will only appear once even if received from multiple relays
       await waitForCondition(async () => {
-        const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        const events = await multi.fetchMany([{ kinds: [1] }], {
+          maxWait: 100,
+        });
         return events.length >= 1; // Should get the event (deduplicated across relays)
       }, 2000);
-      
+
       // Ensure we get a different timestamp by waiting at least 1 second
-      await new Promise(resolve => setTimeout(resolve, 1100));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+
       await multi.publishTextNote("new-note");
 
       // Wait for second event to be stored, using polling
       // Note: Due to deduplication, we expect 2 unique events (not 4 duplicates)
       await waitForCondition(async () => {
-        const events = await multi.fetchMany([{ kinds: [1] }], { maxWait: 100 });
+        const events = await multi.fetchMany([{ kinds: [1] }], {
+          maxWait: 100,
+        });
         return events.length >= 2; // Should get both unique events
       }, 2000);
 
@@ -496,20 +508,20 @@ describe("Nostr Client", () => {
     test("fetchMany should use default timeout when none provided", async () => {
       // Use fake timers to avoid waiting 5 seconds in tests
       jest.useFakeTimers();
-      
+
       try {
         // This test ensures our fix prevents hanging when no maxWait is provided
         const emptyClient = new Nostr(["ws://nonexistent.relay"]);
-        
+
         // Start the fetchMany call (should use default 5000ms timeout)
         const fetchPromise = emptyClient.fetchMany([{ kinds: [1] }]);
-        
+
         // Fast-forward time by the default timeout (5000ms)
         jest.advanceTimersByTime(5000);
-        
+
         // Await the result
         const events = await fetchPromise;
-        
+
         expect(events).toEqual([]);
       } finally {
         // Always restore real timers
@@ -522,11 +534,11 @@ describe("Nostr Client", () => {
     test("should initialize with default rate limits when no options provided", () => {
       const client = new Nostr([ephemeralRelay.url]);
       const limits = client.getRateLimits();
-      
+
       expect(limits).toEqual({
         subscribe: { limit: 50, windowMs: 60000 },
         publish: { limit: 100, windowMs: 60000 },
-        fetch: { limit: 200, windowMs: 60000 }
+        fetch: { limit: 200, windowMs: 60000 },
       });
     });
 
@@ -534,13 +546,13 @@ describe("Nostr Client", () => {
       const customRateLimits = {
         subscribe: { limit: 100, windowMs: 30000 },
         publish: { limit: 200, windowMs: 45000 },
-        fetch: { limit: 500, windowMs: 120000 }
+        fetch: { limit: 500, windowMs: 120000 },
       };
 
       const client = new Nostr([ephemeralRelay.url], {
-        rateLimits: customRateLimits
+        rateLimits: customRateLimits,
       });
-      
+
       const limits = client.getRateLimits();
       expect(limits).toEqual(customRateLimits);
     });
@@ -552,14 +564,14 @@ describe("Nostr Client", () => {
       };
 
       const client = new Nostr([ephemeralRelay.url], {
-        rateLimits: partialRateLimits
+        rateLimits: partialRateLimits,
       });
-      
+
       const limits = client.getRateLimits();
       expect(limits).toEqual({
         subscribe: { limit: 150, windowMs: 30000 },
-        publish: { limit: 100, windowMs: 60000 },    // default
-        fetch: { limit: 200, windowMs: 60000 }       // default
+        publish: { limit: 100, windowMs: 60000 }, // default
+        fetch: { limit: 200, windowMs: 60000 }, // default
       });
     });
 
@@ -567,32 +579,32 @@ describe("Nostr Client", () => {
       const client = new Nostr([ephemeralRelay.url], {
         relayOptions: {
           connectionTimeout: 5000,
-          bufferFlushDelay: 100
-        }
+          bufferFlushDelay: 100,
+        },
       });
-      
+
       const limits = client.getRateLimits();
       expect(limits).toEqual({
         subscribe: { limit: 50, windowMs: 60000 },
         publish: { limit: 100, windowMs: 60000 },
-        fetch: { limit: 200, windowMs: 60000 }
+        fetch: { limit: 200, windowMs: 60000 },
       });
     });
 
     test("should update rate limits dynamically", () => {
       const client = new Nostr([ephemeralRelay.url]);
-      
+
       // Verify initial defaults
       let limits = client.getRateLimits();
       expect(limits.subscribe!.limit).toBe(50);
       expect(limits.fetch!.limit).toBe(200);
-      
+
       // Update specific limits
       client.updateRateLimits({
         subscribe: { limit: 300, windowMs: 30000 },
-        fetch: { limit: 1000, windowMs: 90000 }
+        fetch: { limit: 1000, windowMs: 90000 },
       });
-      
+
       // Verify updates
       limits = client.getRateLimits();
       expect(limits.subscribe).toEqual({ limit: 300, windowMs: 30000 });
@@ -603,72 +615,72 @@ describe("Nostr Client", () => {
     test("should reset rate limit counters", async () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
-          subscribe: { limit: 1, windowMs: 60000 } // Very restrictive for testing
-        }
+          subscribe: { limit: 1, windowMs: 60000 }, // Very restrictive for testing
+        },
       });
-      
+
       await client.connectToRelays();
-      
+
       // Create first subscription (should work)
       client.subscribe([{ kinds: [1], limit: 1 }], () => {});
-      
+
       // Second subscription should be rate limited
       expect(() => {
         client.subscribe([{ kinds: [1], limit: 1 }], () => {});
       }).toThrow(/rate limit exceeded/i);
-      
+
       // Reset rate limits
       client.resetRateLimits();
-      
+
       // Should be able to subscribe again after reset
       expect(() => {
         client.subscribe([{ kinds: [1], limit: 1 }], () => {});
       }).not.toThrow();
-      
+
       client.disconnectFromRelays();
     });
 
     test("should enforce custom subscription rate limits", async () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
-          subscribe: { limit: 1, windowMs: 60000 } // Very restrictive
-        }
+          subscribe: { limit: 1, windowMs: 60000 }, // Very restrictive
+        },
       });
-      
+
       await client.connectToRelays();
-      
+
       // First subscription should work
       expect(() => {
         client.subscribe([{ kinds: [1], limit: 1 }], () => {});
       }).not.toThrow();
-      
+
       // Second subscription should be rate limited
       expect(() => {
         client.subscribe([{ kinds: [1], limit: 1 }], () => {});
       }).toThrow(/Subscription rate limit exceeded/);
-      
+
       client.disconnectFromRelays();
     });
 
     test("should enforce custom fetch rate limits", async () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
-          fetch: { limit: 1, windowMs: 60000 } // Very restrictive
-        }
+          fetch: { limit: 1, windowMs: 60000 }, // Very restrictive
+        },
       });
-      
+
       await client.connectToRelays();
-      
+
       // First fetch should work
       await expect(
-        client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 100 })
+        client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 100 }),
       ).resolves.toBeDefined();
-      
+
       // Second fetch should be rate limited
       await expect(
-        client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 100 })
+        client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 100 }),
       ).rejects.toThrow(/Fetch rate limit exceeded/);
-      
+
       client.disconnectFromRelays();
     });
 
@@ -676,41 +688,41 @@ describe("Nostr Client", () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
           subscribe: { limit: 10000, windowMs: 1000 }, // Very permissive
-          fetch: { limit: 10000, windowMs: 1000 }
-        }
+          fetch: { limit: 10000, windowMs: 1000 },
+        },
       });
-      
+
       await client.connectToRelays();
-      
+
       // Should be able to create many subscriptions quickly
       for (let i = 0; i < 10; i++) {
         expect(() => {
           client.subscribe([{ kinds: [1], limit: 1 }], () => {});
         }).not.toThrow();
       }
-      
+
       // Should be able to make many fetch requests quickly
       const fetchPromises = [];
       for (let i = 0; i < 5; i++) {
         fetchPromises.push(
-          client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 50 })
+          client.fetchMany([{ kinds: [1], limit: 1 }], { maxWait: 50 }),
         );
       }
-      
+
       await expect(Promise.all(fetchPromises)).resolves.toBeDefined();
-      
+
       client.disconnectFromRelays();
     });
 
     test("should handle rate limit configuration with custom time windows", () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
-          subscribe: { limit: 5, windowMs: 5000 },    // 5 per 5 seconds
-          publish: { limit: 10, windowMs: 10000 },    // 10 per 10 seconds
-          fetch: { limit: 20, windowMs: 20000 }       // 20 per 20 seconds
-        }
+          subscribe: { limit: 5, windowMs: 5000 }, // 5 per 5 seconds
+          publish: { limit: 10, windowMs: 10000 }, // 10 per 10 seconds
+          fetch: { limit: 20, windowMs: 20000 }, // 20 per 20 seconds
+        },
       });
-      
+
       const limits = client.getRateLimits();
       expect(limits.subscribe!.windowMs).toBe(5000);
       expect(limits.publish!.windowMs).toBe(10000);
@@ -720,24 +732,24 @@ describe("Nostr Client", () => {
     test("should reset rate limit state when updating limits", () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
-          subscribe: { limit: 1, windowMs: 60000 }
-        }
+          subscribe: { limit: 1, windowMs: 60000 },
+        },
       });
-      
+
       // Try to trigger rate limit state change (without actually hitting the limit)
       // We're testing that updateRateLimits resets the internal state
-      
+
       const originalLimits = client.getRateLimits();
-      
+
       // Update to new limits
       client.updateRateLimits({
-        subscribe: { limit: 100, windowMs: 30000 }
+        subscribe: { limit: 100, windowMs: 30000 },
       });
-      
+
       const updatedLimits = client.getRateLimits();
       expect(updatedLimits.subscribe!.limit).toBe(100);
       expect(updatedLimits.subscribe!.windowMs).toBe(30000);
-      
+
       // Other limits should remain unchanged
       expect(updatedLimits.publish).toEqual(originalLimits.publish);
       expect(updatedLimits.fetch).toEqual(originalLimits.fetch);
@@ -746,13 +758,13 @@ describe("Nostr Client", () => {
     test("should handle edge case with zero limits", () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
-          subscribe: { limit: 0, windowMs: 60000 } // Zero limit
-        }
+          subscribe: { limit: 0, windowMs: 60000 }, // Zero limit
+        },
       });
-      
+
       const limits = client.getRateLimits();
       expect(limits.subscribe!.limit).toBe(0);
-      
+
       // Any subscription should be immediately rate limited
       expect(() => {
         client.subscribe([{ kinds: [1], limit: 1 }], () => {});

@@ -1,15 +1,15 @@
 /**
  * Minimal NIP-46 Implementation from Scratch
- * 
- * This example demonstrates a basic NIP-46 remote signing implementation 
+ *
+ * This example demonstrates a basic NIP-46 remote signing implementation
  * supporting both NIP-44 (preferred) and NIP-04 (legacy) encryption methods
  * for secure communication between client and bunker.
- * 
+ *
  * Key NIP-46 concepts demonstrated:
  * - remote-signer-pubkey: Used in connection string for communication
  * - user-pubkey: Retrieved via get_public_key after connection
  * - Two-step connection: connect() then get_public_key()
- * 
+ *
  * NIP-44 is preferred for new implementations due to better security,
  * but NIP-04 is maintained for backward compatibility with existing clients.
  */
@@ -31,11 +31,19 @@ import { getEventHash } from "../../../src/nip01/event";
 import WebSocket from "ws";
 
 // Wrapper functions to provide NIP-44 style API for NIP-04 (for consistency)
-const encryptNIP04 = (plaintext: string, privateKey: string, publicKey: string): string => {
+const encryptNIP04 = (
+  plaintext: string,
+  privateKey: string,
+  publicKey: string,
+): string => {
   return _encryptNIP04(privateKey, publicKey, plaintext);
 };
 
-const decryptNIP04 = (ciphertext: string, privateKey: string, publicKey: string): string => {
+const decryptNIP04 = (
+  ciphertext: string,
+  privateKey: string,
+  publicKey: string,
+): string => {
   return _decryptNIP04(privateKey, publicKey, ciphertext);
 };
 
@@ -128,7 +136,7 @@ class MinimalNIP46Client {
     // Send connect request (establishes connection but doesn't return user pubkey)
     return await this.sendRequest("connect", [this.signerPubkey]);
   }
-  
+
   async getPublicKey(): Promise<string> {
     return await this.sendRequest("get_public_key", []);
   }
@@ -141,20 +149,44 @@ class MinimalNIP46Client {
     return await this.sendRequest("ping", []);
   }
 
-  async nip44Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
-    return await this.sendRequest("nip44_encrypt", [thirdPartyPubkey, plaintext]);
+  async nip44Encrypt(
+    thirdPartyPubkey: string,
+    plaintext: string,
+  ): Promise<string> {
+    return await this.sendRequest("nip44_encrypt", [
+      thirdPartyPubkey,
+      plaintext,
+    ]);
   }
 
-  async nip44Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
-    return await this.sendRequest("nip44_decrypt", [thirdPartyPubkey, ciphertext]);
+  async nip44Decrypt(
+    thirdPartyPubkey: string,
+    ciphertext: string,
+  ): Promise<string> {
+    return await this.sendRequest("nip44_decrypt", [
+      thirdPartyPubkey,
+      ciphertext,
+    ]);
   }
 
-  async nip04Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
-    return await this.sendRequest("nip04_encrypt", [thirdPartyPubkey, plaintext]);
+  async nip04Encrypt(
+    thirdPartyPubkey: string,
+    plaintext: string,
+  ): Promise<string> {
+    return await this.sendRequest("nip04_encrypt", [
+      thirdPartyPubkey,
+      plaintext,
+    ]);
   }
 
-  async nip04Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
-    return await this.sendRequest("nip04_decrypt", [thirdPartyPubkey, ciphertext]);
+  async nip04Decrypt(
+    thirdPartyPubkey: string,
+    ciphertext: string,
+  ): Promise<string> {
+    return await this.sendRequest("nip04_decrypt", [
+      thirdPartyPubkey,
+      ciphertext,
+    ]);
   }
 
   private async waitForOpen(): Promise<void> {
@@ -488,7 +520,11 @@ class MinimalNIP46Bunker {
           }
           try {
             const [thirdPartyPubkey, plaintext] = params;
-            result = encryptNIP44(plaintext, this.userKeys.privateKey, thirdPartyPubkey);
+            result = encryptNIP44(
+              plaintext,
+              this.userKeys.privateKey,
+              thirdPartyPubkey,
+            );
           } catch (encryptError) {
             error = `NIP-44 encryption failed: ${encryptError instanceof Error ? encryptError.message : String(encryptError)}`;
           }
@@ -501,7 +537,11 @@ class MinimalNIP46Bunker {
           }
           try {
             const [thirdPartyPubkey, ciphertext] = params;
-            result = decryptNIP44(ciphertext, this.userKeys.privateKey, thirdPartyPubkey);
+            result = decryptNIP44(
+              ciphertext,
+              this.userKeys.privateKey,
+              thirdPartyPubkey,
+            );
           } catch (decryptError) {
             error = `NIP-44 decryption failed: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`;
           }
@@ -514,7 +554,11 @@ class MinimalNIP46Bunker {
           }
           try {
             const [thirdPartyPubkey, plaintext] = params;
-            result = encryptNIP04(plaintext, this.userKeys.privateKey, thirdPartyPubkey);
+            result = encryptNIP04(
+              plaintext,
+              this.userKeys.privateKey,
+              thirdPartyPubkey,
+            );
           } catch (encryptError) {
             error = `NIP-04 encryption failed: ${encryptError instanceof Error ? encryptError.message : String(encryptError)}`;
           }
@@ -527,7 +571,11 @@ class MinimalNIP46Bunker {
           }
           try {
             const [thirdPartyPubkey, ciphertext] = params;
-            result = decryptNIP04(ciphertext, this.userKeys.privateKey, thirdPartyPubkey);
+            result = decryptNIP04(
+              ciphertext,
+              this.userKeys.privateKey,
+              thirdPartyPubkey,
+            );
           } catch (decryptError) {
             error = `NIP-04 decryption failed: ${decryptError instanceof Error ? decryptError.message : String(decryptError)}`;
           }
@@ -594,7 +642,9 @@ async function main() {
   console.log("Demonstrates the new NIP-46 flow:");
   console.log("1. Connect establishes the connection");
   console.log("2. get_public_key retrieves user's signing pubkey");
-  console.log("3. Shows difference between remote-signer-pubkey and user-pubkey");
+  console.log(
+    "3. Shows difference between remote-signer-pubkey and user-pubkey",
+  );
   console.log("");
 
   // Start a test relay
@@ -608,7 +658,9 @@ async function main() {
     const signerKeypair = await generateKeypair();
 
     console.log(`User pubkey (for signing): ${userKeypair.publicKey}`);
-    console.log(`Signer pubkey (for communication): ${signerKeypair.publicKey}`);
+    console.log(
+      `Signer pubkey (for communication): ${signerKeypair.publicKey}`,
+    );
 
     // Create and start bunker
     console.log("\nSetting up bunker...");
@@ -628,7 +680,7 @@ async function main() {
     // Create and connect client
     console.log("\nConnecting client...");
     const client = new MinimalNIP46Client(relay.url);
-    
+
     // Connect establishes the connection
     const connectResult = await client.connect(connectionString);
     console.log(`Connected! Result: ${connectResult}`);
@@ -637,8 +689,12 @@ async function main() {
     console.log("\nGetting user public key...");
     const userPubkey = await client.getPublicKey();
     console.log(`Retrieved user pubkey: ${userPubkey}`);
-    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`);
-    console.log(`Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey}`);
+    console.log(
+      `Matches original user pubkey: ${userPubkey === userKeypair.publicKey}`,
+    );
+    console.log(
+      `Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey}`,
+    );
 
     // Test ping
     console.log("\nTesting ping...");
@@ -661,7 +717,9 @@ async function main() {
     console.log(`- ID: ${parsedSignedEvent.id}`);
     console.log(`- Pubkey: ${parsedSignedEvent.pubkey}`);
     console.log(`- Signature: ${parsedSignedEvent.sig.substring(0, 20)}...`);
-    console.log(`- Signed with user pubkey: ${parsedSignedEvent.pubkey === userPubkey}`);
+    console.log(
+      `- Signed with user pubkey: ${parsedSignedEvent.pubkey === userPubkey}`,
+    );
 
     // Verify signature
     const valid = await verifySignature(

@@ -10,7 +10,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
  * This minimal example demonstrates NIP-46 remote signing functionality.
  * It creates a bunker (signer) and client, establishes a connection,
  * and performs basic operations like signing an event.
- * 
+ *
  * Key NIP-46 concepts demonstrated:
  * - remote-signer-pubkey: Used in connection string for communication
  * - user-pubkey: Retrieved via get_public_key after connection
@@ -18,30 +18,32 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
  */
 async function run() {
   // Create a local ephemeral relay for testing
-  const relay = new NostrRelay(4000);
-  const relays = [relay.url];
+  const relay = new NostrRelay(0);
 
   try {
     console.log("=== NIP-46 Minimal Example ===");
 
     // 1. Start the relay
     await relay.start();
+    const relays = [relay.url]; // Capture URL after relay starts
     console.log(`Using local ephemeral relay: ${relay.url}`);
 
     // 2. Generate test keypairs
     console.log("\nGenerating keypairs...");
     const userKeypair = await generateKeypair();
     const signerKeypair = await generateKeypair(); // Separate keypair for communication
-    
+
     console.log(`User public key (for signing): ${userKeypair.publicKey}`);
-    console.log(`Remote signer public key (for communication): ${signerKeypair.publicKey}`);
+    console.log(
+      `Remote signer public key (for communication): ${signerKeypair.publicKey}`,
+    );
 
     // 3. Create and start bunker with more verbose logging
     console.log("\nStarting bunker...");
     const bunker = new SimpleNIP46Bunker(
-      relays, 
+      relays,
       userKeypair.publicKey,
-      signerKeypair.publicKey
+      signerKeypair.publicKey,
     );
     bunker.setUserPrivateKey(userKeypair.privateKey);
     bunker.setSignerPrivateKey(signerKeypair.privateKey);
@@ -63,7 +65,7 @@ async function run() {
       timeout: 5000,
       logLevel: LogLevel.DEBUG,
     });
-    
+
     // Connect establishes the connection but doesn't return user pubkey
     const connectResult = await client.connect(connectionString);
     console.log(`Connected! Result: ${connectResult}`);
@@ -77,8 +79,12 @@ async function run() {
     console.log("\nGetting user public key from bunker...");
     const userPubkey = await client.getPublicKey();
     console.log(`Retrieved user public key: ${userPubkey}`);
-    console.log(`Matches original user pubkey: ${userPubkey === userKeypair.publicKey ? "Yes" : "No"}`);
-    console.log(`Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey ? "Yes" : "No"}`);
+    console.log(
+      `Matches original user pubkey: ${userPubkey === userKeypair.publicKey ? "Yes" : "No"}`,
+    );
+    console.log(
+      `Different from signer pubkey: ${userPubkey !== signerKeypair.publicKey ? "Yes" : "No"}`,
+    );
 
     // 8. Sign an event
     console.log("\nSigning a test event...");
@@ -93,7 +99,9 @@ async function run() {
     console.log("Event signed successfully:");
     console.log(`  ID: ${signedEvent.id}`);
     console.log(`  Pubkey: ${signedEvent.pubkey}`);
-    console.log(`  Signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`);
+    console.log(
+      `  Signed with user pubkey: ${signedEvent.pubkey === userPubkey ? "Yes" : "No"}`,
+    );
 
     // 9. Clean up
     console.log("\nCleaning up...");

@@ -61,7 +61,7 @@ export class SimpleNIP46Client {
     this.logger = new Logger({
       prefix: "Client",
       level: logLevel,
-      silent: process.env.NODE_ENV === 'test' // Silent in test environment
+      silent: process.env.NODE_ENV === "test", // Silent in test environment
     });
   }
 
@@ -80,12 +80,17 @@ export class SimpleNIP46Client {
 
       // Add relays from connection string to the client
       if (info.relays && info.relays.length > 0) {
-        this.logger.debug(`Adding relays from connection string: ${info.relays.join(', ')}`);
-        info.relays.forEach(relay => {
+        this.logger.debug(
+          `Adding relays from connection string: ${info.relays.join(", ")}`,
+        );
+        info.relays.forEach((relay) => {
           try {
             this.nostr.addRelay(relay);
           } catch (error) {
-            this.logger.warn(`Failed to add relay ${relay}:`, error instanceof Error ? error.message : String(error));
+            this.logger.warn(
+              `Failed to add relay ${relay}:`,
+              error instanceof Error ? error.message : String(error),
+            );
           }
         });
       }
@@ -120,27 +125,36 @@ export class SimpleNIP46Client {
       // Send connect request with proper parameters per NIP-46 spec
       // Ensure signerPubkey is not null before constructing params array
       if (!this.signerPubkey) {
-        throw new NIP46ConnectionError("Signer public key is not set. Connection string parsing may have failed.");
+        throw new NIP46ConnectionError(
+          "Signer public key is not set. Connection string parsing may have failed.",
+        );
       }
-      
+
       const connectParams = [
         this.signerPubkey,
         info.secret || "", // optional_secret
-        (info.permissions || []).join(",") // optional_requested_permissions
+        (info.permissions || []).join(","), // optional_requested_permissions
       ];
-      
-      const connectResponse = await this.sendRequest(NIP46Method.CONNECT, connectParams);
+
+      const connectResponse = await this.sendRequest(
+        NIP46Method.CONNECT,
+        connectParams,
+      );
       this.logger.info(`Connect request sent successfully`);
-      
+
       // Handle connect response per NIP-46 spec
       // First check for error response
       if (connectResponse.error) {
-        throw new NIP46ConnectionError(`Connection failed: ${connectResponse.error}`);
+        throw new NIP46ConnectionError(
+          `Connection failed: ${connectResponse.error}`,
+        );
       }
-      
+
       if (connectResponse.result !== "ack") {
         // If not "ack", it should be a required secret value
-        this.logger.debug(`Connect response requires secret: ${connectResponse.result}`);
+        this.logger.debug(
+          `Connect response requires secret: ${connectResponse.result}`,
+        );
         if (!info.secret || info.secret !== connectResponse.result) {
           throw new NIP46ConnectionError("Invalid or missing required secret");
         }
@@ -232,14 +246,19 @@ export class SimpleNIP46Client {
   /**
    * Encrypt a message using NIP-44 (preferred)
    */
-  async nip44Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
+  async nip44Encrypt(
+    thirdPartyPubkey: string,
+    plaintext: string,
+  ): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP44_ENCRYPT, [
       thirdPartyPubkey,
       plaintext,
     ]);
 
     if (response.error) {
-      throw new NIP46EncryptionError(`NIP-44 encryption failed: ${response.error}`);
+      throw new NIP46EncryptionError(
+        `NIP-44 encryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -248,14 +267,19 @@ export class SimpleNIP46Client {
   /**
    * Decrypt a message using NIP-44 (preferred)
    */
-  async nip44Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
+  async nip44Decrypt(
+    thirdPartyPubkey: string,
+    ciphertext: string,
+  ): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP44_DECRYPT, [
       thirdPartyPubkey,
       ciphertext,
     ]);
 
     if (response.error) {
-      throw new NIP46DecryptionError(`NIP-44 decryption failed: ${response.error}`);
+      throw new NIP46DecryptionError(
+        `NIP-44 decryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -264,14 +288,19 @@ export class SimpleNIP46Client {
   /**
    * Encrypt a message using NIP-04 (legacy support)
    */
-  async nip04Encrypt(thirdPartyPubkey: string, plaintext: string): Promise<string> {
+  async nip04Encrypt(
+    thirdPartyPubkey: string,
+    plaintext: string,
+  ): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP04_ENCRYPT, [
       thirdPartyPubkey,
       plaintext,
     ]);
 
     if (response.error) {
-      throw new NIP46EncryptionError(`NIP-04 encryption failed: ${response.error}`);
+      throw new NIP46EncryptionError(
+        `NIP-04 encryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -280,14 +309,19 @@ export class SimpleNIP46Client {
   /**
    * Decrypt a message using NIP-04 (legacy support)
    */
-  async nip04Decrypt(thirdPartyPubkey: string, ciphertext: string): Promise<string> {
+  async nip04Decrypt(
+    thirdPartyPubkey: string,
+    ciphertext: string,
+  ): Promise<string> {
     const response = await this.sendRequest(NIP46Method.NIP04_DECRYPT, [
       thirdPartyPubkey,
       ciphertext,
     ]);
 
     if (response.error) {
-      throw new NIP46DecryptionError(`NIP-04 decryption failed: ${response.error}`);
+      throw new NIP46DecryptionError(
+        `NIP-04 decryption failed: ${response.error}`,
+      );
     }
 
     return response.result!;
@@ -312,7 +346,10 @@ export class SimpleNIP46Client {
         this.logger.debug("Disconnect request sent to bunker");
       } catch (e) {
         // Ignore disconnect request errors - continue with cleanup
-        this.logger.warn("Failed to send disconnect request:", e instanceof Error ? e.message : String(e));
+        this.logger.warn(
+          "Failed to send disconnect request:",
+          e instanceof Error ? e.message : String(e),
+        );
       }
     }
 

@@ -4,7 +4,7 @@ import {
   Relay,
   RelayEvent,
   RelayEventCallbacks,
-  Subscription
+  Subscription,
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/relayUrl";
@@ -116,7 +116,8 @@ export function asTestRelay(relay: Relay): RelayTestAccess {
  * for consistency and to avoid type duplication.
  */
 export type RelayConnectCallback = RelayEventCallbacks[RelayEvent.Connect];
-export type RelayDisconnectCallback = RelayEventCallbacks[RelayEvent.Disconnect];
+export type RelayDisconnectCallback =
+  RelayEventCallbacks[RelayEvent.Disconnect];
 export type RelayErrorCallback = RelayEventCallbacks[RelayEvent.Error];
 export type RelayNoticeCallback = RelayEventCallbacks[RelayEvent.Notice];
 export type RelayOkCallback = RelayEventCallbacks[RelayEvent.OK];

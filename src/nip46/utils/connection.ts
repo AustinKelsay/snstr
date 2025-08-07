@@ -7,19 +7,26 @@ export interface BuildConnectionStringOptions {
 /**
  * Build a bunker connection string from parameters.
  */
-export function buildConnectionString(options: BuildConnectionStringOptions): string {
+export function buildConnectionString(
+  options: BuildConnectionStringOptions,
+): string {
   const params = new URLSearchParams();
   options.relays?.forEach((relay) => params.append("relay", relay));
   if (options.secret) {
     params.append("secret", options.secret);
   }
   const queryString = params.toString();
-  return `bunker://${options.pubkey}${queryString ? `?${queryString}` : ''}`;
+  return `bunker://${options.pubkey}${queryString ? `?${queryString}` : ""}`;
 }
 
 import { NIP46ConnectionError, NIP46SecurityError } from "../types";
 import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
-import { validatePubkey, validateRelayUrl, validatePermission, sanitizeString } from "./validator";
+import {
+  validatePubkey,
+  validateRelayUrl,
+  validatePermission,
+  sanitizeString,
+} from "./validator";
 
 /**
  * Enhanced security patterns to detect potential injection attacks
@@ -35,7 +42,7 @@ const SECURITY_PATTERNS = {
   // Basic XSS patterns
   BASIC_XSS: /[<>"']/,
   // Protocol confusion
-  PROTOCOL_CONFUSION: /https?:\/\/.*:\/\//i
+  PROTOCOL_CONFUSION: /https?:\/\/.*:\/\//i,
 };
 
 /**
@@ -45,14 +52,18 @@ function validateConnectionSecurity(str: string): void {
   // Check each security pattern
   for (const [name, pattern] of Object.entries(SECURITY_PATTERNS)) {
     if (pattern.test(str)) {
-      throw new NIP46SecurityError(`Connection string contains potentially dangerous pattern: ${name.toLowerCase()}`);
+      throw new NIP46SecurityError(
+        `Connection string contains potentially dangerous pattern: ${name.toLowerCase()}`,
+      );
     }
   }
-  
+
   // Additional validation for URL structure
-  const urlParts = str.split('?');
+  const urlParts = str.split("?");
   if (urlParts.length > 2) {
-    throw new NIP46SecurityError("Connection string has malformed query parameters");
+    throw new NIP46SecurityError(
+      "Connection string has malformed query parameters",
+    );
   }
 }
 
@@ -61,12 +72,15 @@ function validateConnectionSecurity(str: string): void {
  */
 export function parseConnectionString(str: string): NIP46ConnectionInfo {
   // Basic format validation
-  if (!str || typeof str !== 'string') {
-    throw new NIP46ConnectionError("Connection string must be a non-empty string");
+  if (!str || typeof str !== "string") {
+    throw new NIP46ConnectionError(
+      "Connection string must be a non-empty string",
+    );
   }
 
   // Prevent potential DoS attacks with extremely long strings
-  if (str.length > 8192) { // 8KB limit
+  if (str.length > 8192) {
+    // 8KB limit
     throw new NIP46SecurityError("Connection string too long");
   }
 
@@ -84,19 +98,24 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
   const type = str.startsWith("bunker://") ? "bunker" : "nostrconnect";
   const protocolPrefix = type === "bunker" ? "bunker://" : "nostrconnect://";
   const afterProtocol = str.slice(protocolPrefix.length);
-  
+
   // Extract pubkey from original string to preserve case for validation
   // Match pattern: protocol://pubkey?params or protocol://pubkey#fragment or protocol://pubkey/path or protocol://pubkey
   // Find the earliest occurrence of '/', '?' (query), or '#' (fragment) to properly delimit the pubkey
   const pathStart = afterProtocol.indexOf("/");
   const queryStart = afterProtocol.indexOf("?");
   const fragmentStart = afterProtocol.indexOf("#");
-  
+
   // Find the earliest delimiter (path, query, or fragment), or use the entire string if none exist
-  const delimiters = [pathStart, queryStart, fragmentStart].filter(pos => pos !== -1);
+  const delimiters = [pathStart, queryStart, fragmentStart].filter(
+    (pos) => pos !== -1,
+  );
   const delimiterStart = delimiters.length > 0 ? Math.min(...delimiters) : -1;
-  
-  const pubkey = delimiterStart === -1 ? afterProtocol : afterProtocol.slice(0, delimiterStart);
+
+  const pubkey =
+    delimiterStart === -1
+      ? afterProtocol
+      : afterProtocol.slice(0, delimiterStart);
 
   // Validate pubkey using secure validator
   if (!validatePubkey(pubkey)) {
@@ -108,26 +127,38 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
   try {
     const url = new URL(str);
 
-         // Validate and filter relay URLs securely
-     const allRelays = url.searchParams.getAll("relay");
-     const relays = allRelays.filter(relay => {
-       // Use enhanced relay validation
-       return validateRelayUrl(relay);
-     });
+    // Validate and filter relay URLs securely
+    const allRelays = url.searchParams.getAll("relay");
+    const relays = allRelays.filter((relay) => {
+      // Use enhanced relay validation
+      return validateRelayUrl(relay);
+    });
+
+    // Fail fast if all relay URLs are invalid
+    if (allRelays.length > 0 && relays.length === 0) {
+      throw new NIP46ConnectionError(
+        `All relay URLs in connection string are invalid. Provided relays: ${allRelays.join(", ")}`,
+      );
+    }
 
     // Validate secret token if present
     const secret = url.searchParams.get("secret") || undefined;
     if (secret && (secret.length < 8 || secret.length > 128)) {
-      throw new NIP46SecurityError("Secret token must be between 8 and 128 characters");
+      throw new NIP46SecurityError(
+        "Secret token must be between 8 and 128 characters",
+      );
     }
 
     // Validate and parse permissions
     const permissionsParam = url.searchParams.get("perms");
     let permissions: string[] | undefined;
     if (permissionsParam) {
-      permissions = permissionsParam.split(",").map(p => p.trim()).filter(p => {
-        return validatePermission(p);
-      });
+      permissions = permissionsParam
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => {
+          return validatePermission(p);
+        });
     }
 
     // Sanitize metadata fields
@@ -160,11 +191,15 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
 
     return { type, pubkey, relays, secret, permissions, metadata };
   } catch (error) {
-    if (error instanceof NIP46SecurityError || error instanceof NIP46ConnectionError) {
+    if (
+      error instanceof NIP46SecurityError ||
+      error instanceof NIP46ConnectionError
+    ) {
       throw error;
     }
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new NIP46ConnectionError(`Failed to parse connection string: ${errorMessage}`);
+    throw new NIP46ConnectionError(
+      `Failed to parse connection string: ${errorMessage}`,
+    );
   }
 }
-

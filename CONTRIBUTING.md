@@ -91,54 +91,15 @@ The CI pipeline runs tests for both `main` and `staging` branches, but releases 
 
 ## Release Process
 
-SNSTR uses a manual release process.
+SNSTR uses GitHub Actions for automated releases. For detailed release instructions, see [RELEASE.md](RELEASE.md).
 
-### Manual Release
+### Quick Release Guide
 
-To perform releases:
+1. Ensure you're on the main branch with all changes merged
+2. Update [CHANGELOG.md](CHANGELOG.md) with release notes
+3. Go to [Actions](https://github.com/AustinKelsay/snstr/actions) → "Release to NPM"
+4. Run workflow with appropriate version bump (patch/minor/major)
 
-1. Make sure you're on the main branch with the latest changes: 
-   ```bash
-   git checkout main
-   git pull
-   ```
+The workflow will automatically handle versioning, tagging, npm publishing, and GitHub release creation.
 
-2. Use one of the release scripts based on the version bump you want:
-   ```bash
-   # For a patch release (0.1.0 -> 0.1.1)
-   npm run release:patch
-   
-   # For a minor release (0.1.0 -> 0.2.0)
-   npm run release:minor
-   
-   # For a major release (0.1.0 -> 1.0.0)
-   npm run release:major
-   ```
-
-3. Push the changes and tags:
-   ```bash
-   npm run release:push
-   ```
-
-   Or use the combined command:
-   ```bash
-   npm run release
-   ```
-
-### Release Checklist
-
-Before releasing, ensure:
-
-- All tests pass
-- The changelog is updated
-- Documentation is up-to-date
-- Breaking changes are clearly documented
-- The version follows semantic versioning
-
-### Publish to npm
-
-To publish to npm, you need:
-
-1. An npm account with publish access to the package
-2. To be logged in (`npm login`) 
-3. Run `npm publish` to publish the package 
+For the complete release process, requirements, and troubleshooting, refer to [RELEASE.md](RELEASE.md). 

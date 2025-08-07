@@ -164,7 +164,6 @@ describe("Nostr Client Integration", () => {
       nostr.unsubscribe(subId1);
       nostr.unsubscribe(subId2);
 
-
       // We expect at least some events to be received by the subscriptions
       expect(events1.length + events2.length).toBeGreaterThan(0);
     });

@@ -15,14 +15,14 @@ export interface RelayDiscoveryEventOptions {
   content?: string | Record<string, unknown>;
   network?: string;
   relayType?: string;
-  /** 
+  /**
    * Supported NIPs - can be provided as numbers or strings,
    * but will be converted to strings during event creation
    */
   supportedNips?: NipNumber[];
   requirements?: string[];
   topics?: string[];
-  /** 
+  /**
    * Event kinds - can be provided as numbers or strings,
    * but will be converted to strings during event creation
    */
@@ -38,14 +38,14 @@ export interface ParsedRelayDiscoveryEvent {
   relay: string;
   network?: string;
   relayType?: string;
-  /** 
+  /**
    * Supported NIPs - parsed from event tags as strings
    * (even if originally provided as numbers)
    */
   supportedNips: string[];
   requirements: string[];
   topics: string[];
-  /** 
+  /**
    * Event kinds - parsed from event tags as strings
    * (even if originally provided as numbers)
    */

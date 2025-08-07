@@ -16,13 +16,22 @@ describe("NIP-46 Permission Handling", () => {
   let bunker: SimpleNIP46Bunker;
   let client: SimpleNIP46Client;
 
-  beforeEach(async () => {
-    // Start ephemeral relay for testing (use 0 to let OS assign free port)
+  beforeAll(async () => {
+    // Start ephemeral relay once for all tests
     relay = new NostrRelay(0);
     await relay.start();
     relayUrl = relay.url;
+  });
 
-    // Generate keypairs
+  afterAll(async () => {
+    // Clean up relay after all tests
+    if (relay) {
+      await relay.close();
+    }
+  });
+
+  beforeEach(async () => {
+    // Generate fresh keypairs for each test
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
 
@@ -50,17 +59,6 @@ describe("NIP-46 Permission Handling", () => {
       } catch (error) {
         console.error("Error stopping bunker:", error);
       }
-    }
-
-    try {
-      await Promise.race([
-        relay.close(),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Relay close timeout")), 5000),
-        ),
-      ]);
-    } catch (error) {
-      console.error("Error closing relay:", error);
     }
 
     // Ensure we've disconnected the client
@@ -272,7 +270,7 @@ describe("NIP-46 Permission Handling", () => {
   }, 7000);
 
   test("Bunker with NIP-04 encryption permissions (deprecated - use NIP-44 instead)", async () => {
-    // Create bunker with NIP-04 encryption permissions  
+    // Create bunker with NIP-04 encryption permissions
     // Note: NIP-04 is considered deprecated due to security concerns, prefer NIP-44
     bunker = new SimpleNIP46Bunker(
       [relayUrl],
@@ -353,7 +351,7 @@ describe("NIP-46 Permission Handling", () => {
       } catch (error) {
         // Ignore cleanup errors
       }
-      
+
       // Stop bunker second
       try {
         if (customBunker) {
@@ -363,7 +361,7 @@ describe("NIP-46 Permission Handling", () => {
       } catch (error) {
         // Ignore cleanup errors
       }
-      
+
       // Give time for all resources to cleanup
       await new Promise((resolve) => setTimeout(resolve, 300));
     });
@@ -401,7 +399,7 @@ describe("NIP-46 Permission Handling", () => {
           content: "This should fail",
           created_at: Math.floor(Date.now() / 1000),
           tags: [["p", "recipient"]],
-        })
+        }),
       ).rejects.toThrow();
     });
 
@@ -419,7 +417,7 @@ describe("NIP-46 Permission Handling", () => {
           content: "Should fail",
           created_at: Math.floor(Date.now() / 1000),
           tags: [],
-        })
+        }),
       ).rejects.toThrow();
 
       // Clear handler and add default permissions

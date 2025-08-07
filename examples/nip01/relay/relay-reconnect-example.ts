@@ -17,7 +17,7 @@ import { Relay, RelayEvent } from "../../../src/index";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
-const RELAY_PORT = 3337;
+const RELAY_PORT = 0;
 
 // Configure logging based on environment variables
 const verbose = process.env.VERBOSE === "1";
@@ -112,7 +112,9 @@ async function main() {
 
   // Also demonstrate how to control reconnection programmatically
   console.log("\nReconnection control methods:");
-  console.log("- relay.setAutoReconnect(false) - Disable automatic reconnection");
+  console.log(
+    "- relay.setAutoReconnect(false) - Disable automatic reconnection",
+  );
   console.log("- relay.setAutoReconnect(true) - Enable automatic reconnection");
   console.log(
     "- relay.setMaxReconnectAttempts(10) - Set maximum reconnection attempts",

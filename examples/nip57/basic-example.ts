@@ -26,7 +26,7 @@ async function main() {
   console.log("-----------------------------\n");
 
   // Start an ephemeral relay for testing and demonstration
-  const relay = new NostrRelay(3333, 60); // Change port to 3333
+  const relay = new NostrRelay(0, 60); // Change port to 3333
   await relay.start();
   console.log(`🔌 Ephemeral relay started at ${relay.url}\n`);
 

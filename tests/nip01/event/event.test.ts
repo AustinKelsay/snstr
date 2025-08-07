@@ -253,25 +253,29 @@ describe("Event Creation and Signing", () => {
       for (const invalidPubkey of invalidPubkeys) {
         await expect(
           createDirectMessage(content, invalidPubkey, privateKey),
-        ).rejects.toMatchObject({ 
-          field: "recipientPubkey" 
+        ).rejects.toMatchObject({
+          field: "recipientPubkey",
         });
       }
     });
 
     it("should throw NostrValidationError for missing or null recipient pubkey", async () => {
       const content = "Secret message";
-      
+
       await expect(
         createDirectMessage(content, null as unknown as string, privateKey),
-      ).rejects.toMatchObject({ 
-        field: "recipientPubkey" 
+      ).rejects.toMatchObject({
+        field: "recipientPubkey",
       });
 
       await expect(
-        createDirectMessage(content, undefined as unknown as string, privateKey),
-      ).rejects.toMatchObject({ 
-        field: "recipientPubkey" 
+        createDirectMessage(
+          content,
+          undefined as unknown as string,
+          privateKey,
+        ),
+      ).rejects.toMatchObject({
+        field: "recipientPubkey",
       });
     });
   });
@@ -400,7 +404,7 @@ describe("Event Creation and Signing", () => {
     const baseTime = Math.floor(Date.now() / 1000);
 
     // Generate a second valid key pair for testing
-    const alternativePrivateKey = 
+    const alternativePrivateKey =
       "2222222222222222222222222222222222222222222222222222222222222222";
     const alternativePublicKey = getPublicKey(alternativePrivateKey);
 
@@ -470,7 +474,10 @@ describe("Event Creation and Signing", () => {
 
       it("should throw NostrValidationError for an uppercase hex pubkey", async () => {
         // Use an uppercase version of a valid pubkey
-        const event = { ...baseEvent, pubkey: alternativePublicKey.toUpperCase() };
+        const event = {
+          ...baseEvent,
+          pubkey: alternativePublicKey.toUpperCase(),
+        };
         await expect(
           validateEvent(event, {
             validateSignatures: false,
@@ -487,7 +494,8 @@ describe("Event Creation and Signing", () => {
       it("should throw NostrValidationError for an invalid curve point", async () => {
         // Test with a hex string that passes format validation but is not a valid curve point
         // Using a value just below the field prime that is not a valid x-coordinate
-        const invalidPubkey = "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"; // This passes format but fails curve point validation
+        const invalidPubkey =
+          "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"; // This passes format but fails curve point validation
         const event = { ...baseEvent, pubkey: invalidPubkey };
         await expect(
           validateEvent(event, {

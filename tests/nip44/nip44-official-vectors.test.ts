@@ -43,16 +43,14 @@ describe("NIP-44 implementation against official test vectors", () => {
     test("testing with the simplest vector", () => {
       // Use the simplest test vector from the set
       const vector = testVectors.v2.valid.encrypt_decrypt[0];
-      
+
       const { sec1, sec2, conversation_key, nonce, plaintext, payload } =
         vector;
 
-            
       // Calculate public keys
       const pub1 = getPublicKeyHex(sec1);
       const pub2 = getPublicKeyHex(sec2);
 
-            
       // Get shared secret
       const sharedSecret1 = getSharedSecret(sec1, pub2);
       const sharedSecret2 = getSharedSecret(sec2, pub1);
@@ -63,13 +61,13 @@ describe("NIP-44 implementation against official test vectors", () => {
 
       // Decode the payload to inspect components
       const decodedPayload = decodePayload(payload);
-      
+
       // Get message keys and compare with expected
       const nonceBytes = hexToBytes(nonce);
       const conversationKeyBytes = hexToBytes(conversation_key);
 
       const keys = getMessageKeys(conversationKeyBytes, nonceBytes);
-      
+
       // Calculate the HMAC to see if it matches
       const calculatedMac = hmacWithAAD(
         keys.hmac_key,
@@ -80,11 +78,11 @@ describe("NIP-44 implementation against official test vectors", () => {
       expect(Buffer.from(calculatedMac).toString("hex")).toBe(
         Buffer.from(decodedPayload.mac).toString("hex"),
       );
-            
+
       try {
         // Decrypt the payload
         const decrypted = decrypt(payload, sec2, pub1);
-                expect(decrypted).toBe(plaintext);
+        expect(decrypted).toBe(plaintext);
       } catch (error) {
         console.error("Decryption failed:", error);
         throw error;
@@ -104,28 +102,28 @@ describe("NIP-44 implementation against official test vectors", () => {
         const pub2 = getPublicKeyHex(sec2);
 
         // Test V0 encryption (should fail)
-                expect(() => {
+        expect(() => {
           encrypt(plaintext, sec1, pub2, undefined, { version: 0 });
         }).toThrowError(
           "NIP-44: Encryption with version 0 is not permitted by the NIP-44 specification. Only decryption is supported for v0.",
         );
-        
+
         // Test V1 encryption (should fail)
-                expect(() => {
+        expect(() => {
           encrypt(plaintext, sec1, pub2, undefined, { version: 1 });
         }).toThrowError(
           "NIP-44: Encryption with version 1 is not permitted by the NIP-44 specification. Only decryption is supported for v1.",
         );
-        
+
         // Test V2 encryption (should succeed)
-                const encryptedV2 = encrypt(plaintext, sec1, pub2, undefined, {
+        const encryptedV2 = encrypt(plaintext, sec1, pub2, undefined, {
           version: 2,
         });
         const decodedForCheckV2 = decodePayload(encryptedV2);
         expect(decodedForCheckV2.version).toBe(2);
-                const decryptedV2 = decrypt(encryptedV2, sec2, pub1);
+        const decryptedV2 = decrypt(encryptedV2, sec2, pub1);
         expect(decryptedV2).toBe(plaintext);
-              }
+      }
     });
 
     test("should correctly encrypt (default V2) and decrypt our own messages", () => {
@@ -166,7 +164,7 @@ describe("NIP-44 implementation against official test vectors", () => {
           // Try to decrypt the test vector payload
           const decrypted = decrypt(payload, sec2, pub1);
           expect(decrypted).toBe(plaintext);
-                  } catch (error) {
+        } catch (error) {
           // Log the error but don't fail the test, as there may be subtle
           // differences in how MACs were generated in reference implementation
           console.warn(
@@ -246,7 +244,7 @@ describe("NIP-44 implementation against official test vectors", () => {
       expect(decodedV2.nonce.length).toBe(32); // NONCE_SIZE_V2
       expect(decodedV2.mac.length).toBe(32); // MAC_SIZE_V2
       expect(decodedV2.ciphertext.length).toBeGreaterThan(0);
-      
+
       // Test V0 payload decoding by tampering a V2 payload's version byte
       let v2Buffer = Buffer.from(encryptedV2ForDecode, "base64");
       if (v2Buffer.length > 0) {
@@ -257,7 +255,7 @@ describe("NIP-44 implementation against official test vectors", () => {
         expect(decodedV0.nonce.length).toBe(32); // NONCE_SIZE_V0 (assuming 32)
         expect(decodedV0.mac.length).toBe(32); // MAC_SIZE_V0 (assuming 32)
         expect(decodedV0.ciphertext.length).toBeGreaterThan(0);
-              } else {
+      } else {
         throw new Error(
           "Failed to create a V2 payload for V0 tampering in decode test",
         );
@@ -283,7 +281,7 @@ describe("NIP-44 implementation against official test vectors", () => {
         expect(decodedV1.nonce.length).toBe(32); // NONCE_SIZE_V1 (assuming 32)
         expect(decodedV1.mac.length).toBe(32); // MAC_SIZE_V1 (assuming 32)
         expect(decodedV1.ciphertext.length).toBeGreaterThan(0);
-              } else {
+      } else {
         throw new Error(
           "Failed to create a V2 payload for V1 tampering in decode test",
         );

@@ -15,8 +15,8 @@ import { NostrRelay } from "../../../src/utils/ephemeral-relay";
  * npm run example:nip01:relay:query
  */
 async function main() {
-  const relayA = new NostrRelay(3801);
-  const relayB = new NostrRelay(3802);
+  const relayA = new NostrRelay(0);
+  const relayB = new NostrRelay(0);
   await relayA.start();
   await relayB.start();
 

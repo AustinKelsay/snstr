@@ -2,10 +2,10 @@
 
 /**
  * NIP-46 Examples Test Runner
- * 
+ *
  * This script systematically runs all NIP-46 examples to verify they work correctly.
  * It demonstrates the key changes in the NIP-46 specification:
- * 
+ *
  * 1. remote-signer-key is introduced and passed in bunker URL
  * 2. Clients must differentiate between remote-signer-pubkey and user-pubkey
  * 3. Must call get_public_key() after connect()
@@ -31,7 +31,7 @@ const examples = [
   },
   {
     name: "Basic Example",
-    script: "examples/nip46/basic-example.ts", 
+    script: "examples/nip46/basic-example.ts",
     timeout: 30000,
   },
   {
@@ -67,7 +67,7 @@ async function runExample(example: {
   timeout: number;
 }): Promise<ExampleResult> {
   const startTime = Date.now();
-  
+
   return new Promise((resolve) => {
     const child = spawn("npx", ["ts-node", example.script], {
       stdio: ["pipe", "pipe", "pipe"],
@@ -100,7 +100,7 @@ async function runExample(example: {
     child.on("close", (code) => {
       clearTimeout(timeout);
       const duration = Date.now() - startTime;
-      
+
       resolve({
         name: example.name,
         success: code === 0,
@@ -127,9 +127,13 @@ async function main() {
   console.log("🚀 NIP-46 Examples Test Runner");
   console.log("===============================");
   console.log("");
-  console.log("Testing all NIP-46 examples to verify compliance with the updated specification:");
+  console.log(
+    "Testing all NIP-46 examples to verify compliance with the updated specification:",
+  );
   console.log("✓ remote-signer-key introduced in bunker URL");
-  console.log("✓ Clients differentiate between remote-signer-pubkey and user-pubkey");
+  console.log(
+    "✓ Clients differentiate between remote-signer-pubkey and user-pubkey",
+  );
   console.log("✓ Must call get_public_key() after connect()");
   console.log("✓ NIP-05 login removed");
   console.log("✓ create_account moved to another NIP");
@@ -142,7 +146,7 @@ async function main() {
   for (let i = 0; i < examples.length; i++) {
     const example = examples[i];
     console.log(`[${i + 1}/${totalTests}] Running: ${example.name}`);
-    
+
     const result = await runExample(example);
     results.push(result);
 
@@ -164,26 +168,32 @@ async function main() {
   console.log(`Total tests: ${totalTests}`);
   console.log(`Passed: ${passedTests}`);
   console.log(`Failed: ${totalTests - passedTests}`);
-  console.log(`Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`);
+  console.log(
+    `Success rate: ${((passedTests / totalTests) * 100).toFixed(1)}%`,
+  );
   console.log("");
 
   // Detailed results
-  if (results.some(r => !r.success)) {
+  if (results.some((r) => !r.success)) {
     console.log("❌ FAILED TESTS:");
     console.log("================");
-    results.filter(r => !r.success).forEach(result => {
-      console.log(`\n${result.name}:`);
-      console.log(`  Error: ${result.error}`);
-      if (result.output) {
-        console.log(`  Last output: ${result.output.split('\n').slice(-5).join('\n')}`);
-      }
-    });
+    results
+      .filter((r) => !r.success)
+      .forEach((result) => {
+        console.log(`\n${result.name}:`);
+        console.log(`  Error: ${result.error}`);
+        if (result.output) {
+          console.log(
+            `  Last output: ${result.output.split("\n").slice(-5).join("\n")}`,
+          );
+        }
+      });
   }
 
   // Key compliance points
   console.log("🔍 NIP-46 SPECIFICATION COMPLIANCE:");
   console.log("====================================");
-  
+
   const complianceChecks = [
     "Connection strings contain remote-signer-pubkey (not user-pubkey)",
     "connect() establishes connection but doesn't return user-pubkey",
@@ -198,9 +208,11 @@ async function main() {
   });
 
   console.log("");
-  
+
   if (passedTests === totalTests) {
-    console.log("🎉 ALL EXAMPLES PASSED! NIP-46 implementation is working correctly.");
+    console.log(
+      "🎉 ALL EXAMPLES PASSED! NIP-46 implementation is working correctly.",
+    );
     process.exit(0);
   } else {
     console.log("⚠️  Some examples failed. Please check the errors above.");
@@ -223,4 +235,4 @@ process.on("uncaughtException", (error) => {
 main().catch((error) => {
   console.error("Test runner failed:", error);
   process.exit(1);
-}); 
+});

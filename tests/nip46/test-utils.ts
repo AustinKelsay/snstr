@@ -1,4 +1,8 @@
-import { SimpleNIP46Client, SimpleNIP46Bunker, LogLevel } from "../../src/nip46";
+import {
+  SimpleNIP46Client,
+  SimpleNIP46Bunker,
+  LogLevel,
+} from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 
@@ -17,18 +21,19 @@ export class TestManager {
 
   async createTestSetup(preferredPort?: number): Promise<TestSetup> {
     // Use port 0 for automatic port assignment to avoid conflicts
-    const port = preferredPort && !this.usedPorts.has(preferredPort) ? preferredPort : 0;
-    
+    const port =
+      preferredPort && !this.usedPorts.has(preferredPort) ? preferredPort : 0;
+
     const relay = new NostrRelay(port);
     await relay.start();
-    
+
     // Track the actual port being used
     const relayUrl = new URL(relay.url);
     const actualPort = parseInt(relayUrl.port);
     if (!isNaN(actualPort)) {
       this.usedPorts.add(actualPort);
     }
-    
+
     const setup: TestSetup = {
       relay,
       relayUrl: relay.url,
@@ -51,7 +56,7 @@ export class TestManager {
       undefined,
       {
         logLevel: LogLevel.ERROR, // Only log errors for performance
-      }
+      },
     );
 
     // Set both private keys
@@ -59,13 +64,10 @@ export class TestManager {
     bunker.setUserPrivateKey(setup.userKeypair.privateKey);
 
     // Create client with reduced logging for performance
-    const client = new SimpleNIP46Client(
-      [setup.relayUrl],
-      {
-        logLevel: LogLevel.ERROR, // Only log errors for performance
-        timeout: 2000, // Reduce timeout from default for faster failures
-      }
-    );
+    const client = new SimpleNIP46Client([setup.relayUrl], {
+      logLevel: LogLevel.ERROR, // Only log errors for performance
+      timeout: 2000, // Reduce timeout from default for faster failures
+    });
 
     // Start bunker
     await bunker.start();
@@ -115,14 +117,14 @@ export class TestManager {
         } catch (e) {
           // Ignore all cleanup errors
         }
-      })
+      }),
     );
 
     // Clear setups
     this.setups = [];
 
     // Reduce cleanup delay from 100ms to 25ms
-    await new Promise(resolve => setTimeout(resolve, 25));
+    await new Promise((resolve) => setTimeout(resolve, 25));
   }
 }
 
@@ -130,8 +132,8 @@ export class TestManager {
 export const globalTestManager = new TestManager();
 
 // Setup global cleanup
-if (typeof afterAll !== 'undefined') {
+if (typeof afterAll !== "undefined") {
   afterAll(async () => {
     await globalTestManager.cleanup();
   });
-} 
+}

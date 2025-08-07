@@ -1,7 +1,10 @@
 // Export client classes
 export { Nostr } from "./nip01/nostr";
 export { Relay } from "./nip01/relay";
-export { useWebSocketImplementation, resetWebSocketImplementation } from "./utils/websocket";
+export {
+  useWebSocketImplementation,
+  resetWebSocketImplementation,
+} from "./utils/websocket";
 export { RelayPool } from "./nip01/relayPool";
 
 // Export types from nip01/nostr.ts (Callback types and configuration)
@@ -63,6 +66,10 @@ export {
   relaySupportsNIPs,
   getRelayPaymentInfo,
   relayRequiresPayment,
+} from "./nip11";
+
+// Export NIP-11 types
+export type {
   RelayInfo,
   RelayLimitation,
   RelayFees,
@@ -87,6 +94,7 @@ export {
   FILE_KIND,
   GIFT_WRAP_KIND,
   SEAL_KIND,
+  initializeCrypto as initializeNIP17Crypto,
 } from "./nip17";
 
 // Export NIP-19 utilities
@@ -182,6 +190,7 @@ export {
   NIP46BunkerOptions,
   NIP46Metadata,
 } from "./nip46/index";
+export { isValidAuthUrl } from "./nip46/utils/auth";
 
 // NIP-57: Lightning Zaps
 export {
@@ -241,6 +250,10 @@ export {
   NIP47Transaction,
   NIP47ConnectionOptions,
   TransactionType,
+  NIP47EncryptionScheme,
+  GetInfoResponseResult,
+  PaymentResponseResult,
+  MakeInvoiceResponseResult,
 } from "./nip47";
 
 // NIP-50 search utilities
@@ -266,3 +279,10 @@ export {
   createRelayMonitorAnnouncement,
   parseRelayMonitorAnnouncement,
 } from "./nip66";
+
+// Deprecated alias for backward compatibility
+import { initializeCrypto as initializeNIP17CryptoImport } from "./nip17";
+/**
+ * @deprecated Use initializeNIP17Crypto instead. This alias will be removed in the next major version.
+ */
+export const initializeCrypto = initializeNIP17CryptoImport;

@@ -5,6 +5,7 @@ import { getEventHash } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
 import { createEvent, createSignedEvent } from "../nip01/event";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
+import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import {
   NIP47Method,
   NIP47Request,
@@ -23,12 +24,96 @@ import {
   ListTransactionsParams,
   SignMessageParams,
   NIP47ResponseResult,
+  NIP47EncryptionScheme,
 } from "./types";
-import { 
-  validateArrayAccess, 
+import {
+  validateArrayAccess,
   safeArrayAccess,
-  SecurityValidationError 
+  SecurityValidationError,
 } from "../utils/security-validator";
+
+/**
+ * TTL Map implementation with automatic cleanup
+ */
+class TTLMap<K, V> {
+  private store = new Map<K, { value: V; expiry: number }>();
+  private maxSize: number;
+  private ttlMs: number;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor(ttlMs: number = 60000, maxSize: number = 1000) {
+    this.ttlMs = ttlMs;
+    this.maxSize = maxSize;
+    // Start periodic cleanup every 30 seconds
+    this.startCleanup();
+  }
+
+  set(key: K, value: V): void {
+    // Remove oldest entries if we're at max size
+    if (this.store.size >= this.maxSize) {
+      const firstKey = this.store.keys().next().value;
+      if (firstKey !== undefined) {
+        this.store.delete(firstKey);
+      }
+    }
+
+    const expiry = Date.now() + this.ttlMs;
+    this.store.set(key, { value, expiry });
+  }
+
+  get(key: K): V | undefined {
+    const item = this.store.get(key);
+    if (!item) return undefined;
+
+    if (Date.now() > item.expiry) {
+      this.store.delete(key);
+      return undefined;
+    }
+
+    return item.value;
+  }
+
+  has(key: K): boolean {
+    const item = this.store.get(key);
+    if (!item) return false;
+
+    if (Date.now() > item.expiry) {
+      this.store.delete(key);
+      return false;
+    }
+
+    return true;
+  }
+
+  delete(key: K): boolean {
+    return this.store.delete(key);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  private cleanup(): void {
+    const now = Date.now();
+    for (const [key, item] of this.store.entries()) {
+      if (now > item.expiry) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  private startCleanup(): void {
+    this.cleanupInterval = setInterval(() => this.cleanup(), 30000);
+  }
+
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.clear();
+  }
+}
 
 /**
  * Options for the NostrWalletService
@@ -70,6 +155,11 @@ export interface NostrWalletServiceOptions {
    * If not provided, all clients will be authorized (not recommended for production).
    */
   authorizedClients?: string[];
+
+  /**
+   * Supported encryption schemes (optional, defaults to both NIP-04 and NIP-44)
+   */
+  encryptionSchemes?: NIP47EncryptionScheme[];
 }
 
 /**
@@ -86,9 +176,11 @@ export class NostrWalletService {
   private client: Nostr;
   private supportedMethods: NIP47Method[];
   private supportedNotificationTypes: NIP47NotificationType[];
+  private supportedEncryption: NIP47EncryptionScheme[];
   private walletImpl: WalletImplementation;
   private subIds: string[] = [];
   private authorizedClients: string[] = [];
+  private requestEncryption: TTLMap<string, NIP47EncryptionScheme>; // Track encryption per request with TTL
 
   constructor(
     options: NostrWalletServiceOptions,
@@ -116,9 +208,15 @@ export class NostrWalletService {
     this.name = options.name || "NostrWalletService";
     this.supportedMethods = options.methods;
     this.supportedNotificationTypes = options.notificationTypes || [];
+    this.supportedEncryption = options.encryptionSchemes || [
+      NIP47EncryptionScheme.NIP44_V2,
+      NIP47EncryptionScheme.NIP04,
+    ];
     this.walletImpl = walletImpl;
     this.client = new Nostr(this.relays);
     this.authorizedClients = options.authorizedClients || [];
+    // Initialize TTL map with 5 minute TTL and max 1000 entries
+    this.requestEncryption = new TTLMap<string, NIP47EncryptionScheme>(5 * 60 * 1000, 1000);
   }
 
   /**
@@ -145,6 +243,9 @@ export class NostrWalletService {
    */
   public async disconnect(): Promise<void> {
     try {
+      // Clean up TTL map
+      this.requestEncryption.destroy();
+
       // Clean up subscriptions
       if (this.subIds.length > 0) {
         this.client.unsubscribe(this.subIds);
@@ -172,18 +273,18 @@ export class NostrWalletService {
     // Create tags
     const tags: string[][] = [];
 
+    // Add encryption tag
+    tags.push(["encryption", this.supportedEncryption.join(" ")]);
+
     // Add notifications tag if applicable
     if (this.supportedNotificationTypes.length > 0) {
-      tags.push([
-        "notifications",
-        JSON.stringify(this.supportedNotificationTypes),
-      ]);
+      tags.push(["notifications", this.supportedNotificationTypes.join(" ")]);
     }
 
     // Create event template
     const eventTemplate = {
       kind: NIP47EventKind.INFO,
-      content: JSON.stringify(this.supportedMethods),
+      content: this.supportedMethods.join(" "),
       tags,
     };
 
@@ -230,7 +331,7 @@ export class NostrWalletService {
 
     // Determine the pubkey of the client making the request
     const requesterClientPubkey = event.pubkey;
-    
+
     // Determine the pubkey of the service (us) from the p-tag, if present, with safe access
     let servicePubkeyTagged: string | undefined;
     try {
@@ -241,7 +342,7 @@ export class NostrWalletService {
           return false;
         }
       });
-      
+
       if (pTag && validateArrayAccess(pTag, 1)) {
         const pubkeyValue = safeArrayAccess(pTag, 1);
         if (typeof pubkeyValue === "string") {
@@ -250,7 +351,9 @@ export class NostrWalletService {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(`NIP-47: Bounds checking error in p-tag parsing: ${error.message}`);
+        console.warn(
+          `NIP-47: Bounds checking error in p-tag parsing: ${error.message}`,
+        );
       }
     }
 
@@ -265,6 +368,7 @@ export class NostrWalletService {
 
     let decryptedContent: string | undefined;
     let nip47Request: NIP47Request | undefined;
+    let encryptionSchemeStored = false;
 
     try {
       // Check for expiration (can be done before decryption) with safe access
@@ -272,12 +376,15 @@ export class NostrWalletService {
       try {
         const expirationTag = event.tags.find((tag) => {
           try {
-            return validateArrayAccess(tag, 0) && safeArrayAccess(tag, 0) === "expiration";
+            return (
+              validateArrayAccess(tag, 0) &&
+              safeArrayAccess(tag, 0) === "expiration"
+            );
           } catch {
             return false;
           }
         });
-        
+
         if (expirationTag && validateArrayAccess(expirationTag, 1)) {
           const expirationValue = safeArrayAccess(expirationTag, 1);
           if (typeof expirationValue === "string") {
@@ -289,16 +396,32 @@ export class NostrWalletService {
         }
       } catch (error) {
         if (error instanceof SecurityValidationError) {
-          console.warn(`NIP-47: Bounds checking error in expiration parsing: ${error.message}`);
+          console.warn(
+            `NIP-47: Bounds checking error in expiration parsing: ${error.message}`,
+          );
         }
       }
-      
+
       if (expirationTimestamp) {
         const now = getUnixTime();
         if (now > expirationTimestamp) {
           console.log(
             `Request ${event.id} has already expired (${expirationTimestamp} < ${now}).`,
           );
+
+          // Determine encryption scheme from the request for the error response
+          const encryptionTag = event.tags.find(
+            (tag) => tag[0] === "encryption",
+          );
+          let requestEncryption = NIP47EncryptionScheme.NIP04; // Default
+          if (encryptionTag && encryptionTag[1] === "nip44_v2") {
+            requestEncryption = NIP47EncryptionScheme.NIP44_V2;
+          }
+
+          // Store the encryption scheme temporarily for the error response
+          this.requestEncryption.set(event.id, requestEncryption);
+          encryptionSchemeStored = true;
+
           // Send error response for already expired request
           // The recipient is the original requester (event.pubkey)
           // The second parameter to sendErrorResponse is 'senderPubkey' (effectively, who was targeted, i.e. this.pubkey)
@@ -322,6 +445,18 @@ export class NostrWalletService {
         console.error(
           `Client ${requesterClientPubkey} not authorized to use the service. Request ID: ${event.id}`,
         );
+
+        // Determine encryption scheme from the request for the error response
+        const encryptionTag = event.tags.find((tag) => tag[0] === "encryption");
+        let requestEncryption = NIP47EncryptionScheme.NIP04; // Default
+        if (encryptionTag && encryptionTag[1] === "nip44_v2") {
+          requestEncryption = NIP47EncryptionScheme.NIP44_V2;
+        }
+
+        // Store the encryption scheme temporarily for the error response
+        this.requestEncryption.set(event.id, requestEncryption);
+        encryptionSchemeStored = true;
+
         await this.sendErrorResponse(
           requesterClientPubkey,
           this.pubkey,
@@ -338,19 +473,75 @@ export class NostrWalletService {
       );
       console.log(`Event content length: ${event.content.length}`);
 
+      // Extract encryption scheme from request
+      let requestEncryption: NIP47EncryptionScheme =
+        NIP47EncryptionScheme.NIP04; // Default
       try {
-        decryptedContent = decryptNIP04(
-          this.privkey,
-          requesterClientPubkey,
-          event.content,
+        const encryptionTag = event.tags.find((tag) => {
+          try {
+            return (
+              validateArrayAccess(tag, 0) &&
+              safeArrayAccess(tag, 0) === "encryption"
+            );
+          } catch {
+            return false;
+          }
+        });
+
+        if (encryptionTag && validateArrayAccess(encryptionTag, 1)) {
+          const encryptionValue = safeArrayAccess(encryptionTag, 1);
+          if (
+            typeof encryptionValue === "string" &&
+            Object.values(NIP47EncryptionScheme).includes(
+              encryptionValue as NIP47EncryptionScheme,
+            )
+          ) {
+            requestEncryption = encryptionValue as NIP47EncryptionScheme;
+          }
+        }
+      } catch (error) {
+        if (error instanceof SecurityValidationError) {
+          console.warn(
+            `NIP-47: Bounds checking error in encryption tag parsing: ${error.message}`,
+          );
+        }
+      }
+
+      // Check if we support the requested encryption
+      if (!this.supportedEncryption.includes(requestEncryption)) {
+        console.error(
+          `Unsupported encryption scheme ${requestEncryption} for event ${event.id}`,
         );
+        // Since we can't decrypt, we can't send an encrypted error response
+        // Following NIP-47 spec, we should not respond
+        return;
+      }
+
+      // Store the encryption scheme for this request
+      this.requestEncryption.set(event.id, requestEncryption);
+      encryptionSchemeStored = true;
+
+      try {
+        if (requestEncryption === NIP47EncryptionScheme.NIP44_V2) {
+          decryptedContent = await decryptNIP44(
+            event.content,
+            this.privkey,
+            requesterClientPubkey,
+          );
+        } else {
+          decryptedContent = decryptNIP04(
+            this.privkey,
+            requesterClientPubkey,
+            event.content,
+          );
+        }
         console.log(
           "Successfully decrypted content: ",
           decryptedContent.substring(0, 50) + "...",
         );
       } catch (decryptError) {
         console.error(
-          `Failed to decrypt NIP-04 message for event ${event.id}:`,
+          `Failed to decrypt message for event ${event.id}:`,
           decryptError,
         );
         // Do not send an error response here as per NIP-47 spec (section: "failed to decrypt")
@@ -445,6 +636,11 @@ export class NostrWalletService {
           `Unhandled error for event ${event.id} where decryption state is unclear. No NIP-47 response sent.`,
         );
       }
+    } finally {
+      // Clean up stored encryption scheme if it was stored
+      if (encryptionSchemeStored && this.requestEncryption.has(event.id)) {
+        this.requestEncryption.delete(event.id);
+      }
     }
   }
 
@@ -473,12 +669,28 @@ export class NostrWalletService {
     console.log(`Response will reference request ID: ${requestId}`);
     console.log(`Response tags: ${JSON.stringify(unsignedEvent.tags)}`);
 
-    // Always encrypt with sender's private key and receiver's public key
-    const encryptedContent = encryptNIP04(
-      this.privkey,
-      clientPubkey,
-      JSON.stringify(response),
-    );
+    // Get the encryption scheme used in the request
+    const encryptionScheme =
+      this.requestEncryption.get(requestId) || NIP47EncryptionScheme.NIP04;
+
+    // Clean up after retrieving
+    this.requestEncryption.delete(requestId);
+
+    // Encrypt with the same scheme as the request
+    let encryptedContent: string;
+    if (encryptionScheme === NIP47EncryptionScheme.NIP44_V2) {
+      encryptedContent = await encryptNIP44(
+        JSON.stringify(response),
+        this.privkey,
+        clientPubkey,
+      );
+    } else {
+      encryptedContent = encryptNIP04(
+        this.privkey,
+        clientPubkey,
+        JSON.stringify(response),
+      );
+    }
 
     unsignedEvent.content = encryptedContent;
 
@@ -657,6 +869,11 @@ export class NostrWalletService {
       switch (request.method) {
         case NIP47Method.GET_INFO:
           result = await this.walletImpl.getInfo();
+          // Add encryption information to the result
+          result = {
+            ...result,
+            encryption: this.supportedEncryption,
+          };
           break;
 
         case NIP47Method.GET_BALANCE:
@@ -817,30 +1034,87 @@ export class NostrWalletService {
       notification,
     };
 
-    // Create event template
-    const eventTemplate = {
-      kind: NIP47EventKind.NOTIFICATION,
-      content: "",
-      tags: [["p", clientPubkey]],
-    };
+    // Send notifications for each supported encryption scheme
+    const publishPromises: Promise<void>[] = [];
 
-    // Create the event
-    const unsignedEvent = createEvent(eventTemplate, this.pubkey);
+    // Send NIP-04 encrypted notification if supported
+    if (this.supportedEncryption.includes(NIP47EncryptionScheme.NIP04)) {
+      const nip04Promise = (async () => {
+        try {
+          const eventTemplate = {
+            kind: NIP47EventKind.NOTIFICATION,
+            content: "",
+            tags: [["p", clientPubkey]],
+          };
 
-    // Always encrypt with sender's private key and receiver's public key
-    const encryptedContent = encryptNIP04(
-      this.privkey,
-      clientPubkey,
-      JSON.stringify(notificationObj),
-    );
+          const unsignedEvent = createEvent(eventTemplate, this.pubkey);
+          const encryptedContent = encryptNIP04(
+            this.privkey,
+            clientPubkey,
+            JSON.stringify(notificationObj),
+          );
+          unsignedEvent.content = encryptedContent;
 
-    unsignedEvent.content = encryptedContent;
+          const signedEvent = await createSignedEvent(
+            unsignedEvent,
+            this.privkey,
+          );
+          await this.client.publishEvent(signedEvent);
 
-    // Sign the event
-    const signedEvent = await createSignedEvent(unsignedEvent, this.privkey);
+          console.log(
+            `Successfully sent NIP-04 notification to ${clientPubkey}`,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to send NIP-04 notification to ${clientPubkey}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+          // Don't rethrow - allow other notifications to be sent
+        }
+      })();
+      publishPromises.push(nip04Promise);
+    }
 
-    // Publish the event
-    await this.client.publishEvent(signedEvent);
+    // Send NIP-44 encrypted notification if supported
+    if (this.supportedEncryption.includes(NIP47EncryptionScheme.NIP44_V2)) {
+      const nip44Promise = (async () => {
+        try {
+          const eventTemplate = {
+            kind: NIP47EventKind.NOTIFICATION_NIP44,
+            content: "",
+            tags: [["p", clientPubkey]],
+          };
+
+          const unsignedEvent = createEvent(eventTemplate, this.pubkey);
+          const encryptedContent = await encryptNIP44(
+            JSON.stringify(notificationObj),
+            this.privkey,
+            clientPubkey,
+          );
+          unsignedEvent.content = encryptedContent;
+
+          const signedEvent = await createSignedEvent(
+            unsignedEvent,
+            this.privkey,
+          );
+          await this.client.publishEvent(signedEvent);
+
+          console.log(
+            `Successfully sent NIP-44 notification to ${clientPubkey}`,
+          );
+        } catch (error) {
+          console.error(
+            `Failed to send NIP-44 notification to ${clientPubkey}:`,
+            error instanceof Error ? error.message : String(error),
+          );
+          // Don't rethrow - allow other notifications to be sent
+        }
+      })();
+      publishPromises.push(nip44Promise);
+    }
+
+    // Wait for all notifications to complete (success or failure)
+    await Promise.all(publishPromises);
   }
 
   /**

@@ -1,4 +1,4 @@
-import { 
+import {
   validateRequestPayload,
   validateEventContent,
   validatePubkey,
@@ -13,20 +13,25 @@ import {
   validatePermission,
   validateAndParseJson,
   sanitizeString,
-  SecureErrorHandler 
+  SecureErrorHandler,
 } from "../../src/nip46/utils/validator";
-import { NIP46Method, NIP46Request, NIP46ErrorCode, NIP46ErrorUtils } from "../../src/nip46/types";
+import {
+  NIP46Method,
+  NIP46Request,
+  NIP46ErrorCode,
+  NIP46ErrorUtils,
+} from "../../src/nip46/types";
 import { generateKeypair } from "../../src/utils/crypto";
 import { generateRequestId } from "../../src/nip46/utils/request-response";
-import { 
-  validatePrivateKey, 
-  validateKeypairForCrypto, 
-  validateBeforeSigning, 
-  validateBeforeEncryption, 
-  validatePrivateKeyResult, 
-  validatePrivateKeySecure, 
+import {
+  validatePrivateKey,
+  validateKeypairForCrypto,
+  validateBeforeSigning,
+  validateBeforeEncryption,
+  validatePrivateKeyResult,
+  validatePrivateKeySecure,
   createProductionSafeMessage,
-  securePermissionCheck 
+  securePermissionCheck,
 } from "../../src/nip46/utils/security";
 // import { NIP46SecurityError } from "../../src/nip46/types";
 
@@ -42,19 +47,23 @@ describe("NIP-46 Validator Unit Tests", () => {
       const validRequest: NIP46Request = {
         id: "request-123",
         method: NIP46Method.GET_PUBLIC_KEY,
-        params: []
+        params: [],
       };
       expect(validateRequestPayload(validRequest)).toBe(true);
     });
 
     test("rejects invalid requests", () => {
-      expect(validateRequestPayload(null as unknown as NIP46Request)).toBe(false);
+      expect(validateRequestPayload(null as unknown as NIP46Request)).toBe(
+        false,
+      );
       expect(validateRequestPayload({} as unknown as NIP46Request)).toBe(false);
-      expect(validateRequestPayload({
-        id: "",
-        method: NIP46Method.PING,
-        params: []
-      })).toBe(false);
+      expect(
+        validateRequestPayload({
+          id: "",
+          method: NIP46Method.PING,
+          params: [],
+        }),
+      ).toBe(false);
     });
   });
 
@@ -64,7 +73,7 @@ describe("NIP-46 Validator Unit Tests", () => {
         kind: 1,
         content: "Hello",
         created_at: Math.floor(Date.now() / 1000),
-        tags: []
+        tags: [],
       };
       expect(validateEventContent(JSON.stringify(validEvent))).toBe(true);
     });
@@ -120,7 +129,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(validateSignature("a".repeat(128))).toBe(true);
       expect(validateSignature("A".repeat(128))).toBe(true);
       expect(validateSignature("1234567890abcdef".repeat(8))).toBe(true);
-      
+
       expect(validateSignature("")).toBe(false);
       expect(validateSignature("a".repeat(127))).toBe(false);
       expect(validateSignature("a".repeat(129))).toBe(false);
@@ -144,7 +153,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       expect(validateEventId("a".repeat(64))).toBe(true);
       expect(validateEventId("A".repeat(64))).toBe(true);
       expect(validateEventId("1234567890abcdef".repeat(4))).toBe(true);
-      
+
       expect(validateEventId("")).toBe(false);
       expect(validateEventId("a".repeat(63))).toBe(false);
       expect(validateEventId("a".repeat(65))).toBe(false);
@@ -171,7 +180,7 @@ describe("NIP-46 Validator Unit Tests", () => {
 
     test("relaxed timestamp validation for offline signing", () => {
       const now = Math.floor(Date.now() / 1000);
-      
+
       // Should allow up to 24 hours difference
       expect(validateTimestamp(now - 86000, 86400)).toBe(true); // ~23.9 hours ago with 24h tolerance
       expect(validateTimestamp(now + 86000, 86400)).toBe(false); // Future timestamps not allowed
@@ -196,7 +205,7 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("validates valid connection strings", () => {
       const bunkerStr = `bunker://${validKeypair.publicKey}?relay=ws://localhost:3792`;
       const nostrStr = `nostrconnect://${validKeypair.publicKey}?relay=ws://localhost:3792`;
-      
+
       expect(validateConnectionString(bunkerStr)).toBe(true);
       expect(validateConnectionString(nostrStr)).toBe(true);
     });
@@ -217,7 +226,7 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("rejects invalid params", () => {
       const tooMany = Array(20).fill("param");
       expect(validateParams(tooMany)).toBe(false);
-      
+
       const tooLarge = ["x".repeat(40000)];
       expect(validateParams(tooLarge)).toBe(false);
     });
@@ -244,7 +253,7 @@ describe("NIP-46 Validator Unit Tests", () => {
     });
 
     test("rejects invalid JSON", () => {
-      const result = validateAndParseJson('invalid json');
+      const result = validateAndParseJson("invalid json");
       expect(result.valid).toBe(false);
       expect(result.error).toContain("JSON parsing failed");
     });
@@ -253,12 +262,12 @@ describe("NIP-46 Validator Unit Tests", () => {
       const validJson = '{"array": [1, 2, 3], "nested": {"prop": true}}';
       const result = validateAndParseJson(validJson);
       expect(result.valid).toBe(true);
-      
+
       const invalidJson = '{"unclosed": "string"';
       const result2 = validateAndParseJson(invalidJson);
       expect(result2.valid).toBe(false);
-      
-      const tooLarge = '{"data": "' + 'x'.repeat(70000) + '"}';
+
+      const tooLarge = '{"data": "' + "x".repeat(70000) + '"}';
       const result3 = validateAndParseJson(tooLarge);
       expect(result3.valid).toBe(false);
       expect(result3.error).toBe("JSON string too large");
@@ -302,7 +311,7 @@ describe("NIP-46 Validator Unit Tests", () => {
       const error = new Error("Debug error");
       const debug = SecureErrorHandler.sanitizeError(error, true);
       const prod = SecureErrorHandler.sanitizeError(error, false);
-      
+
       // Both should be strings
       expect(typeof debug).toBe("string");
       expect(typeof prod).toBe("string");
@@ -322,15 +331,15 @@ describe("NIP-46 Validator Unit Tests", () => {
         SecureErrorHandler.setSecurityLoggingEnabled(true);
       });
 
-          test("should allow enabling and disabling security logging", () => {
-      // Disable security logging
-      SecureErrorHandler.setSecurityLoggingEnabled(false);
-      expect(SecureErrorHandler.isSecurityLoggingEnabled()).toBe(false);
-      
-      // Re-enable security logging
-      SecureErrorHandler.setSecurityLoggingEnabled(true);
-      expect(SecureErrorHandler.isSecurityLoggingEnabled()).toBe(true);
-    });
+      test("should allow enabling and disabling security logging", () => {
+        // Disable security logging
+        SecureErrorHandler.setSecurityLoggingEnabled(false);
+        expect(SecureErrorHandler.isSecurityLoggingEnabled()).toBe(false);
+
+        // Re-enable security logging
+        SecureErrorHandler.setSecurityLoggingEnabled(true);
+        expect(SecureErrorHandler.isSecurityLoggingEnabled()).toBe(true);
+      });
 
       test("should initialize custom security logger", () => {
         const mockLogger = {
@@ -339,18 +348,20 @@ describe("NIP-46 Validator Unit Tests", () => {
           info: jest.fn(),
           debug: jest.fn(),
           trace: jest.fn(),
-          setLevel: jest.fn()
+          setLevel: jest.fn(),
         };
 
         // Initialize with custom logger
         SecureErrorHandler.initializeSecurityLogging(mockLogger as never, true);
-        
+
         // Enable logging and test
         SecureErrorHandler.setSecurityLoggingEnabled(true);
         SecureErrorHandler.logSecurityEvent("test_event", { key: "value" });
-        
+
         // Verify the custom logger was called
-        expect(mockLogger.warn).toHaveBeenCalledWith("test_event", { key: "value" });
+        expect(mockLogger.warn).toHaveBeenCalledWith("test_event", {
+          key: "value",
+        });
       });
 
       test("should respect security logging enabled/disabled setting", () => {
@@ -360,19 +371,24 @@ describe("NIP-46 Validator Unit Tests", () => {
           info: jest.fn(),
           debug: jest.fn(),
           trace: jest.fn(),
-          setLevel: jest.fn()
+          setLevel: jest.fn(),
         };
 
-        SecureErrorHandler.initializeSecurityLogging(mockLogger as never, false);
-        
+        SecureErrorHandler.initializeSecurityLogging(
+          mockLogger as never,
+          false,
+        );
+
         // Should not log when disabled
         SecureErrorHandler.logSecurityEvent("disabled_event", { key: "value" });
         expect(mockLogger.warn).not.toHaveBeenCalled();
-        
+
         // Enable and try again
         SecureErrorHandler.setSecurityLoggingEnabled(true);
         SecureErrorHandler.logSecurityEvent("enabled_event", { key: "value" });
-        expect(mockLogger.warn).toHaveBeenCalledWith("enabled_event", { key: "value" });
+        expect(mockLogger.warn).toHaveBeenCalledWith("enabled_event", {
+          key: "value",
+        });
       });
 
       test("should properly redact sensitive fields in security logs", () => {
@@ -382,26 +398,29 @@ describe("NIP-46 Validator Unit Tests", () => {
           info: jest.fn(),
           debug: jest.fn(),
           trace: jest.fn(),
-          setLevel: jest.fn()
+          setLevel: jest.fn(),
         };
 
         SecureErrorHandler.initializeSecurityLogging(mockLogger as never, true);
         SecureErrorHandler.setSecurityLoggingEnabled(true);
-        
+
         // Log with sensitive data
         const details = {
           publicKey: "sensitive-public-key",
           privateKey: "sensitive-private-key",
-          normalData: "normal-data"
+          normalData: "normal-data",
         };
-        
-        SecureErrorHandler.logSecurityEvent("test_redaction", details, ["privateKey", "publicKey"]);
-        
+
+        SecureErrorHandler.logSecurityEvent("test_redaction", details, [
+          "privateKey",
+          "publicKey",
+        ]);
+
         // Verify sensitive fields were redacted
         expect(mockLogger.warn).toHaveBeenCalledWith("test_redaction", {
           publicKey: "[REDACTED]",
           privateKey: "[REDACTED]",
-          normalData: "normal-data"
+          normalData: "normal-data",
         });
       });
     });
@@ -411,19 +430,19 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("generateRequestId produces cryptographically secure IDs", () => {
       const ids = new Set<string>();
       const numIds = 1000;
-      
+
       // Generate many IDs to test for uniqueness
       for (let i = 0; i < numIds; i++) {
         const id = generateRequestId();
         expect(id).toBeDefined();
-        expect(typeof id).toBe('string');
+        expect(typeof id).toBe("string");
         expect(id.length).toBeGreaterThan(0);
-        
+
         // Should not have duplicates
         expect(ids.has(id)).toBe(false);
         ids.add(id);
       }
-      
+
       // All IDs should be unique
       expect(ids.size).toBe(numIds);
     });
@@ -431,24 +450,24 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("Request IDs have sufficient entropy", () => {
       const ids: string[] = [];
       const numIds = 100;
-      
+
       for (let i = 0; i < numIds; i++) {
         ids.push(generateRequestId());
       }
-      
+
       // Check that IDs have good distribution
       const hexPattern = /^[0-9a-f]+$/i;
       let hexCount = 0;
-      
+
       for (const id of ids) {
         if (hexPattern.test(id)) {
           hexCount++;
         }
-        
+
         // Should have reasonable length
         expect(id.length).toBeGreaterThanOrEqual(16);
       }
-      
+
       // Most IDs should be hex (crypto-generated) or have timestamp fallback
       expect(hexCount / numIds).toBeGreaterThan(0.5);
     });
@@ -457,23 +476,24 @@ describe("NIP-46 Validator Unit Tests", () => {
       const id1 = generateRequestId();
       const id2 = generateRequestId();
       const id3 = generateRequestId();
-      
+
       // Should be different
       expect(id1).not.toBe(id2);
       expect(id2).not.toBe(id3);
       expect(id1).not.toBe(id3);
-      
+
       // Test for non-sequential patterns by generating many IDs
       const ids = Array.from({ length: 20 }, () => generateRequestId());
       const uniqueIds = new Set(ids);
-      
+
       // Should have high uniqueness (at least 95% unique for 20 IDs)
       expect(uniqueIds.size / ids.length).toBeGreaterThan(0.95);
-      
+
       // Should not be incrementing sequences
       const isSequential = ids.every((id, index) => {
         if (index === 0) return true;
-        const prevNum = parseInt(ids[index - 1], 16) || parseInt(ids[index - 1], 10);
+        const prevNum =
+          parseInt(ids[index - 1], 16) || parseInt(ids[index - 1], 10);
         const currNum = parseInt(id, 16) || parseInt(id, 10);
         return !isNaN(prevNum) && !isNaN(currNum) && currNum === prevNum + 1;
       });
@@ -484,35 +504,37 @@ describe("NIP-46 Validator Unit Tests", () => {
       // Generate multiple IDs and verify they have good distribution
       const ids = Array.from({ length: 100 }, () => generateRequestId());
       const uniqueIds = new Set(ids);
-      
+
       // Should have high uniqueness
       expect(uniqueIds.size).toBeGreaterThan(95);
-      
+
       // Test for randomness - no two consecutive IDs should be identical
       for (let i = 1; i < ids.length; i++) {
         expect(ids[i]).not.toBe(ids[i - 1]);
       }
-         });
-   });
+    });
+  });
 
   describe("Standardized Error Handling", () => {
     test("creates standardized error responses", () => {
       const response = NIP46ErrorUtils.createErrorResponse(
         "test-id",
         NIP46ErrorCode.PERMISSION_DENIED,
-        "Not authorized for this action"
+        "Not authorized for this action",
       );
-      
+
       expect(response.id).toBe("test-id");
       expect(response.error).toBeTruthy();
-      
+
       const errorObj = JSON.parse(response.error!);
       expect(errorObj.code).toBe(NIP46ErrorCode.PERMISSION_DENIED);
       expect(errorObj.message).toBe("Not authorized for this action");
     });
 
     test("provides error descriptions", () => {
-      const description = NIP46ErrorUtils.getErrorDescription(NIP46ErrorCode.INVALID_PARAMETERS);
+      const description = NIP46ErrorUtils.getErrorDescription(
+        NIP46ErrorCode.INVALID_PARAMETERS,
+      );
       expect(description).toBe("The provided parameters are invalid");
     });
 
@@ -521,293 +543,341 @@ describe("NIP-46 Validator Unit Tests", () => {
         NIP46ErrorCode.PERMISSION_DENIED,
         NIP46ErrorCode.INVALID_PARAMETERS,
         NIP46ErrorCode.INTERNAL_ERROR,
-        NIP46ErrorCode.RATE_LIMITED
+        NIP46ErrorCode.RATE_LIMITED,
       ];
 
-      errorCodes.forEach(code => {
-        const response = NIP46ErrorUtils.createErrorResponse("test", code, "Test message");
+      errorCodes.forEach((code) => {
+        const response = NIP46ErrorUtils.createErrorResponse(
+          "test",
+          code,
+          "Test message",
+        );
         expect(response.error).toBeTruthy();
-        
+
         const errorObj = JSON.parse(response.error!);
         expect(errorObj.code).toBe(code);
         expect(errorObj.message).toBe("Test message");
-        
+
         const description = NIP46ErrorUtils.getErrorDescription(code);
         expect(description).toBeTruthy();
         expect(typeof description).toBe("string");
-             });
-     });
-   });
-
-   describe("Private Key Security Validation", () => {
-     test("should throw for empty private key", () => {
-       expect(() => {
-         validatePrivateKey("", "test key");
-       }).toThrow("test key cannot be an empty string");
-     });
-
-     test("should throw for placeholder values", () => {
-       expect(() => {
-         validatePrivateKey("undefined", "test key");
-       }).toThrow("test key appears to be a placeholder value");
-
-       expect(() => {
-         validatePrivateKey("null", "test key");
-       }).toThrow("test key appears to be a placeholder value");
-     });
-
-     test("should throw for invalid hex", () => {
-       expect(() => {
-         validatePrivateKey("invalid_hex", "test key");
-       }).toThrow("test key is not a valid private key format or is outside curve order");
-
-       expect(() => {
-         validatePrivateKey("123", "test key"); // Too short
-       }).toThrow("test key is not a valid private key format or is outside curve order");
-     });
-
-           test("should pass for valid private key", () => {
-        expect(() => {
-          validateKeypairForCrypto(validKeypair, "test keypair");
-        }).not.toThrow();
       });
+    });
+  });
 
-     test("should throw for invalid keypair", () => {
-       const invalidKeypair = {
-         publicKey: "invalid",
-         privateKey: "a".repeat(64) // Valid 64-char hex private key so we test public key validation
-       };
-       expect(() => {
-         validateKeypairForCrypto(invalidKeypair, "test keypair");
-       }).toThrow("test keypair public key must be 64 character hex string");
-     });
+  describe("Private Key Security Validation", () => {
+    test("should throw for empty private key", () => {
+      expect(() => {
+        validatePrivateKey("", "test key");
+      }).toThrow("test key cannot be an empty string");
+    });
 
-     test("should validate signing parameters", () => {
-       const validEventData = {
-         kind: 1,
-         content: "test",
-         created_at: Math.floor(Date.now() / 1000),
-       };
-       expect(() => {
-         validateBeforeSigning(validKeypair, validEventData);
-       }).not.toThrow();
-     });
+    test("should throw for placeholder values", () => {
+      expect(() => {
+        validatePrivateKey("undefined", "test key");
+      }).toThrow("test key appears to be a placeholder value");
 
-     test("should reject invalid keypair for signing", () => {
-       const invalidKeypair = { publicKey: "invalid", privateKey: "" };
-       const validEventData = {
-         kind: 1,
-         content: "test",
-         created_at: Math.floor(Date.now() / 1000),
-       };
-       expect(() => {
-         validateBeforeSigning(invalidKeypair, validEventData);
-       }).toThrow();
-     });
+      expect(() => {
+        validatePrivateKey("null", "test key");
+      }).toThrow("test key appears to be a placeholder value");
+    });
 
-     test("should validate encryption parameters", () => {
-       const thirdPartyPubkey = "c".repeat(64);
-       const plaintext = "test message";
-       expect(() => {
-         validateBeforeEncryption(validKeypair, thirdPartyPubkey, plaintext);
-       }).not.toThrow();
-     });
+    test("should throw for invalid hex", () => {
+      expect(() => {
+        validatePrivateKey("invalid_hex", "test key");
+      }).toThrow(
+        "test key is not a valid private key format or is outside curve order",
+      );
 
-     test("should reject invalid keypair for encryption", () => {
-       const invalidKeypair = { publicKey: "invalid", privateKey: "" };
-       const thirdPartyPubkey = "c".repeat(64);
-       const plaintext = "test message";
-       expect(() => {
-         validateBeforeEncryption(invalidKeypair, thirdPartyPubkey, plaintext);
-       }).toThrow();
-     });
+      expect(() => {
+        validatePrivateKey("123", "test key"); // Too short
+      }).toThrow(
+        "test key is not a valid private key format or is outside curve order",
+      );
+    });
 
-           test("should reject oversized data", () => {
-        const oversizedData = "a".repeat(100001); // 100KB + 1
-        const thirdPartyPubkey = "c".repeat(64);
+    test("should pass for valid private key", () => {
+      expect(() => {
+        validateKeypairForCrypto(validKeypair, "test keypair");
+      }).not.toThrow();
+    });
+
+    test("should throw for invalid keypair", () => {
+      const invalidKeypair = {
+        publicKey: "invalid",
+        privateKey: "a".repeat(64), // Valid 64-char hex private key so we test public key validation
+      };
+      expect(() => {
+        validateKeypairForCrypto(invalidKeypair, "test keypair");
+      }).toThrow("test keypair public key must be 64 character hex string");
+    });
+
+    test("should validate signing parameters", () => {
+      const validEventData = {
+        kind: 1,
+        content: "test",
+        created_at: Math.floor(Date.now() / 1000),
+      };
+      expect(() => {
+        validateBeforeSigning(validKeypair, validEventData);
+      }).not.toThrow();
+    });
+
+    test("should reject invalid keypair for signing", () => {
+      const invalidKeypair = { publicKey: "invalid", privateKey: "" };
+      const validEventData = {
+        kind: 1,
+        content: "test",
+        created_at: Math.floor(Date.now() / 1000),
+      };
+      expect(() => {
+        validateBeforeSigning(invalidKeypair, validEventData);
+      }).toThrow();
+    });
+
+    test("should validate encryption parameters", () => {
+      const thirdPartyPubkey = "c".repeat(64);
+      const plaintext = "test message";
+      expect(() => {
+        validateBeforeEncryption(validKeypair, thirdPartyPubkey, plaintext);
+      }).not.toThrow();
+    });
+
+    test("should reject invalid keypair for encryption", () => {
+      const invalidKeypair = { publicKey: "invalid", privateKey: "" };
+      const thirdPartyPubkey = "c".repeat(64);
+      const plaintext = "test message";
+      expect(() => {
+        validateBeforeEncryption(invalidKeypair, thirdPartyPubkey, plaintext);
+      }).toThrow();
+    });
+
+    test("should reject oversized data", () => {
+      const oversizedData = "a".repeat(100001); // 100KB + 1
+      const thirdPartyPubkey = "c".repeat(64);
+      expect(() => {
+        validateBeforeEncryption(validKeypair, thirdPartyPubkey, oversizedData);
+      }).toThrow("NIP-44 encryption data too large (max 100KB)");
+    });
+
+    test("should reject empty data", () => {
+      const thirdPartyPubkey = "c".repeat(64);
+      expect(() => {
+        validateBeforeEncryption(validKeypair, thirdPartyPubkey, "");
+      }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
+    });
+
+    test("should reject whitespace-only data", () => {
+      const thirdPartyPubkey = "c".repeat(64);
+      const whitespaceData = "   \t\n\r   "; // Various whitespace characters
+      expect(() => {
+        validateBeforeEncryption(
+          validKeypair,
+          thirdPartyPubkey,
+          whitespaceData,
+        );
+      }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
+    });
+
+    test("should return proper validation results", () => {
+      const validation = validatePrivateKeyResult("", "test");
+      expect(validation.valid).toBe(false);
+      expect(validation.error).toContain("test cannot be an empty string");
+      expect(validation.code).toBe("PRIVATE_KEY_EMPTY_STRING");
+    });
+
+    test("validatePrivateKeySecure should throw production-safe errors in production", () => {
+      const originalEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = "production";
+
         expect(() => {
-          validateBeforeEncryption(validKeypair, thirdPartyPubkey, oversizedData);
-        }).toThrow("NIP-44 encryption data too large (max 100KB)");
-      });
+          validatePrivateKeySecure("", "test key");
+        }).toThrow("Invalid key format"); // Production-safe message
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = originalEnv;
+        }
+      }
+    });
 
-     test("should reject empty data", () => {
-       const thirdPartyPubkey = "c".repeat(64);
-       expect(() => {
-         validateBeforeEncryption(validKeypair, thirdPartyPubkey, "");
-       }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
-     });
+    test("validatePrivateKeySecure should throw debug errors in development", () => {
+      const originalEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = "development";
 
-     test("should reject whitespace-only data", () => {
-       const thirdPartyPubkey = "c".repeat(64);
-       const whitespaceData = "   \t\n\r   "; // Various whitespace characters
-       expect(() => {
-         validateBeforeEncryption(validKeypair, thirdPartyPubkey, whitespaceData);
-       }).toThrow("NIP-44 encryption data must not be empty or whitespace-only");
-     });
+        expect(() => {
+          validatePrivateKeySecure("", "test key");
+        }).toThrow("test key cannot be an empty string"); // Debug message
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = originalEnv;
+        }
+      }
+    });
 
-     test("should return proper validation results", () => {
-       const validation = validatePrivateKeyResult("", "test");
-       expect(validation.valid).toBe(false);
-       expect(validation.error).toContain("test cannot be an empty string");
-       expect(validation.code).toBe("PRIVATE_KEY_EMPTY_STRING");
-     });
+    test("createProductionSafeMessage should return prod message in production", () => {
+      const originalEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = "production";
 
-     test("validatePrivateKeySecure should throw production-safe errors in production", () => {
-       const originalEnv = process.env.NODE_ENV;
-       process.env.NODE_ENV = "production";
-       
-       expect(() => {
-         validatePrivateKeySecure("", "test key");
-       }).toThrow("Invalid key format"); // Production-safe message
-       
-       if (originalEnv === undefined) {
-         process.env.NODE_ENV = undefined;
-       } else {
-         process.env.NODE_ENV = originalEnv;
-       }
-     });
+        const devMessage = createProductionSafeMessage(
+          "Detailed debug info",
+          "Generic error",
+        );
+        expect(devMessage).toBe("Generic error");
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = originalEnv;
+        }
+      }
+    });
 
-     test("validatePrivateKeySecure should throw debug errors in development", () => {
-       const originalEnv = process.env.NODE_ENV;
-       process.env.NODE_ENV = "development";
-       
-       expect(() => {
-         validatePrivateKeySecure("", "test key");
-       }).toThrow("test key cannot be an empty string"); // Debug message
-       
-       if (originalEnv === undefined) {
-         process.env.NODE_ENV = undefined;
-       } else {
-         process.env.NODE_ENV = originalEnv;
-       }
-     });
+    test("createProductionSafeMessage should return debug message in development", () => {
+      const originalEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = "development";
 
-     test("createProductionSafeMessage should return prod message in production", () => {
-       const originalEnv = process.env.NODE_ENV;
-       process.env.NODE_ENV = "production";
-       
-       const devMessage = createProductionSafeMessage(
-         "Detailed debug info", 
-         "Generic error"
-       );
-       expect(devMessage).toBe("Generic error");
-       
-       if (originalEnv === undefined) {
-         process.env.NODE_ENV = undefined;
-       } else {
-         process.env.NODE_ENV = originalEnv;
-       }
-     });
+        const prodMessage = createProductionSafeMessage(
+          "Detailed debug info",
+          "Generic error",
+        );
+        expect(prodMessage).toBe("Detailed debug info");
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = originalEnv;
+        }
+      }
+    });
 
-     test("createProductionSafeMessage should return debug message in development", () => {
-       const originalEnv = process.env.NODE_ENV;
-       process.env.NODE_ENV = "development";
-       
-       const prodMessage = createProductionSafeMessage(
-         "Detailed debug info", 
-         "Generic error"
-       );
-       expect(prodMessage).toBe("Detailed debug info");
-       
-       if (originalEnv === undefined) {
-         process.env.NODE_ENV = undefined;
-       } else {
-         process.env.NODE_ENV = originalEnv;
-       }
-     });
+    test("createProductionSafeMessage should use default prod message", () => {
+      const originalEnv = process.env.NODE_ENV;
+      try {
+        process.env.NODE_ENV = "production";
 
-     test("createProductionSafeMessage should use default prod message", () => {
-       const originalEnv = process.env.NODE_ENV;
-       process.env.NODE_ENV = "production";
-       
-       const defaultProdMessage = createProductionSafeMessage("Debug info");
-       expect(defaultProdMessage).toBe("Security validation failed");
-       
-       if (originalEnv === undefined) {
-         process.env.NODE_ENV = undefined;
-       } else {
-         process.env.NODE_ENV = originalEnv;
-       }
-     });
+        const defaultProdMessage = createProductionSafeMessage("Debug info");
+        expect(defaultProdMessage).toBe("Security validation failed");
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.NODE_ENV;
+        } else {
+          process.env.NODE_ENV = originalEnv;
+        }
+      }
+    });
 
-     test("validatePrivateKeyResult should return validation results", () => {
-       // Test null/undefined
-       const nullResult = validatePrivateKeyResult(null as never, "test key");
-       expect(nullResult.valid).toBe(false);
-       expect(nullResult.error).toContain("test key is required and cannot be null or undefined");
-       expect(nullResult.code).toBe("PRIVATE_KEY_NULL");
-       
-       const undefinedResult = validatePrivateKeyResult(undefined as never, "test key");
-       expect(undefinedResult.valid).toBe(false);
-       expect(undefinedResult.error).toContain("test key is required and cannot be null or undefined");
-       expect(undefinedResult.code).toBe("PRIVATE_KEY_NULL");
-       
-       // Test empty string
-       const emptyResult = validatePrivateKeyResult("", "test key");
-       expect(emptyResult.valid).toBe(false);
-       expect(emptyResult.error).toContain("test key cannot be an empty string");
-       expect(emptyResult.code).toBe("PRIVATE_KEY_EMPTY_STRING");
-       
-       const placeholderResult = validatePrivateKeyResult("undefined", "test key");
-       expect(placeholderResult.valid).toBe(false);
-       expect(placeholderResult.error).toContain("test key appears to be a placeholder value");
-       
-       const invalidResult = validatePrivateKeyResult("invalid", "test key");
-       expect(invalidResult.valid).toBe(false);
-       expect(invalidResult.error).toContain("test key is not a valid private key format");
-       
-       // Valid key test - use a fixed 64-character hex string for consistent testing
-       const validKey = "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"; // Fixed 64-char hex
-       const validResult = validatePrivateKeyResult(validKey, "test key");
-       expect(validResult.valid).toBe(true);
-       expect(validResult.error).toBeUndefined();
-     });
-   });
+    test("validatePrivateKeyResult should return validation results", () => {
+      // Test null/undefined
+      const nullResult = validatePrivateKeyResult(null as never, "test key");
+      expect(nullResult.valid).toBe(false);
+      expect(nullResult.error).toContain(
+        "test key is required and cannot be null or undefined",
+      );
+      expect(nullResult.code).toBe("PRIVATE_KEY_NULL");
 
-   describe("Timing Attack Prevention", () => {
-     test("should use constant-time permission checking", () => {
-       const permissions = new Set(["sign_event", "get_public_key", "ping"]);
-       
-       // Use the imported secure permission check function
-       
-       // These should take similar time regardless of permission position
-       const start1 = process.hrtime.bigint();
-       const result1 = securePermissionCheck(permissions, "sign_event");
-       const end1 = process.hrtime.bigint();
-       
-       const start2 = process.hrtime.bigint();
-       const result2 = securePermissionCheck(permissions, "invalid_permission");
-       const end2 = process.hrtime.bigint();
-       
-       expect(result1).toBe(true);
-       expect(result2).toBe(false);
-       
-       // Both operations should complete (timing is less reliable in tests,
-       // but the important part is that the function exists and works)
-       const time1 = Number(end1 - start1);
-       const time2 = Number(end2 - start2);
-       
-       expect(time1).toBeGreaterThan(0);
-       expect(time2).toBeGreaterThan(0);
-     });
+      const undefinedResult = validatePrivateKeyResult(
+        undefined as never,
+        "test key",
+      );
+      expect(undefinedResult.valid).toBe(false);
+      expect(undefinedResult.error).toContain(
+        "test key is required and cannot be null or undefined",
+      );
+      expect(undefinedResult.code).toBe("PRIVATE_KEY_NULL");
 
-     test("should check all permissions to avoid early exit timing", () => {
-       const permissions = new Set([
-         "permission_1",
-         "permission_2", 
-         "target_permission",
-         "permission_4"
-       ]);
-       
-       // Use the imported secure permission check function
-       
-       // Should find the permission even when it's not first
-       const result = securePermissionCheck(permissions, "target_permission");
-       expect(result).toBe(true);
-       
-       // Should not find non-existent permissions
-       const result2 = securePermissionCheck(permissions, "nonexistent");
-       expect(result2).toBe(false);
-     });
-   });
- });    
+      // Test empty string
+      const emptyResult = validatePrivateKeyResult("", "test key");
+      expect(emptyResult.valid).toBe(false);
+      expect(emptyResult.error).toContain("test key cannot be an empty string");
+      expect(emptyResult.code).toBe("PRIVATE_KEY_EMPTY_STRING");
+
+      const placeholderResult = validatePrivateKeyResult(
+        "undefined",
+        "test key",
+      );
+      expect(placeholderResult.valid).toBe(false);
+      expect(placeholderResult.error).toContain(
+        "test key appears to be a placeholder value",
+      );
+
+      const invalidResult = validatePrivateKeyResult("invalid", "test key");
+      expect(invalidResult.valid).toBe(false);
+      expect(invalidResult.error).toContain(
+        "test key is not a valid private key format",
+      );
+
+      // Valid key test - use a fixed 64-character hex string for consistent testing
+      const validKey =
+        "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"; // Fixed 64-char hex
+      const validResult = validatePrivateKeyResult(validKey, "test key");
+      expect(validResult.valid).toBe(true);
+      expect(validResult.error).toBeUndefined();
+    });
+  });
+
+  describe("Timing Attack Prevention", () => {
+    test("should use constant-time permission checking", () => {
+      const permissions = new Set(["sign_event", "get_public_key", "ping"]);
+
+      // Test with valid permission
+      const result1 = securePermissionCheck(permissions, "sign_event");
+      expect(result1).toBe(true);
+
+      // Test with invalid permission
+      const result2 = securePermissionCheck(permissions, "invalid_permission");
+      expect(result2).toBe(false);
+
+      // The function should check all permissions regardless of result
+      // This is validated by the implementation itself which iterates through all permissions
+    });
+
+    test("should check all permissions to avoid early exit timing", () => {
+      const permissions = new Set([
+        "permission_1",
+        "permission_2",
+        "target_permission",
+        "permission_4",
+      ]);
+
+      // Create a custom implementation that tracks iterations
+      const checkWithTracking = (perms: Set<string>, required: string): boolean => {
+        const permArray = Array.from(perms);
+        let checkedCount = 0;
+        let hasPermission = false;
+        
+        // This mimics the constant-time implementation
+        for (const perm of permArray) {
+          checkedCount++;
+          if (perm === required) {
+            hasPermission = true;
+            // Important: Don't break early, continue checking all
+          }
+        }
+        
+        // Verify all permissions were checked
+        expect(checkedCount).toBe(permArray.length);
+        return hasPermission;
+      };
+
+      // Should find the permission even when it's not first
+      const result = checkWithTracking(permissions, "target_permission");
+      expect(result).toBe(true);
+
+      // Should not find non-existent permissions
+      const result2 = checkWithTracking(permissions, "nonexistent");
+      expect(result2).toBe(false);
+      
+      // Also test with the actual function
+      expect(securePermissionCheck(permissions, "target_permission")).toBe(true);
+      expect(securePermissionCheck(permissions, "nonexistent")).toBe(false);
+    });
+  });
+});

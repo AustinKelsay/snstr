@@ -21,15 +21,15 @@ import {
   RelayUrlValidationError,
 } from "../utils/relayUrl";
 import { Logger, LogLevel } from "../nip46/utils/logger";
-import { 
-  validateFilters, 
-  validateEventContent, 
+import {
+  validateFilters,
+  validateEventContent,
   validateTags,
   validateNumber,
   SecurityValidationError,
   checkRateLimit,
   RateLimitState,
-  SECURITY_LIMITS
+  SECURITY_LIMITS,
 } from "../utils/security-validator";
 
 /**
@@ -130,19 +130,19 @@ export class Nostr {
   private subscribeRateLimit: RateLimitState = {
     count: 0,
     windowStart: Date.now(),
-    blocked: false
+    blocked: false,
   };
-  
+
   private publishRateLimit: RateLimitState = {
     count: 0,
     windowStart: Date.now(),
-    blocked: false
+    blocked: false,
   };
-  
+
   private fetchRateLimit: RateLimitState = {
     count: 0,
     windowStart: Date.now(),
-    blocked: false
+    blocked: false,
   };
 
   // Rate limiting configuration
@@ -159,24 +159,24 @@ export class Nostr {
    * @param options.relayOptions Options to pass to each Relay instance
    * @param options.rateLimits Rate limiting configuration for different operations
    */
-  constructor(
-    relayUrls: string[] = [],
-    options?: NostrOptions
-  ) {
+  constructor(relayUrls: string[] = [], options?: NostrOptions) {
     this.relayOptions = options?.relayOptions;
-    
+
     // Initialize rate limits with defaults or user-provided values
     this.RATE_LIMITS = {
-      SUBSCRIBE: options?.rateLimits?.subscribe || { limit: 50, windowMs: 60000 }, // 50 subscriptions per minute
+      SUBSCRIBE: options?.rateLimits?.subscribe || {
+        limit: 50,
+        windowMs: 60000,
+      }, // 50 subscriptions per minute
       PUBLISH: options?.rateLimits?.publish || { limit: 100, windowMs: 60000 }, // 100 publications per minute
       FETCH: options?.rateLimits?.fetch || { limit: 200, windowMs: 60000 }, // 200 fetches per minute
     };
-    
+
     this.logger = new Logger({
       prefix: "Nostr",
       level: LogLevel.WARN,
       includeTimestamp: false,
-      silent: process.env.NODE_ENV === 'test'
+      silent: process.env.NODE_ENV === "test",
     });
     relayUrls.forEach((url) => this.addRelay(url));
   }
@@ -195,7 +195,7 @@ export class Nostr {
    * Preprocesses a relay URL before normalization and validation.
    * Adds wss:// prefix only to URLs without any scheme.
    * Throws an error for URLs with incompatible schemes.
-   * 
+   *
    * @param url - The input URL string to preprocess
    * @returns The preprocessed URL with appropriate scheme
    * @throws Error if URL has an incompatible scheme
@@ -334,7 +334,7 @@ export class Nostr {
       if (!isValidRelayUrl(url)) {
         return;
       }
-      
+
       const relay = this.relays.get(url);
       if (relay) {
         relay.disconnect();
@@ -388,7 +388,7 @@ export class Nostr {
     return {
       subscribe: { ...this.RATE_LIMITS.SUBSCRIBE },
       publish: { ...this.RATE_LIMITS.PUBLISH },
-      fetch: { ...this.RATE_LIMITS.FETCH }
+      fetch: { ...this.RATE_LIMITS.FETCH },
     };
   }
 
@@ -403,25 +403,25 @@ export class Nostr {
       this.subscribeRateLimit = {
         count: 0,
         windowStart: Date.now(),
-        blocked: false
+        blocked: false,
       };
     }
-    
+
     if (rateLimits.publish) {
       this.RATE_LIMITS.PUBLISH = { ...rateLimits.publish };
       this.publishRateLimit = {
         count: 0,
         windowStart: Date.now(),
-        blocked: false
+        blocked: false,
       };
     }
-    
+
     if (rateLimits.fetch) {
       this.RATE_LIMITS.FETCH = { ...rateLimits.fetch };
       this.fetchRateLimit = {
         count: 0,
         windowStart: Date.now(),
-        blocked: false
+        blocked: false,
       };
     }
   }
@@ -433,19 +433,19 @@ export class Nostr {
     this.subscribeRateLimit = {
       count: 0,
       windowStart: Date.now(),
-      blocked: false
+      blocked: false,
     };
-    
+
     this.publishRateLimit = {
       count: 0,
       windowStart: Date.now(),
-      blocked: false
+      blocked: false,
     };
-    
+
     this.fetchRateLimit = {
       count: 0,
       windowStart: Date.now(),
-      blocked: false
+      blocked: false,
     };
   }
 
@@ -461,9 +461,9 @@ export class Nostr {
       this.logger.warn("No relays configured for publishing", {
         eventId: event.id,
         eventKind: event.kind,
-        operation: "publishEvent"
+        operation: "publishEvent",
       });
-      
+
       return {
         success: false,
         event: null,
@@ -501,15 +501,12 @@ export class Nostr {
           .filter(([_, result]) => !result.success)
           .map(([url, result]) => `${url}: ${result.reason || "unknown"}`);
 
-        this.logger.warn(
-          "Failed to publish event to any relay",
-          {
-            eventId: event.id,
-            eventKind: event.kind,
-            failureCount: failureReasons.length,
-            failures: failureReasons
-          }
-        );
+        this.logger.warn("Failed to publish event to any relay", {
+          eventId: event.id,
+          eventKind: event.kind,
+          failureCount: failureReasons.length,
+          failures: failureReasons,
+        });
 
         return {
           success: false,
@@ -520,11 +517,11 @@ export class Nostr {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
-      
+
       this.logger.error("Failed to publish event", {
         eventId: event.id,
         eventKind: event.kind,
-        error: errorMessage
+        error: errorMessage,
       });
 
       return {
@@ -544,17 +541,17 @@ export class Nostr {
     const rateLimitCheck = checkRateLimit(
       this.publishRateLimit,
       this.RATE_LIMITS.PUBLISH.limit,
-      this.RATE_LIMITS.PUBLISH.windowMs
+      this.RATE_LIMITS.PUBLISH.windowMs,
     );
-    
+
     if (!rateLimitCheck.allowed) {
       throw new SecurityValidationError(
         `Publish rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
-        'RATE_LIMIT_EXCEEDED',
-        'publish'
+        "RATE_LIMIT_EXCEEDED",
+        "publish",
       );
     }
-    
+
     // Update rate limit state (increment count)
     this.publishRateLimit.count++;
 
@@ -566,18 +563,31 @@ export class Nostr {
     try {
       const validatedContent = validateEventContent(content);
       const validatedTags = validateTags(tags);
-      
-      if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
-        throw new Error(`Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`);
+
+      // Calculate actual UTF-8 byte length for proper size validation
+      const contentByteLength = new TextEncoder().encode(validatedContent).length;
+      if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+        throw new Error(
+          `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        );
       }
 
-      const noteTemplate = createTextNote(validatedContent, this.privateKey, validatedTags);
-      const signedEvent = await createSignedEvent(noteTemplate, this.privateKey);
+      const noteTemplate = createTextNote(
+        validatedContent,
+        this.privateKey,
+        validatedTags,
+      );
+      const signedEvent = await createSignedEvent(
+        noteTemplate,
+        this.privateKey,
+      );
 
       const publishResult = await this.publishEvent(signedEvent, options);
       return publishResult.success ? publishResult.event : null;
     } catch (error) {
-      throw new Error(`publishTextNote validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `publishTextNote validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -637,7 +647,7 @@ export class Nostr {
       this.logger.warn("Direct message not intended for this user", {
         recipientPubkey,
         currentUserPubkey: this.publicKey,
-        senderPubkey
+        senderPubkey,
       });
     }
 
@@ -645,15 +655,16 @@ export class Nostr {
     try {
       return decryptNIP04(this.privateKey, senderPubkey, event.content);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "unknown error";
-      
+      const errorMessage =
+        error instanceof Error ? error.message : "unknown error";
+
       this.logger.error("Failed to decrypt direct message", {
         eventId: event.id,
         senderPubkey,
         recipientPubkey,
-        error: errorMessage
+        error: errorMessage,
       });
-      
+
       throw new Error(
         "Failed to decrypt message. Make sure you are the intended recipient.",
       );
@@ -688,19 +699,19 @@ export class Nostr {
     const rateLimitCheck = checkRateLimit(
       this.subscribeRateLimit,
       this.RATE_LIMITS.SUBSCRIBE.limit,
-      this.RATE_LIMITS.SUBSCRIBE.windowMs
+      this.RATE_LIMITS.SUBSCRIBE.windowMs,
     );
-    
+
     if (!rateLimitCheck.allowed) {
       throw new SecurityValidationError(
         `Subscription rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
-        'RATE_LIMIT_EXCEEDED',
-        'subscribe'
+        "RATE_LIMIT_EXCEEDED",
+        "subscribe",
       );
     }
-    
-         // Update rate limit state (increment count)
-     this.subscribeRateLimit.count++;
+
+    // Update rate limit state (increment count)
+    this.subscribeRateLimit.count++;
 
     // Validate filters before sending to relays
     try {
@@ -719,7 +730,9 @@ export class Nostr {
 
       return subscriptionIds;
     } catch (error) {
-      throw new Error(`Filter validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Filter validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 
@@ -755,27 +768,28 @@ export class Nostr {
     const rateLimitCheck = checkRateLimit(
       this.fetchRateLimit,
       this.RATE_LIMITS.FETCH.limit,
-      this.RATE_LIMITS.FETCH.windowMs
+      this.RATE_LIMITS.FETCH.windowMs,
     );
-    
+
     if (!rateLimitCheck.allowed) {
       throw new SecurityValidationError(
         `Fetch rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
-        'RATE_LIMIT_EXCEEDED',
-        'fetch'
+        "RATE_LIMIT_EXCEEDED",
+        "fetch",
       );
     }
-    
-         // Update rate limit state (increment count)
-     this.fetchRateLimit.count++;
+
+    // Update rate limit state (increment count)
+    this.fetchRateLimit.count++;
 
     if (this.relays.size === 0) return [];
-    
+
     // Validate inputs
     try {
       const validatedFilters = validateFilters(filters);
-      const maxWait = options.maxWait ? 
-        validateNumber(options.maxWait, 0, 300000, 'fetchMany.maxWait') : 5000;
+      const maxWait = options.maxWait
+        ? validateNumber(options.maxWait, 0, 300000, "fetchMany.maxWait")
+        : 5000;
 
       return new Promise((resolve, reject) => {
         const eventsMap = new Map<string, NostrEvent>();
@@ -801,25 +815,25 @@ export class Nostr {
         const cleanup = (isAborted = false) => {
           if (isCleanedUp) return; // Prevent multiple cleanup executions
           isCleanedUp = true;
-          
+
           // Clear timeout
           if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = null;
           }
-          
+
           // Remove abort listener to prevent memory leaks
           if (abortListener && options.signal) {
-            options.signal.removeEventListener('abort', abortListener);
+            options.signal.removeEventListener("abort", abortListener);
             abortListener = null;
           }
-          
+
           // Unsubscribe from all relays
           this.unsubscribe(subIds);
-          
+
           // Resolve or reject based on abort status
           if (isAborted) {
-            reject(new Error('Fetch operation was aborted'));
+            reject(new Error("Fetch operation was aborted"));
           } else {
             resolve(Array.from(eventsMap.values()));
           }
@@ -832,10 +846,10 @@ export class Nostr {
             cleanup(true);
             return;
           }
-          
+
           // Add abort listener
           abortListener = () => cleanup(true);
-          options.signal.addEventListener('abort', abortListener);
+          options.signal.addEventListener("abort", abortListener);
         }
 
         // Set timeout to ensure Promise always resolves
@@ -844,7 +858,9 @@ export class Nostr {
         }
       });
     } catch (error) {
-      throw new Error(`fetchMany validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `fetchMany validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     }
   }
 

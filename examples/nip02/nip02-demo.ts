@@ -24,7 +24,7 @@ const USER_PUBKEY =
   "6260f29fa75c91aaa292f082e5e87b438d2ab4fdf96af398567b01802ee2fcd4";
 const PUBLIC_RELAYS = ["wss://relay.damus.io", "wss://relay.nostr.band"];
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
-const RELAY_PORT = 3338;
+const RELAY_PORT = 0;
 
 async function getFollows(client: Nostr, pubkey: string): Promise<Contact[]> {
   // Return type changed

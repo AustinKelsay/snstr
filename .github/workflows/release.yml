@@ -1,0 +1,151 @@
+name: Release to NPM
+
+on:
+  # Trigger on version tags (v1.0.0, v1.2.3, etc.)
+  push:
+    tags:
+      - 'v*.*.*'
+
+  # Allow manual triggering with version selection
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      dry_run:
+        description: 'Dry run (skip actual publish)'
+        required: false
+        default: false
+        type: boolean
+
+# Concurrency control to prevent simultaneous version bumps
+concurrency:
+  group: version-bump-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    # Only run on main branch for manual dispatch
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format -- --check
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run test coverage
+        run: npm run test:coverage
+
+      - name: Build library
+        run: npm run build
+
+      - name: Build examples
+        run: npm run build:examples
+
+      # For manual dispatch: bump version and create tag
+      - name: Configure git
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config --local user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --local user.name "${{ github.actor }} (via GitHub Actions)"
+
+      - name: Bump version
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          npm version ${{ github.event.inputs.version_type }} --no-git-tag-version
+          echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Commit version bump
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git add package.json
+          git commit -m "chore: bump version to v${{ env.NEW_VERSION }}"
+          git tag "v${{ env.NEW_VERSION }}"
+          git push origin main
+          git push origin "v${{ env.NEW_VERSION }}"
+
+      # Extract version from tag for tag-triggered releases
+      - name: Extract version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: echo "TAG_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+      # Publish to NPM
+      - name: Publish to NPM (Dry Run)
+        if: github.event.inputs.dry_run == 'true'
+        run: npm publish --dry-run
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to NPM
+        if: github.event.inputs.dry_run != 'true'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Create GitHub Release
+      - name: Create GitHub Release
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.NEW_VERSION) }}
+          RELEASE_VERSION: ${{ env.TAG_VERSION || env.NEW_VERSION }}
+        run: |
+          gh release create ${{ env.RELEASE_TAG }} \
+            --title "Release ${{ env.RELEASE_TAG }}" \
+            --notes "## Changes
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ## Installation
+
+            \`\`\`bash
+            npm install snstr@${{ env.RELEASE_VERSION }}
+            \`\`\`
+
+            ## Package Info
+
+            - **Version:** ${{ env.RELEASE_VERSION }}
+            - **Size:** [View on bundlephobia](https://bundlephobia.com/package/snstr@${{ env.RELEASE_VERSION }})
+            - **Downloads:** [View on npm](https://www.npmjs.com/package/snstr)"
+      - name: Notify Success
+        if: success() && github.event.inputs.dry_run != 'true'
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.NEW_VERSION) }}
+          RELEASE_VERSION: ${{ env.TAG_VERSION || env.NEW_VERSION }}
+        run: |
+          echo "🎉 Successfully released snstr@${{ env.RELEASE_VERSION }} to NPM!"
+          echo "📦 Package: https://www.npmjs.com/package/snstr"
+          echo "🏷️ GitHub Release: https://github.com/${{ github.repository }}/releases/tag/${{ env.RELEASE_TAG }}"

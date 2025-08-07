@@ -45,12 +45,16 @@ export { Logger, LogLevel } from "./utils/logger";
 
 export {
   generateRequestId,
+  initializeCrypto,
   createRequest,
   createSuccessResponse,
   createErrorResponse,
 } from "./utils/request-response";
-export { buildConnectionString, parseConnectionString } from "./utils/connection";
-export { 
+export {
+  buildConnectionString,
+  parseConnectionString,
+} from "./utils/connection";
+export {
   // Constants
   MAX_CONTENT_SIZE,
   MAX_ID_LENGTH,
@@ -74,7 +78,7 @@ export {
   sanitizeString,
   validateTimestamp,
   // Error handler class
-  SecureErrorHandler 
+  SecureErrorHandler,
 } from "./utils/validator";
 
 // Re-export utility functions from crypto to make the API more convenient

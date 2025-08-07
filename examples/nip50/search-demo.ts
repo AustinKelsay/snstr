@@ -5,7 +5,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { createSearchFilter } from "../../src/nip50";
 
 async function main() {
-  const relay = new NostrRelay(4080);
+  const relay = new NostrRelay(0);
   await relay.start();
   console.log(`Ephemeral relay running at ${relay.url}`);
 

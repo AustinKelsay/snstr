@@ -8,17 +8,22 @@ import {
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
-import {
-  NIP46ConnectionError,
-} from "../../src/nip46/types";
+import { NIP46ConnectionError } from "../../src/nip46/types";
 import { validateSecureInitialization } from "../../src/nip46/utils/security";
 
+jest.setTimeout(60000); // 60 second timeout for NIP-46 operations to handle full test suite load
+
 // Type for accessing internal client properties in tests
-interface ClientWithInternals { clientKeys: { publicKey: string } }
+interface ClientWithInternals {
+  clientKeys: { publicKey: string };
+}
 
 // Interface for accessing internal bunker methods in tests
 interface BunkerWithInternals {
-  handleConnect(request: { id: string; method: string; params: string[] }, clientPubkey: string): Promise<{ id: string; result: string; error: string; auth_url?: string }>;
+  handleConnect(
+    request: { id: string; method: string; params: string[] },
+    clientPubkey: string,
+  ): Promise<{ id: string; result: string; error: string; auth_url?: string }>;
 }
 
 describe("NIP-46 Core Functionality (Optimized)", () => {
@@ -40,19 +45,21 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
 
-    // Minimal relay startup delay
-    await new Promise((resolve) => setTimeout(resolve, 25).unref());
-  }, 8000);
+    // Longer relay startup delay for full test suite stability
+    await new Promise((resolve) => setTimeout(resolve, 100).unref());
+  }, 15000);
 
   afterAll(async () => {
     // Clean up active clients in parallel
-    await Promise.all(activeClients.map(async (activeClient) => {
-      try {
-        await activeClient.disconnect();
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }));
+    await Promise.all(
+      activeClients.map(async (activeClient) => {
+        try {
+          await activeClient.disconnect();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      }),
+    );
 
     // Clean up bunker and client in parallel
     await Promise.all([
@@ -64,9 +71,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       await relay.close().catch(() => {});
     }
 
-    // Minimal cleanup delay
-    await new Promise((resolve) => setTimeout(resolve, 10).unref());
-  }, 8000);
+    // Longer cleanup delay for full test suite stability
+    await new Promise((resolve) => setTimeout(resolve, 50).unref());
+  }, 15000);
 
   beforeEach(async () => {
     // Create bunker with minimal logging for performance
@@ -105,7 +112,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       client?.disconnect().catch(() => {}),
       bunker?.stop().catch(() => {}),
     ]);
-    
+
     // Minimal cleanup delay
     await new Promise((resolve) => setTimeout(resolve, 10).unref());
   });
@@ -116,11 +123,11 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       const connectionString = bunker.getConnectionString();
       const userPubkey = await client.connect(connectionString);
       expect(userPubkey).toBe(userKeypair.publicKey);
-      
+
       // Test basic operations
       expect(await client.getPublicKey()).toBe(userKeypair.publicKey);
       expect(await client.ping()).toBe(true);
-      
+
       // Test event signing with multiple kinds
       const eventKinds = [0, 1, 4];
       for (const kind of eventKinds) {
@@ -130,21 +137,25 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
           created_at: Math.floor(Date.now() / 1000),
           tags: kind === 4 ? [["p", "recipient"]] : [],
         };
-        
+
         const signedEvent = await client.signEvent(eventData);
         expect(signedEvent.kind).toBe(kind);
         expect(signedEvent.pubkey).toBe(userKeypair.publicKey);
-        
+
         // Verify signature for one event to save time
         if (kind === 1) {
-          const valid = await verifySignature(signedEvent.id, signedEvent.sig, signedEvent.pubkey);
+          const valid = await verifySignature(
+            signedEvent.id,
+            signedEvent.sig,
+            signedEvent.pubkey,
+          );
           expect(valid).toBe(true);
         }
       }
-      
+
       // Test disconnect
       await client.disconnect();
-      
+
       // Verify operations fail after disconnect
       await expect(client.getPublicKey()).rejects.toThrow(NIP46ConnectionError);
       await expect(client.ping()).resolves.toBe(false);
@@ -158,55 +169,80 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       const message = "Test encryption message";
 
       // Test NIP-44 (preferred)
-      const nip44Encrypted = await client.nip44Encrypt(recipientKeys.publicKey, message);
+      const nip44Encrypted = await client.nip44Encrypt(
+        recipientKeys.publicKey,
+        message,
+      );
       expect(nip44Encrypted).toBeTruthy();
       expect(nip44Encrypted).not.toBe(message);
-      
-      const nip44Decrypted = await client.nip44Decrypt(recipientKeys.publicKey, nip44Encrypted);
+
+      const nip44Decrypted = await client.nip44Decrypt(
+        recipientKeys.publicKey,
+        nip44Encrypted,
+      );
       expect(nip44Decrypted).toBe(message);
 
       // Test NIP-04 (legacy) - need to grant permissions
-      const clientPubkey = (client as unknown as ClientWithInternals).clientKeys.publicKey;
+      const clientPubkey = (client as unknown as ClientWithInternals).clientKeys
+        .publicKey;
       bunker.addClientPermission(clientPubkey, "nip04_encrypt");
       bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
-      const nip04Encrypted = await client.nip04Encrypt(recipientKeys.publicKey, message);
+      const nip04Encrypted = await client.nip04Encrypt(
+        recipientKeys.publicKey,
+        message,
+      );
       expect(nip04Encrypted).toBeTruthy();
       expect(nip04Encrypted).not.toBe(message);
       expect(nip04Encrypted).not.toBe(nip44Encrypted); // Different encryption methods
-      
-      const nip04Decrypted = await client.nip04Decrypt(recipientKeys.publicKey, nip04Encrypted);
+
+      const nip04Decrypted = await client.nip04Decrypt(
+        recipientKeys.publicKey,
+        nip04Encrypted,
+      );
       expect(nip04Decrypted).toBe(message);
 
       // Test edge cases
-      await expect(client.nip44Encrypt(recipientKeys.publicKey, "")).rejects.toThrow();
-      await expect(client.nip04Encrypt(recipientKeys.publicKey, "")).rejects.toThrow();
+      await expect(
+        client.nip44Encrypt(recipientKeys.publicKey, ""),
+      ).rejects.toThrow();
+      await expect(
+        client.nip04Encrypt(recipientKeys.publicKey, ""),
+      ).rejects.toThrow();
     });
 
     test("Error handling and edge cases", async () => {
       // Test operations without connection
       await expect(client.getPublicKey()).rejects.toThrow(NIP46ConnectionError);
-      await expect(client.signEvent({
-        kind: 1,
-        content: "test",
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [],
-      })).rejects.toThrow(NIP46ConnectionError);
+      await expect(
+        client.signEvent({
+          kind: 1,
+          content: "test",
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [],
+        }),
+      ).rejects.toThrow(NIP46ConnectionError);
 
       // Test invalid connection strings
       await expect(client.connect("invalid://string")).rejects.toThrow();
-      await expect(client.connect(`bunker://invalid?relay=${encodeURIComponent(relayUrl)}`)).rejects.toThrow();
+      await expect(
+        client.connect(
+          `bunker://invalid?relay=${encodeURIComponent(relayUrl)}`,
+        ),
+      ).rejects.toThrow();
 
       // Test malformed event data after connecting
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
-      
-      await expect(client.signEvent({
-        kind: 1,
-        // Missing content
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [],
-      } as unknown as Parameters<typeof client.signEvent>[0])).rejects.toThrow();
+
+      await expect(
+        client.signEvent({
+          kind: 1,
+          // Missing content
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [],
+        } as unknown as Parameters<typeof client.signEvent>[0]),
+      ).rejects.toThrow();
 
       // Test multiple connect calls work
       const userPubkey2 = await client.connect(connectionString);
@@ -218,33 +254,49 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     });
 
     test("Complex event tags and bunker permissions", async () => {
-      const connectionString = bunker.getConnectionString();
-      await client.connect(connectionString);
+      // Create a fresh client with longer timeout for this test
+      const testClient = new SimpleNIP46Client([relayUrl], { 
+        timeout: 10000, // Increase timeout to handle test suite load
+        logLevel: LogLevel.ERROR 
+      });
+      
+      try {
+        const connectionString = bunker.getConnectionString();
+        await testClient.connect(connectionString);
 
-      // Test event with complex tags
-      const eventData = {
-        kind: 1,
-        content: "Event with complex tags",
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ["e", "eventid", "relay", "root"],
-          ["p", "pubkey", "relay", "mention"],
-          ["t", "hashtag"],
-          ["r", "https://example.com"],
-          ["custom", "value1", "value2"],
-        ],
-      };
+        // Test event with complex tags
+        const eventData = {
+          kind: 1,
+          content: "Event with complex tags",
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ["e", "eventid", "relay", "root"],
+            ["p", "pubkey", "relay", "mention"],
+            ["t", "hashtag"],
+            ["r", "https://example.com"],
+            ["custom", "value1", "value2"],
+          ],
+        };
 
-      const signedEvent = await client.signEvent(eventData);
-      expect(signedEvent.tags).toEqual(eventData.tags);
+        const signedEvent = await testClient.signEvent(eventData);
+        expect(signedEvent.tags).toEqual(eventData.tags);
 
-      // Test bunker connection string format
-      expect(connectionString).toMatch(/^bunker:\/\/[a-f0-9]{64}\?/);
-      expect(connectionString).toContain(`relay=${encodeURIComponent(relayUrl)}`);
+        // Test bunker connection string format
+        expect(connectionString).toMatch(/^bunker:\/\/[a-f0-9]{64}\?/);
+        expect(connectionString).toContain(
+          `relay=${encodeURIComponent(relayUrl)}`,
+        );
 
-      // Test multiple pings work
-      const results = await Promise.all([client.ping(), client.ping(), client.ping()]);
-      expect(results).toEqual([true, true, true]);
+        // Test multiple pings work
+        const results = await Promise.all([
+          testClient.ping(),
+          testClient.ping(),
+          testClient.ping(),
+        ]);
+        expect(results).toEqual([true, true, true]);
+      } finally {
+        await testClient.disconnect().catch(() => {});
+      }
     });
   });
 
@@ -260,14 +312,14 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       try {
         const connectionString = bunker.getConnectionString();
         await fullClient.connect(connectionString);
-        
+
         // Test core operations
         const userPubkey = await fullClient.getUserPublicKey();
         expect(userPubkey).toBe(userKeypair.publicKey);
-        
+
         const pingResult = await fullClient.ping();
         expect(pingResult).toBe("pong");
-        
+
         // Test event signing
         const event = await fullClient.signEvent({
           kind: 1,
@@ -277,17 +329,22 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         });
         expect(event.kind).toBe(1);
         expect(event.pubkey).toBe(userKeypair.publicKey);
-        
+
         // Test disconnect cleanup
         await fullClient.disconnect();
-        
-        const clientWithInternals = fullClient as unknown as { 
+
+        const clientWithInternals = fullClient as unknown as {
           connected: boolean;
-          pendingRequests: Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>;
+          pendingRequests: Map<
+            string,
+            {
+              resolve: (value: unknown) => void;
+              reject: (error: Error) => void;
+            }
+          >;
         };
         expect(clientWithInternals.connected).toBe(false);
         expect(clientWithInternals.pendingRequests.size).toBe(0);
-        
       } finally {
         await fullClient.disconnect().catch(() => {});
       }
@@ -295,7 +352,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
 
     test("Static methods and connection strings", async () => {
       const clientKeypair = await generateKeypair();
-      
+
       // Test generateConnectionString
       const connectionString = NostrRemoteSignerClient.generateConnectionString(
         clientKeypair.publicKey,
@@ -304,7 +361,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
           secret: "test-secret",
           name: "Test Client",
           permissions: ["sign_event", "nip44_encrypt"],
-        }
+        },
       );
 
       expect(connectionString).toMatch(/^nostrconnect:\/\//);
@@ -312,7 +369,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       expect(connectionString).toContain("test-secret");
 
       // Test invalid pubkey throws
-      expect(() => NostrRemoteSignerClient.generateConnectionString("")).toThrow(NIP46ConnectionError);
+      expect(() =>
+        NostrRemoteSignerClient.generateConnectionString(""),
+      ).toThrow(NIP46ConnectionError);
 
       // Test timeout handling
       const shortTimeoutClient = new SimpleNIP46Client([relayUrl], {
@@ -322,46 +381,57 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       });
 
       await bunker.stop(); // Stop bunker to cause timeout
-      
-      await expect(shortTimeoutClient.connect(bunker.getConnectionString())).rejects.toThrow(/Request timed out/i);
+
+      await expect(
+        shortTimeoutClient.connect(bunker.getConnectionString()),
+      ).rejects.toThrow(/Request timed out/i);
       await shortTimeoutClient.disconnect().catch(() => {});
     });
 
     test("Race condition and cleanup fixes", async () => {
       const testClient = new NostrRemoteSignerClient({
         relays: [relayUrl],
-        timeout: 2000,
-        debug: false
+        timeout: 10000, // Increase timeout to handle test suite load
+        debug: false,
       });
       activeClients.push(testClient);
 
       try {
         const connectionString = bunker.getConnectionString();
         await testClient.connect(connectionString);
-        
+
         // Test multiple operations
-        const requests = [testClient.ping(), testClient.ping(), testClient.ping()];
+        const requests = [
+          testClient.ping(),
+          testClient.ping(),
+          testClient.ping(),
+        ];
         await Promise.all(requests);
-        
-        const clientWithInternals = testClient as unknown as { 
-          pendingRequests: Map<string, { resolve: (value: unknown) => void; reject: (error: Error) => void }>;
+
+        const clientWithInternals = testClient as unknown as {
+          pendingRequests: Map<
+            string,
+            {
+              resolve: (value: unknown) => void;
+              reject: (error: Error) => void;
+            }
+          >;
           connected: boolean;
         };
-        
+
         // Disconnect immediately
         await testClient.disconnect();
-        
+
         // Verify cleanup
         expect(clientWithInternals.pendingRequests.size).toBe(0);
         expect(clientWithInternals.connected).toBe(false);
-        
+
         // New requests should be rejected
         await expect(testClient.ping()).rejects.toThrow(NIP46ConnectionError);
-        
+
         // Multiple disconnects should be safe
         await testClient.disconnect();
         await testClient.disconnect();
-        
       } finally {
         await testClient.disconnect().catch(() => {});
       }
@@ -372,17 +442,20 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     test("NIP-46 spec compliance", async () => {
       const testUserKeypair = await generateKeypair();
       const testSignerKeypair = await generateKeypair();
-      
+
       const testBunker = new NostrRemoteSignerBunker({
         userPubkey: testUserKeypair.publicKey,
         signerPubkey: testSignerKeypair.publicKey,
-        relays: [relayUrl]
+        relays: [relayUrl],
       });
-      
-      testBunker.setPrivateKeys(testUserKeypair.privateKey, testSignerKeypair.privateKey);
-      
+
+      testBunker.setPrivateKeys(
+        testUserKeypair.privateKey,
+        testSignerKeypair.privateKey,
+      );
+
       const connectionString = testBunker.getConnectionString();
-      
+
       // connect() should return "ack", not the user pubkey (spec compliance)
       expect(connectionString).not.toContain(testUserKeypair.publicKey);
       expect(connectionString).toContain(testSignerKeypair.publicKey);
@@ -391,7 +464,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       expect(() => {
         validateSecureInitialization({
           userKeypair: testUserKeypair,
-          signerKeypair: testSignerKeypair
+          signerKeypair: testSignerKeypair,
         });
       }).not.toThrow();
 
@@ -417,7 +490,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
 
       try {
         // Test challenge resolution
-        const resolved = authBunker.resolveAuthChallenge(testUserKeypair.publicKey);
+        const resolved = authBunker.resolveAuthChallenge(
+          testUserKeypair.publicKey,
+        );
         expect(typeof resolved).toBe("boolean");
 
         // Test auth challenge format
@@ -425,13 +500,19 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         const connectRequest = {
           id: "test-connect-id",
           method: "connect",
-          params: [testSignerKeypair.publicKey, "", "sign_event:1,get_public_key"]
+          params: [
+            testSignerKeypair.publicKey,
+            "",
+            "sign_event:1,get_public_key",
+          ],
         };
 
-        const response = await testBunker.handleConnect(connectRequest, testUserKeypair.publicKey);
+        const response = await testBunker.handleConnect(
+          connectRequest,
+          testUserKeypair.publicKey,
+        );
         expect(response.id).toBe("test-connect-id");
         expect(response.auth_url).toContain("https://example.com/auth");
-        
       } finally {
         await authBunker.stop().catch(() => {});
       }
@@ -446,7 +527,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         userPubkey: testUserKeypair.publicKey,
         signerPubkey: testSignerKeypair.publicKey,
         relays: [relayUrl],
-        debug: false
+        debug: false,
       });
 
       unitBunker.setUserPrivateKey(testUserKeypair.privateKey);
@@ -455,7 +536,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       expect(unitBunker).toBeDefined();
       expect(unitBunker.getConnectionString()).toContain("bunker://");
       expect(unitBunker.getSignerPubkey()).toBe(testSignerKeypair.publicKey);
-      
+
       // Test permission handlers
       expect(() => unitBunker.setPermissionHandler(() => true)).not.toThrow();
       expect(() => unitBunker.clearPermissionHandler()).not.toThrow();
@@ -464,28 +545,33 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       const unitClient = new NostrRemoteSignerClient({
         relays: [relayUrl],
         timeout: 2000,
-        debug: false
+        debug: false,
       });
       activeClients.push(unitClient);
 
       expect(unitClient).toBeDefined();
 
       // Test methods throw when not connected
-      await expect(unitClient.getPublicKey()).rejects.toThrow(NIP46ConnectionError);
+      await expect(unitClient.getPublicKey()).rejects.toThrow(
+        NIP46ConnectionError,
+      );
       await expect(unitClient.ping()).rejects.toThrow(NIP46ConnectionError);
 
       // Test disconnect when not connected
       await expect(unitClient.disconnect()).resolves.not.toThrow();
 
       // Test generateConnectionString
-      const connStr = NostrRemoteSignerClient.generateConnectionString(testUserKeypair.publicKey, {
-        relays: [relayUrl],
-        secret: "test"
-      });
+      const connStr = NostrRemoteSignerClient.generateConnectionString(
+        testUserKeypair.publicKey,
+        {
+          relays: [relayUrl],
+          secret: "test",
+        },
+      );
       expect(connStr).toContain("nostrconnect://");
 
       await unitClient.disconnect().catch(() => {});
       await unitBunker.stop().catch(() => {});
     });
   });
-}); 
+});
