@@ -21,8 +21,9 @@ export function validateEventContent(content: string): boolean {
     return false;
   }
 
-  // Check content size limits
-  if (content.length > MAX_CONTENT_SIZE) {
+  // Check content size limits using UTF-8 byte length
+  const contentByteLength = new TextEncoder().encode(content).length;
+  if (contentByteLength > MAX_CONTENT_SIZE) {
     return false;
   }
 

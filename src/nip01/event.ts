@@ -252,9 +252,11 @@ export function createTextNote(
     const validatedContent = validateEventContent(content);
     const validatedTags = validateTags(tags);
 
-    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+    // Calculate actual UTF-8 byte length for proper size validation
+    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
-        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
         "CONTENT_TOO_LARGE",
         "content",
       );
@@ -322,9 +324,11 @@ export async function createDirectMessage(
     const validatedContent = validateEventContent(content);
     const validatedTags = validateTags(tags);
 
-    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+    // Calculate actual UTF-8 byte length for proper size validation
+    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
-        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
         "CONTENT_TOO_LARGE",
         "content",
       );
@@ -445,9 +449,11 @@ export function createAddressableEvent(
     const validatedContent = validateEventContent(content);
     const validatedTags = validateTags(additionalTags);
 
-    if (validatedContent.length > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
+    // Calculate actual UTF-8 byte length for proper size validation
+    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
-        `Content too large: ${validatedContent.length} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
+        `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
         "CONTENT_TOO_LARGE",
         "content",
       );

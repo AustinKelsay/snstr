@@ -16,6 +16,8 @@ import {
   NIP47NotificationType,
   NIP47EncryptionScheme,
   NIP47Transaction,
+  NIP47Error,
+  NIP47ErrorCode,
   TransactionType,
   generateKeypair,
   generateNWCURL,
@@ -66,10 +68,11 @@ class DemoWalletImplementation implements WalletImplementation {
     const fees = maxfee || 100;
 
     if (this.balance < paymentAmount + fees) {
-      throw {
-        code: "INSUFFICIENT_BALANCE",
+      const error: NIP47Error = {
+        code: NIP47ErrorCode.INSUFFICIENT_BALANCE,
         message: "Not enough funds",
       };
+      throw error;
     }
 
     this.balance -= paymentAmount + fees;
@@ -117,10 +120,11 @@ class DemoWalletImplementation implements WalletImplementation {
         );
 
     if (!invoice) {
-      throw {
-        code: "NOT_FOUND",
+      const error: NIP47Error = {
+        code: NIP47ErrorCode.NOT_FOUND,
         message: "Invoice not found",
       };
+      throw error;
     }
 
     return {
