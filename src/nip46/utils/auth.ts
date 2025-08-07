@@ -66,10 +66,16 @@ export function isValidAuthUrl(
         (allowedDomain) => {
           const normalizedDomain = allowedDomain.toLowerCase();
           // Support exact match or subdomain matching
-          return (
-            hostname === normalizedDomain ||
-            hostname.endsWith("." + normalizedDomain)
-          );
+          // SECURITY: Ensure proper subdomain matching to prevent bypass attacks
+          // For subdomain matching, we need to ensure there's a dot before the domain
+          // to prevent "badexample.com" from matching "example.com"
+          if (hostname === normalizedDomain) {
+            return true; // Exact match
+          }
+          // Check for proper subdomain (must have dot separator)
+          const subdomainPattern = "." + normalizedDomain;
+          return hostname.endsWith(subdomainPattern) && 
+                 hostname.length > subdomainPattern.length;
         },
       );
       

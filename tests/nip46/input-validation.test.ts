@@ -755,5 +755,22 @@ describe("NIP-46 Input Validation Security", () => {
       // Valid URL should pass all checks
       expect(isValidAuthUrl("https://trusted-domain.com/auth", { authDomainWhitelist })).toBe(true);
     });
+
+    test("prevents subdomain matching vulnerability", () => {
+      const authDomainWhitelist = ["example.com"];
+
+      // SECURITY: Verify that domains ending with the whitelisted domain but not actual subdomains are blocked
+      expect(isValidAuthUrl("https://badexample.com/auth", { authDomainWhitelist })).toBe(false);
+      expect(isValidAuthUrl("https://notexample.com/auth", { authDomainWhitelist })).toBe(false);
+      expect(isValidAuthUrl("https://maliciousexample.com/auth", { authDomainWhitelist })).toBe(false);
+      
+      // These should still work (exact match and proper subdomains)
+      expect(isValidAuthUrl("https://example.com/auth", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://sub.example.com/auth", { authDomainWhitelist })).toBe(true);
+      expect(isValidAuthUrl("https://deep.sub.example.com/auth", { authDomainWhitelist })).toBe(true);
+
+      // Edge case: empty subdomain should not match
+      expect(isValidAuthUrl("https://.example.com/auth", { authDomainWhitelist })).toBe(false);
+    });
   });
 });
