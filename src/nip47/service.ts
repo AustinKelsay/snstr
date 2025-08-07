@@ -33,6 +33,89 @@ import {
 } from "../utils/security-validator";
 
 /**
+ * TTL Map implementation with automatic cleanup
+ */
+class TTLMap<K, V> {
+  private store = new Map<K, { value: V; expiry: number }>();
+  private maxSize: number;
+  private ttlMs: number;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor(ttlMs: number = 60000, maxSize: number = 1000) {
+    this.ttlMs = ttlMs;
+    this.maxSize = maxSize;
+    // Start periodic cleanup every 30 seconds
+    this.startCleanup();
+  }
+
+  set(key: K, value: V): void {
+    // Remove oldest entries if we're at max size
+    if (this.store.size >= this.maxSize) {
+      const firstKey = this.store.keys().next().value;
+      if (firstKey !== undefined) {
+        this.store.delete(firstKey);
+      }
+    }
+
+    const expiry = Date.now() + this.ttlMs;
+    this.store.set(key, { value, expiry });
+  }
+
+  get(key: K): V | undefined {
+    const item = this.store.get(key);
+    if (!item) return undefined;
+
+    if (Date.now() > item.expiry) {
+      this.store.delete(key);
+      return undefined;
+    }
+
+    return item.value;
+  }
+
+  has(key: K): boolean {
+    const item = this.store.get(key);
+    if (!item) return false;
+
+    if (Date.now() > item.expiry) {
+      this.store.delete(key);
+      return false;
+    }
+
+    return true;
+  }
+
+  delete(key: K): boolean {
+    return this.store.delete(key);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  private cleanup(): void {
+    const now = Date.now();
+    for (const [key, item] of this.store.entries()) {
+      if (now > item.expiry) {
+        this.store.delete(key);
+      }
+    }
+  }
+
+  private startCleanup(): void {
+    this.cleanupInterval = setInterval(() => this.cleanup(), 30000);
+  }
+
+  destroy(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.clear();
+  }
+}
+
+/**
  * Options for the NostrWalletService
  */
 export interface NostrWalletServiceOptions {
@@ -97,7 +180,7 @@ export class NostrWalletService {
   private walletImpl: WalletImplementation;
   private subIds: string[] = [];
   private authorizedClients: string[] = [];
-  private requestEncryption = new Map<string, NIP47EncryptionScheme>(); // Track encryption per request
+  private requestEncryption: TTLMap<string, NIP47EncryptionScheme>; // Track encryption per request with TTL
 
   constructor(
     options: NostrWalletServiceOptions,
@@ -132,6 +215,8 @@ export class NostrWalletService {
     this.walletImpl = walletImpl;
     this.client = new Nostr(this.relays);
     this.authorizedClients = options.authorizedClients || [];
+    // Initialize TTL map with 5 minute TTL and max 1000 entries
+    this.requestEncryption = new TTLMap<string, NIP47EncryptionScheme>(5 * 60 * 1000, 1000);
   }
 
   /**
@@ -158,6 +243,9 @@ export class NostrWalletService {
    */
   public async disconnect(): Promise<void> {
     try {
+      // Clean up TTL map
+      this.requestEncryption.destroy();
+
       // Clean up subscriptions
       if (this.subIds.length > 0) {
         this.client.unsubscribe(this.subIds);

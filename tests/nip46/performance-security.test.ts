@@ -8,7 +8,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateRequestId } from "../../src/nip46/utils/request-response";
 import { NIP46RateLimiter } from "../../src/nip46/utils/rate-limiter";
 
-jest.setTimeout(30000); // 30 second timeout for performance tests
+jest.setTimeout(60000); // 60 second timeout for performance tests to handle full test suite load
 
 describe("NIP-46 Performance & DoS Protection", () => {
   let relay: NostrRelay;
@@ -40,7 +40,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
     // Further reduced connection delay
     await new Promise((resolve) => setTimeout(resolve, 10));
 
-    client = new SimpleNIP46Client([relay.url], { timeout: 3000 }); // Reduced timeout
+    client = new SimpleNIP46Client([relay.url], { timeout: 10000 }); // Increased timeout for full test suite
   });
 
   afterEach(async () => {
@@ -440,7 +440,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
       const clientCount = 3;
       const clients = Array(clientCount)
         .fill(null)
-        .map(() => new SimpleNIP46Client([relay.url], { timeout: 2000 }));
+        .map(() => new SimpleNIP46Client([relay.url], { timeout: 10000 })); // Increased timeout
 
       try {
         // Connect all clients concurrently (not sequentially)

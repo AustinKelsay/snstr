@@ -1,0 +1,81 @@
+# Images and media files
+.github/images/
+docs/images/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.svg
+*.webp
+
+# Development files
+.github/
+coverage/
+tests/
+examples/
+dist-examples/
+scripts/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Configuration files
+.eslintrc*
+.prettierrc*
+jest.config.js
+jest.setup.js
+tsconfig.json
+tsconfig.*.json
+.editorconfig
+.nvmrc
+
+# Documentation
+CONTRIBUTING.md
+CHANGELOG.md
+RELEASE.md
+CLAUDE.md
+*_STANDARDIZATION.md
+*.md
+!README.md
+!LICENSE
+
+# Source files (keep only dist)
+src/
+*.ts
+!*.d.ts
+
+# Logs and temporary files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.tmp/
+temp/
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.travis.yml
+.gitlab-ci.yml
+.circleci/
+.github/workflows/
+
+# Package manager files (keep only package.json)
+yarn.lock
+pnpm-lock.yaml
+.yarn/
+.pnpm/

@@ -31,6 +31,6 @@ const message = decryptDirectMessage(wrapped, bob.privateKey);
 console.log(message.content); // "hello"
 ```
 
-**Note for ESM users:** If you're using this library in a pure ESM environment (e.g., with `"type": "module"` in package.json), call `initializeNIP17Crypto()` once during application startup to ensure crypto functions work correctly.
+**Note for ESM users:** If you're using this library in a pure ESM environment (e.g., with `"type": "module"` in package.json), call `initializeCrypto()` once during application startup to ensure crypto functions work correctly.
 
 See the example in `examples/nip17` for a more complete demonstration.

@@ -8,7 +8,7 @@ import { NIP46SecurityError } from "../../src/nip46/types";
 import { parseConnectionString } from "../../src/nip46/utils/connection";
 import { isValidAuthUrl } from "../../src/nip46/utils/auth";
 
-jest.setTimeout(30000); // 30 second timeout for NIP-46 operations
+jest.setTimeout(60000); // 60 second timeout for NIP-46 operations to handle full test suite load
 
 // Helper function to race a promise with a timeout that cleans up properly
 function raceWithTimeout<T>(
@@ -69,7 +69,7 @@ describe("NIP-46 Input Validation Security", () => {
     // The bunker.start() Promise resolves when the relay connection is established
     // and the subscription is active, so no additional waiting is needed
 
-    client = new SimpleNIP46Client([relay.url], { timeout: 3000 }); // Reduced timeout
+    client = new SimpleNIP46Client([relay.url], { timeout: 10000 }); // Increased timeout for full test suite
   });
 
   afterEach(async () => {

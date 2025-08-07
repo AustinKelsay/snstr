@@ -24,6 +24,11 @@ on:
         default: false
         type: boolean
 
+# Concurrency control to prevent simultaneous version bumps
+concurrency:
+  group: version-bump-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -74,8 +79,8 @@ jobs:
       - name: Configure git
         if: github.event_name == 'workflow_dispatch'
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --local user.name "${{ github.actor }} (via GitHub Actions)"
 
       - name: Bump version
         if: github.event_name == 'workflow_dispatch'

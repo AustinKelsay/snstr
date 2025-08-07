@@ -1,6 +1,6 @@
 # SNSTR - Secure Nostr Software Toolkit for Renegades
 
-![SNSTR Logo](https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/snstr.jpg)
+![SNSTR Logo](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr.jpg)
 
 ### Beta Release 🚧
 
@@ -37,7 +37,7 @@ SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr
 
 ## Features
 
-![SNSTR Starter Pack](https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/snstr-starter-pack.png)
+![SNSTR Starter Pack](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr-starter-pack.png)
 
 ### Core Functionality
 

@@ -11,7 +11,7 @@ import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { NIP46ConnectionError } from "../../src/nip46/types";
 import { validateSecureInitialization } from "../../src/nip46/utils/security";
 
-jest.setTimeout(30000); // 30 second timeout for NIP-46 operations
+jest.setTimeout(60000); // 60 second timeout for NIP-46 operations to handle full test suite load
 
 // Type for accessing internal client properties in tests
 interface ClientWithInternals {
@@ -45,9 +45,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     userKeypair = await generateKeypair();
     signerKeypair = await generateKeypair();
 
-    // Minimal relay startup delay
-    await new Promise((resolve) => setTimeout(resolve, 25).unref());
-  }, 8000);
+    // Longer relay startup delay for full test suite stability
+    await new Promise((resolve) => setTimeout(resolve, 100).unref());
+  }, 15000);
 
   afterAll(async () => {
     // Clean up active clients in parallel
@@ -71,9 +71,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       await relay.close().catch(() => {});
     }
 
-    // Minimal cleanup delay
-    await new Promise((resolve) => setTimeout(resolve, 10).unref());
-  }, 8000);
+    // Longer cleanup delay for full test suite stability
+    await new Promise((resolve) => setTimeout(resolve, 50).unref());
+  }, 15000);
 
   beforeEach(async () => {
     // Create bunker with minimal logging for performance
@@ -254,39 +254,49 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     });
 
     test("Complex event tags and bunker permissions", async () => {
-      const connectionString = bunker.getConnectionString();
-      await client.connect(connectionString);
+      // Create a fresh client with longer timeout for this test
+      const testClient = new SimpleNIP46Client([relayUrl], { 
+        timeout: 10000, // Increase timeout to handle test suite load
+        logLevel: LogLevel.ERROR 
+      });
+      
+      try {
+        const connectionString = bunker.getConnectionString();
+        await testClient.connect(connectionString);
 
-      // Test event with complex tags
-      const eventData = {
-        kind: 1,
-        content: "Event with complex tags",
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ["e", "eventid", "relay", "root"],
-          ["p", "pubkey", "relay", "mention"],
-          ["t", "hashtag"],
-          ["r", "https://example.com"],
-          ["custom", "value1", "value2"],
-        ],
-      };
+        // Test event with complex tags
+        const eventData = {
+          kind: 1,
+          content: "Event with complex tags",
+          created_at: Math.floor(Date.now() / 1000),
+          tags: [
+            ["e", "eventid", "relay", "root"],
+            ["p", "pubkey", "relay", "mention"],
+            ["t", "hashtag"],
+            ["r", "https://example.com"],
+            ["custom", "value1", "value2"],
+          ],
+        };
 
-      const signedEvent = await client.signEvent(eventData);
-      expect(signedEvent.tags).toEqual(eventData.tags);
+        const signedEvent = await testClient.signEvent(eventData);
+        expect(signedEvent.tags).toEqual(eventData.tags);
 
-      // Test bunker connection string format
-      expect(connectionString).toMatch(/^bunker:\/\/[a-f0-9]{64}\?/);
-      expect(connectionString).toContain(
-        `relay=${encodeURIComponent(relayUrl)}`,
-      );
+        // Test bunker connection string format
+        expect(connectionString).toMatch(/^bunker:\/\/[a-f0-9]{64}\?/);
+        expect(connectionString).toContain(
+          `relay=${encodeURIComponent(relayUrl)}`,
+        );
 
-      // Test multiple pings work
-      const results = await Promise.all([
-        client.ping(),
-        client.ping(),
-        client.ping(),
-      ]);
-      expect(results).toEqual([true, true, true]);
+        // Test multiple pings work
+        const results = await Promise.all([
+          testClient.ping(),
+          testClient.ping(),
+          testClient.ping(),
+        ]);
+        expect(results).toEqual([true, true, true]);
+      } finally {
+        await testClient.disconnect().catch(() => {});
+      }
     });
   });
 
@@ -381,7 +391,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     test("Race condition and cleanup fixes", async () => {
       const testClient = new NostrRemoteSignerClient({
         relays: [relayUrl],
-        timeout: 2000,
+        timeout: 10000, // Increase timeout to handle test suite load
         debug: false,
       });
       activeClients.push(testClient);

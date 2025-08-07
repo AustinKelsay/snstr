@@ -5,6 +5,22 @@
 import { Logger } from './logger';
 
 /**
+ * Sanitize URL for safe logging by removing sensitive parts
+ * @param url - The URL to sanitize
+ * @returns Sanitized URL string with only hostname and protocol
+ */
+function sanitizeUrlForLogging(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Only return protocol and hostname, no path/query/hash that may contain secrets
+    return `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    // If URL parsing fails, return a generic placeholder
+    return '<invalid-url>';
+  }
+}
+
+/**
  * Options for auth URL validation
  */
 export interface AuthUrlValidationOptions {
@@ -35,13 +51,18 @@ export function isValidAuthUrl(
     
     // Only allow HTTPS URLs for security
     if (parsed.protocol !== "https:") {
-      logger.warn("Auth URL must use HTTPS", { url });
+      logger.warn("Auth URL must use HTTPS", { 
+        hostname: parsed.hostname,
+        protocol: parsed.protocol 
+      });
       return false;
     }
     
     // Basic hostname validation
     if (!parsed.hostname || parsed.hostname.length < 3) {
-      logger.warn("Invalid hostname in auth URL", { url });
+      logger.warn("Invalid hostname in auth URL", { 
+        hostname: parsed.hostname || '<empty>' 
+      });
       return false;
     }
     
@@ -52,7 +73,9 @@ export function isValidAuthUrl(
       url.includes('"') ||
       url.includes("'")
     ) {
-      logger.warn("Auth URL contains dangerous characters", { url });
+      logger.warn("Auth URL contains dangerous characters", { 
+        hostname: parsed.hostname 
+      });
       return false;
     }
     
@@ -83,7 +106,6 @@ export function isValidAuthUrl(
         logger.warn("Auth URL hostname not in domain whitelist", {
           hostname,
           whitelist: options.authDomainWhitelist,
-          url,
         });
         return false;
       }
@@ -97,7 +119,7 @@ export function isValidAuthUrl(
     return true;
   } catch (error) {
     logger.error("Failed to parse auth URL", {
-      url,
+      sanitizedUrl: sanitizeUrlForLogging(url),
       error: error instanceof Error ? error.message : String(error),
     });
     return false;
