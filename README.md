@@ -2,6 +2,8 @@
 
 ![SNSTR Logo](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr.jpg)
 
+[![npm version](https://badge.fury.io/js/snstr.svg)](https://www.npmjs.com/package/snstr)
+
 ### Beta Release 🚧
 
 SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
@@ -33,7 +35,6 @@ SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr
   - [Code Quality Scripts](#code-quality-scripts)
 - [Development](#development)
 - [Security](#security)
-- [Release Process](#release-process)
 
 ## Features
 
@@ -420,23 +421,85 @@ For a full list of examples and detailed descriptions, see the [examples README]
 
 SNSTR includes a comprehensive test suite that uses an ephemeral relay to avoid external dependencies:
 
+### Main Test Commands
+
 ```bash
 # Run all tests
 npm test
 
-# Run tests by category
-npm run test:core     # Core functionality tests (NIP-01)
-npm run test:crypto   # Encryption and crypto tests
-npm run test:identity # Identity-related tests
-npm run test:protocols # Protocol implementation tests
+# Run tests with watch mode for development
+npm run test:watch
 
-# Run tests for specific NIPs
-npm run test:nip01    # NIP-01 (core protocol)
+# Generate code coverage report
+npm run test:coverage
+
+# Run integration tests
+npm run test:integration
+```
+
+### Test Categories
+
+Tests are organized into logical categories for focused testing:
+
+```bash
+npm run test:core       # Core functionality tests (all NIP-01)
+npm run test:crypto     # All crypto tests (utils/crypto + NIP-04 + NIP-44)
+npm run test:identity   # Identity-related tests (NIP-05, NIP-07, NIP-19)
+npm run test:protocols  # Protocol implementations (NIP-46, NIP-47, NIP-57)
+```
+
+### NIP-01 Core Protocol Tests
+
+NIP-01 tests are further organized by component:
+
+```bash
+# Main NIP-01 tests
+npm run test:nip01                      # All NIP-01 tests
+npm run test:nip01:event                # All event-related tests
+npm run test:nip01:relay                # All relay-related tests
+
+# Event-specific tests
+npm run test:event                      # Core event creation/validation
+npm run test:event:ordering             # Event ordering tests
+npm run test:event:addressable          # Addressable events (kinds 30000-39999)
+npm run test:event:all                  # All event tests combined
+
+# Relay-specific tests
+npm run test:relay                      # All relay functionality
+npm run test:nip01:relay:connection     # Relay connection management
+npm run test:nip01:relay:filter         # Subscription filter tests
+npm run test:nip01:relay:reconnect      # Relay reconnection logic
+npm run test:nip01:relay:pool           # RelayPool multi-relay tests
+npm run test:nip01:relay:websocket      # WebSocket implementation tests
+
+# Client and utilities
+npm run test:nostr                      # Nostr client tests
+npm run test:crypto:core                # Core cryptographic utilities
+npm run test:utils:relayUrl             # Relay URL normalization
+```
+
+### NIP-Specific Tests
+
+Run tests for individual NIP implementations:
+
+```bash
 npm run test:nip02    # NIP-02 (Contact Lists)
-npm run test:nip04    # NIP-04 (encrypted messages)
-npm run test:nip44    # NIP-44 (versioned encryption)
-npm run test:nip17    # NIP-17 (direct messaging)
+npm run test:nip04    # NIP-04 (Encrypted Direct Messages)
+npm run test:nip05    # NIP-05 (DNS Identifiers)
+npm run test:nip07    # NIP-07 (Browser Extensions)
+npm run test:nip09    # NIP-09 (Event Deletion)
+npm run test:nip10    # NIP-10 (Text Notes and Threads)
+npm run test:nip11    # NIP-11 (Relay Information)
+npm run test:nip17    # NIP-17 (Gift Wrapped Messages)
+npm run test:nip19    # NIP-19 (Bech32 Entities)
+npm run test:nip21    # NIP-21 (URI Scheme)
+npm run test:nip44    # NIP-44 (Versioned Encryption)
+npm run test:nip46    # NIP-46 (Remote Signing)
+npm run test:nip47    # NIP-47 (Wallet Connect)
+npm run test:nip50    # NIP-50 (Search Capability)
 npm run test:nip57    # NIP-57 (Lightning Zaps)
+npm run test:nip65    # NIP-65 (Relay List Metadata)
+npm run test:nip66    # NIP-66 (Relay Discovery)
 ```
 
 The test suite is organized by NIP number, with dedicated directories for each implemented NIP (e.g., `tests/nip01/`, `tests/nip04/`, etc.). This structure allows for focused testing of specific implementations while maintaining comprehensive coverage.
@@ -618,53 +681,3 @@ SNSTR implements robust security features throughout the codebase:
 
 For details on security considerations for specific NIPs, see the documentation in each implementation folder.
 
-## Release Process
-
-SNSTR uses GitHub Actions for continuous integration and automated releases.
-
-### Automated Workflow
-
-The project includes a GitHub Actions workflow that:
-
-1. **Builds and tests** the library on multiple Node.js versions (16.x, 18.x, 20.x)
-2. **Runs linting** to ensure code quality
-3. **Executes all tests** with coverage reports
-4. **Builds the main library** and examples
-5. **Creates releases** when triggered by version tags or manual dispatch
-
-### Creating a Release
-
-There are two ways to trigger a release:
-
-#### Option 1: Manual Release via GitHub Actions
-
-1. Go to the "Actions" tab in the GitHub repository
-2. Select the "Build, Test, and Release" workflow
-3. Click "Run workflow"
-4. Choose the release type (patch, minor, or major)
-5. Click "Run workflow" to start the process
-
-This will:
-
-- Bump the version in package.json
-- Create a git tag
-- Build the project
-- Create a GitHub Release
-- Publish to npm (if configured with NPM_TOKEN)
-
-#### Option 2: Manual Tag Creation
-
-1. Update the version in package.json locally
-2. Create and push a git tag:
-   ```bash
-   git tag -a v0.1.1 -m "Release v0.1.1"
-   git push origin v0.1.1
-   ```
-3. The GitHub Actions workflow will automatically create a release
-
-### Release Prerequisites
-
-To enable npm publishing, you need to:
-
-1. Add your NPM_TOKEN to repository secrets
-2. Ensure you have proper access to the npm package name
