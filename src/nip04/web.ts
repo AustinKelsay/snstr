@@ -192,10 +192,6 @@ export function decrypt(privateKey: string, publicKey: string, encryptedMessage:
     });
 
     const plaintext = CryptoJS.enc.Utf8.stringify(decrypted);
-    if (plaintext === "") {
-      // CryptoJS returns empty string on bad padding/key in some cases
-      throw new NIP04DecryptionError("Failed to decrypt message");
-    }
     return plaintext;
   } catch (error) {
     if (error instanceof NIP04DecryptionError) throw error;

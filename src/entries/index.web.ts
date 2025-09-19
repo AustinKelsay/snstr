@@ -48,6 +48,8 @@ export {
   createContactListEvent,
   parseContactsFromEvent,
   parseContactsFromEventWithWarnings,
+} from "../nip02";
+export type {
   Contact,
   ContactListEvent,
   ParseContactsResult,
@@ -122,17 +124,17 @@ export {
   // Profile (nprofile)
   encodeProfile,
   decodeProfile,
-  ProfileData,
+  // types re-exported separately below
 
   // Event (nevent)
   encodeEvent,
   decodeEvent,
-  EventData,
+  // types re-exported separately below
 
   // Address (naddr)
   encodeAddress,
   decodeAddress,
-  AddressData,
+  // types re-exported separately below
 
   // Other helpers
   
@@ -141,6 +143,7 @@ export {
   Prefix,
   TLVType,
 } from "../nip19";
+export type { ProfileData, EventData, AddressData } from "../nip19";
 
 // Export NIP-21 utilities
 export { encodeNostrURI, decodeNostrURI, NOSTR_URI_PREFIX } from "../nip21";
