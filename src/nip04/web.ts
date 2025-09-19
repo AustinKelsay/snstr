@@ -192,6 +192,19 @@ export function decrypt(privateKey: string, publicKey: string, encryptedMessage:
     });
 
     const plaintext = CryptoJS.enc.Utf8.stringify(decrypted);
+
+    // Integrity check (best-effort): re-encrypt with same IV and compare ciphertext
+    // This distinguishes wrong-key cases from valid empty-string plaintext.
+    const reEnc = CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(plaintext), keyWA, {
+      iv: ivWA,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    });
+    const reEncB64 = reEnc.ciphertext.toString(CryptoJS.enc.Base64);
+    if (reEncB64 !== encryptedText) {
+      throw new NIP04DecryptionError("Failed to decrypt message");
+    }
+
     return plaintext;
   } catch (error) {
     if (error instanceof NIP04DecryptionError) throw error;

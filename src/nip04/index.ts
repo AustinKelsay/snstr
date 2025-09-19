@@ -2,8 +2,35 @@ import { hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
 // Lazy-load Node's crypto to avoid bundlers (Metro/Expo) trying to include it.
 // This keeps the module safe to parse in non-Node environments.
-let nodeCrypto: any | null = null;
-function getNodeCrypto(): any {
+type NodeCrypto = {
+  createCipheriv(
+    algorithm: string,
+    key: Buffer,
+    iv: Buffer,
+  ): {
+    update(
+      data: string,
+      inputEncoding: BufferEncoding,
+      outputEncoding: BufferEncoding,
+    ): string;
+    final(outputEncoding: BufferEncoding): string;
+  };
+  createDecipheriv(
+    algorithm: string,
+    key: Buffer,
+    iv: Buffer,
+  ): {
+    update(
+      data: string,
+      inputEncoding: BufferEncoding,
+      outputEncoding: BufferEncoding,
+    ): string;
+    final(outputEncoding: BufferEncoding): string;
+  };
+};
+
+let nodeCrypto: NodeCrypto | null = null;
+function getNodeCrypto(): NodeCrypto {
   if (nodeCrypto) return nodeCrypto;
   if (
     typeof process !== "undefined" &&
@@ -11,8 +38,9 @@ function getNodeCrypto(): any {
     process.versions.node
   ) {
     try {
+      // Use direct eval so local CommonJS require is accessible in Node.
       // eslint-disable-next-line no-eval
-      nodeCrypto = (0, eval)("require")("crypto");
+      nodeCrypto = eval('require("crypto")') as unknown as NodeCrypto;
       return nodeCrypto;
     } catch {
       // fallthrough

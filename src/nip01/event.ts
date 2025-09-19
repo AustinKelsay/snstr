@@ -337,20 +337,22 @@ export async function createDirectMessage(
 
     // Encrypt the content using NIP-04 with environment-aware, bundler-safe require
     const encryptNIP04: (priv: string, pub: string, msg: string) => string = (() => {
+      // Prefer Node path when running under Node (tests)
       try {
-        // Prefer web/RN path when available (no Node crypto)
         // eslint-disable-next-line no-eval
-        return (0, eval)("require")("../nip04/web").encrypt;
+        if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+          return eval('require("../nip04")').encrypt;
+        }
+      } catch {
+        // eslint-disable-next-line no-empty
       }
-      // eslint-disable-next-line no-empty
-      catch (_e) {}
+      // Fallback to web/RN path
       try {
-        // Fallback to Node path when running under Node
         // eslint-disable-next-line no-eval
-        return (0, eval)("require")("../nip04").encrypt;
+        return eval('require("../nip04/web")').encrypt;
+      } catch {
+        // eslint-disable-next-line no-empty
       }
-      // eslint-disable-next-line no-empty
-      catch (_e) {}
       throw new Error("NIP-04 module not available in this environment");
     })();
 

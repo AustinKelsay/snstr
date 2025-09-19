@@ -653,20 +653,22 @@ export class Nostr {
     // Decrypt the message using our private key and the sender's pubkey
     try {
       const decryptNIP04: (priv: string, pub: string, c: string) => string = (() => {
+        // Prefer Node path when running under Node (tests)
         try {
-          // Prefer web/RN implementation (no Node crypto)
           // eslint-disable-next-line no-eval
-          return (0, eval)("require")("../nip04/web").decrypt;
-        } catch {
-          // eslint-disable-next-line no-empty
+          if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+            return eval('require("../nip04")').decrypt;
+          }
         }
+        // eslint-disable-next-line no-empty
+        catch (_e) {}
+        // Fallback to web/RN path
         try {
-          // Fallback to Node implementation
           // eslint-disable-next-line no-eval
-          return (0, eval)("require")("../nip04").decrypt;
-        } catch {
-          // eslint-disable-next-line no-empty
+          return eval('require("../nip04/web")').decrypt;
         }
+        // eslint-disable-next-line no-empty
+        catch (_e) {}
         throw new Error("NIP-04 module not available in this environment");
       })();
       return decryptNIP04(this.privateKey, senderPubkey, event.content);

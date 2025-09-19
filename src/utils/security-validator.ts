@@ -96,8 +96,9 @@ function getSecureCrypto(): {
     process.versions.node
   ) {
     // Node.js crypto API (loaded via eval to avoid Metro/Expo static resolution)
+    // Use direct eval so local CommonJS require is accessible under Jest/Node.
     // eslint-disable-next-line no-eval
-    const nodeCrypto = (0, eval)("require")("crypto");
+    const nodeCrypto = eval('require("crypto")');
     return {
       randomBytes: (length: number) => nodeCrypto.randomBytes(length),
       randomUint32: () => nodeCrypto.randomInt(0, 0x100000000),

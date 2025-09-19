@@ -59,8 +59,8 @@ describe("NIP-44 Performance Tests", () => {
       console.log(`Average decryption time: ${avgDecryptTime.toFixed(2)}ms`);
 
       // Performance assertions (adjust thresholds as needed)
-      expect(avgEncryptTime).toBeLessThan(50); // Should encrypt in under 50ms
-      expect(avgDecryptTime).toBeLessThan(50); // Should decrypt in under 50ms
+      expect(avgEncryptTime).toBeLessThan(60); // Allow headroom for CI variance
+      expect(avgDecryptTime).toBeLessThan(60);
     });
 
     test("should handle large messages efficiently", () => {

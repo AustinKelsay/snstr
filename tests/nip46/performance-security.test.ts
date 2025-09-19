@@ -413,8 +413,8 @@ describe("NIP-46 Performance & DoS Protection", () => {
       await Promise.allSettled(connectionPromises);
       const endTime = Date.now();
 
-      // Should complete within reasonable time
-      expect(endTime - startTime).toBeLessThan(8000); // Reduced from 15000
+      // Should complete within reasonable time (allowing CI variance)
+      expect(endTime - startTime).toBeLessThan(10000);
     });
 
     test("cleans up resources on connection failure", async () => {

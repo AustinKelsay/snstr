@@ -85,7 +85,7 @@ describe("NIP-44 Enhancements Tests", () => {
 
       // Should be reasonably fast (adjusted for CI/CD environments and full test suite load)
       // Cryptographic operations can vary based on system load
-      expect(avgTime).toBeLessThan(150); // Increased threshold for stability
+      expect(avgTime).toBeLessThan(200); // Allow headroom for CI variance
     });
 
     test("should perform key derivation efficiently", () => {

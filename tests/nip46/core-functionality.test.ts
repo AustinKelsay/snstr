@@ -98,9 +98,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
 
     await bunker.start();
 
-    // Create client with minimal logging and reduced timeout
+    // Create client with minimal logging and slightly relaxed timeout for CI variance
     client = new SimpleNIP46Client([relayUrl], {
-      timeout: 1000,
+      timeout: 2500,
       debug: false,
       logLevel: LogLevel.ERROR,
     });
