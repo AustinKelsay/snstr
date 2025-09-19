@@ -29,7 +29,7 @@ npx jest tests/nip04/encryption.test.ts
 While NIP-04 is now considered "unrecommended" in favor of NIP-44, these tests ensure compatibility with existing clients and messages. The implementation includes specific compatibility with NIP-04 compliant libraries and clients by:
 
 - Using ECDH to derive the shared secret
-- Following the same approach to key handling as NIP-04 compliant libraries and clients
+- Using the raw 32-byte X coordinate of the ECDH shared point as the AES key (common in NIP‑04 clients)
 - Including specific compatibility test cases
 
 ## Security Considerations
@@ -41,3 +41,8 @@ The tests verify the known limitations of NIP-04:
 - No message length hiding
 
 For new applications, we recommend using NIP-44, but NIP-04 support is maintained for compatibility with existing systems. 
+
+## Cross‑Environment Behavior
+
+- Node tests exercise the Node implementation (native `crypto`).
+- Browser/RN builds use the `crypto-js` path with the same API and test vectors.
