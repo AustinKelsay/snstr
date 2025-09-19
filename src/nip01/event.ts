@@ -10,7 +10,6 @@ import {
   Filter,
 } from "../types/nostr";
 import { getPublicKey, verifySignature } from "../utils/crypto";
-import { encrypt as encryptNIP04 } from "../nip04";
 import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
@@ -336,7 +335,25 @@ export async function createDirectMessage(
 
     const pubkey = getPublicKey(privateKey);
 
-    // Encrypt the content using NIP-04
+    // Encrypt the content using NIP-04 with environment-aware, bundler-safe require
+    const encryptNIP04: (priv: string, pub: string, msg: string) => string = (() => {
+      try {
+        // Prefer web/RN path when available (no Node crypto)
+        // eslint-disable-next-line no-eval
+        return (0, eval)("require")("../nip04/web").encrypt;
+      }
+      // eslint-disable-next-line no-empty
+      catch (_e) {}
+      try {
+        // Fallback to Node path when running under Node
+        // eslint-disable-next-line no-eval
+        return (0, eval)("require")("../nip04").encrypt;
+      }
+      // eslint-disable-next-line no-empty
+      catch (_e) {}
+      throw new Error("NIP-04 module not available in this environment");
+    })();
+
     const encryptedContent = await encryptNIP04(
       privateKey,
       recipientPubkey,

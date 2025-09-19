@@ -186,20 +186,8 @@ export {
 // Export NIP-07 adapter
 export { Nip07Nostr } from "../nip07/adapter";
 
-// Export NIP-46 utilities
-export {
-  SimpleNIP46Client,
-  SimpleNIP46Bunker,
-  NostrRemoteSignerClient,
-  NostrRemoteSignerBunker,
-  NIP46Method,
-  NIP46Request,
-  NIP46Response,
-  NIP46ClientOptions,
-  NIP46BunkerOptions,
-  NIP46Metadata,
-} from "../nip46/index";
-export { isValidAuthUrl } from "../nip46/utils/auth";
+// NIP-46 utilities are Node-oriented; omit from RN/web entry to reduce bundle size
+// Consumers can import platform-appropriate implementations directly if needed.
 
 // NIP-57: Lightning Zaps
 export {
@@ -235,35 +223,7 @@ export {
   extractLnurlMetadata,
 } from "../nip57/utils";
 
-// NIP-47: Nostr Wallet Connect
-export {
-  // Client implementation
-  NostrWalletConnectClient,
-  parseNWCURL,
-  generateNWCURL,
-
-  // Service implementation
-  NostrWalletService,
-  NostrWalletServiceOptions,
-  WalletImplementation,
-
-  // Types
-  NIP47Method,
-  NIP47EventKind,
-  NIP47Request,
-  NIP47Response,
-  NIP47Error,
-  NIP47ErrorCode,
-  NIP47Notification,
-  NIP47NotificationType,
-  NIP47Transaction,
-  NIP47ConnectionOptions,
-  TransactionType,
-  NIP47EncryptionScheme,
-  GetInfoResponseResult,
-  PaymentResponseResult,
-  MakeInvoiceResponseResult,
-} from "../nip47";
+// NIP-47 is Node-leaning and may pull NIP-04; omit from RN/web entry.
 
 // NIP-50 search utilities
 export { createSearchFilter } from "../nip50";

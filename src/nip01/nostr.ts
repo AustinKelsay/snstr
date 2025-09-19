@@ -7,7 +7,6 @@ import {
   SubscriptionOptions,
 } from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
-import { decrypt as decryptNIP04 } from "../nip04";
 import { isValidRelayUrl } from "../nip19";
 import {
   createSignedEvent,
@@ -653,6 +652,23 @@ export class Nostr {
 
     // Decrypt the message using our private key and the sender's pubkey
     try {
+      const decryptNIP04: (priv: string, pub: string, c: string) => string = (() => {
+        try {
+          // Prefer web/RN implementation (no Node crypto)
+          // eslint-disable-next-line no-eval
+          return (0, eval)("require")("../nip04/web").decrypt;
+        } catch {
+          // eslint-disable-next-line no-empty
+        }
+        try {
+          // Fallback to Node implementation
+          // eslint-disable-next-line no-eval
+          return (0, eval)("require")("../nip04").decrypt;
+        } catch {
+          // eslint-disable-next-line no-empty
+        }
+        throw new Error("NIP-04 module not available in this environment");
+      })();
       return decryptNIP04(this.privateKey, senderPubkey, event.content);
     } catch (error) {
       const errorMessage =

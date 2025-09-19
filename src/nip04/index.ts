@@ -1,6 +1,25 @@
 import { hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-import * as crypto from "crypto";
+// Lazy-load Node's crypto to avoid bundlers (Metro/Expo) trying to include it.
+// This keeps the module safe to parse in non-Node environments.
+let nodeCrypto: any | null = null;
+function getNodeCrypto(): any {
+  if (nodeCrypto) return nodeCrypto;
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node
+  ) {
+    try {
+      // eslint-disable-next-line no-eval
+      nodeCrypto = (0, eval)("require")("crypto");
+      return nodeCrypto;
+    } catch {
+      // fallthrough
+    }
+  }
+  throw new Error("Node crypto not available in this environment");
+}
 
 /**
  * NIP-04: Encrypted Direct Message
@@ -72,6 +91,7 @@ export function encrypt(
   const iv = randomBytes(16);
 
   // Create AES-256-CBC cipher
+  const crypto = getNodeCrypto();
   const cipher = crypto.createCipheriv(
     "aes-256-cbc",
     Buffer.from(sharedX),
@@ -173,7 +193,8 @@ export function decrypt(
     const sharedX = getSharedSecret(privateKey, publicKey);
 
     // Create AES-256-CBC decipher
-    const decipher = crypto.createDecipheriv(
+  const crypto = getNodeCrypto();
+  const decipher = crypto.createDecipheriv(
       "aes-256-cbc",
       Buffer.from(sharedX),
       iv,
