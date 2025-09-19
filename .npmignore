@@ -10,6 +10,8 @@ docs/images/
 
 # Development files
 .github/
+ .cursor/
+ .claude/
 coverage/
 tests/
 examples/
@@ -57,6 +59,7 @@ Thumbs.db
 *~
 .tmp/
 temp/
+.npm-cache/
 
 # IDE files
 .vscode/
