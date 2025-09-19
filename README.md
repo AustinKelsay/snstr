@@ -101,6 +101,21 @@ npm install
 npm run build
 ```
 
+### React Native / Expo
+
+- Works out of the box — no Node polyfills are required.
+- Add secure RNG once at app startup (required by various features):
+  ```ts
+  import 'react-native-get-random-values';
+  ```
+- NIP-04 now works on Web and React Native with the exact same API as Node:
+  ```ts
+  import { encryptNIP04, decryptNIP04 } from 'snstr';
+  const c = encryptNIP04(alicePriv, bobPub, 'hello');
+  const p = decryptNIP04(bobPriv, alicePub, c);
+  ```
+- Prefer NIP-44 for new apps; keep NIP-04 for legacy compatibility.
+
 ## Basic Usage
 
 ```typescript
@@ -680,4 +695,3 @@ SNSTR implements robust security features throughout the codebase:
 - **Input Validation**: Thorough validation and error checking across all components
 
 For details on security considerations for specific NIPs, see the documentation in each implementation folder.
-

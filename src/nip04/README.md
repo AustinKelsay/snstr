@@ -23,12 +23,10 @@ It's recommended to use NIP-44 for new applications. NIP-04 support is provided 
 
 ## Cross-Platform Compatibility
 
-Our implementation:
-- Uses the Web Crypto API which works in both browsers and Node.js
-- Does not rely on Node-specific modules like the built-in 'crypto' module
-- Properly implements the SHA256 hashing of the shared secret as specified in NIP-04
-- Provides consistent behavior across all environments
-- Uses HMAC-SHA256 with the key "nip04" for shared secret derivation, ensuring compatibility with nostr-tools
+This module works in both Node and web/React Native with the same API:
+- Node: uses the built-in `crypto` AES-256-CBC implementation.
+- Web/RN: uses `crypto-js` (AES-256-CBC, PKCS7) — no Node modules required.
+- Synchronous API in all environments (`encrypt`, `decrypt`, `getSharedSecret`).
 
 ## Implementation Details
 
@@ -38,11 +36,7 @@ The shared secret is derived following these steps:
 
 1. Compute the ECDH shared point using the sender's private key and recipient's public key
 2. Extract only the X coordinate of the shared point
-3. Hash the X coordinate using HMAC-SHA256 with the key "nip04"
-   - This follows the nip04 spec compliant convention for compatibility
-   - While the NIP-04 spec doesn't specify HMAC, this approach has become the de facto standard
-
-This derivation method ensures compatibility with other Nostr implementations, particularly nip04 spec compliant libraries and clients.
+3. Use the 32-byte X coordinate directly as the AES-256 key (as used by common NIP-04 implementations). This keeps wire-compatibility with existing clients.
 
 ## Input Validation
 
@@ -86,35 +80,17 @@ Common validation errors include:
 ### Basic Encryption and Decryption
 
 ```typescript
-import { 
-  generateKeypair,
-  encryptNIP04, 
-  decryptNIP04 
-} from 'snstr';
+import { generateKeypair, encryptNIP04, decryptNIP04 } from 'snstr';
 
-async function main() {
-  // Generate keypairs for Alice and Bob
-  const aliceKeypair = await generateKeypair();
-  const bobKeypair = await generateKeypair();
-  
-  // Alice encrypts a message for Bob
-  const encrypted = await encryptNIP04(
-    'Hello Bob, this is a secret message!',
-    aliceKeypair.privateKey,
-    bobKeypair.publicKey
-  );
-  
-  console.log(`Encrypted: ${encrypted}`);
-  
-  // Bob decrypts the message from Alice
-  const decrypted = await decryptNIP04(
-    encrypted,
-    bobKeypair.privateKey,
-    aliceKeypair.publicKey
-  );
-  
-  console.log(`Decrypted: ${decrypted}`);
-}
+// Generate keypairs for Alice and Bob
+const alice = await generateKeypair();
+const bob = await generateKeypair();
+
+// Alice encrypts a message for Bob
+const encrypted = encryptNIP04(alice.privateKey, bob.publicKey, 'Hello Bob!');
+
+// Bob decrypts the message from Alice
+const decrypted = decryptNIP04(bob.privateKey, alice.publicKey, encrypted);
 ```
 
 ### Accessing the Shared Secret
@@ -123,12 +99,7 @@ If you need direct access to the shared secret:
 
 ```typescript
 import { getNIP04SharedSecret } from 'snstr';
-
-// Get the shared secret between Alice and Bob
-const sharedSecret = getNIP04SharedSecret(
-  aliceKeypair.privateKey,
-  bobKeypair.publicKey
-);
+const shared = getNIP04SharedSecret(alice.privateKey, bob.publicKey); // Uint8Array(32)
 ```
 
 ## Direct Messaging with Events
@@ -136,29 +107,9 @@ const sharedSecret = getNIP04SharedSecret(
 NIP-04 messages are typically sent as Nostr events with `kind: 4` and the recipient tagged with a `p` tag.
 
 ```typescript
-import { Nostr } from 'snstr';
-
-const client = new Nostr(['wss://relay.example.com']);
-await client.generateKeys();
-
-// Send a direct message
-const event = await client.publishDirectMessage(
-  'Hello, this is a private message',
-  recipientPubkey
-);
-
-// Listen for direct messages
-client.subscribe(
-  [{ kinds: [4], '#p': [client.publicKey] }], 
-  async (event) => {
-    try {
-      const decrypted = await client.decryptDirectMessage(event);
-      console.log(`Received DM: ${decrypted}`);
-    } catch (error) {
-      console.error('Failed to decrypt message:', error.message);
-    }
-  }
-);
+// Typical event content for kind 4 uses the format produced by encryptNIP04:
+// "<base64-ciphertext>?iv=<base64-iv>"
+// Publish and receive as usual; decrypt with decryptNIP04 when handling events.
 ```
 
 ## Migrating to NIP-44
@@ -172,18 +123,16 @@ import {
 } from 'snstr';
 
 // Alice encrypts a message for Bob with NIP-44
-const encrypted = await encryptNIP44(
-  'Hello Bob!',
-  aliceKeypair.privateKey,
-  bobKeypair.publicKey
-);
+const encrypted = encryptNIP44('Hello Bob!', alice.privateKey, bob.publicKey);
 
 // Bob decrypts the message from Alice
-const decrypted = await decryptNIP44(
-  encrypted,
-  bobKeypair.privateKey,
-  aliceKeypair.publicKey
-);
+const decrypted = decryptNIP44(encrypted, bob.privateKey, alice.publicKey);
+
+## React Native notes
+
+- Add `react-native-get-random-values` once at app startup to provide `crypto.getRandomValues`:
+  `import 'react-native-get-random-values';`
+- No Node polyfills are required; NIP‑04 uses `crypto-js` under the hood on RN.
 ```
 
 NIP-44 provides stronger security with:

@@ -1,62 +1,33 @@
-# NIP-04 Examples
+# NIP-04 Examples (Web & Node)
 
-This directory contains examples demonstrating how to use NIP-04 encrypted direct messaging functionality in the SNSTR library.
+This folder documents how to use NIP‑04 in both Node and browser/React Native environments.
 
-## Overview
+## Quick Start
 
-[NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md) defines a protocol for encrypted direct messages in Nostr. It uses ECDH (Elliptic Curve Diffie-Hellman) to create a shared secret between sender and recipient, then encrypts the message with AES-256-CBC.
+```ts
+import { generateKeypair, encryptNIP04, decryptNIP04 } from 'snstr';
 
--**Implementation Details**:
-- Uses ECDH to derive a 32-byte shared secret
-- Ensures compatibility with NIP-04 compliant Nostr libraries and clients
-- Provides robust validation of message format and proper error handling
+const alice = await generateKeypair();
+const bob = await generateKeypair();
 
-**Note**: NIP-04 is considered less secure than NIP-44 and has been marked as "unrecommended" in favor of NIP-44. It's provided here for compatibility with older clients.
-
-## Examples
-
-### Direct Message Example
-
-The [`direct-message.ts`](./direct-message.ts) example demonstrates:
-
-- Generating keypairs for two users (Alice and Bob)
-- Encrypting a message with NIP-04 from Alice to Bob
-- Decrypting the message on Bob's side
-- Verifying that the shared secret is identical in both directions
-- Handling various error conditions with malformed messages
-
-## Running the Examples
-
-To run the direct message example:
-
-```bash
-npm run example:nip04
+const ciphertext = encryptNIP04(alice.privateKey, bob.publicKey, 'hello');
+const plaintext = decryptNIP04(bob.privateKey, alice.publicKey, ciphertext);
 ```
 
-## Key Concepts
+## Browser / React Native
 
-- **Shared Secret Generation**: Both parties can independently derive the same shared secret using ECDH
-- **Shared Secret Processing**: The X coordinate is used directly as the encryption key
-- **Message Encryption/Decryption**: Using AES-256-CBC with the derived shared secret
-- **Key Exchange**: No direct key exchange is needed; only public keys are shared
-- **Cross-Platform Compatibility**: Uses Web Crypto API which works in both browsers and Node.js
-- **Interoperability**: Compatible with other Nostr clients like nostr-tools implementations
+- Works out of the box; no Node polyfills.
+- React Native: add once at app bootstrap to provide secure RNG:
+  ```ts
+  import 'react-native-get-random-values';
+  ```
 
-## Security Considerations
+## Node
 
-- NIP-04 has known security issues compared to newer encryption methods
-- Consider using NIP-44 for new implementations
-- The encryption does not provide forward secrecy
-- There's no authentication of the encrypted message
+Simply import from `snstr`. The Node build uses the native `crypto` module for AES‑256‑CBC.
 
-## API Functions Used
+## Notes
 
-- `generateKeypair()`: Generate a new Nostr keypair
-- `encrypt()`: Encrypt a message using NIP-04
-- `decrypt()`: Decrypt a message using NIP-04
-- `getSharedSecret()`: Get the shared secret between two keys
+- Output format is `<base64-ciphertext>?iv=<base64-iv>`.
+- Prefer NIP‑44 for new features; keep NIP‑04 for legacy compatibility.
 
-## Related NIPs
-
-- [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md): Encrypted Messaging with Versioning (recommended alternative)
-- [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md): Basic Protocol (events and structure) 

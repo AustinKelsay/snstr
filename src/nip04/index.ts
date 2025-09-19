@@ -65,32 +65,27 @@ export function encrypt(
   publicKey: string,
   message: string,
 ): string {
-  try {
-    // Get shared secret (X coordinate of the shared point)
-    const sharedX = getSharedSecret(privateKey, publicKey);
+  // Get shared secret (X coordinate of the shared point)
+  const sharedX = getSharedSecret(privateKey, publicKey);
 
-    // Generate random 16-byte IV
-    const iv = randomBytes(16);
+  // Generate random 16-byte IV
+  const iv = randomBytes(16);
 
-    // Create AES-256-CBC cipher
-    const cipher = crypto.createCipheriv(
-      "aes-256-cbc",
-      Buffer.from(sharedX),
-      Buffer.from(iv),
-    );
+  // Create AES-256-CBC cipher
+  const cipher = crypto.createCipheriv(
+    "aes-256-cbc",
+    Buffer.from(sharedX),
+    Buffer.from(iv),
+  );
 
-    // Encrypt the message
-    let encryptedMessage = cipher.update(message, "utf8", "base64");
-    encryptedMessage += cipher.final("base64");
+  // Encrypt the message
+  let encryptedMessage = cipher.update(message, "utf8", "base64");
+  encryptedMessage += cipher.final("base64");
 
-    // Format as specified in NIP-04: "<encrypted_text>?iv=<initialization_vector>"
-    const ivBase64 = Buffer.from(iv).toString("base64");
+  // Format as specified in NIP-04: "<encrypted_text>?iv=<initialization_vector>"
+  const ivBase64 = Buffer.from(iv).toString("base64");
 
-    return `${encryptedMessage}?iv=${ivBase64}`;
-  } catch (error) {
-    console.error("Failed to encrypt message:", error);
-    throw error;
-  }
+  return `${encryptedMessage}?iv=${ivBase64}`;
 }
 
 /**
@@ -195,7 +190,7 @@ export function decrypt(
       throw error;
     }
 
-    console.error("Failed to decrypt message:", error);
+    // Don't log error details that might contain sensitive data
     throw new NIP04DecryptionError("Failed to decrypt message");
   }
 }
