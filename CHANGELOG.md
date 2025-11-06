@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2025-11-06
+
+### Added
+- **WebSocket abstraction layer** for improved compatibility and testing
+  - Dynamic WebSocket implementation resolution with feature-based detection
+  - In-memory WebSocket implementation for sandboxed test environments
+  - WebSocket implementation resolution utilities (`hasRequiredWebSocketFeatures`, `resolveDefaultWebSocket`)
+- **Relay info management utilities** (NIP-11)
+  - `useFetchImplementation` for custom fetch implementations
+  - `clearRelayInfoCache` for cache management
+  - `getRelayInfo` alias exported
+- **Security filtering helpers** (NIP-19)
+  - `filterProfile`, `filterEvent`, `filterAddress`, `filterEntity` utilities
+  - `isValidRelayUrl` validation helper
+  - Additional security-related types exported
+
+### Changed
+- **Jest setup migrated to TypeScript** (`jest.setup.js` → `jest.setup.ts`)
+  - Improved test environment initialization
+  - Enhanced test WebSocket wiring
+  - Better console spy/restoration handling
+- **Relay implementation** (NIP-01)
+  - Added `WebSocketLike` abstraction for flexible WebSocket support
+  - Support for both native and in-memory WebSocket transports
+  - Per-subscription pending validation counters
+  - Async validation flow with deferred EOSE finalization
+  - Unified socket event wiring for both transports
+- **Ephemeral relay server** updates
+  - Dual startup paths for real vs in-memory server
+  - Improved permission-error fallback handling
+  - Enhanced lifecycle and cleanup management
+
+### Fixed
+- Dynamic WebSocket implementation selection with safer fallback behavior
+- Improved error signaling in WebSocket implementation resolution
+
 ## [0.1.2] - 2025-08-16
 
 ### Fixed
@@ -61,7 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/AustinKelsay/snstr/compare/v0.1.2...v0.1.5
 [0.1.2]: https://github.com/AustinKelsay/snstr/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AustinKelsay/snstr/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AustinKelsay/snstr/releases/tag/v0.1.0
