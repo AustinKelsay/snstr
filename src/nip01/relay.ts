@@ -1,4 +1,5 @@
 import { getWebSocketImplementation } from "../utils/websocket";
+import { createInMemoryWebSocket } from "../utils/inMemoryWebSocket";
 import {
   NostrEvent,
   Filter,
@@ -23,9 +24,27 @@ import {
   secureRandomHex,
 } from "../utils/security-validator";
 
+type WebSocketLike = {
+  readyState: number;
+  onopen: ((event: any) => void) | null;
+  onclose: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onmessage: ((event: any) => void) | null;
+  send(data: string): void;
+  close(code?: number, reason?: string): void;
+  terminate?: () => void;
+};
+
+const WS_READY_STATE = {
+  CONNECTING: 0,
+  OPEN: 1,
+  CLOSING: 2,
+  CLOSED: 3,
+} as const;
+
 export class Relay {
   private url: string;
-  private ws: WebSocket | null = null;
+  private ws: WebSocketLike | null = null;
   private connected = false;
   private subscriptions: Map<string, Subscription> = new Map();
   private eventHandlers: RelayEventHandler = {};
@@ -56,6 +75,8 @@ export class Relay {
   private addressableEvents: Map<string, NostrEvent> = new Map();
   private addressableEventAccessTimes: Map<string, number> = new Map(); // For LRU eviction
   private maxAddressableEvents = SECURITY_LIMITS.MAX_ADDRESSABLE_EVENTS;
+  private pendingValidationCounts: Map<string, number> = new Map();
+  private pendingEoseSubscriptions: Set<string> = new Set();
 
   constructor(url: string, options: RelayConnectionOptions = {}) {
     this.url = url;
@@ -99,8 +120,18 @@ export class Relay {
     // Create the connection promise
     const connectionPromise = new Promise<boolean>((resolve, reject) => {
       try {
-        const WS = getWebSocketImplementation();
-        this.ws = new WS(this.url);
+        const inMemorySocket = createInMemoryWebSocket(this.url);
+        if (inMemorySocket) {
+          this.ws = inMemorySocket;
+        } else {
+          const WS = getWebSocketImplementation();
+          this.ws = new WS(this.url) as unknown as WebSocketLike;
+        }
+
+        const socket = this.ws;
+        if (!socket) {
+          throw new Error("WebSocket implementation unavailable");
+        }
 
         // Set up connection timeout
         const timeoutId = setTimeout(() => {
@@ -122,7 +153,7 @@ export class Relay {
           }
         }, this.connectionTimeout);
 
-        this.ws.onopen = () => {
+        socket.onopen = () => {
           clearTimeout(timeoutId);
           this.connected = true;
           this.resetReconnectAttempts(); // Reset reconnect counter on successful connection
@@ -131,7 +162,7 @@ export class Relay {
           resolve(true);
         };
 
-        this.ws.onclose = () => {
+        socket.onclose = () => {
           clearTimeout(timeoutId);
           const wasConnected = this.connected;
           this.connected = false;
@@ -150,7 +181,7 @@ export class Relay {
           }
         };
 
-        this.ws.onerror = (error) => {
+        socket.onerror = (error) => {
           clearTimeout(timeoutId);
           this.triggerEvent(RelayEvent.Error, this.url, error);
 
@@ -163,7 +194,7 @@ export class Relay {
           }
         };
 
-        this.ws.onmessage = (message) => {
+        socket.onmessage = (message) => {
           try {
             const data = JSON.parse(message.data);
             this.handleMessage(data);
@@ -238,8 +269,8 @@ export class Relay {
       // Close the WebSocket if it's open or connecting
       if (
         this.ws &&
-        (this.ws.readyState === WebSocket.OPEN ||
-          this.ws.readyState === WebSocket.CONNECTING)
+        (this.ws.readyState === WS_READY_STATE.OPEN ||
+          this.ws.readyState === WS_READY_STATE.CONNECTING)
       ) {
         // First try to send CLOSE messages for any active subscriptions
         try {
@@ -442,7 +473,11 @@ export class Relay {
       }
     }
 
-    if (!this.connected || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (
+      !this.connected ||
+      !this.ws ||
+      this.ws.readyState !== WS_READY_STATE.OPEN
+    ) {
       return { success: false, reason: "not_connected", relay: this.url };
     }
 
@@ -593,6 +628,8 @@ export class Relay {
     this.subscriptions.delete(id);
     this.eventBuffers.delete(id); // Clean up the event buffer for this subscription
     this.eventBufferAccessTimes.delete(id); // Clean up the access time tracking
+    this.pendingEoseSubscriptions.delete(id);
+    this.pendingValidationCounts.delete(id);
 
     if (this.connected && this.ws) {
       const message = JSON.stringify(["CLOSE", id]);
@@ -609,8 +646,20 @@ export class Relay {
       case "EVENT": {
         const [subscriptionId, event] = rest;
 
+        if (typeof subscriptionId !== "string") {
+          this.triggerEvent(
+            RelayEvent.Error,
+            this.url,
+            new Error("Invalid subscription identifier in EVENT message"),
+          );
+          break;
+        }
+
+        this.incrementPendingValidation(subscriptionId);
+
         // Type guard to ensure event is a NostrEvent
         if (!this.isNostrEvent(event)) {
+          this.decrementPendingValidation(subscriptionId);
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
@@ -626,6 +675,7 @@ export class Relay {
             this.url,
             new Error(`Invalid event: ${event.id}`),
           );
+          this.decrementPendingValidation(subscriptionId);
           break;
         }
 
@@ -633,7 +683,7 @@ export class Relay {
         this.validateEventAsync(event)
           .then((isValid) => {
             if (isValid) {
-              this.processValidatedEvent(event, subscriptionId as string);
+              this.processValidatedEvent(event, subscriptionId);
             } else {
               this.triggerEvent(
                 RelayEvent.Error,
@@ -650,6 +700,9 @@ export class Relay {
                 `Validation error: ${error instanceof Error ? error.message : "unknown error"}`,
               ),
             );
+          })
+          .finally(() => {
+            this.decrementPendingValidation(subscriptionId);
           });
 
         break;
@@ -659,15 +712,7 @@ export class Relay {
 
         // Flush the buffer for this subscription immediately on EOSE
         if (typeof subscriptionId === "string") {
-          this.flushSubscriptionBuffer(subscriptionId);
-
-          const subscription = this.subscriptions.get(subscriptionId);
-          if (subscription && subscription.onEOSE) {
-            subscription.onEOSE();
-          }
-          if (subscription && subscription.options?.autoClose) {
-            this.unsubscribe(subscriptionId);
-          }
+          this.markEosePending(subscriptionId);
         }
         break;
       }
@@ -765,6 +810,7 @@ export class Relay {
     if (subscription) {
       // Use the proper buffer management method that enforces memory limits and LRU eviction
       this.addToEventBuffer(subscriptionId, event);
+      this.maybeFinalizeEOSE(subscriptionId);
     }
   }
 
@@ -1084,6 +1130,54 @@ export class Relay {
     for (const subscriptionId of this.eventBuffers.keys()) {
       this.flushSubscriptionBuffer(subscriptionId);
     }
+  }
+
+  private incrementPendingValidation(subscriptionId: string): void {
+    const current = this.pendingValidationCounts.get(subscriptionId) ?? 0;
+    this.pendingValidationCounts.set(subscriptionId, current + 1);
+  }
+
+  private decrementPendingValidation(subscriptionId: string): void {
+    const current = this.pendingValidationCounts.get(subscriptionId) ?? 0;
+    const next = Math.max(current - 1, 0);
+    if (next === 0) {
+      this.pendingValidationCounts.delete(subscriptionId);
+      if (!this.pendingEoseSubscriptions.has(subscriptionId)) {
+        this.flushSubscriptionBuffer(subscriptionId);
+      }
+    } else {
+      this.pendingValidationCounts.set(subscriptionId, next);
+    }
+    this.maybeFinalizeEOSE(subscriptionId);
+  }
+
+  private markEosePending(subscriptionId: string): void {
+    this.pendingEoseSubscriptions.add(subscriptionId);
+    this.maybeFinalizeEOSE(subscriptionId);
+  }
+
+  private maybeFinalizeEOSE(subscriptionId: string): void {
+    if (!this.pendingEoseSubscriptions.has(subscriptionId)) {
+      return;
+    }
+    const pending = this.pendingValidationCounts.get(subscriptionId) ?? 0;
+    if (pending > 0) {
+      return;
+    }
+
+    this.flushSubscriptionBuffer(subscriptionId);
+
+    const subscription = this.subscriptions.get(subscriptionId);
+    if (subscription) {
+      if (subscription.onEOSE) {
+        subscription.onEOSE();
+      }
+      if (subscription.options?.autoClose) {
+        this.unsubscribe(subscriptionId);
+      }
+    }
+
+    this.pendingEoseSubscriptions.delete(subscriptionId);
   }
 
   /**

@@ -3,15 +3,72 @@ const OriginalWebSocket: typeof WebSocket | undefined = globalThis.WebSocket;
 
 import "websocket-polyfill";
 
-// Use the polyfill WebSocket as default, but allow override with the original if it existed
-let WebSocketImpl: typeof WebSocket = OriginalWebSocket || globalThis.WebSocket;
+const PolyfilledWebSocket: typeof WebSocket | undefined = globalThis.WebSocket;
+
+function hasRequiredWebSocketFeatures(
+  wsCtor: typeof WebSocket | undefined,
+): wsCtor is typeof WebSocket {
+  if (!wsCtor || !wsCtor.prototype) {
+    return false;
+  }
+
+  const proto = wsCtor.prototype;
+  const binaryTypeDescriptor = Object.getOwnPropertyDescriptor(
+    proto,
+    "binaryType",
+  );
+
+  const hasSend = typeof proto.send === "function";
+  const hasClose = typeof proto.close === "function";
+  const hasBinaryTypeSetter = typeof binaryTypeDescriptor?.set === "function";
+
+  return hasSend && hasClose && hasBinaryTypeSetter;
+}
+
+function resolveDefaultWebSocket(): typeof WebSocket | undefined {
+  const currentGlobal = globalThis.WebSocket;
+
+  const candidatesWithPriority: (typeof WebSocket | undefined)[] = [];
+
+  if (
+    currentGlobal &&
+    currentGlobal !== OriginalWebSocket &&
+    currentGlobal !== PolyfilledWebSocket
+  ) {
+    candidatesWithPriority.push(currentGlobal);
+  }
+
+  candidatesWithPriority.push(OriginalWebSocket, PolyfilledWebSocket);
+
+  for (const candidate of candidatesWithPriority) {
+    if (hasRequiredWebSocketFeatures(candidate)) {
+      return candidate;
+    }
+  }
+
+  const fallbackCandidates: (typeof WebSocket | undefined)[] = [
+    OriginalWebSocket,
+    currentGlobal,
+    PolyfilledWebSocket,
+  ];
+
+  for (const candidate of fallbackCandidates) {
+    if (candidate) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+let WebSocketImpl: typeof WebSocket | undefined = resolveDefaultWebSocket();
 
 export function useWebSocketImplementation(wsCtor: typeof WebSocket) {
   WebSocketImpl = wsCtor;
 }
 
 export function resetWebSocketImplementation() {
-  WebSocketImpl = OriginalWebSocket || globalThis.WebSocket;
+  WebSocketImpl = resolveDefaultWebSocket();
 }
 
 export function getWebSocketImplementation(): typeof WebSocket {

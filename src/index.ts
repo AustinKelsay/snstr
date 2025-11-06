@@ -66,7 +66,10 @@ export {
   relaySupportsNIPs,
   getRelayPaymentInfo,
   relayRequiresPayment,
+  useFetchImplementation,
+  clearRelayInfoCache,
 } from "./nip11";
+export { fetchRelayInformation as getRelayInfo } from "./nip11";
 
 // Export NIP-11 types
 export type {
@@ -134,6 +137,25 @@ export {
   // Enums
   Prefix,
   TLVType,
+
+  // Security helpers
+  filterProfile,
+  filterEvent,
+  filterAddress,
+  filterEntity,
+  isValidRelayUrl,
+
+  // Supporting types
+  HexString,
+  Bech32String,
+  RelayUrl,
+  TLVEntry,
+  Bech32Result,
+  Bech32BytesResult,
+  SimpleBech32Result,
+  DecodedEntity,
+  Bech32Options,
+  SecurityOptions,
 } from "./nip19";
 
 // Export NIP-21 utilities

@@ -13,6 +13,11 @@ import {
   safeArrayAccess,
   SecurityValidationError,
 } from "./security-validator";
+import {
+  InMemoryWebSocketServer,
+  registerInMemoryServer,
+  unregisterInMemoryServer,
+} from "./inMemoryWebSocket";
 
 /**
  * Validates if a string is a valid 32-byte hex string (case-insensitive).
@@ -64,6 +69,8 @@ export class NostrRelay {
   private readonly _subs: Map<string, Subscription>;
 
   private _wss: WebSocketServer | null;
+  private _inMemoryServer: InMemoryWebSocketServer | null = null;
+  private _usingInMemory = false;
   private _cache: SignedEvent[];
   private _isClosing: boolean = false;
   private _purgeTimer: NodeJS.Timeout | null = null;
@@ -103,45 +110,143 @@ export class NostrRelay {
   }
 
   async start() {
-    this._wss = new WebSocketServer({ port: this._port });
-    this._isClosing = false;
+    if (this._wss || this._inMemoryServer) {
+      return this;
+    }
 
-    this.wss.on("connection", (socket) => {
-      const instance = new ClientSession(this, socket);
+    const handleConnection = (socket: WebSocket | EventEmitter) => {
+      const instance = new ClientSession(this, socket as WebSocket);
 
-      socket.on("message", (msg) => instance._handler(msg.toString()));
-      socket.on("error", (err) => instance._onerr(err));
-      socket.on("close", (code) => instance._cleanup(code));
+      socket.on("message", (msg: unknown) =>
+        instance._handler(
+          typeof msg === "string" || msg instanceof String
+            ? msg.toString()
+            : Buffer.isBuffer(msg)
+              ? msg.toString()
+              : JSON.stringify(msg),
+        ),
+      );
+      socket.on("error", (err: unknown) =>
+        instance._onerr(
+          err instanceof Error ? err : new Error(String(err ?? "Unknown error")),
+        ),
+      );
+      socket.on("close", (code: number) => instance._cleanup(code));
 
       this.conn += 1;
-    });
+    };
 
-    return new Promise<NostrRelay>((res) => {
-      this.wss.on("listening", () => {
-        // Capture the actual assigned port when port 0 was used
-        const address = this.wss.address();
-        if (address && typeof address === "object" && "port" in address) {
-          this._actualPort = address.port;
+    const initialiseAfterStart = () => {
+      this._isClosing = false;
+      if (this._purge !== null) {
+        if (this._purgeTimer) {
+          clearInterval(this._purgeTimer);
         }
+        this._purgeTimer = setInterval(() => {
+          this._cache = [];
+        }, this._purge * 1000);
+      }
+    };
 
-        DEBUG &&
-          console.log(
-            "[ relay ] running on port:",
-            this._actualPort || this._port,
-          );
+    const isPermissionError = (error: unknown) => {
+      if (!error || typeof error !== "object") {
+        return false;
+      }
+      const code =
+        "code" in error && typeof (error as { code: unknown }).code === "string"
+          ? ((error as { code: string }).code as string)
+          : "";
+      const message =
+        "message" in error && typeof (error as { message: unknown }).message === "string"
+          ? ((error as { message: string }).message as string)
+          : "";
+      return (
+        code === "EACCES" ||
+        code === "EPERM" ||
+        code === "EADDRNOTAVAIL" ||
+        message.includes("EPERM") ||
+        message.includes("EACCES") ||
+        message.includes("EADDRNOTAVAIL")
+      );
+    };
 
-        if (this._purge !== null) {
+    const startInMemory = () => {
+      const { server, port } = registerInMemoryServer(
+        this._port === 0 ? undefined : this._port,
+      );
+
+      this._usingInMemory = true;
+      this._inMemoryServer = server;
+      this._wss = server as unknown as WebSocketServer;
+      this._actualPort = port;
+
+      server.on("connection", handleConnection as (socket: EventEmitter) => void);
+
+      initialiseAfterStart();
+
+      return new Promise<NostrRelay>((res) => {
+        queueMicrotask(() => {
+          this._emitter.emit("connected");
+          res(this);
+        });
+      });
+    };
+
+    return new Promise<NostrRelay>((resolve, reject) => {
+      try {
+        const wss = new WebSocketServer({ port: this._port });
+        this._wss = wss;
+        this._usingInMemory = false;
+        wss.on("connection", handleConnection);
+
+        const cleanup = () => {
+          wss.off("listening", onListening);
+          wss.off("error", onError);
+        };
+
+        const onListening = () => {
+          cleanup();
+          const address = wss.address();
+          if (address && typeof address === "object" && "port" in address) {
+            this._actualPort = address.port;
+          }
+
           DEBUG &&
             console.log(
-              `[ relay ] purging events every ${this._purge} seconds`,
+              "[ relay ] running on port:",
+              this._actualPort || this._port,
             );
-          this._purgeTimer = setInterval(() => {
-            this._cache = [];
-          }, this._purge * 1000);
+
+          initialiseAfterStart();
+          this._emitter.emit("connected");
+          resolve(this);
+        };
+
+        const onError = (error: unknown) => {
+          cleanup();
+          if (isPermissionError(error)) {
+            try {
+              wss.removeAllListeners();
+              wss.close();
+            } catch (_closeError) {
+              // Ignore close errors during fallback
+            }
+            this._wss = null;
+            startInMemory().then(resolve).catch(reject);
+          } else {
+            reject(error);
+          }
+        };
+
+        wss.once("listening", onListening);
+        wss.once("error", onError);
+      } catch (error) {
+        if (isPermissionError(error)) {
+          startInMemory().then(resolve).catch(reject);
+        } else {
+          reject(error);
         }
-        this._emitter.emit("connected");
-        res(this);
-      });
+      }
     });
   }
 
@@ -170,7 +275,22 @@ export class NostrRelay {
         this._purgeTimer = null;
       }
 
-      if (this._wss) {
+      if (this._inMemoryServer) {
+        const server = this._inMemoryServer;
+        server.removeAllListeners();
+        unregisterInMemoryServer(this._actualPort || this._port);
+        this._inMemoryServer = null;
+        this._wss = null;
+        this._usingInMemory = false;
+        this._subs.clear();
+        this._cache = [];
+        this._actualPort = null;
+        this._purgeTimer && clearInterval(this._purgeTimer);
+        this._purgeTimer = null;
+        this._isClosing = false;
+        resolve();
+        return;
+      } else if (this._wss) {
         // Clean up clients first
         if (this._wss.clients && this._wss.clients.size > 0) {
           // Keep track of clients to make sure they all close
