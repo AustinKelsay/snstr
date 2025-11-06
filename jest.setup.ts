@@ -1,0 +1,45 @@
+import {
+  useWebSocketImplementation,
+  resetWebSocketImplementation,
+} from "./src/utils/websocket";
+import { WebSocket as WSWebSocket } from "ws";
+import { jest } from "@jest/globals";
+
+// Ensure tests run in test environment
+process.env.NODE_ENV = "test";
+
+// Increase Jest timeout for async operations
+jest.setTimeout(30000);
+
+// Mock window.open for auth challenge tests when DOM globals exist
+if (typeof window !== "undefined") {
+  window.open = jest.fn(() => null) as unknown as typeof window.open;
+}
+
+// Use the ws implementation for tests to ensure compatibility with the in-process relay
+const wsImpl = WSWebSocket as unknown as typeof WebSocket;
+(globalThis as Record<string, unknown>).WebSocket = wsImpl;
+useWebSocketImplementation(wsImpl);
+
+// Ensure any code that resets the implementation picks up the test WebSocket
+resetWebSocketImplementation();
+
+// Suppress expected console noise from tests that validate error paths
+const noop = () => {};
+let restoreConsoleError: (() => void) | undefined;
+let restoreConsoleWarn: (() => void) | undefined;
+
+beforeAll(() => {
+  const errorSpy = jest.spyOn(console, "error").mockImplementation(noop);
+  const warnSpy = jest.spyOn(console, "warn").mockImplementation(noop);
+
+  restoreConsoleError = () => errorSpy.mockRestore();
+  restoreConsoleWarn = () => warnSpy.mockRestore();
+});
+
+afterAll(() => {
+  restoreConsoleError?.();
+  restoreConsoleWarn?.();
+  restoreConsoleError = undefined;
+  restoreConsoleWarn = undefined;
+});
