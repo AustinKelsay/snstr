@@ -200,7 +200,7 @@ See [NIP-01 documentation](src/nip01/README.md#rate-limiting) for detailed confi
 ### Using RelayPool for Multi-Relay Management
 
 ```typescript
-import { RelayPool, generateKeys, createEvent } from "snstr";
+import { RelayPool, generateKeypair, createEvent } from "snstr";
 
 async function relayPoolExample() {
   // Initialize RelayPool with multiple relays
@@ -211,7 +211,7 @@ async function relayPoolExample() {
   ]);
 
   // Generate keypair
-  const keys = await generateKeys();
+  const keys = await generateKeypair();
 
   // Publish to multiple relays simultaneously
   const event = createEvent({
