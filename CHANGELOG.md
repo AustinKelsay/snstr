@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2025-11-11
+
+### Fixed
+- NIP-57: export `parseBolt11Invoice` from both the package root and the web/React-Native entry, resolving import errors for browser/RN consumers.
+
+### Added
+- Tests: export-parity tests to ensure `parseBolt11Invoice` stays available from both entries.
+
+### Docs
+- README: correct example to use `generateKeypair` (the root helper) instead of the `Nostr` instance method `generateKeys`.
+- NIP standardization doc: include `parseBolt11Invoice` in the documented exports.
+
 ## [0.1.5] - 2025-11-06
 
 ### Added
@@ -97,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/AustinKelsay/snstr/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/AustinKelsay/snstr/compare/v0.1.2...v0.1.5
 [0.1.2]: https://github.com/AustinKelsay/snstr/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AustinKelsay/snstr/compare/v0.1.0...v0.1.1
