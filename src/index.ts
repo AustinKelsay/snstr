@@ -246,6 +246,7 @@ export {
   decodeLnurl,
   buildZapCallbackUrl,
   extractLnurlMetadata,
+  parseBolt11Invoice,
 } from "./nip57/utils";
 
 // NIP-47: Nostr Wallet Connect

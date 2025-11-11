@@ -388,6 +388,7 @@ export {
   decodeLnurl,
   buildZapCallbackUrl,
   extractLnurlMetadata,
+  parseBolt11Invoice,
 } from "./nip57/utils";
 
 // Export NIP-65 utilities

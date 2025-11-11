@@ -221,6 +221,7 @@ export {
   decodeLnurl,
   buildZapCallbackUrl,
   extractLnurlMetadata,
+  parseBolt11Invoice,
 } from "../nip57/utils";
 
 // NIP-47 is Node-leaning and may pull NIP-04; omit from RN/web entry.
