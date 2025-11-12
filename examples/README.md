@@ -82,8 +82,6 @@ npm run example:nip47:error-handling # Error handling example
 npm run example:nip47:expiration # Request expiration example
 npm run example:nip47:nip44    # NIP-44 encrypted payload flow
 npm run example:nip47:encryption-negotiation # Custom encryption negotiation
-npm run example:nip47:nip44    # NIP-44 encrypted payload flow
-npm run example:nip47:encryption-negotiation # Custom encryption negotiation
 npm run example:nip50          # NIP-50 search capability
 npm run example:nip57          # Basic NIP-57 example
 npm run example:nip57:client   # Zap client example
