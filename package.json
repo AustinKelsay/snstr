@@ -1,6 +1,6 @@
 {
   "name": "snstr",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Secure Nostr Software Toolkit for Renegades - A comprehensive TypeScript library for Nostr protocol implementation",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
@@ -159,6 +159,7 @@
     "release": "npm run release:patch && npm run release:push",
     "// Branch Management": "-------------- Branch Management --------------",
     "promote": "scripts/promote-to-main.sh",
+    "prepublishOnly": "npm run build",
     "// App Shortcuts": "-------------- Application Shortcuts --------------",
     "start": "npm run example:nip07"
   },
