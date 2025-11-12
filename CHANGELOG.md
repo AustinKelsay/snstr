@@ -7,13 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.7] - 2025-11-11
+## [0.1.8] - 2025-11-12
 
 ### Fixed
-- Packaging: v0.1.6 was published with a stale dist that omitted the new `parseBolt11Invoice` re-export. Rebuilt and republished; the function is now exported from both Node and web/RN entry points as intended.
+- Packaging: ensure `parseBolt11Invoice` is exported from both Node and web/RN entry points in the published bundle. This release supersedes v0.1.6, which had a stale dist.
 
 ### Chore
-- Add `prepublishOnly` script to run `npm run build` automatically before publishing to npm and prevent stale builds in future.
+- Add `prepublishOnly` to always build before `npm publish`, preventing stale artifacts.
+
+## [0.1.7] - 2025-11-11
+
+Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
+
+### Fixed
+- Prepared packaging fix for `parseBolt11Invoice` export.
+
+### Chore
+- Added `prepublishOnly` build step.
 
 ## [0.1.6] - 2025-11-11
 
@@ -117,7 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/AustinKelsay/snstr/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/AustinKelsay/snstr/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/AustinKelsay/snstr/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/AustinKelsay/snstr/compare/v0.1.2...v0.1.5
