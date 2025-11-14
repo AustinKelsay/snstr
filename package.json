@@ -4,7 +4,7 @@
   "description": "Secure Nostr Software Toolkit for Renegades - A comprehensive TypeScript library for Nostr protocol implementation",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
-  "react-native": "dist/esm/src/entries/index.web.js",
+  "react-native": "./dist/esm/src/entries/index.web.js",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
