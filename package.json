@@ -81,7 +81,7 @@
     "// Test Groups": "-------------- Test Category Groups --------------",
     "test:all": "npm test",
     "test:core": "jest tests/nip01",
-    "test:crypto": "jest tests/crypto.test.ts tests/nip04 tests/nip44",
+    "test:crypto": "jest tests/utils/crypto.test.ts tests/nip04 tests/nip44",
     "test:identity": "jest tests/nip05 tests/nip07 tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57",
     "// Example Basic": "-------------- Basic Examples --------------",

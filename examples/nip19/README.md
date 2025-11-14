@@ -12,23 +12,23 @@ NIP-19 defines how Nostr entities are encoded using the Bech32 format, making th
 # Basic NIP-19 demo
 npm run example:nip19
 
-# NIP-19 with verbose logging
-npm run example:nip19:verbose
-
 # Specific examples
-npm run example:nip19:bech32     # Basic Bech32 entities
-npm run example:nip19:tlv        # TLV entities
-npm run example:nip19:validation # Security and validation features
-npm run example:nip19:security   # Security features and best practices
+npm run example:nip19:bech32          # Basic Bech32 entities
+npm run example:nip19:tlv             # TLV entities
+npm run example:nip19:validation      # Validation and error handling
+npm run example:nip19:security        # Relay URL validation and TLV entry limits
+npm run example:nip19:security-example # Advanced security scenarios and mitigations
+npm run example:nip19:demo            # Interactive demo flow (same as example:nip19)
 ```
 
 ## Example Files
 
-- `basic-demo.ts` - Comprehensive demo of all NIP-19 functionality
+- `nip19-demo.ts` - Comprehensive demo of all NIP-19 functionality (exposed via `npm run example:nip19` and `npm run example:nip19:demo`)
 - `bech32-example.ts` - Examples focusing on basic Bech32 entities (npub, nsec, note)
 - `tlv-example.ts` - Examples focusing on TLV entities (nprofile, nevent, naddr)
 - `validation-example.ts` - Examples of validation, security features, and error handling
-- `security-example.ts` - Focused examples on security features, DoS protection, and best practices
+- `nip19-security.ts` - Relay URL validation, TLV entry caps, and other guardrails
+- `security-example.ts` - Focused examples on DoS protection strategies and advanced best practices
 
 ## Key Concepts
 
