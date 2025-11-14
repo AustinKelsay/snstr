@@ -1,12 +1,12 @@
+import { Nostr } from "../../../src/nip01/nostr";
 import {
-  Nostr,
   NostrEvent,
   RelayEvent,
   RelayEventCallbacks,
   PublishResponse,
   RelayStatus,
   NostrFilter,
-} from "../../../src";
+} from "../../../src/types/nostr";
 
 // Simulated relay for testing
 class MockRelay {

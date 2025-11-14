@@ -689,16 +689,16 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("validatePrivateKeySecure should throw production-safe errors in production", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = "production";
+        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
 
         expect(() => {
           validatePrivateKeySecure("", "test key");
         }).toThrow("Invalid key format"); // Production-safe message
       } finally {
         if (originalEnv === undefined) {
-          delete process.env.NODE_ENV;
+          delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          process.env.NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
         }
       }
     });
@@ -706,16 +706,16 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("validatePrivateKeySecure should throw debug errors in development", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = "development";
+        (process.env as Record<string, string | undefined>).NODE_ENV = "development";
 
         expect(() => {
           validatePrivateKeySecure("", "test key");
         }).toThrow("test key cannot be an empty string"); // Debug message
       } finally {
         if (originalEnv === undefined) {
-          delete process.env.NODE_ENV;
+          delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          process.env.NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
         }
       }
     });
@@ -723,7 +723,7 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("createProductionSafeMessage should return prod message in production", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = "production";
+        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
 
         const devMessage = createProductionSafeMessage(
           "Detailed debug info",
@@ -732,9 +732,9 @@ describe("NIP-46 Validator Unit Tests", () => {
         expect(devMessage).toBe("Generic error");
       } finally {
         if (originalEnv === undefined) {
-          delete process.env.NODE_ENV;
+          delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          process.env.NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
         }
       }
     });
@@ -742,7 +742,7 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("createProductionSafeMessage should return debug message in development", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = "development";
+        (process.env as Record<string, string | undefined>).NODE_ENV = "development";
 
         const prodMessage = createProductionSafeMessage(
           "Detailed debug info",
@@ -751,9 +751,9 @@ describe("NIP-46 Validator Unit Tests", () => {
         expect(prodMessage).toBe("Detailed debug info");
       } finally {
         if (originalEnv === undefined) {
-          delete process.env.NODE_ENV;
+          delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          process.env.NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
         }
       }
     });
@@ -761,15 +761,15 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("createProductionSafeMessage should use default prod message", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = "production";
+        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
 
         const defaultProdMessage = createProductionSafeMessage("Debug info");
         expect(defaultProdMessage).toBe("Security validation failed");
       } finally {
         if (originalEnv === undefined) {
-          delete process.env.NODE_ENV;
+          delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          process.env.NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
         }
       }
     });

@@ -4,7 +4,7 @@
     "module": "commonjs",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "..",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,6 +13,6 @@
     "resolveJsonModule": true,
     "lib": ["es2020", "dom"]
   },
-  "include": ["./**/*.ts"],
-  "exclude": ["node_modules", "dist", "coverage"]
+  "include": ["../**/*.ts"],
+  "exclude": ["node_modules", "../dist", "../coverage", "../examples/dist"]
 } 

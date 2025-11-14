@@ -9,6 +9,7 @@ import {
 } from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { WebSocketServer } from "ws";
+import { testUtils } from "../../types";
 import {
   asTestRelay,
   RelayConnectCallback,
@@ -19,6 +20,16 @@ import {
   RelayClosedCallback,
   RelayAuthCallback,
 } from "../../types";
+
+// Union type for any relay callback to avoid repeating local unions in tests
+type AnyRelayCallback =
+  | RelayConnectCallback
+  | RelayDisconnectCallback
+  | RelayErrorCallback
+  | RelayNoticeCallback
+  | RelayOkCallback
+  | RelayClosedCallback
+  | RelayAuthCallback;
 
 // Ephemeral relay port for tests
 const RELAY_TEST_PORT = 0;
@@ -72,7 +83,7 @@ describe("Relay", () => {
       relay.disconnect();
 
       // Give time for the disconnect event to fire
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await testUtils.sleep(100);
 
       expect(disconnectEvent).toBe(true);
     });
@@ -200,19 +211,9 @@ describe("Relay", () => {
         sig: "test-signature",
       };
 
-      // Define a type for all possible relay callbacks
-      type RelayCallbackType =
-        | RelayConnectCallback
-        | RelayDisconnectCallback
-        | RelayErrorCallback
-        | RelayNoticeCallback
-        | RelayOkCallback
-        | RelayClosedCallback
-        | RelayAuthCallback;
-
-      const callbacks = new Map<RelayEvent, RelayCallbackType>();
+      const callbacks = new Map<RelayEvent, AnyRelayCallback>();
       const originalOn = relay.on;
-      relay.on = jest.fn((event: RelayEvent, callback: RelayCallbackType) => {
+      relay.on = jest.fn((event: RelayEvent, callback: AnyRelayCallback) => {
         callbacks.set(event, callback);
         return originalOn.call(relay, event, callback);
       });
@@ -262,19 +263,9 @@ describe("Relay", () => {
         sig: "test-signature",
       };
 
-      // Define a type for all possible relay callbacks
-      type RelayCallbackType =
-        | RelayConnectCallback
-        | RelayDisconnectCallback
-        | RelayErrorCallback
-        | RelayNoticeCallback
-        | RelayOkCallback
-        | RelayClosedCallback
-        | RelayAuthCallback;
-
-      const callbacks = new Map<RelayEvent, RelayCallbackType>();
+      const callbacks = new Map<RelayEvent, AnyRelayCallback>();
       const originalOn = relay.on;
-      relay.on = jest.fn((event: RelayEvent, callback: RelayCallbackType) => {
+      relay.on = jest.fn((event: RelayEvent, callback: AnyRelayCallback) => {
         callbacks.set(event, callback);
         return originalOn.call(relay, event, callback);
       });
@@ -547,7 +538,7 @@ describe("Relay", () => {
 
       expect(relay.getSubscriptionIds().has(subId)).toBe(true);
 
-      await new Promise((r) => setTimeout(r, 100));
+      await testUtils.sleep(100);
 
       expect(relay.getSubscriptionIds().has(subId)).toBe(false);
 
@@ -573,7 +564,7 @@ describe("Relay", () => {
 
       expect(relay.getSubscriptionIds().has(subId)).toBe(true);
 
-      await new Promise((r) => setTimeout(r, 100));
+      await testUtils.sleep(100);
 
       expect(relay.getSubscriptionIds().has(subId)).toBe(false);
 
@@ -674,7 +665,7 @@ describe("Relay", () => {
       );
       // Allow some time for events to be processed by the ephemeral relay and EOSE to be sent
       // This is a common pattern in tests involving asynchronous relay communication.
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await testUtils.sleep(500);
     });
   });
 
@@ -979,7 +970,7 @@ describe("Relay", () => {
       internalRelay.handleMessage(["EVENT", "test-sub", event]);
 
       // Wait for promises to resolve
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await testUtils.sleep(10);
 
       // The event should not have been processed
       expect(internalRelay.validateEventAsync).toHaveBeenCalledWith(event);
@@ -998,7 +989,7 @@ describe("Relay", () => {
       internalRelay.handleMessage(["EVENT", "test-sub", event]);
 
       // Wait for promises to resolve
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await testUtils.sleep(10);
 
       // The event should have been processed
       expect(internalRelay.validateEventAsync).toHaveBeenCalledWith(event);
@@ -1049,7 +1040,7 @@ describe("Relay", () => {
       expect(testRelay.validateEventAsync).toHaveBeenCalledWith(validEvent);
 
       // Wait for promises to resolve
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await testUtils.sleep(10);
 
       // Verify the event was processed
       expect(processValidatedEventMock).toHaveBeenCalledWith(

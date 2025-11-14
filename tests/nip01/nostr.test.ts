@@ -17,25 +17,6 @@ async function createEphemeralRelay(): Promise<NostrRelay> {
   return relay;
 }
 
-/**
- * Helper function to wait for a condition with polling instead of fixed timeout
- */
-async function waitForCondition(
-  condition: () => boolean | Promise<boolean>,
-  timeoutMs: number = 5000,
-  intervalMs: number = 10,
-): Promise<void> {
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeoutMs) {
-    if (await condition()) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-
-  throw new Error(`Condition not met within ${timeoutMs}ms timeout`);
-}
 
 describe("Nostr Client", () => {
   // Setup ephemeral relay for tests
@@ -111,7 +92,7 @@ describe("Nostr Client", () => {
       client.disconnectFromRelays();
 
       // Wait for disconnect event with polling instead of fixed timeout
-      await waitForCondition(() => disconnectCount > 0, 1000);
+      await testUtils.waitFor(() => disconnectCount > 0, 1000);
 
       // Our improved relay.ts implementation fires one disconnect event per relay
       expect(disconnectCount).toBeGreaterThan(0);
@@ -313,7 +294,7 @@ describe("Nostr Client", () => {
 
       expect(relay.getSubscriptionIds().has(subIds[0])).toBe(true);
 
-      await new Promise((r) => setTimeout(r, 100));
+      await testUtils.sleep(100);
 
       expect(relay.getSubscriptionIds().size).toBe(0);
     });
@@ -382,7 +363,7 @@ describe("Nostr Client", () => {
       await client.publishTextNote("note-two");
 
       // Wait for the relay to store the events, using polling
-      await waitForCondition(async () => {
+      await testUtils.waitFor(async () => {
         const events = await client.fetchMany([{ kinds: [1] }], {
           maxWait: 100,
         });
@@ -404,7 +385,7 @@ describe("Nostr Client", () => {
       await client.publishTextNote("first-note");
 
       // Wait for the first event to be stored
-      await waitForCondition(async () => {
+      await testUtils.waitFor(async () => {
         const events = await client.fetchMany([{ kinds: [1] }], {
           maxWait: 100,
         });
@@ -412,12 +393,12 @@ describe("Nostr Client", () => {
       }, 2000);
 
       // Ensure we get a different timestamp by waiting at least 1 second
-      await new Promise((resolve) => setTimeout(resolve, 1100));
+      await testUtils.sleep(1100);
 
       await client.publishTextNote("second-note");
 
       // Wait for the second event to be stored
-      await waitForCondition(async () => {
+      await testUtils.waitFor(async () => {
         const events = await client.fetchMany([{ kinds: [1] }], {
           maxWait: 100,
         });
@@ -440,9 +421,9 @@ describe("Nostr Client", () => {
 
       await multi.publishTextNote("multi-note");
 
-      // Wait for events to be stored and available, using polling
+      // Wait for events to be stored and available using polling
       // Note: Due to deduplication, the same event will only appear once even if received from multiple relays
-      await waitForCondition(async () => {
+      await testUtils.waitFor(async () => {
         const events = await multi.fetchMany([{ kinds: [1] }], {
           maxWait: 100,
         });
@@ -474,9 +455,9 @@ describe("Nostr Client", () => {
 
       await multi.publishTextNote("old-note");
 
-      // Wait for first event to be stored, using polling
+      // Wait for first event to be stored using polling
       // Note: Due to deduplication, the same event will only appear once even if received from multiple relays
-      await waitForCondition(async () => {
+      await testUtils.waitFor(async () => {
         const events = await multi.fetchMany([{ kinds: [1] }], {
           maxWait: 100,
         });
@@ -484,13 +465,13 @@ describe("Nostr Client", () => {
       }, 2000);
 
       // Ensure we get a different timestamp by waiting at least 1 second
-      await new Promise((resolve) => setTimeout(resolve, 1100));
+      await testUtils.sleep(1100);
 
       await multi.publishTextNote("new-note");
 
-      // Wait for second event to be stored, using polling
+      // Wait for second event to be stored using polling
       // Note: Due to deduplication, we expect 2 unique events (not 4 duplicates)
-      await waitForCondition(async () => {
+      await testUtils.waitFor(async () => {
         const events = await multi.fetchMany([{ kinds: [1] }], {
           maxWait: 100,
         });

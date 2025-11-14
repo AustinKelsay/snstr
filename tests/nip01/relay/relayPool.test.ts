@@ -1,4 +1,5 @@
 import { RelayPool, NostrEvent } from "../../../src";
+import { testUtils } from "../../types";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { createTextNote, createSignedEvent } from "../../../src/nip01/event";
@@ -49,39 +50,20 @@ describe("RelayPool", () => {
     };
 
     try {
-      // Create a promise that resolves when we receive events from both relays
-      let relay1Received = false;
-      let relay2Received = false;
-      let resolveAllRelays: () => void;
-      
-      const allRelaysReceived = new Promise<void>((resolve) => {
-        resolveAllRelays = resolve;
-      });
-      
-      const checkComplete = () => {
-        if (relay1Received && relay2Received) {
-          resolveAllRelays();
-        }
-      };
-      
-      const checkRelaysFunction = () => {
-        if (received[relay1.url].length > 0 && !relay1Received) {
-          relay1Received = true;
-          checkComplete();
-        }
-        if (received[relay2.url].length > 0 && !relay2Received) {
-          relay2Received = true;
-          checkComplete();
-        }
-      };
+      // Helper: wait until at least one event has been received from both relays
+      const waitForBoth = async () =>
+        testUtils.waitFor(
+          () =>
+            received[relay1.url].length > 0 && received[relay2.url].length > 0,
+          2000,
+          10,
+        );
 
       const sub = await pool.subscribe(
         [relay1.url, relay2.url],
         [{ kinds: [1] }],
         (event, relay) => {
           received[relay].push(event);
-          // Check if we've received from both relays
-          checkRelaysFunction();
         },
       );
 
@@ -98,7 +80,7 @@ describe("RelayPool", () => {
       await Promise.all(pool.publish([relay2.url], ev2));
 
       // Wait for events to be received from both relays
-      await allRelaysReceived;
+      await waitForBoth();
       sub.close();
 
       expect(received[relay1.url].length).toBeGreaterThan(0);
@@ -244,25 +226,9 @@ describe("RelayPool", () => {
         },
       );
 
-      // Create promise to wait for event reception
-      let _eventReceived = false;
-      let resolveEventReceived: () => void;
-      
-      const eventReceivedPromise = new Promise<void>((resolve) => {
-        resolveEventReceived = resolve;
-      });
-      
-      const checkEventReceived = () => {
-        if (received.some((e) => e.content === "partial failure test")) {
-          _eventReceived = true;
-          resolveEventReceived();
-        }
-      };
-
       // Update the subscription callback to check for our event
       const originalCallback = (event: NostrEvent) => {
         received.push(event);
-        checkEventReceived();
       };
       
       // Re-create subscription with updated callback
@@ -287,30 +253,13 @@ describe("RelayPool", () => {
         expect(result.success).toBe(true);
       });
 
-      // Wait for event to be received with explicit timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        const timer = setTimeout(() => reject(new Error("Timeout waiting for event reception")), 1000);
-        if (timer.unref) timer.unref(); // Don't keep process alive
-        return timer;
-      });
-      
-      try {
-        await Promise.race([eventReceivedPromise, timeoutPromise]);
-      } catch (error) {
-        // If timeout occurred, verify we still received the event
-        if (error instanceof Error && error.message.includes("Timeout")) {
-          // Give a small additional time for any in-flight events
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Verify the event was actually received
-          if (!received.some((e) => e.content === "partial failure test")) {
-            throw new Error("Event was not received within timeout period");
-          }
-        } else {
-          throw error;
-        }
-      }
-      
+      // Wait for the specific event to be received from at least one relay
+      await testUtils.waitFor(
+        () => received.some((e) => e.content === "partial failure test"),
+        2000,
+        10,
+      );
+
       newSub.close();
 
       // Should still receive events from working relays despite one relay failing
@@ -362,7 +311,7 @@ describe("RelayPool", () => {
 
       // Give a small amount of time to ensure no events leak through
       // This is testing that events DON'T arrive, so we need a small delay
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await testUtils.sleep(100);
 
       // Should not receive the event published after close
       const afterCloseEvents = received.filter(
@@ -430,28 +379,12 @@ describe("RelayPool", () => {
         keys.privateKey,
       );
 
-      // Create promise to wait for both events
-      let resolveBothEvents: () => void;
-      
-      const bothEventsReceived = new Promise<void>((resolve) => {
-        resolveBothEvents = resolve;
-      });
-      
-      const checkBothEvents = () => {
-        const hasNormal = received.some((e) => e.content === "normal event");
-        const hasError = received.some((e) => e.content === "error event");
-        if (hasNormal && hasError) {
-          resolveBothEvents();
-        }
-      };
-
       // Update the check function whenever an event is received
       const originalOnEvent = (event: NostrEvent) => {
         // Only process our test events
         if (event.pubkey === keys.publicKey && 
             (event.content === "normal event" || event.content === "error event")) {
           received.push(event);
-          checkBothEvents();
           
           // Throw error after recording - don't catch it here so RelayPool can handle it
           if (event.content === "error event") {
@@ -478,35 +411,17 @@ describe("RelayPool", () => {
         expect(result.success).toBe(true);
       });
 
-      // Wait for both events with explicit timeout
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        const timer = setTimeout(() => reject(new Error("Timeout waiting for both events")), 2000);
-        if (timer.unref) timer.unref(); // Don't keep process alive
-        return timer;
-      });
-      
-      try {
-        await Promise.race([bothEventsReceived, timeoutPromise]);
-      } catch (error) {
-        // If timeout occurred, check what we actually received
-        if (error instanceof Error && error.message.includes("Timeout")) {
-          const hasNormal = received.some((e) => e.content === "normal event");
-          const hasError = received.some((e) => e.content === "error event");
-          
-          if (!hasNormal || !hasError) {
-            throw new Error(
-              `Did not receive both events within timeout. ` +
-              `Normal event received: ${hasNormal}, Error event received: ${hasError}`
-            );
-          }
-          // If both events were received despite timeout, test can continue
-        } else {
-          throw error;
-        }
-      }
+      // Wait until both events have been received
+      await testUtils.waitFor(
+        () =>
+          received.some((e) => e.content === "normal event") &&
+          received.some((e) => e.content === "error event"),
+        2000,
+        10,
+      );
       
       // Give a little extra time for error logging
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await testUtils.sleep(100);
       
       newSub.close();
 
@@ -561,7 +476,7 @@ describe("RelayPool", () => {
 
       // Give the subscription a moment to attempt connections to invalid relays
       // This ensures any connection errors would have been thrown by now
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await testUtils.sleep(100);
 
       // Should be able to close without throwing errors
       expect(() => sub.close()).not.toThrow();
@@ -650,7 +565,7 @@ describe("RelayPool", () => {
       sub.close();
 
       // Give a small delay to ensure no duplicate EOSE calls
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await testUtils.sleep(100);
 
       // Verify that onEOSE was called exactly once, not multiple times
       // The eoseSent flag should prevent any duplicate calls

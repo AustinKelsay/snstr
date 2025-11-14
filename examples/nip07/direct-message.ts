@@ -1,3 +1,4 @@
+import "../../src/nip07/ambient";
 import {
   Nip07Nostr,
   hasNip07Support,
