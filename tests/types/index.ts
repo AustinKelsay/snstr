@@ -171,6 +171,27 @@ export const testUtils = {
   normalizeRelayUrl: (url: string): string => {
     return normalizeRelayUrlUtil(url);
   },
+
+  /** Sleep helper to replace scattered setTimeout wrappers in tests */
+  sleep: (ms: number): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, ms)),
+
+  /**
+   * Wait until a condition becomes true or timeout elapses.
+   * Polls every `intervalMs` to avoid long fixed delays while keeping determinism.
+   */
+  waitFor: async (
+    condition: () => boolean | Promise<boolean>,
+    timeoutMs = 2000,
+    intervalMs = 10,
+  ): Promise<void> => {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (await condition()) return;
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    throw new Error(`Condition not met within ${timeoutMs}ms`);
+  },
 };
 
 /**

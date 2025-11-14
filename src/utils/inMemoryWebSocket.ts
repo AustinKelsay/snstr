@@ -10,6 +10,13 @@
  *********************************************************************/
 
 import { EventEmitter } from "events";
+import {
+  BivariantHandler,
+  OpenEventLike,
+  CloseEventLike,
+  ErrorEventLike,
+  MessageEventLike,
+} from "./websocket-types";
 
 export interface InMemoryServerSocket extends EventEmitter {
   readyState: number;
@@ -20,10 +27,10 @@ export interface InMemoryServerSocket extends EventEmitter {
 
 export interface InMemoryClientSocket {
   readonly readyState: number;
-  onopen: ((event: { type: "open" }) => void) | null;
-  onclose: ((event: { type: "close"; code?: number; reason?: string }) => void) | null;
-  onerror: ((event: { type: "error"; error: Error }) => void) | null;
-  onmessage: ((event: { type: "message"; data: string }) => void) | null;
+  onopen: BivariantHandler<OpenEventLike> | null;
+  onclose: BivariantHandler<CloseEventLike> | null;
+  onerror: BivariantHandler<ErrorEventLike> | null;
+  onmessage: BivariantHandler<MessageEventLike> | null;
   send(data: string): void;
   close(code?: number, reason?: string): void;
 }
@@ -84,10 +91,10 @@ class ServerSideSocket extends EventEmitter implements InMemoryServerSocket {
 
 class ClientSideSocket implements InMemoryClientSocket {
   public readyState = CONNECTING;
-  public onopen: ((event: { type: "open" }) => void) | null = null;
-  public onclose: ((event: { type: "close"; code?: number; reason?: string }) => void) | null = null;
-  public onerror: ((event: { type: "error"; error: Error }) => void) | null = null;
-  public onmessage: ((event: { type: "message"; data: string }) => void) | null = null;
+  public onopen: BivariantHandler<OpenEventLike> | null = null;
+  public onclose: BivariantHandler<CloseEventLike> | null = null;
+  public onerror: BivariantHandler<ErrorEventLike> | null = null;
+  public onmessage: BivariantHandler<MessageEventLike> | null = null;
 
   constructor(private readonly serverSocket: ServerSideSocket) {
     this.serverSocket.attachPeer(this);

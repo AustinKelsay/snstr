@@ -419,16 +419,9 @@ describe("Event Creation and Signing", () => {
         tags: [],
         content: "Validating event structure",
       };
-      const id = await getEventHash(unsigned);
-      const sig = (await verifySignature(id, "ab".repeat(64), publicKey)) // Placeholder, real sig not strictly needed for these field format tests if signature validation is off
-        ? "ab".repeat(64)
-        : await createSignedEvent(unsigned, privateKey).then((e) => e.sig); // Fallback to generate a real one if needed
-
-      baseEvent = {
-        ...unsigned,
-        id,
-        sig,
-      };
+      // Produce a fully valid signed event to avoid unrelated signature failures
+      const signed = await createSignedEvent(unsigned, privateKey);
+      baseEvent = signed;
     });
 
     // Test for 'id'

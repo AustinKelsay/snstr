@@ -5,8 +5,8 @@ import {
 import { WebSocket as WSWebSocket } from "ws";
 import { jest } from "@jest/globals";
 
-// Ensure tests run in test environment
-process.env.NODE_ENV = "test";
+// Ensure tests run in test environment (cast to bypass TS readonly typing)
+(process.env as Record<string, string>).NODE_ENV = "test";
 
 // Increase Jest timeout for async operations
 jest.setTimeout(30000);

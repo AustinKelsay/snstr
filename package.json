@@ -4,24 +4,36 @@
   "description": "Secure Nostr Software Toolkit for Renegades - A comprehensive TypeScript library for Nostr protocol implementation",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
-  "react-native": "dist/src/entries/index.web.js",
+  "react-native": "./dist/esm/src/entries/index.web.js",
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
-      "react-native": "./dist/src/entries/index.web.js",
-      "browser": "./dist/src/entries/index.web.js",
+      "import": "./dist/esm/src/index.js",
+      "require": "./dist/src/index.js",
+      "react-native": "./dist/esm/src/entries/index.web.js",
+      "browser": "./dist/esm/src/entries/index.web.js",
       "default": "./dist/src/index.js"
+    },
+    "./nip07-ambient": {
+      "types": "./dist/src/nip07/ambient.d.ts",
+      "import": "./dist/esm/src/nip07/ambient.js",
+      "require": "./dist/src/nip07/ambient.js",
+      "default": "./dist/src/nip07/ambient.js"
     },
     "./nip04": {
       "types": "./dist/src/nip04/index.d.ts",
-      "react-native": "./dist/src/nip04/web.js",
-      "browser": "./dist/src/nip04/web.js",
+      "import": "./dist/esm/src/nip04/index.js",
+      "require": "./dist/src/nip04/index.js",
+      "react-native": "./dist/esm/src/nip04/web.js",
+      "browser": "./dist/esm/src/nip04/web.js",
       "default": "./dist/src/nip04/index.js"
     }
   },
   "scripts": {
     "// Build": "-------------- Build Commands --------------",
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc -p tsconfig.json",
+    "build:esm": "tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js",
     "build:examples": "tsc -p examples/tsconfig.json",
     "// Lint & Format": "-------------- Code Quality --------------",
     "lint": "eslint . --ext .ts",
@@ -69,7 +81,7 @@
     "// Test Groups": "-------------- Test Category Groups --------------",
     "test:all": "npm test",
     "test:core": "jest tests/nip01",
-    "test:crypto": "jest tests/crypto.test.ts tests/nip04 tests/nip44",
+    "test:crypto": "jest tests/utils/crypto.test.ts tests/nip04 tests/nip44",
     "test:identity": "jest tests/nip05 tests/nip07 tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57",
     "// Example Basic": "-------------- Basic Examples --------------",

@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "es2020",
+    "target": "es2020",
+    "outDir": "./dist/esm",
+    "declaration": true,
+    "declarationMap": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "lib": ["es2020", "dom"]
+  },
+  "exclude": ["node_modules", "dist", "coverage"]
+}

@@ -23,13 +23,20 @@ import {
   getSecureRandom,
   secureRandomHex,
 } from "../utils/security-validator";
+import {
+  BivariantHandler,
+  OpenEventLike,
+  CloseEventLike,
+  ErrorEventLike,
+  MessageEventLike,
+} from "../utils/websocket-types";
 
 type WebSocketLike = {
   readyState: number;
-  onopen: ((event: any) => void) | null;
-  onclose: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
-  onmessage: ((event: any) => void) | null;
+  onopen: BivariantHandler<OpenEventLike> | null;
+  onclose: BivariantHandler<CloseEventLike> | null;
+  onerror: BivariantHandler<ErrorEventLike> | null;
+  onmessage: BivariantHandler<MessageEventLike> | null;
   send(data: string): void;
   close(code?: number, reason?: string): void;
   terminate?: () => void;
