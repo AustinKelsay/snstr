@@ -133,7 +133,7 @@ export class Relay {
       try {
         const inMemorySocket = createInMemoryWebSocket(this.url);
         if (inMemorySocket) {
-          this.ws = inMemorySocket as unknown as WebSocketLike;
+          this.ws = inMemorySocket;
         } else {
           const WS = getWebSocketImplementation();
           this.ws = new WS(this.url) as unknown as WebSocketLike;
