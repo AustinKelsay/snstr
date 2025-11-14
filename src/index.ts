@@ -179,6 +179,7 @@ export {
   encryptNip44 as encryptNip44WithExtension,
   decryptNip44 as decryptNip44WithExtension,
 } from "./nip07";
+export * from "./nip07/ambient";
 
 // Export NIP-09 utilities
 export {
