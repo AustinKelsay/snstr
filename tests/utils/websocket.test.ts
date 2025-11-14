@@ -39,10 +39,10 @@ function createMockWebSocket(
 
 type ModuleExportsTest = typeof import("../../src/utils/websocket");
 
-function loadModuleWithMocks(params: {
+async function loadModuleWithMocks(params: {
   native?: WebSocketCtorTest;
   polyfill?: WebSocketCtorTest;
-}): ModuleExportsTest {
+}): Promise<ModuleExportsTest> {
   jest.resetModules();
 
   if (params.native) {
@@ -62,8 +62,9 @@ function loadModuleWithMocks(params: {
     return {};
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const moduleExports = require("../../src/utils/websocket") as ModuleExportsTest;
+  const moduleExports = (await import(
+    "../../src/utils/websocket"
+  )) as ModuleExportsTest;
   jest.dontMock("websocket-polyfill");
 
   return moduleExports;
@@ -76,7 +77,7 @@ afterEach(() => {
 });
 
 describe("utils/websocket default selection", () => {
-  test("prefers native WebSocket when it has required features", () => {
+  test("prefers native WebSocket when it has required features", async () => {
     const nativeWS = createMockWebSocket({
       hasBinaryTypeSetter: true,
       label: "native",
@@ -86,7 +87,7 @@ describe("utils/websocket default selection", () => {
       label: "polyfill",
     });
 
-    const { getWebSocketImplementation } = loadModuleWithMocks({
+    const { getWebSocketImplementation } = await loadModuleWithMocks({
       native: nativeWS,
       polyfill: polyfillWS,
     });
@@ -94,7 +95,7 @@ describe("utils/websocket default selection", () => {
     expect(getWebSocketImplementation()).toBe(nativeWS);
   });
 
-  test("falls back to polyfill when native implementation lacks binaryType setter", () => {
+  test("falls back to polyfill when native implementation lacks binaryType setter", async () => {
     const nativeWS = createMockWebSocket({
       hasBinaryTypeSetter: false,
       label: "native-no-setter",
@@ -104,7 +105,7 @@ describe("utils/websocket default selection", () => {
       label: "polyfill",
     });
 
-    const { getWebSocketImplementation } = loadModuleWithMocks({
+    const { getWebSocketImplementation } = await loadModuleWithMocks({
       native: nativeWS,
       polyfill: polyfillWS,
     });
@@ -112,7 +113,7 @@ describe("utils/websocket default selection", () => {
     expect(getWebSocketImplementation()).toBe(polyfillWS);
   });
 
-  test("falls back to native implementation when both lack required features", () => {
+  test("falls back to native implementation when both lack required features", async () => {
     const nativeWS = createMockWebSocket({
       hasBinaryTypeSetter: false,
       label: "native-no-setter",
@@ -122,7 +123,7 @@ describe("utils/websocket default selection", () => {
       label: "polyfill-no-setter",
     });
 
-    const { getWebSocketImplementation } = loadModuleWithMocks({
+    const { getWebSocketImplementation } = await loadModuleWithMocks({
       native: nativeWS,
       polyfill: polyfillWS,
     });
@@ -130,8 +131,8 @@ describe("utils/websocket default selection", () => {
     expect(getWebSocketImplementation()).toBe(nativeWS);
   });
 
-  test("throws when no implementation is available", () => {
-    const { getWebSocketImplementation } = loadModuleWithMocks({});
+  test("throws when no implementation is available", async () => {
+    const { getWebSocketImplementation } = await loadModuleWithMocks({});
 
     expect(() => getWebSocketImplementation()).toThrow(
       "WebSocket implementation not available. Make sure websocket-polyfill is properly loaded.",
@@ -140,7 +141,7 @@ describe("utils/websocket default selection", () => {
 });
 
 describe("utils/websocket overrides", () => {
-  test("useWebSocketImplementation overrides and reset restores default", () => {
+  test("useWebSocketImplementation overrides and reset restores default", async () => {
     const nativeWS = createMockWebSocket({
       hasBinaryTypeSetter: true,
       label: "native",
@@ -159,7 +160,7 @@ describe("utils/websocket overrides", () => {
       getWebSocketImplementation,
       useWebSocketImplementation,
       resetWebSocketImplementation,
-    } = loadModuleWithMocks({
+    } = await loadModuleWithMocks({
       native: nativeWS,
       polyfill: polyfillWS,
     });
@@ -173,7 +174,7 @@ describe("utils/websocket overrides", () => {
     expect(getWebSocketImplementation()).toBe(nativeWS);
   });
 
-  test("resetWebSocketImplementation picks up runtime global WebSocket changes", () => {
+  test("resetWebSocketImplementation picks up runtime global WebSocket changes", async () => {
     const polyfillWS = createMockWebSocket({
       hasBinaryTypeSetter: false,
       label: "polyfill-no-setter",
@@ -182,7 +183,7 @@ describe("utils/websocket overrides", () => {
     const {
       getWebSocketImplementation,
       resetWebSocketImplementation,
-    } = loadModuleWithMocks({
+    } = await loadModuleWithMocks({
       native: undefined,
       polyfill: polyfillWS,
     });
