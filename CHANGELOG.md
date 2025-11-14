@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.10] - 2025-11-14
+
+### Fixed
+- Packaging: `.npmignore` now explicitly keeps `dist/esm/src/**` so the new ESM build actually ships to npm and Turbopack no longer resolves to missing files.
+- Build tooling: `scripts/postbuild-esm.js` rewrites every relative specifier in `dist/esm/src/*.js` to include `.js` (or `/index.js`), satisfying Node/Turbopack ESM resolution and preventing `ERR_MODULE_NOT_FOUND` at runtime.
+- Tooling: replaced the `tests/tsconfig.json` symlink with a real wrapper config so editors/tsserver stop reporting “No inputs were found…” errors when opening files inside `tests/`.
+
 ## [0.1.9] - 2025-11-14
 
 ### Added
@@ -147,7 +154,8 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/AustinKelsay/snstr/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/AustinKelsay/snstr/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/AustinKelsay/snstr/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/AustinKelsay/snstr/compare/v0.1.6...v0.1.7

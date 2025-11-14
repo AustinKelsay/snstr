@@ -44,6 +44,7 @@ CLAUDE.md
 
 # Source files (keep only dist)
 src/
+!dist/esm/src/**
 *.ts
 !*.d.ts
 

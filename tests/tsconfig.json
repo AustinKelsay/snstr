@@ -1,1 +1,19 @@
-../tsconfig.json
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../dist",
+    "rootDir": ".."
+  },
+  "include": [
+    "../src/**/*.ts",
+    "../tests/**/*.ts",
+    "../examples/**/*.ts",
+    "../jest.setup.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist",
+    "../coverage",
+    "../examples/dist"
+  ]
+}
