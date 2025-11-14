@@ -24,12 +24,23 @@ import {
   secureRandomHex,
 } from "../utils/security-validator";
 
+type BivariantHandler<T> = {
+  // Bivariance hack to allow assigning handlers with compatible, narrower params
+  // (mirrors how lib.dom types event handler properties)
+  bivarianceHack: (event: T) => void;
+}["bivarianceHack"];
+
+type OpenEventLike = Event | { type: "open" };
+type CloseEventLike = CloseEvent | { type: "close"; code?: number; reason?: string };
+type ErrorEventLike = unknown;
+type MessageEventLike = MessageEvent<string> | { data: string };
+
 type WebSocketLike = {
   readyState: number;
-  onopen: ((event: any) => void) | null;
-  onclose: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
-  onmessage: ((event: any) => void) | null;
+  onopen: BivariantHandler<OpenEventLike> | null;
+  onclose: BivariantHandler<CloseEventLike> | null;
+  onerror: BivariantHandler<ErrorEventLike> | null;
+  onmessage: BivariantHandler<MessageEventLike> | null;
   send(data: string): void;
   close(code?: number, reason?: string): void;
   terminate?: () => void;
@@ -122,7 +133,7 @@ export class Relay {
       try {
         const inMemorySocket = createInMemoryWebSocket(this.url);
         if (inMemorySocket) {
-          this.ws = inMemorySocket;
+          this.ws = inMemorySocket as unknown as WebSocketLike;
         } else {
           const WS = getWebSocketImplementation();
           this.ws = new WS(this.url) as unknown as WebSocketLike;

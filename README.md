@@ -35,6 +35,7 @@ SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr
   - [Code Quality Scripts](#code-quality-scripts)
 - [Development](#development)
 - [Security](#security)
+- [Next.js / Turbopack Guidance](#nextjs--turbopack-guidance)
 
 ## Features
 
@@ -115,6 +116,22 @@ npm run build
   const p = decryptNIP04(bobPriv, alicePub, c);
   ```
 - Prefer NIP-44 for new apps; keep NIP-04 for legacy compatibility.
+
+## Next.js / Turbopack Guidance
+
+snstr ships both CommonJS and ESM builds and provides a dedicated web entry that avoids Node-only modules.
+
+- Prefer the default import in Next.js; do not add `snstr` to `transpilePackages` unless necessary.
+- If you must transpile third-party packages, rely on the ESM import condition we publish and avoid forcing CJS transforms of `snstr`.
+- At client-only boundaries, dynamic `import('snstr')` is a safe workaround for older setups.
+
+Resolution summary:
+
+- Node (CJS): `require('snstr')` → `./dist/src/index.js`.
+- Node/ESM & modern bundlers: `import 'snstr'` → `./dist/esm/src/index.js`.
+- Browsers/React Native: `import 'snstr'` under `browser`/`react-native` conditions → `./dist/esm/src/entries/index.web.js`.
+
+This dual build removes getter-based CJS re-exports from browser bundles and avoids interop issues observed with Turbopack.
 
 ## Basic Usage
 
