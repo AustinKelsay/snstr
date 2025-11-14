@@ -1,11 +1,11 @@
-type WebSocketCtor = {
+type WebSocketCtorTest = {
   new (...args: unknown[]): unknown;
   prototype: Record<string, unknown>;
 };
 
 function createMockWebSocket(
   options: { hasBinaryTypeSetter: boolean; label: string },
-): WebSocketCtor {
+): WebSocketCtorTest {
   class MockWebSocket {
     public static label = options.label;
     public binaryTypeValue: string = "blob";
@@ -34,15 +34,15 @@ function createMockWebSocket(
       : {}),
   });
 
-  return MockWebSocket as unknown as WebSocketCtor;
+  return MockWebSocket as unknown as WebSocketCtorTest;
 }
 
-type ModuleExports = typeof import("../../src/utils/websocket");
+type ModuleExportsTest = typeof import("../../src/utils/websocket");
 
 function loadModuleWithMocks(params: {
-  native?: WebSocketCtor;
-  polyfill?: WebSocketCtor;
-}): ModuleExports {
+  native?: WebSocketCtorTest;
+  polyfill?: WebSocketCtorTest;
+}): ModuleExportsTest {
   jest.resetModules();
 
   if (params.native) {
@@ -63,7 +63,7 @@ function loadModuleWithMocks(params: {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const moduleExports = require("../../src/utils/websocket") as ModuleExports;
+  const moduleExports = require("../../src/utils/websocket") as ModuleExportsTest;
   jest.dontMock("websocket-polyfill");
 
   return moduleExports;

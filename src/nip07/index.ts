@@ -22,19 +22,17 @@ export interface NostrWindow {
   };
 }
 
-// Augment the Window interface
-declare global {
-  interface Window {
-    nostr?: NostrWindow;
-  }
-}
+// Note: Avoid global Window augmentation here to prevent collisions
+// in consumer environments with their own window.nostr declarations.
+// Access is performed via a type-asserted read of window["nostr"].
 
 /**
  * Safe access to the browser's nostr object
  */
 function getNostr(): NostrWindow | undefined {
   if (typeof window === "undefined") return undefined;
-  return window.nostr;
+  const w = window as unknown as { nostr?: unknown };
+  return w.nostr as NostrWindow | undefined;
 }
 
 /**

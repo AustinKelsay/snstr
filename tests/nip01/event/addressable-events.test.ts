@@ -4,34 +4,15 @@ import {
   createSignedEvent,
 } from "../../../src/nip01/event";
 import { Relay } from "../../../src/nip01/relay";
+import { asTestRelay } from "../../types";
 import { NostrEvent } from "../../../src/types/nostr";
 
 // Mock WebSocket
 jest.mock("websocket-polyfill", () => {});
 
-// Define interface for private relay methods we need to access in tests
-interface RelayPrivateMethods {
-  processValidatedEvent(event: NostrEvent, subscriptionId: string): void;
-  processAddressableEvent(event: NostrEvent): void;
-  processReplaceableEvent(event: NostrEvent): void;
-  getLatestAddressableEvent(
-    kind: number,
-    pubkey: string,
-    dTagValue?: string,
-  ): NostrEvent | undefined;
-}
-
-// Type-safe TestRelay class
-class TestRelay extends Relay {
-  // Expose private methods with proper typing via type assertion
-  getPrivateMethods(): RelayPrivateMethods {
-    return this as unknown as RelayPrivateMethods;
-  }
-}
-
 describe("Addressable Events (NIP-01 §7.1)", () => {
-  let relay: TestRelay;
-  let relayMethods: RelayPrivateMethods;
+  let relay: Relay;
+  let testRelay: ReturnType<typeof asTestRelay>;
   let user1Keypair: { privateKey: string; publicKey: string };
   let testEvents: {
     event1: NostrEvent;
@@ -41,9 +22,9 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
   };
 
   beforeEach(async () => {
-    // Create a relay instance
-    relay = new TestRelay("wss://test.relay");
-    relayMethods = relay.getPrivateMethods();
+    // Create a relay instance and get test access to private methods
+    relay = new Relay("wss://test.relay");
+    testRelay = asTestRelay(relay);
 
     // Set up test data
     user1Keypair = await generateKeypair();
@@ -90,17 +71,17 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Different d-tag values create separate addressable events", async () => {
     // Process events with same pubkey and kind but different d-tag values
-    relayMethods.processValidatedEvent(testEvents.event1, "sub1");
-    relayMethods.processValidatedEvent(testEvents.event2, "sub1");
+    testRelay.processValidatedEvent(testEvents.event1, "sub1");
+    testRelay.processValidatedEvent(testEvents.event2, "sub1");
 
     // Get latest events for each d-tag value
-    const latest1 = relayMethods.getLatestAddressableEvent(
+    const latest1 = relay.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value1",
     );
 
-    const latest2 = relayMethods.getLatestAddressableEvent(
+    const latest2 = relay.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value2",
@@ -115,13 +96,13 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Newer event with same d-tag replaces older one", async () => {
     // Process original event
-    relayMethods.processValidatedEvent(testEvents.event1, "sub1");
+    testRelay.processValidatedEvent(testEvents.event1, "sub1");
 
     // Process newer event with same d-tag
-    relayMethods.processValidatedEvent(testEvents.event3, "sub1");
+    testRelay.processValidatedEvent(testEvents.event3, "sub1");
 
     // Get latest event
-    const latest = relayMethods.getLatestAddressableEvent(
+    const latest = relay.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value1",
@@ -134,17 +115,17 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Different kinds with same d-tag are stored separately", async () => {
     // Process events with same pubkey and d-tag but different kinds
-    relayMethods.processValidatedEvent(testEvents.event1, "sub1");
-    relayMethods.processValidatedEvent(testEvents.event4, "sub1");
+    testRelay.processValidatedEvent(testEvents.event1, "sub1");
+    testRelay.processValidatedEvent(testEvents.event4, "sub1");
 
     // Get latest events for each kind
-    const latest1 = relayMethods.getLatestAddressableEvent(
+    const latest1 = relay.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       "value1",
     );
 
-    const latest2 = relayMethods.getLatestAddressableEvent(
+    const latest2 = relay.getLatestAddressableEvent(
       30001,
       user1Keypair.publicKey,
       "value1",
@@ -189,10 +170,10 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
     // At this point, eventA.id < eventB.id is guaranteed
 
     // Scenario 1: Process larger ID event first, then smaller ID event
-    relayMethods.processAddressableEvent(eventB); // Process B (larger id)
-    relayMethods.processAddressableEvent(eventA); // Process A (smaller id)
+    testRelay.processAddressableEvent(eventB); // Process B (larger id)
+    testRelay.processAddressableEvent(eventA); // Process A (smaller id)
 
-    let latestEvent = relayMethods.getLatestAddressableEvent(
+    let latestEvent = relay.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       dTagValue,
@@ -208,10 +189,10 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
     // For this specific test targeting `processAddressableEvent` directly, the previous event is overwritten.
 
     // Scenario 2: Process smaller ID event first, then larger ID event
-    relayMethods.processAddressableEvent(eventA); // Process A (smaller id)
-    relayMethods.processAddressableEvent(eventB); // Process B (larger id)
+    testRelay.processAddressableEvent(eventA); // Process A (smaller id)
+    testRelay.processAddressableEvent(eventB); // Process B (larger id)
 
-    latestEvent = relayMethods.getLatestAddressableEvent(
+    latestEvent = relay.getLatestAddressableEvent(
       30000,
       user1Keypair.publicKey,
       dTagValue,
