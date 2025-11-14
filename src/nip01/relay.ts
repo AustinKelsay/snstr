@@ -23,17 +23,13 @@ import {
   getSecureRandom,
   secureRandomHex,
 } from "../utils/security-validator";
-
-type BivariantHandler<T> = {
-  // Bivariance hack to allow assigning handlers with compatible, narrower params
-  // (mirrors how lib.dom types event handler properties)
-  bivarianceHack: (event: T) => void;
-}["bivarianceHack"];
-
-type OpenEventLike = Event | { type: "open" };
-type CloseEventLike = CloseEvent | { type: "close"; code?: number; reason?: string };
-type ErrorEventLike = unknown;
-type MessageEventLike = MessageEvent<string> | { data: string };
+import {
+  BivariantHandler,
+  OpenEventLike,
+  CloseEventLike,
+  ErrorEventLike,
+  MessageEventLike,
+} from "../utils/websocket-types";
 
 type WebSocketLike = {
   readyState: number;

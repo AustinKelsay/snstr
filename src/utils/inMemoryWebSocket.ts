@@ -10,16 +10,13 @@
  *********************************************************************/
 
 import { EventEmitter } from "events";
-
-// Bivariant handler helper to align with WebSocket-like callback variance
-type BivariantHandler<T> = { bivarianceHack: (event: T) => void }["bivarianceHack"];
-
-type OpenEventLike = Event | { type: "open" };
-type CloseEventLike =
-  | CloseEvent
-  | { type: "close"; code?: number; reason?: string };
-type ErrorEventLike = unknown;
-type MessageEventLike = MessageEvent<string> | { data: string };
+import {
+  BivariantHandler,
+  OpenEventLike,
+  CloseEventLike,
+  ErrorEventLike,
+  MessageEventLike,
+} from "./websocket-types";
 
 export interface InMemoryServerSocket extends EventEmitter {
   readyState: number;
