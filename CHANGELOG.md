@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2025-11-14
+
+### Added
+- Dual-build pipeline that emits both CommonJS and native ESM bundles, complete with conditional exports for Node, browsers, and React Native plus a post-build helper that marks `dist/esm` as `"type": "module"` so bundlers pick up the optimized entry points.
+- `snstr/nip07-ambient` side-effect module to optionally augment `window.nostr` typings for browser apps without forcing extra runtime code into non-browser builds.
+
+### Changed
+- Relay WebSocket plumbing now shares explicit handler/event types, threading the same stronger typings through the core relay implementation and the in-memory test transport to remove `any` usage and surface better editor tooling.
+- Refined TypeScript configs and React Native/browser export targets to consistently resolve the ESM entry files, preventing stale CJS shims from leaking into client builds.
+
+### Fixed
+- Addressed ambient export regressions so the new NIP-07 helper is available from the package root and from the `./nip07-ambient` subpath.
+- Hardened the custom in-memory WebSocket implementation (and its tests) so it mirrors the shape of DOM events, preventing undefined handler parameters during stress tests.
+
+### Docs
+- README and example guides now include a Next.js/Turbopack compatibility section, refreshed tables of test/example scripts, and corrected npm script names (such as `test:crypto` and new example bundles).
+
+### Removed
+- Deleted unused release/Claude GitHub workflows to keep CI focused on active pipelines.
+
 ## [0.1.8] - 2025-11-12
 
 ### Fixed
@@ -127,7 +147,8 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/AustinKelsay/snstr/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/AustinKelsay/snstr/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/AustinKelsay/snstr/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/AustinKelsay/snstr/compare/v0.1.5...v0.1.6
