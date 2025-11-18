@@ -165,17 +165,36 @@ const eventZaps = await zapClient.fetchEventZaps('event_id');
 ```typescript
 import { createZapRequest, signEvent } from 'snstr';
 
-// Create a zap request
-const zapRequestTemplate = createZapRequest({
-  recipientPubkey: 'recipient_pubkey_here',
-  eventId: 'event_being_zapped_here', // optional
-  amount: 1000000, // 1000 sats in millisats
-  relays: ['wss://relay.example.com'],
-  content: 'Great post!', // Optional comment
-  senderPubkey: 'your_pubkey' // For anonymous zaps
-}, 'sender_pubkey_here');
+// Standard (non-anonymous) zap:
+// - Sign with the real sender key as signerPubkey
+// - Do NOT set senderPubkey (leave undefined)
+const zapRequestTemplate = createZapRequest(
+  {
+    recipientPubkey: 'recipient_pubkey_here',
+    eventId: 'event_being_zapped_here', // optional
+    amount: 1000000, // 1000 sats in millisats
+    relays: ['wss://relay.example.com'],
+    content: 'Great post!', // Optional comment
+    // senderPubkey: undefined
+  },
+  'real_sender_pubkey_here',
+);
 
-// Sign the request
+// Anonymous / private zap:
+// - Sign with an ephemeral key as signerPubkey
+// - Set senderPubkey to the real sender's pubkey so the
+//   LNURL server can attribute the payment in the receipt.
+const anonymousZapRequestTemplate = createZapRequest(
+  {
+    recipientPubkey: 'recipient_pubkey_here',
+    amount: 1000000,
+    relays: ['wss://relay.example.com'],
+    senderPubkey: 'real_sender_pubkey_here', // goes into the P tag
+  },
+  'ephemeral_pubkey_here',
+);
+
+// Sign the request (using the same key that was passed as signerPubkey)
 const signedZapRequest = await signEvent(zapRequestTemplate, 'sender_private_key');
 ```
 
