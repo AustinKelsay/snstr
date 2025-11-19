@@ -194,8 +194,17 @@ const anonymousZapRequestTemplate = createZapRequest(
   'ephemeral_pubkey_here',
 );
 
-// Sign the request (using the same key that was passed as signerPubkey)
-const signedZapRequest = await signEvent(zapRequestTemplate, 'sender_private_key');
+// Sign the standard zap request using the real sender's private key
+const signedZapRequest = await signEvent(
+  zapRequestTemplate,
+  'real_sender_private_key',
+);
+
+// Sign the anonymous zap request using the ephemeral private key
+const signedAnonymousZapRequest = await signEvent(
+  anonymousZapRequestTemplate,
+  'ephemeral_private_key',
+);
 ```
 
 ### Validating a Zap Receipt
