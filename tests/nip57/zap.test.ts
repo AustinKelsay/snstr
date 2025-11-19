@@ -219,6 +219,32 @@ describe("NIP-57: Lightning Zaps", () => {
       );
       expect(pSenderTag?.[1]).toBe(senderKeypair.publicKey);
     });
+
+    it("should not add a P tag when senderPubkey equals signerPubkey", async () => {
+      const zapRequestTemplate = createZapRequest(
+        {
+          recipientPubkey: recipientKeypair.publicKey,
+          amount: 1000000,
+          relays: ["wss://relay.example.com"],
+          senderPubkey: senderKeypair.publicKey,
+        },
+        senderKeypair.publicKey,
+      );
+
+      const zapRequest = await createSignedEvent(
+        {
+          ...zapRequestTemplate,
+          pubkey: senderKeypair.publicKey,
+          created_at: Math.floor(Date.now() / 1000),
+        } as UnsignedEvent,
+        senderKeypair.privateKey,
+      );
+
+      const pSenderTag = zapRequest.tags.find(
+        (tag: string[]) => tag[0] === "P",
+      );
+      expect(pSenderTag).toBeUndefined();
+    });
   });
 
   describe("Zap Receipt Creation", () => {

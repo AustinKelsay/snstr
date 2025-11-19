@@ -55,7 +55,19 @@ export interface ZapRequestOptions {
   content?: string; // Optional zap comment
   lnurl?: string; // Optional LNURL of the recipient
   aTag?: string; // Optional a-tag coordinates (for parameterized replaceable events)
-  senderPubkey?: string; // Optional sender pubkey for anonymous zaps
+  /**
+   * Optional sender pubkey for private/anonymous zaps.
+   *
+   * For standard (non-anonymous) zaps, leave this undefined and sign
+   * with the real sender key as `signerPubkey`.
+   *
+   * For anonymous zaps, sign with an ephemeral key as `signerPubkey`
+   * and set `senderPubkey` to the real sender's pubkey. This will
+   * cause a `P` tag to be included in the zap request so that the
+   * zap receipt can attribute the payment while keeping the zap
+   * request itself unlinkable to the real key.
+   */
+  senderPubkey?: string;
 }
 
 /**
@@ -117,7 +129,12 @@ export function createZapRequest(
   }
 
   if (options.senderPubkey) {
-    tags.push(["P", options.senderPubkey]);
+    // Only include a P tag when it differs from the signer pubkey.
+    // This avoids creating zap requests where pubkey === P, which
+    // some LNURL providers treat as invalid or ambiguous.
+    if (options.senderPubkey !== signerPubkey) {
+      tags.push(["P", options.senderPubkey]);
+    }
   }
 
   return createEvent(
