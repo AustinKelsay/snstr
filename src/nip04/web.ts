@@ -29,20 +29,21 @@ function base64Encode(bytes: Uint8Array): string {
       for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
         const chunk = bytes.subarray(i, i + CHUNK_SIZE);
         let s = "";
-        for (let j = 0; j < chunk.length; j++) s += String.fromCharCode(chunk[j]);
+        for (let j = 0; j < chunk.length; j++)
+          s += String.fromCharCode(chunk[j]);
         parts.push(s);
       }
       return globalThis.btoa(parts.join(""));
+    } catch {
+      // eslint-disable-next-line no-empty
     }
-    // eslint-disable-next-line no-empty
-    catch {}
   }
   if (typeof Buffer !== "undefined") {
     try {
       return Buffer.from(bytes).toString("base64");
+    } catch {
+      // eslint-disable-next-line no-empty
     }
-    // eslint-disable-next-line no-empty
-    catch {}
   }
   // Minimal manual base64 (RFC 4648)
   const chars =
@@ -113,7 +114,10 @@ function base64Decode(str: string): Uint8Array {
 }
 
 /** Derive ECDH shared secret (raw x-coordinate, 32 bytes) */
-export function getSharedSecret(privateKey: string, publicKey: string): Uint8Array {
+export function getSharedSecret(
+  privateKey: string,
+  publicKey: string,
+): Uint8Array {
   const sk = hexToBytes(privateKey);
   const pk = hexToBytes("02" + publicKey);
   const shared = secp256k1.getSharedSecret(sk, pk);
@@ -121,7 +125,11 @@ export function getSharedSecret(privateKey: string, publicKey: string): Uint8Arr
 }
 
 /** Encrypt message per NIP-04, returns "<base64>?iv=<base64>" */
-export function encrypt(privateKey: string, publicKey: string, message: string): string {
+export function encrypt(
+  privateKey: string,
+  publicKey: string,
+  message: string,
+): string {
   const keyBytes = getSharedSecret(privateKey, publicKey);
   const iv = randomBytes(16);
   const keyWA = CryptoJS.enc.Hex.parse(bytesToHex(keyBytes));
@@ -150,32 +158,50 @@ function isValidBase64(str: string): boolean {
 }
 
 /** Decrypt NIP-04 payload */
-export function decrypt(privateKey: string, publicKey: string, encryptedMessage: string): string {
+export function decrypt(
+  privateKey: string,
+  publicKey: string,
+  encryptedMessage: string,
+): string {
   try {
     if (typeof encryptedMessage !== "string") {
-      throw new NIP04DecryptionError("Invalid encrypted message: must be a string");
+      throw new NIP04DecryptionError(
+        "Invalid encrypted message: must be a string",
+      );
     }
     if (!encryptedMessage.includes("?iv=")) {
-      throw new NIP04DecryptionError("Invalid encrypted message format: missing IV separator");
+      throw new NIP04DecryptionError(
+        "Invalid encrypted message format: missing IV separator",
+      );
     }
     const parts = encryptedMessage.split("?iv=");
     if (parts.length !== 2) {
-      throw new NIP04DecryptionError("Invalid encrypted message format: multiple IV separators found");
+      throw new NIP04DecryptionError(
+        "Invalid encrypted message format: multiple IV separators found",
+      );
     }
     const [encryptedText, ivBase64] = parts;
     if (!encryptedText || !ivBase64) {
-      throw new NIP04DecryptionError("Invalid encrypted message format: empty ciphertext or IV");
+      throw new NIP04DecryptionError(
+        "Invalid encrypted message format: empty ciphertext or IV",
+      );
     }
     if (!isValidBase64(encryptedText)) {
-      throw new NIP04DecryptionError("Invalid encrypted message: ciphertext is not valid base64");
+      throw new NIP04DecryptionError(
+        "Invalid encrypted message: ciphertext is not valid base64",
+      );
     }
     if (!isValidBase64(ivBase64)) {
-      throw new NIP04DecryptionError("Invalid encrypted message: IV is not valid base64");
+      throw new NIP04DecryptionError(
+        "Invalid encrypted message: IV is not valid base64",
+      );
     }
 
     const iv = base64Decode(ivBase64);
     if (iv.length !== 16) {
-      throw new NIP04DecryptionError(`Invalid IV length: expected 16 bytes, got ${iv.length}`);
+      throw new NIP04DecryptionError(
+        `Invalid IV length: expected 16 bytes, got ${iv.length}`,
+      );
     }
 
     const keyBytes = getSharedSecret(privateKey, publicKey);
@@ -195,11 +221,15 @@ export function decrypt(privateKey: string, publicKey: string, encryptedMessage:
 
     // Integrity check (best-effort): re-encrypt with same IV and compare ciphertext
     // This distinguishes wrong-key cases from valid empty-string plaintext.
-    const reEnc = CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(plaintext), keyWA, {
-      iv: ivWA,
-      mode: CryptoJS.mode.CBC,
-      padding: CryptoJS.pad.Pkcs7,
-    });
+    const reEnc = CryptoJS.AES.encrypt(
+      CryptoJS.enc.Utf8.parse(plaintext),
+      keyWA,
+      {
+        iv: ivWA,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      },
+    );
     const reEncB64 = reEnc.ciphertext.toString(CryptoJS.enc.Base64);
     if (reEncB64 !== encryptedText) {
       throw new NIP04DecryptionError("Failed to decrypt message");

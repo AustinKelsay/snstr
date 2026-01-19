@@ -109,7 +109,7 @@ describe("RelayPool", () => {
         ...pool.publish([relay1.url], event1),
         ...pool.publish([relay2.url], event2),
       ]);
-      
+
       // Verify all publishes succeeded before querying
       publishResults.forEach((result) => {
         expect(result.success).toBe(true);
@@ -144,9 +144,9 @@ describe("RelayPool", () => {
         keys.privateKey,
       );
       const publishResults = await Promise.all(
-        pool.publish([relay1.url, relay2.url], testEvent)
+        pool.publish([relay1.url, relay2.url], testEvent),
       );
-      
+
       // Verify all publishes succeeded
       publishResults.forEach((result) => {
         expect(result.success).toBe(true);
@@ -230,7 +230,7 @@ describe("RelayPool", () => {
       const originalCallback = (event: NostrEvent) => {
         received.push(event);
       };
-      
+
       // Re-create subscription with updated callback
       sub.close();
       const newSub = await pool.subscribe(
@@ -245,9 +245,9 @@ describe("RelayPool", () => {
         keys.privateKey,
       );
       const publishResults = await Promise.all(
-        pool.publish([relay1.url, relay2.url], testEvent)
+        pool.publish([relay1.url, relay2.url], testEvent),
       );
-      
+
       // Verify publishes succeeded
       publishResults.forEach((result) => {
         expect(result.success).toBe(true);
@@ -301,9 +301,9 @@ describe("RelayPool", () => {
         keys.privateKey,
       );
       const publishResults = await Promise.all(
-        pool.publish([relay1.url, relay2.url], testEvent)
+        pool.publish([relay1.url, relay2.url], testEvent),
       );
-      
+
       // Verify publishes succeeded (but events should not be received due to closed subscription)
       publishResults.forEach((result) => {
         expect(result.success).toBe(true);
@@ -340,7 +340,7 @@ describe("RelayPool", () => {
       console.warn = (...args: unknown[]) => {
         // Call original to preserve output
         originalWarn(...args);
-        
+
         if (
           args[0] &&
           typeof args[0] === "string" &&
@@ -382,10 +382,12 @@ describe("RelayPool", () => {
       // Update the check function whenever an event is received
       const originalOnEvent = (event: NostrEvent) => {
         // Only process our test events
-        if (event.pubkey === keys.publicKey && 
-            (event.content === "normal event" || event.content === "error event")) {
+        if (
+          event.pubkey === keys.publicKey &&
+          (event.content === "normal event" || event.content === "error event")
+        ) {
           received.push(event);
-          
+
           // Throw error after recording - don't catch it here so RelayPool can handle it
           if (event.content === "error event") {
             throw new Error("Test event processing error");
@@ -405,7 +407,7 @@ describe("RelayPool", () => {
         ...pool.publish([relay1.url], normalEvent),
         ...pool.publish([relay2.url], errorEvent),
       ]);
-      
+
       // Verify publishes succeeded
       publishResults.forEach((result) => {
         expect(result.success).toBe(true);
@@ -419,10 +421,10 @@ describe("RelayPool", () => {
         2000,
         10,
       );
-      
+
       // Give a little extra time for error logging
       await testUtils.sleep(100);
-      
+
       newSub.close();
 
       // Should have received both events even though one caused an error
@@ -531,9 +533,9 @@ describe("RelayPool", () => {
         keys.privateKey,
       );
       const publishResults = await Promise.all(
-        pool.publish([relay1.url, relay2.url], testEvent)
+        pool.publish([relay1.url, relay2.url], testEvent),
       );
-      
+
       // Verify publishes succeeded
       publishResults.forEach((result) => {
         expect(result.success).toBe(true);

@@ -395,6 +395,32 @@ describe("Event Creation and Signing", () => {
         expect(template.kind).toBe(kind);
       }
     });
+
+    it("should allow empty content for NIP-51 list events", async () => {
+      // NIP-51 list events (kinds 30000-30004) typically have empty content
+      // because data is stored in tags
+      const template = createAddressableEvent(
+        30001, // Generic list kind
+        "my-list",
+        "", // Empty content is valid for NIP-51
+        privateKey,
+        [
+          ["p", "pubkey1"],
+          ["e", "eventid1"],
+        ],
+      );
+
+      expect(template.kind).toBe(30001);
+      expect(template.content).toBe("");
+      expect(template.tags[0]).toEqual(["d", "my-list"]);
+      expect(template.tags).toContainEqual(["p", "pubkey1"]);
+      expect(template.tags).toContainEqual(["e", "eventid1"]);
+
+      // Verify the event can be signed
+      const signedEvent = await createSignedEvent(template, privateKey);
+      expect(signedEvent.id).toBeDefined();
+      expect(signedEvent.sig).toBeDefined();
+    });
   });
 
   describe("validateEvent - NIP-01 Field Format Validations", () => {

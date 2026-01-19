@@ -689,7 +689,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("validatePrivateKeySecure should throw production-safe errors in production", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+        (process.env as Record<string, string | undefined>).NODE_ENV =
+          "production";
 
         expect(() => {
           validatePrivateKeySecure("", "test key");
@@ -698,7 +699,8 @@ describe("NIP-46 Validator Unit Tests", () => {
         if (originalEnv === undefined) {
           delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV =
+            originalEnv;
         }
       }
     });
@@ -706,7 +708,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("validatePrivateKeySecure should throw debug errors in development", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        (process.env as Record<string, string | undefined>).NODE_ENV = "development";
+        (process.env as Record<string, string | undefined>).NODE_ENV =
+          "development";
 
         expect(() => {
           validatePrivateKeySecure("", "test key");
@@ -715,7 +718,8 @@ describe("NIP-46 Validator Unit Tests", () => {
         if (originalEnv === undefined) {
           delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV =
+            originalEnv;
         }
       }
     });
@@ -723,7 +727,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("createProductionSafeMessage should return prod message in production", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+        (process.env as Record<string, string | undefined>).NODE_ENV =
+          "production";
 
         const devMessage = createProductionSafeMessage(
           "Detailed debug info",
@@ -734,7 +739,8 @@ describe("NIP-46 Validator Unit Tests", () => {
         if (originalEnv === undefined) {
           delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV =
+            originalEnv;
         }
       }
     });
@@ -742,7 +748,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("createProductionSafeMessage should return debug message in development", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        (process.env as Record<string, string | undefined>).NODE_ENV = "development";
+        (process.env as Record<string, string | undefined>).NODE_ENV =
+          "development";
 
         const prodMessage = createProductionSafeMessage(
           "Detailed debug info",
@@ -753,7 +760,8 @@ describe("NIP-46 Validator Unit Tests", () => {
         if (originalEnv === undefined) {
           delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV =
+            originalEnv;
         }
       }
     });
@@ -761,7 +769,8 @@ describe("NIP-46 Validator Unit Tests", () => {
     test("createProductionSafeMessage should use default prod message", () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+        (process.env as Record<string, string | undefined>).NODE_ENV =
+          "production";
 
         const defaultProdMessage = createProductionSafeMessage("Debug info");
         expect(defaultProdMessage).toBe("Security validation failed");
@@ -769,7 +778,8 @@ describe("NIP-46 Validator Unit Tests", () => {
         if (originalEnv === undefined) {
           delete (process.env as Record<string, string | undefined>).NODE_ENV;
         } else {
-          (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+          (process.env as Record<string, string | undefined>).NODE_ENV =
+            originalEnv;
         }
       }
     });
@@ -848,11 +858,14 @@ describe("NIP-46 Validator Unit Tests", () => {
       ]);
 
       // Create a custom implementation that tracks iterations
-      const checkWithTracking = (perms: Set<string>, required: string): boolean => {
+      const checkWithTracking = (
+        perms: Set<string>,
+        required: string,
+      ): boolean => {
         const permArray = Array.from(perms);
         let checkedCount = 0;
         let hasPermission = false;
-        
+
         // This mimics the constant-time implementation
         for (const perm of permArray) {
           checkedCount++;
@@ -861,7 +874,7 @@ describe("NIP-46 Validator Unit Tests", () => {
             // Important: Don't break early, continue checking all
           }
         }
-        
+
         // Verify all permissions were checked
         expect(checkedCount).toBe(permArray.length);
         return hasPermission;
@@ -874,9 +887,11 @@ describe("NIP-46 Validator Unit Tests", () => {
       // Should not find non-existent permissions
       const result2 = checkWithTracking(permissions, "nonexistent");
       expect(result2).toBe(false);
-      
+
       // Also test with the actual function
-      expect(securePermissionCheck(permissions, "target_permission")).toBe(true);
+      expect(securePermissionCheck(permissions, "target_permission")).toBe(
+        true,
+      );
       expect(securePermissionCheck(permissions, "nonexistent")).toBe(false);
     });
   });
