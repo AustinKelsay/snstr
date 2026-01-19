@@ -75,7 +75,8 @@ export class NostrRemoteSignerClient {
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-CLIENT",
       includeTimestamp: true,
-      silent: typeof process !== "undefined" && process.env?.NODE_ENV === "test", // Silent in test environment
+      silent:
+        typeof process !== "undefined" && process.env?.NODE_ENV === "test", // Silent in test environment
     });
   }
 
@@ -711,10 +712,12 @@ export class NostrRemoteSignerClient {
     }
 
     // Validate auth URL
-    if (!isValidAuthUrl(response.auth_url, { 
-      authDomainWhitelist: this.options.authDomainWhitelist,
-      logger: this.logger 
-    })) {
+    if (
+      !isValidAuthUrl(response.auth_url, {
+        authDomainWhitelist: this.options.authDomainWhitelist,
+        logger: this.logger,
+      })
+    ) {
       this.logger.error("Invalid auth URL received", {
         authUrl: response.auth_url,
       });
@@ -733,7 +736,7 @@ export class NostrRemoteSignerClient {
     }, this.options.timeout || DEFAULT_TIMEOUT);
 
     // Only call unref in Node.js environments
-    if (typeof timeout === 'object' && 'unref' in timeout) {
+    if (typeof timeout === "object" && "unref" in timeout) {
       (timeout as NodeJS.Timeout).unref();
     }
 
@@ -762,7 +765,6 @@ export class NostrRemoteSignerClient {
       });
     }
   }
-
 
   /**
    * Monitor auth window for completion

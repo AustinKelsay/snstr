@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeAll, afterAll, jest, beforeEach } from "@jest/globals";
+import {
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  jest,
+  beforeEach,
+} from "@jest/globals";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import {
@@ -146,8 +154,13 @@ type ServiceWithMockAccess = {
 
 // Interface for accessing private members in tests
 interface ServiceWithPrivates {
-  requestEncryption: Map<string, import("../../src/nip47/types").NIP47EncryptionScheme>;
-  handleEvent: (event: import("../../src/types/nostr").NostrEvent) => Promise<void>;
+  requestEncryption: Map<
+    string,
+    import("../../src/nip47/types").NIP47EncryptionScheme
+  >;
+  handleEvent: (
+    event: import("../../src/types/nostr").NostrEvent,
+  ) => Promise<void>;
 }
 
 describe("NIP-47: Nostr Wallet Connect", () => {
@@ -603,7 +616,9 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         const initialSize = requestEncryptionMap.size;
 
         // Spy on console.error to verify the error is logged
-        const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const consoleErrorSpy = jest
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
 
         // Handle the event
         await serviceWithPrivates.handleEvent(event);
@@ -683,7 +698,9 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         const initialSize = requestEncryptionMap.size;
 
         // Spy on console.error to verify the error is logged
-        const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const consoleErrorSpy = jest
+          .spyOn(console, "error")
+          .mockImplementation(() => {});
 
         // Handle the event
         await serviceWithPrivates.handleEvent(event);

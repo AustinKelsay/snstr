@@ -3,9 +3,10 @@ type WebSocketCtorTest = {
   prototype: Record<string, unknown>;
 };
 
-function createMockWebSocket(
-  options: { hasBinaryTypeSetter: boolean; label: string },
-): WebSocketCtorTest {
+function createMockWebSocket(options: {
+  hasBinaryTypeSetter: boolean;
+  label: string;
+}): WebSocketCtorTest {
   class MockWebSocket {
     public static label = options.label;
     public binaryTypeValue: string = "blob";
@@ -180,13 +181,11 @@ describe("utils/websocket overrides", () => {
       label: "polyfill-no-setter",
     });
 
-    const {
-      getWebSocketImplementation,
-      resetWebSocketImplementation,
-    } = await loadModuleWithMocks({
-      native: undefined,
-      polyfill: polyfillWS,
-    });
+    const { getWebSocketImplementation, resetWebSocketImplementation } =
+      await loadModuleWithMocks({
+        native: undefined,
+        polyfill: polyfillWS,
+      });
 
     expect(getWebSocketImplementation()).toBe(polyfillWS);
 

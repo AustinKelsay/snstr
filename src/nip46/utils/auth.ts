@@ -2,7 +2,7 @@
  * NIP-46 Auth URL validation utilities
  */
 
-import { Logger } from './logger';
+import { Logger } from "./logger";
 
 /**
  * Sanitize URL for safe logging by removing sensitive parts
@@ -16,7 +16,7 @@ function sanitizeUrlForLogging(url: string): string {
     return `${parsed.protocol}//${parsed.hostname}`;
   } catch {
     // If URL parsing fails, return a generic placeholder
-    return '<invalid-url>';
+    return "<invalid-url>";
   }
 }
 
@@ -42,30 +42,30 @@ export interface AuthUrlValidationOptions {
  */
 export function isValidAuthUrl(
   url: string,
-  options: AuthUrlValidationOptions = {}
+  options: AuthUrlValidationOptions = {},
 ): boolean {
-  const logger = options.logger || new Logger({ prefix: 'auth-validator' });
-  
+  const logger = options.logger || new Logger({ prefix: "auth-validator" });
+
   try {
     const parsed = new URL(url);
-    
+
     // Only allow HTTPS URLs for security
     if (parsed.protocol !== "https:") {
-      logger.warn("Auth URL must use HTTPS", { 
+      logger.warn("Auth URL must use HTTPS", {
         hostname: parsed.hostname,
-        protocol: parsed.protocol 
+        protocol: parsed.protocol,
       });
       return false;
     }
-    
+
     // Basic hostname validation
     if (!parsed.hostname || parsed.hostname.length < 3) {
-      logger.warn("Invalid hostname in auth URL", { 
-        hostname: parsed.hostname || '<empty>' 
+      logger.warn("Invalid hostname in auth URL", {
+        hostname: parsed.hostname || "<empty>",
       });
       return false;
     }
-    
+
     // Prevent potential XSS in URL
     if (
       url.includes("<") ||
@@ -73,35 +73,32 @@ export function isValidAuthUrl(
       url.includes('"') ||
       url.includes("'")
     ) {
-      logger.warn("Auth URL contains dangerous characters", { 
-        hostname: parsed.hostname 
+      logger.warn("Auth URL contains dangerous characters", {
+        hostname: parsed.hostname,
       });
       return false;
     }
-    
+
     // Check against domain whitelist if configured
-    if (
-      options.authDomainWhitelist &&
-      options.authDomainWhitelist.length > 0
-    ) {
+    if (options.authDomainWhitelist && options.authDomainWhitelist.length > 0) {
       const hostname = parsed.hostname.toLowerCase();
-      const isAllowed = options.authDomainWhitelist.some(
-        (allowedDomain) => {
-          const normalizedDomain = allowedDomain.toLowerCase();
-          // Support exact match or subdomain matching
-          // SECURITY: Ensure proper subdomain matching to prevent bypass attacks
-          // For subdomain matching, we need to ensure there's a dot before the domain
-          // to prevent "badexample.com" from matching "example.com"
-          if (hostname === normalizedDomain) {
-            return true; // Exact match
-          }
-          // Check for proper subdomain (must have dot separator)
-          const subdomainPattern = "." + normalizedDomain;
-          return hostname.endsWith(subdomainPattern) && 
-                 hostname.length > subdomainPattern.length;
-        },
-      );
-      
+      const isAllowed = options.authDomainWhitelist.some((allowedDomain) => {
+        const normalizedDomain = allowedDomain.toLowerCase();
+        // Support exact match or subdomain matching
+        // SECURITY: Ensure proper subdomain matching to prevent bypass attacks
+        // For subdomain matching, we need to ensure there's a dot before the domain
+        // to prevent "badexample.com" from matching "example.com"
+        if (hostname === normalizedDomain) {
+          return true; // Exact match
+        }
+        // Check for proper subdomain (must have dot separator)
+        const subdomainPattern = "." + normalizedDomain;
+        return (
+          hostname.endsWith(subdomainPattern) &&
+          hostname.length > subdomainPattern.length
+        );
+      });
+
       if (!isAllowed) {
         logger.warn("Auth URL hostname not in domain whitelist", {
           hostname,
@@ -109,13 +106,13 @@ export function isValidAuthUrl(
         });
         return false;
       }
-      
+
       logger.debug("Auth URL hostname validated against whitelist", {
         hostname,
         whitelist: options.authDomainWhitelist,
       });
     }
-    
+
     return true;
   } catch (error) {
     logger.error("Failed to parse auth URL", {

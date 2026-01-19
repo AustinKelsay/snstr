@@ -221,8 +221,8 @@ export function decrypt(
     const sharedX = getSharedSecret(privateKey, publicKey);
 
     // Create AES-256-CBC decipher
-  const crypto = getNodeCrypto();
-  const decipher = crypto.createDecipheriv(
+    const crypto = getNodeCrypto();
+    const decipher = crypto.createDecipheriv(
       "aes-256-cbc",
       Buffer.from(sharedX),
       iv,

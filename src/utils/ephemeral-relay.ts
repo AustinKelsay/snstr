@@ -128,7 +128,9 @@ export class NostrRelay {
       );
       socket.on("error", (err: unknown) =>
         instance._onerr(
-          err instanceof Error ? err : new Error(String(err ?? "Unknown error")),
+          err instanceof Error
+            ? err
+            : new Error(String(err ?? "Unknown error")),
         ),
       );
       socket.on("close", (code: number) => instance._cleanup(code));
@@ -157,7 +159,8 @@ export class NostrRelay {
           ? ((error as { code: string }).code as string)
           : "";
       const message =
-        "message" in error && typeof (error as { message: unknown }).message === "string"
+        "message" in error &&
+        typeof (error as { message: unknown }).message === "string"
           ? ((error as { message: string }).message as string)
           : "";
       return (
@@ -180,7 +183,10 @@ export class NostrRelay {
       this._wss = server as unknown as WebSocketServer;
       this._actualPort = port;
 
-      server.on("connection", handleConnection as (socket: EventEmitter) => void);
+      server.on(
+        "connection",
+        handleConnection as (socket: EventEmitter) => void,
+      );
 
       initialiseAfterStart();
 
@@ -511,7 +517,7 @@ class ClientSession {
         this._sid = Array.from(tempArray, (byte) =>
           byte.toString(16).padStart(2, "0"),
         ).join("");
-        
+
         // Log warning but keep the generated ID immutable
         console.warn(
           "Using Math.random for session ID generation. For production use, ensure crypto module is available.",
@@ -522,7 +528,9 @@ class ClientSession {
       // to ensure uniqueness even without crypto
       const timestamp = Date.now();
       const random = Math.floor(Math.random() * 0xffffff);
-      this._sid = ((timestamp & 0xffffff) ^ random).toString(16).padStart(6, "0");
+      this._sid = ((timestamp & 0xffffff) ^ random)
+        .toString(16)
+        .padStart(6, "0");
     }
     this._socket = socket;
     this._subs = new Set();

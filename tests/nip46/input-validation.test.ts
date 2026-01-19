@@ -701,24 +701,48 @@ describe("NIP-46 Input Validation Security", () => {
       const authDomainWhitelist = ["trusted-domain.com", "auth.example.com"];
 
       // Test allowed domains
-      expect(isValidAuthUrl("https://trusted-domain.com/auth", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://auth.example.com/login", { authDomainWhitelist })).toBe(true);
+      expect(
+        isValidAuthUrl("https://trusted-domain.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://auth.example.com/login", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
 
       // Test subdomain matching
-      expect(isValidAuthUrl("https://api.trusted-domain.com/oauth", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://secure.auth.example.com/callback", { authDomainWhitelist })).toBe(
-        true,
-      );
+      expect(
+        isValidAuthUrl("https://api.trusted-domain.com/oauth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://secure.auth.example.com/callback", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
 
       // Test blocked domains
-      expect(isValidAuthUrl("https://malicious-site.com/auth", { authDomainWhitelist })).toBe(false);
-      expect(isValidAuthUrl("https://evil.com/steal-keys", { authDomainWhitelist })).toBe(false);
-      expect(isValidAuthUrl("https://not-trusted.org/login", { authDomainWhitelist })).toBe(false);
+      expect(
+        isValidAuthUrl("https://malicious-site.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(false);
+      expect(
+        isValidAuthUrl("https://evil.com/steal-keys", { authDomainWhitelist }),
+      ).toBe(false);
+      expect(
+        isValidAuthUrl("https://not-trusted.org/login", {
+          authDomainWhitelist,
+        }),
+      ).toBe(false);
     });
 
     test("allows all valid HTTPS URLs when no whitelist is configured", () => {
       // Test without domain whitelist (undefined or empty)
-      
+
       // Should allow any valid HTTPS URL when no whitelist
       expect(isValidAuthUrl("https://any-domain.com/auth")).toBe(true);
       expect(isValidAuthUrl("https://random-site.org/login")).toBe(true);
@@ -732,45 +756,89 @@ describe("NIP-46 Input Validation Security", () => {
       const authDomainWhitelist = ["TrustedDomain.com", "AUTH.example.com"];
 
       // Test case variations
-      expect(isValidAuthUrl("https://trusteddomain.com/auth", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://auth.EXAMPLE.com/login", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://AUTH.EXAMPLE.COM/login", { authDomainWhitelist })).toBe(true);
+      expect(
+        isValidAuthUrl("https://trusteddomain.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://TRUSTEDDOMAIN.COM/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://auth.EXAMPLE.com/login", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://AUTH.EXAMPLE.COM/login", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
     });
 
     test("validates against all other security checks with whitelist", () => {
       const authDomainWhitelist = ["trusted-domain.com"];
 
       // Should still enforce HTTPS requirement
-      expect(isValidAuthUrl("http://trusted-domain.com/auth", { authDomainWhitelist })).toBe(false);
+      expect(
+        isValidAuthUrl("http://trusted-domain.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(false);
 
       // Should still check for dangerous characters
-      expect(isValidAuthUrl("https://trusted-domain.com/auth<script>", { authDomainWhitelist })).toBe(
-        false,
-      );
+      expect(
+        isValidAuthUrl("https://trusted-domain.com/auth<script>", {
+          authDomainWhitelist,
+        }),
+      ).toBe(false);
 
       // Should still validate hostname format
       expect(isValidAuthUrl("https://", { authDomainWhitelist })).toBe(false);
 
       // Valid URL should pass all checks
-      expect(isValidAuthUrl("https://trusted-domain.com/auth", { authDomainWhitelist })).toBe(true);
+      expect(
+        isValidAuthUrl("https://trusted-domain.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
     });
 
     test("prevents subdomain matching vulnerability", () => {
       const authDomainWhitelist = ["example.com"];
 
       // SECURITY: Verify that domains ending with the whitelisted domain but not actual subdomains are blocked
-      expect(isValidAuthUrl("https://badexample.com/auth", { authDomainWhitelist })).toBe(false);
-      expect(isValidAuthUrl("https://notexample.com/auth", { authDomainWhitelist })).toBe(false);
-      expect(isValidAuthUrl("https://maliciousexample.com/auth", { authDomainWhitelist })).toBe(false);
-      
+      expect(
+        isValidAuthUrl("https://badexample.com/auth", { authDomainWhitelist }),
+      ).toBe(false);
+      expect(
+        isValidAuthUrl("https://notexample.com/auth", { authDomainWhitelist }),
+      ).toBe(false);
+      expect(
+        isValidAuthUrl("https://maliciousexample.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(false);
+
       // These should still work (exact match and proper subdomains)
-      expect(isValidAuthUrl("https://example.com/auth", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://sub.example.com/auth", { authDomainWhitelist })).toBe(true);
-      expect(isValidAuthUrl("https://deep.sub.example.com/auth", { authDomainWhitelist })).toBe(true);
+      expect(
+        isValidAuthUrl("https://example.com/auth", { authDomainWhitelist }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://sub.example.com/auth", { authDomainWhitelist }),
+      ).toBe(true);
+      expect(
+        isValidAuthUrl("https://deep.sub.example.com/auth", {
+          authDomainWhitelist,
+        }),
+      ).toBe(true);
 
       // Edge case: empty subdomain should not match
-      expect(isValidAuthUrl("https://.example.com/auth", { authDomainWhitelist })).toBe(false);
+      expect(
+        isValidAuthUrl("https://.example.com/auth", { authDomainWhitelist }),
+      ).toBe(false);
     });
   });
 });

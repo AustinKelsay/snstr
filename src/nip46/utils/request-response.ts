@@ -44,7 +44,7 @@ export function generateRequestId(): string {
     if (nodeCryptoModule && nodeCryptoModule.randomBytes) {
       return nodeCryptoModule.randomBytes(16).toString("hex");
     }
-    
+
     try {
       // Try CommonJS require for backward compatibility
       // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -53,16 +53,21 @@ export function generateRequestId(): string {
     } catch (error) {
       // If require fails, we're in an ESM environment
       // Use globalThis.crypto which is available in modern Node.js (v15+)
-      if (typeof globalThis.crypto !== "undefined" && globalThis.crypto.getRandomValues) {
+      if (
+        typeof globalThis.crypto !== "undefined" &&
+        globalThis.crypto.getRandomValues
+      ) {
         const array = new Uint8Array(16);
         globalThis.crypto.getRandomValues(array);
-        return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join("");
+        return Array.from(array, (byte) =>
+          byte.toString(16).padStart(2, "0"),
+        ).join("");
       }
-      
+
       // Don't fall back to weak randomness - fail securely
       throw new Error(
         "Secure random number generation not available. This is required for NIP-46 security. " +
-        "For ESM environments, ensure globalThis.crypto is available or call initializeCrypto() at startup.",
+          "For ESM environments, ensure globalThis.crypto is available or call initializeCrypto() at startup.",
       );
     }
   }

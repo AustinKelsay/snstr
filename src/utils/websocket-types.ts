@@ -20,4 +20,3 @@ export type CloseEventLike =
     };
 export type ErrorEventLike = unknown;
 export type MessageEventLike = MessageEvent<string> | { data: string };
-

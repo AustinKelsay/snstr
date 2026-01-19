@@ -255,11 +255,11 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
 
     test("Complex event tags and bunker permissions", async () => {
       // Create a fresh client with longer timeout for this test
-      const testClient = new SimpleNIP46Client([relayUrl], { 
+      const testClient = new SimpleNIP46Client([relayUrl], {
         timeout: 10000, // Increase timeout to handle test suite load
-        logLevel: LogLevel.ERROR 
+        logLevel: LogLevel.ERROR,
       });
-      
+
       try {
         const connectionString = bunker.getConnectionString();
         await testClient.connect(connectionString);

@@ -588,10 +588,10 @@ export function parseRelayMonitorAnnouncement(
 
             // Convert to string for validation
             const tagValueStr = String(tagValue);
-            
+
             // Parse the frequency value using parseInt (consistent with timeout parsing)
             const frequencyValue = parseInt(tagValueStr, 10);
-            
+
             // Check if parsing resulted in a valid number
             if (isNaN(frequencyValue)) {
               if (typeof console !== "undefined" && console.warn) {
@@ -650,11 +650,11 @@ export function parseRelayMonitorAnnouncement(
 
             // Convert to string for validation
             const tagValueStr = String(tagValue);
-            
+
             // Parse the timeout value using parseInt (like NIP-66 spec expects)
             // This will handle decimal numbers by truncating them
             const timeoutValue = parseInt(tagValueStr, 10);
-            
+
             // Check if parsing resulted in a valid number
             if (isNaN(timeoutValue)) {
               if (typeof console !== "undefined" && console.warn) {

@@ -17,7 +17,9 @@ import {
 import { createSignedEvent } from "../nip01/event";
 
 // Cache for the dynamically imported crypto module
-let nodeCryptoModule: { randomInt: (min: number, max: number) => number } | null = null;
+let nodeCryptoModule: {
+  randomInt: (min: number, max: number) => number;
+} | null = null;
 let cryptoInitialized = false;
 
 /**
@@ -68,7 +70,9 @@ function randomTimestampInPast(): number {
         return nodeCrypto.randomInt(0, 0x100000000) / 0x100000000;
       } catch (requireError) {
         // If require fails in ESM, throw informative error
-        throw new Error("No secure random source available for gift wrap timing. In ESM environments, call initializeCrypto() before using NIP-17 functions.");
+        throw new Error(
+          "No secure random source available for gift wrap timing. In ESM environments, call initializeCrypto() before using NIP-17 functions.",
+        );
       }
     }
     throw new Error("No secure random source available for gift wrap timing");

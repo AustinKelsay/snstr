@@ -17,7 +17,6 @@ async function createEphemeralRelay(): Promise<NostrRelay> {
   return relay;
 }
 
-
 describe("Nostr Client", () => {
   // Setup ephemeral relay for tests
   beforeAll(async () => {
