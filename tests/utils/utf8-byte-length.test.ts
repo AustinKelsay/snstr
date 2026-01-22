@@ -5,6 +5,8 @@ import {
   createAddressableEvent,
 } from "../../src/nip01/event";
 import { generateKeypair } from "../../src/utils/crypto";
+// Import nip04 to register the module for createDirectMessage tests
+import "../../src/nip04";
 import {
   validateEventContent,
   MAX_CONTENT_SIZE as NIP46_MAX_CONTENT_SIZE,

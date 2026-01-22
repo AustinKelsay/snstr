@@ -12,6 +12,8 @@ import {
 import { NostrEvent } from "../../../src/types/nostr";
 import { verifySignature } from "../../../src/utils/crypto";
 import { getPublicKey } from "../../../src/utils/crypto";
+// Import nip04 to register the module for createDirectMessage tests
+import "../../../src/nip04";
 
 describe("Event Creation and Signing", () => {
   const privateKey =

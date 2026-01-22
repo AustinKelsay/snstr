@@ -1,13 +1,22 @@
 import { hexToBytes, bytesToHex, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-// Use CommonJS require to avoid depending on external type definitions
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-explicit-any
-const CryptoJS: any = require("crypto-js");
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - crypto-js has no type declarations
+import CryptoJS from "crypto-js";
+import { registerNIP04 } from "./registry";
 
 /**
  * Web/RN NIP-04 implementation using crypto-js (AES-256-CBC, PKCS7).
  * Matches the Node build API (sync, same string formats).
  */
+
+/**
+ * Initialize crypto (no-op for web/React Native).
+ * Provided for API consistency with Node implementation.
+ */
+export async function initializeCrypto(): Promise<void> {
+  // No initialization needed - crypto-js is loaded synchronously
+}
 
 /** Error class for NIP-04 decryption failures */
 export class NIP04DecryptionError extends Error {
@@ -242,3 +251,6 @@ export function decrypt(
     throw new NIP04DecryptionError("Failed to decrypt message");
   }
 }
+
+// Auto-register web implementation on import
+registerNIP04({ encrypt, decrypt, getSharedSecret });

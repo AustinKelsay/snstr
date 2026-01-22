@@ -1,7 +1,8 @@
 import { hexToBytes, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-// Lazy-load Node's crypto to avoid bundlers (Metro/Expo) trying to include it.
-// This keeps the module safe to parse in non-Node environments.
+import { registerNIP04 } from "./registry";
+
+// Type for Node's crypto module (subset needed for NIP-04)
 type NodeCrypto = {
   createCipheriv(
     algorithm: string,
@@ -29,24 +30,52 @@ type NodeCrypto = {
   };
 };
 
-let nodeCrypto: NodeCrypto | null = null;
+// Module-level cache for Node crypto
+let nodeCryptoModule: NodeCrypto | null = null;
+let cryptoInitialized = false;
+
+/**
+ * Initialize crypto module for ESM environments.
+ * Call once at application startup when using ESM imports.
+ * Not required for CommonJS (require) or browser/React Native.
+ */
+export async function initializeCrypto(): Promise<void> {
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node &&
+    !cryptoInitialized
+  ) {
+    try {
+      nodeCryptoModule = await import("crypto");
+      cryptoInitialized = true;
+    } catch {
+      // Will fall back to require() in getNodeCrypto()
+    }
+  }
+}
+
 function getNodeCrypto(): NodeCrypto {
-  if (nodeCrypto) return nodeCrypto;
+  // Return cached module if available (from initializeCrypto or previous require)
+  if (nodeCryptoModule) return nodeCryptoModule;
+
+  // Try CommonJS require for backward compatibility
   if (
     typeof process !== "undefined" &&
     process.versions &&
     process.versions.node
   ) {
     try {
-      // Use direct eval so local CommonJS require is accessible in Node.
-      // eslint-disable-next-line no-eval
-      nodeCrypto = eval('require("crypto")') as unknown as NodeCrypto;
-      return nodeCrypto;
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      nodeCryptoModule = require("crypto") as NodeCrypto;
+      return nodeCryptoModule;
     } catch {
       // fallthrough
     }
   }
-  throw new Error("Node crypto not available in this environment");
+  throw new Error(
+    "Node crypto not available. In ESM environments, call initializeCrypto() at startup.",
+  );
 }
 
 /**
@@ -243,3 +272,6 @@ export function decrypt(
     throw new NIP04DecryptionError("Failed to decrypt message");
   }
 }
+
+// Auto-register Node implementation on import
+registerNIP04({ encrypt, decrypt, getSharedSecret });
