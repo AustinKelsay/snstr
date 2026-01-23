@@ -14,6 +14,7 @@ import { sha256Hex } from "../utils/crypto";
 import { signEvent as signEventCrypto } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
 import { isValidPrivateKey, isValidPublicKeyPoint } from "../nip44";
+import { getRegisteredNIP04 } from "../nip04/registry";
 
 /**
  * Validate if a string is a valid lowercase hex public key format for NIP-01 events
@@ -335,32 +336,10 @@ export async function createDirectMessage(
 
     const pubkey = getPublicKey(privateKey);
 
-    // Encrypt the content using NIP-04 with environment-aware, bundler-safe require
-    const encryptNIP04: (priv: string, pub: string, msg: string) => string = (() => {
-      // Prefer Node path when running under Node (tests)
-      try {
-        // eslint-disable-next-line no-eval
-        if (typeof process !== 'undefined' && process.versions && process.versions.node) {
-          return eval('require("../nip04")').encrypt;
-        }
-      } catch {
-        // eslint-disable-next-line no-empty
-      }
-      // Fallback to web/RN path
-      try {
-        // eslint-disable-next-line no-eval
-        return eval('require("../nip04/web")').encrypt;
-      } catch {
-        // eslint-disable-next-line no-empty
-      }
-      throw new Error("NIP-04 module not available in this environment");
-    })();
-
-    const encryptedContent = await encryptNIP04(
-      privateKey,
-      recipientPubkey,
-      validatedContent,
-    );
+    // Encrypt the content using NIP-04
+    // Registry pattern: implementation registered at import time by snstr or snstr/nip04
+    const { encrypt } = getRegisteredNIP04();
+    const encryptedContent = encrypt(privateKey, recipientPubkey, validatedContent);
 
     return {
       pubkey,
@@ -457,11 +436,9 @@ export function createAddressableEvent(
     );
   }
 
-  if (!content || typeof content !== "string") {
-    throw new NostrValidationError(
-      "Content must be a non-empty string",
-      "content",
-    );
+  // Allow empty content for NIP-51 list events which store data in tags
+  if (typeof content !== "string") {
+    throw new NostrValidationError("Content must be a string", "content");
   }
 
   try {

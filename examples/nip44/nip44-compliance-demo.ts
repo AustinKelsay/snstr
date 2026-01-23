@@ -10,12 +10,12 @@
  * - Decoded payload length validation (99 to 65,603 bytes)
  */
 
-import { 
-  decodePayload, 
-  NONCE_SIZE_V0, 
+import {
+  decodePayload,
+  NONCE_SIZE_V0,
   MAC_SIZE_V0,
   NONCE_SIZE_V2,
-  MAC_SIZE_V2 
+  MAC_SIZE_V2,
 } from "../../src/nip44";
 
 /**

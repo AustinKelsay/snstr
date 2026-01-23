@@ -27,6 +27,12 @@
       "react-native": "./dist/esm/src/nip04/web.js",
       "browser": "./dist/esm/src/nip04/web.js",
       "default": "./dist/src/nip04/index.js"
+    },
+    "./utils/ephemeral-relay": {
+      "types": "./dist/src/utils/ephemeral-relay.d.ts",
+      "import": "./dist/esm/src/utils/ephemeral-relay.js",
+      "require": "./dist/src/utils/ephemeral-relay.js",
+      "default": "./dist/src/utils/ephemeral-relay.js"
     }
   },
   "scripts": {
@@ -193,6 +199,7 @@
   "author": "plebdev",
   "license": "MIT",
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
     "@types/ws": "^8.18.0",

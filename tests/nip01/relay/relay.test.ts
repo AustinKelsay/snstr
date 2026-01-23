@@ -106,7 +106,7 @@ describe("Relay", () => {
       const result = await connectPromise;
       expect(result).toBe(false);
       expect(errorEvent).toBe(true);
-      
+
       // Clean up to prevent async warnings
       relay.disconnect();
     });
@@ -441,7 +441,7 @@ describe("Relay", () => {
       const connectionErrorResult = await nonRoutableRelay.publish(event);
       expect(connectionErrorResult.success).toBe(false);
       expect(connectionErrorResult.reason).toContain("connection");
-      
+
       // Clean up non-routable relay
       nonRoutableRelay.disconnect();
 

@@ -62,6 +62,7 @@ export {
   encrypt as encryptNIP04,
   decrypt as decryptNIP04,
   getSharedSecret as getNIP04SharedSecret,
+  initializeCrypto as initializeNIP04Crypto,
 } from "../nip04/web";
 
 // Export NIP-11 utilities
@@ -137,7 +138,6 @@ export {
   // types re-exported separately below
 
   // Other helpers
-  
 
   // Enums
   Prefix,

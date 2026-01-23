@@ -205,7 +205,9 @@ export function registerInMemoryServer(requestedPort?: number) {
   return { port, server };
 }
 
-export function getInMemoryServer(port: number): InMemoryWebSocketServer | undefined {
+export function getInMemoryServer(
+  port: number,
+): InMemoryWebSocketServer | undefined {
   return serverRegistry.get(port);
 }
 
@@ -217,7 +219,9 @@ export function unregisterInMemoryServer(port: number) {
   }
 }
 
-export function createInMemoryWebSocket(url: string): InMemoryClientSocket | undefined {
+export function createInMemoryWebSocket(
+  url: string,
+): InMemoryClientSocket | undefined {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname;

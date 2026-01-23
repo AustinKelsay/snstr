@@ -33,7 +33,7 @@ describe("NIP-02: Contact Lists", () => {
     relay = new NostrRelay(0); // Let OS assign port
     await relay.start();
     RELAY_URL = relay.url; // Get actual URL after relay starts
-    
+
     // Initialize contacts with proper relay URL
     contactBWithDetails = {
       pubkey: "",
@@ -45,7 +45,7 @@ describe("NIP-02: Contact Lists", () => {
       relayUrl: RELAY_URL,
       petname: "UserC_Pet",
     };
-    
+
     client = new Nostr([RELAY_URL]);
     await client.connectToRelays();
 

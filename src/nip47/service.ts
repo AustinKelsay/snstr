@@ -216,7 +216,10 @@ export class NostrWalletService {
     this.client = new Nostr(this.relays);
     this.authorizedClients = options.authorizedClients || [];
     // Initialize TTL map with 5 minute TTL and max 1000 entries
-    this.requestEncryption = new TTLMap<string, NIP47EncryptionScheme>(5 * 60 * 1000, 1000);
+    this.requestEncryption = new TTLMap<string, NIP47EncryptionScheme>(
+      5 * 60 * 1000,
+      1000,
+    );
   }
 
   /**
