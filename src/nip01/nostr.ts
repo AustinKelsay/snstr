@@ -30,6 +30,7 @@ import {
   RateLimitState,
   SECURITY_LIMITS,
 } from "../utils/security-validator";
+import { getRegisteredNIP04 } from "../nip04/registry";
 
 /**
  * Rate limit configuration for different operation types
@@ -653,32 +654,10 @@ export class Nostr {
     }
 
     // Decrypt the message using our private key and the sender's pubkey
+    // Registry pattern: implementation registered at import time by snstr or snstr/nip04
     try {
-      const decryptNIP04: (priv: string, pub: string, c: string) => string =
-        (() => {
-          // Prefer Node path when running under Node (tests)
-          try {
-            // eslint-disable-next-line no-eval
-            if (
-              typeof process !== "undefined" &&
-              process.versions &&
-              process.versions.node
-            ) {
-              return eval('require("../nip04")').decrypt;
-            }
-          } catch (_e) {
-            // eslint-disable-next-line no-empty
-          }
-          // Fallback to web/RN path
-          try {
-            // eslint-disable-next-line no-eval
-            return eval('require("../nip04/web")').decrypt;
-          } catch (_e) {
-            // eslint-disable-next-line no-empty
-          }
-          throw new Error("NIP-04 module not available in this environment");
-        })();
-      return decryptNIP04(this.privateKey, senderPubkey, event.content);
+      const { decrypt } = getRegisteredNIP04();
+      return decrypt(this.privateKey, senderPubkey, event.content);
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";

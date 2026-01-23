@@ -28,6 +28,27 @@ This module works in both Node and web/React Native with the same API:
 - Web/RN: uses `crypto-js` (AES-256-CBC, PKCS7) — no Node modules required.
 - Synchronous API in all environments (`encrypt`, `decrypt`, `getSharedSecret`).
 
+### ESM Initialization (Node.js Only)
+
+When using ESM imports in Node.js environments, you should call `initializeNIP04Crypto()` once at application startup:
+
+```typescript
+import { initializeNIP04Crypto, encryptNIP04, decryptNIP04 } from 'snstr';
+
+async function main() {
+  // Initialize crypto for ESM environments
+  await initializeNIP04Crypto();
+
+  // Now you can use NIP-04 functions
+  const encrypted = encryptNIP04(privateKey, publicKey, 'Hello!');
+}
+```
+
+**Notes:**
+- **CommonJS (require)**: Initialization is optional. The module falls back to `require('crypto')` automatically.
+- **Web/React Native**: Initialization is a no-op. The module uses `crypto-js` which loads synchronously.
+- **ESM without initialization**: If you forget to call `initializeNIP04Crypto()` in ESM, you'll get a clear error message reminding you to initialize.
+
 ## Implementation Details
 
 ### Shared Secret Derivation
