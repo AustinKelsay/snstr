@@ -47,7 +47,7 @@ export async function initializeCrypto(): Promise<void> {
     !cryptoInitialized
   ) {
     try {
-      nodeCryptoModule = await import("crypto");
+      nodeCryptoModule = (await import("crypto")) as NodeCrypto;
       cryptoInitialized = true;
     } catch {
       // Will fall back to require() in getNodeCrypto()
