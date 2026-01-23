@@ -1,7 +1,5 @@
 import { hexToBytes, bytesToHex, randomBytes } from "@noble/hashes/utils";
 import { secp256k1 } from "@noble/curves/secp256k1";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - crypto-js has no type declarations
 import CryptoJS from "crypto-js";
 import { registerNIP04 } from "./registry";
 
