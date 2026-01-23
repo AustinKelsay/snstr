@@ -74,7 +74,7 @@ function getNodeCrypto(): NodeCrypto {
     }
   }
   throw new Error(
-    "Node crypto not available. In ESM environments, call initializeCrypto() at startup.",
+    "Node crypto not available. In ESM environments, call initializeNIP04Crypto() at startup.",
   );
 }
 
