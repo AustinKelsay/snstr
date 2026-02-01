@@ -262,6 +262,23 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       );
     });
 
+    it("should correctly parse relay URLs containing ://", () => {
+      // This tests the fix for relay URLs like wss://relay.example.com
+      // which contain :// and could break naive string splitting
+      const url =
+        "nostr+walletconnect://ab9c066a671030f78ef70dc064de6010e9e4f8a70fb19249010c7ff88baae3f0?relay=wss://relay.getalby.com/v1&secret=49ce0d10d673eb01188e5a7b0b4a91600ce6762fec2e6674e9aa00e30d465653";
+
+      const parsed = parseNWCURL(url);
+
+      expect(parsed.pubkey).toBe(
+        "ab9c066a671030f78ef70dc064de6010e9e4f8a70fb19249010c7ff88baae3f0",
+      );
+      expect(parsed.secret).toBe(
+        "49ce0d10d673eb01188e5a7b0b4a91600ce6762fec2e6674e9aa00e30d465653",
+      );
+      expect(parsed.relays).toContain("wss://relay.getalby.com/v1");
+    });
+
     it("should reject invalid NWC URLs", () => {
       expect(() => parseNWCURL("invalid")).toThrow();
       expect(() => parseNWCURL("nostr+walletconnect://")).toThrow();
@@ -757,13 +774,14 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         }),
       ).toThrow();
 
-      // Invalid: missing error field
+      // Valid: missing error field should default to null (real-world wallet compatibility)
+      // Some wallets omit the error field entirely on success
       expect(() =>
         validateResponse({
           result_type: "get_balance",
           result: { balance: 1000 },
         }),
-      ).toThrow();
+      ).not.toThrow();
 
       // Invalid: error present but result not null
       expect(() =>
