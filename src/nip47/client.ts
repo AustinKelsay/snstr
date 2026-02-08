@@ -34,26 +34,37 @@ import { SecurityValidationError } from "../utils/security-validator";
 
 /**
  * Parse a NWC URL into connection options
+ *
+ * Handles URLs like: nostr+walletconnect://pubkey?relay=wss://relay.example.com&secret=xxx
+ * Uses the URL class for robust parsing of relay URLs that contain "://"
  */
 export function parseNWCURL(url: string): NIP47ConnectionOptions {
   if (!url.startsWith("nostr+walletconnect://")) {
     throw new Error("Invalid NWC URL format");
   }
 
-  // Extract pubkey
-  const [_, pubkeyAndParams] = url.split("://");
-  const [pubkey, queryString] = pubkeyAndParams.split("?");
+  // Use URL class for robust parsing - replace custom protocol with https temporarily
+  // This handles relay URLs containing "://" correctly (e.g., wss://relay.example.com)
+  const tempUrl = url.replace("nostr+walletconnect://", "https://nwc.temp/");
+  let parsed: URL;
 
+  try {
+    parsed = new URL(tempUrl);
+  } catch {
+    throw new Error("Invalid NWC URL format: malformed URL structure");
+  }
+
+  // Extract pubkey from pathname (remove leading slash)
+  const pubkey = parsed.pathname.slice(1);
   if (!pubkey) {
     throw new Error("Missing pubkey in NWC URL");
   }
 
-  // Parse query parameters
-  const params = new URLSearchParams(queryString);
+  // Parse query parameters using the URL's searchParams
   const relays: string[] = [];
-  params.getAll("relay").forEach((relay) => relays.push(relay));
+  parsed.searchParams.getAll("relay").forEach((relay) => relays.push(relay));
 
-  const secret = params.get("secret");
+  const secret = parsed.searchParams.get("secret");
   if (!secret) {
     throw new Error("Missing secret in NWC URL");
   }
@@ -497,24 +508,21 @@ export class NostrWalletConnectClient {
       );
     }
 
-    // Check that error field exists (can be null)
-    if (!("error" in resp)) {
-      throw new NIP47ClientError(
-        "Invalid response: missing error field",
-        NIP47ErrorCode.INVALID_REQUEST,
-      );
-    }
+    // Check error field - per NIP-47 spec it should be null on success, but some
+    // wallet implementations omit it entirely. Default to null if not present.
+    const hasErrorField = "error" in resp;
+    const errorValue = hasErrorField ? resp.error : null;
 
     // If error is not null, validate its structure
-    if (resp.error !== null) {
-      if (typeof resp.error !== "object") {
+    if (errorValue !== null) {
+      if (typeof errorValue !== "object") {
         throw new NIP47ClientError(
           "Invalid response: error field must be an object or null",
           NIP47ErrorCode.INVALID_REQUEST,
         );
       }
 
-      const error = resp.error as Record<string, unknown>;
+      const error = errorValue as Record<string, unknown>;
 
       // Check error has code and message
       if (!error.code || typeof error.code !== "string") {
@@ -542,13 +550,22 @@ export class NostrWalletConnectClient {
 
     // If no error, result should be defined and not null
     if (
-      resp.error === null &&
+      errorValue === null &&
       (resp.result === null || resp.result === undefined)
     ) {
       throw new NIP47ClientError(
         "Invalid response: when error is null, result must be defined and not null",
         NIP47ErrorCode.INVALID_REQUEST,
       );
+    }
+
+    // Normalize missing error field to null to keep runtime data aligned with
+    // the NIP47Response type contract and spec semantics.
+    if (!hasErrorField) {
+      return {
+        ...(response as Omit<NIP47Response, "error">),
+        error: null,
+      };
     }
 
     return response as NIP47Response;
