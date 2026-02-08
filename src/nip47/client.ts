@@ -510,7 +510,8 @@ export class NostrWalletConnectClient {
 
     // Check error field - per NIP-47 spec it should be null on success, but some
     // wallet implementations omit it entirely. Default to null if not present.
-    const errorValue = "error" in resp ? resp.error : null;
+    const hasErrorField = "error" in resp;
+    const errorValue = hasErrorField ? resp.error : null;
 
     // If error is not null, validate its structure
     if (errorValue !== null) {
@@ -556,6 +557,15 @@ export class NostrWalletConnectClient {
         "Invalid response: when error is null, result must be defined and not null",
         NIP47ErrorCode.INVALID_REQUEST,
       );
+    }
+
+    // Normalize missing error field to null to keep runtime data aligned with
+    // the NIP47Response type contract and spec semantics.
+    if (!hasErrorField) {
+      return {
+        ...(response as Omit<NIP47Response, "error">),
+        error: null,
+      };
     }
 
     return response as NIP47Response;

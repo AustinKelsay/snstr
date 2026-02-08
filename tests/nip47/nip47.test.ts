@@ -782,6 +782,12 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           result: { balance: 1000 },
         }),
       ).not.toThrow();
+      expect(
+        validateResponse({
+          result_type: "get_balance",
+          result: { balance: 1000 },
+        }).error,
+      ).toBeNull();
 
       // Invalid: error present but result not null
       expect(() =>
