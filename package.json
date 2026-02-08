@@ -37,7 +37,7 @@
   },
   "scripts": {
     "// Build": "-------------- Build Commands --------------",
-    "build": "rimraf dist && npm run build:cjs && npm run build:esm",
+    "build": "npx rimraf dist && npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -p tsconfig.json",
     "build:esm": "tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js",
     "build:examples": "tsc -p examples/tsconfig.json",
