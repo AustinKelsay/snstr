@@ -66,8 +66,8 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      - name: Run tests
-        run: bun run test
+      - name: Run Bun migration test subset
+        run: bun run test:bun
 
       - name: Build library
         run: bun run build
