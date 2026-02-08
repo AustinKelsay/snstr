@@ -782,12 +782,23 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           result: { balance: 1000 },
         }),
       ).not.toThrow();
+      const normalizedResponse = validateResponse({
+        result_type: "get_balance",
+        result: { balance: 1000 },
+      });
       expect(
+        Object.prototype.hasOwnProperty.call(normalizedResponse, "error"),
+      ).toBe(true);
+      expect(normalizedResponse.error).toBeNull();
+
+      // Invalid: explicit undefined error field
+      expect(() =>
         validateResponse({
           result_type: "get_balance",
           result: { balance: 1000 },
-        }).error,
-      ).toBeNull();
+          error: undefined,
+        }),
+      ).toThrow();
 
       // Invalid: error present but result not null
       expect(() =>
