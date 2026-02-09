@@ -107,6 +107,10 @@ jobs:
       
       - name: Build library
         run: npm run build
+
+      - name: Verify packed tarball contains entrypoints
+        if: matrix.node-version == '20.x'
+        run: npm run pack:verify
       
       - name: Build examples
         if: matrix.node-version == '20.x'
@@ -145,3 +149,6 @@ jobs:
 
       - name: Build library
         run: bun run build
+
+      - name: Verify packed tarball contains entrypoints
+        run: bun run pack:verify

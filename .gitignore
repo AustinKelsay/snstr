@@ -29,5 +29,6 @@ src/**/*.js.map
 
 # Temporary files
 tmp/
+.npm-cache/
 
 .cursor

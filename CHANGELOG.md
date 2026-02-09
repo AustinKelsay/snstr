@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-02-09
+
+### Fixed
+- Packaging: prevent publishing without build artifacts by verifying `npm pack` contains every `package.json` entrypoint and by shipping a strict `files` whitelist for `dist/**`.
+- CI: add a packed-tarball verification step for both Node and Bun jobs to catch missing entrypoints before publishing.
+
 ## [0.3.0] - 2026-02-09
 
 ### Added
