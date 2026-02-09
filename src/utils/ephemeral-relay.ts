@@ -205,6 +205,12 @@ export class NostrRelay {
       });
     };
 
+    // Bun on Linux CI has shown flakiness with real TCP listeners (port 0 / ephemeral ports).
+    // Prefer the in-memory transport in Bun to keep the test suite deterministic.
+    if (this._port === 0 && typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined") {
+      return startInMemory();
+    }
+
     return new Promise<NostrRelay>((resolve, reject) => {
       try {
         const wss = new WebSocketServer({ port: this._port, host: "127.0.0.1" });
@@ -221,7 +227,24 @@ export class NostrRelay {
           cleanup();
           const address = wss.address();
           if (address && typeof address === "object" && "port" in address) {
-            this._actualPort = address.port;
+            const port =
+              typeof address.port === "number" && address.port > 0
+                ? address.port
+                : null;
+            this._actualPort = port;
+          }
+          // If we couldn't determine a usable port (e.g. Bun/compat oddities with port 0),
+          // fall back to in-memory transport rather than returning a ws://...:0 URL.
+          if (this._port === 0 && !this._actualPort) {
+            try {
+              wss.removeAllListeners();
+              wss.close();
+            } catch (_closeError) {
+              // Ignore close errors during fallback
+            }
+            this._wss = null;
+            startInMemory().then(resolve).catch(reject);
+            return;
           }
 
           DEBUG &&
@@ -340,7 +363,8 @@ export class NostrRelay {
             console.log("[ relay ] server close timed out, forcing cleanup");
           this._wss = null;
           resolve();
-        }, 1000).unref(); // Use unref to avoid keeping the process alive
+        }, 1000);
+        (timeout as unknown as { unref?: () => void }).unref?.(); // Avoid keeping the process alive when supported
 
         const wss = this._wss;
         this._wss = null;
