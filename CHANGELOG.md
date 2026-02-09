@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-09
+
+### Added
+- Bun support: `bun.lock` and `.bun-version` for deterministic installs, plus a Bun CI job and `npm` scripts (`test:bun`, `test:bun:watch`).
+- Timers utility: `maybeUnref()` helper to keep timers from pinning the Node process when supported.
+
+### Changed
+- Relay (NIP-01): connection lifecycle hardening to reduce flaky reconnect/teardown behavior (connection attempt invalidation, safer close/terminate, handler detaching).
+- Ephemeral relay: prefer `127.0.0.1` over `localhost`, improve fallback to in-memory transport, and prefer in-memory transport under Bun for more deterministic tests.
+- Exports: public entry points now use `export type` for type-only exports to improve bundler behavior and avoid emitting runtime exports for types.
+- CI: more resilient repository fetch on GitHub runner 5xx and Bun version sourced from `.bun-version`.
+
+### Fixed
+- NIP-47 (NWC): robust URL parsing for `nostr+walletconnect://...` URLs (including relay query params containing `://`), and tolerant response validation when wallets omit the `error` field (normalized to `null`).
+- NIP-57: zap receipt validation now verifies signatures synchronously.
+- Test/teardown stability: timer cleanup and WebSocket isolation improvements so Jest exits cleanly and suites are less flaky across runtimes.
+
 ## [0.1.10] - 2025-11-14
 
 ### Fixed
