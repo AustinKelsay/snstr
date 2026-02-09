@@ -171,7 +171,9 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.1.10...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/AustinKelsay/snstr/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/AustinKelsay/snstr/compare/v0.1.10...v0.2.0
 [0.1.10]: https://github.com/AustinKelsay/snstr/compare/v0.1.9...v0.1.10
 [0.1.9]: https://github.com/AustinKelsay/snstr/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/AustinKelsay/snstr/compare/v0.1.7...v0.1.8
