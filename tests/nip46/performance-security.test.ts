@@ -430,7 +430,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
       }
 
       // Should be able to disconnect cleanly even after failed connection
-      await expect(invalidClient.disconnect()).resolves.not.toThrow();
+      await expect(invalidClient.disconnect()).resolves.toBeUndefined();
     });
 
     test("handles concurrent connections from multiple clients", async () => {
@@ -683,7 +683,7 @@ describe("NIP-46 Performance & DoS Protection", () => {
       });
 
       // Stop should not throw despite the error
-      await expect(managedBunker.stop()).resolves.not.toThrow();
+      await expect(managedBunker.stop()).resolves.toBeUndefined();
     });
 
     test("rate limiter should clean up old data", (done) => {

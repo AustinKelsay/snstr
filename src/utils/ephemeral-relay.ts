@@ -18,6 +18,7 @@ import {
   registerInMemoryServer,
   unregisterInMemoryServer,
 } from "./inMemoryWebSocket";
+import { maybeUnref } from "./timers";
 
 /**
  * Validates if a string is a valid 32-byte hex string (case-insensitive).
@@ -37,7 +38,8 @@ function isValid64ByteHex(hex: string): boolean {
 
 /* ================ [ Configuration ] ================ */
 
-const HOST = "ws://localhost";
+// Prefer 127.0.0.1 over localhost to avoid IPv6 resolution issues in CI.
+const HOST = "ws://127.0.0.1";
 const DEBUG = process.env["DEBUG"] === "true";
 const VERBOSE = process.env["VERBOSE"] === "true" || DEBUG;
 
@@ -150,7 +152,7 @@ export class NostrRelay {
       }
     };
 
-    const isPermissionError = (error: unknown) => {
+    const shouldFallbackToInMemory = (error: unknown) => {
       if (!error || typeof error !== "object") {
         return false;
       }
@@ -163,7 +165,13 @@ export class NostrRelay {
         typeof (error as { message: unknown }).message === "string"
           ? ((error as { message: string }).message as string)
           : "";
+      // In restricted runtimes, binding to port 0 may report EADDRINUSE even
+      // though no specific port was requested; fall back to in-memory relay.
+      const isDynamicPortConflict =
+        this._port === 0 &&
+        (code === "EADDRINUSE" || message.includes("EADDRINUSE"));
       return (
+        isDynamicPortConflict ||
         code === "EACCES" ||
         code === "EPERM" ||
         code === "EADDRNOTAVAIL" ||
@@ -198,9 +206,15 @@ export class NostrRelay {
       });
     };
 
+    // Bun on Linux CI has shown flakiness with real TCP listeners (port 0 / ephemeral ports).
+    // Prefer the in-memory transport in Bun to keep the test suite deterministic.
+    if (this._port === 0 && typeof (globalThis as unknown as { Bun?: unknown }).Bun !== "undefined") {
+      return startInMemory();
+    }
+
     return new Promise<NostrRelay>((resolve, reject) => {
       try {
-        const wss = new WebSocketServer({ port: this._port });
+        const wss = new WebSocketServer({ port: this._port, host: "127.0.0.1" });
         this._wss = wss;
         this._usingInMemory = false;
         wss.on("connection", handleConnection);
@@ -214,7 +228,24 @@ export class NostrRelay {
           cleanup();
           const address = wss.address();
           if (address && typeof address === "object" && "port" in address) {
-            this._actualPort = address.port;
+            const port =
+              typeof address.port === "number" && address.port > 0
+                ? address.port
+                : null;
+            this._actualPort = port;
+          }
+          // If we couldn't determine a usable port (e.g. Bun/compat oddities with port 0),
+          // fall back to in-memory transport rather than returning a ws://...:0 URL.
+          if (this._port === 0 && !this._actualPort) {
+            try {
+              wss.removeAllListeners();
+              wss.close();
+            } catch (_closeError) {
+              // Ignore close errors during fallback
+            }
+            this._wss = null;
+            startInMemory().then(resolve).catch(reject);
+            return;
           }
 
           DEBUG &&
@@ -230,7 +261,7 @@ export class NostrRelay {
 
         const onError = (error: unknown) => {
           cleanup();
-          if (isPermissionError(error)) {
+          if (shouldFallbackToInMemory(error)) {
             try {
               wss.removeAllListeners();
               wss.close();
@@ -247,7 +278,7 @@ export class NostrRelay {
         wss.once("listening", onListening);
         wss.once("error", onError);
       } catch (error) {
-        if (isPermissionError(error)) {
+        if (shouldFallbackToInMemory(error)) {
           startInMemory().then(resolve).catch(reject);
         } else {
           reject(error);
@@ -333,7 +364,8 @@ export class NostrRelay {
             console.log("[ relay ] server close timed out, forcing cleanup");
           this._wss = null;
           resolve();
-        }, 1000).unref(); // Use unref to avoid keeping the process alive
+        }, 1000);
+        maybeUnref(timeout); // Avoid keeping the process alive when supported
 
         const wss = this._wss;
         this._wss = null;

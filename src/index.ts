@@ -30,6 +30,7 @@ export {
   getPublicKey,
   signEvent,
   verifySignature,
+  verifySignatureSync,
 } from "./utils/crypto";
 
 export { getUnixTime } from "./utils/time";
@@ -45,6 +46,8 @@ export {
   createContactListEvent,
   parseContactsFromEvent,
   parseContactsFromEventWithWarnings,
+} from "./nip02";
+export type {
   Contact,
   ContactListEvent,
   ParseContactsResult,
@@ -123,17 +126,14 @@ export {
   // Profile (nprofile)
   encodeProfile,
   decodeProfile,
-  ProfileData,
 
   // Event (nevent)
   encodeEvent,
   decodeEvent,
-  EventData,
 
   // Address (naddr)
   encodeAddress,
   decodeAddress,
-  AddressData,
 
   // Enums
   Prefix,
@@ -145,8 +145,11 @@ export {
   filterAddress,
   filterEntity,
   isValidRelayUrl,
-
-  // Supporting types
+} from "./nip19";
+export type {
+  ProfileData,
+  EventData,
+  AddressData,
   HexString,
   Bech32String,
   RelayUrl,
@@ -194,6 +197,8 @@ export {
   createReplyTags,
   createQuoteTag,
   parseThreadReferences,
+} from "./nip10";
+export type {
   ThreadPointer,
   ThreadReferences,
 } from "./nip10";
@@ -208,6 +213,8 @@ export {
   NostrRemoteSignerClient,
   NostrRemoteSignerBunker,
   NIP46Method,
+} from "./nip46/index";
+export type {
   NIP46Request,
   NIP46Response,
   NIP46ClientOptions,
@@ -225,6 +232,8 @@ export {
   calculateZapSplitAmounts,
   ZAP_REQUEST_KIND,
   ZAP_RECEIPT_KIND,
+} from "./nip57";
+export type {
   ZapRequestOptions,
   ZapReceiptOptions,
   ZapValidationResult,
@@ -237,6 +246,8 @@ export {
 export {
   NostrZapClient,
   ZapClient,
+} from "./nip57/client";
+export type {
   ZapClientOptions,
   ZapInvoiceResult,
   ZapFilterOptions,
@@ -260,22 +271,24 @@ export {
 
   // Service implementation
   NostrWalletService,
-  NostrWalletServiceOptions,
-  WalletImplementation,
 
   // Types
   NIP47Method,
   NIP47EventKind,
+  NIP47NotificationType,
+  NIP47ErrorCode,
+  TransactionType,
+  NIP47EncryptionScheme,
+} from "./nip47";
+export type {
+  NostrWalletServiceOptions,
+  WalletImplementation,
   NIP47Request,
   NIP47Response,
   NIP47Error,
-  NIP47ErrorCode,
   NIP47Notification,
-  NIP47NotificationType,
   NIP47Transaction,
   NIP47ConnectionOptions,
-  TransactionType,
-  NIP47EncryptionScheme,
   GetInfoResponseResult,
   PaymentResponseResult,
   MakeInvoiceResponseResult,
@@ -291,6 +304,8 @@ export {
   getReadRelays,
   getWriteRelays,
   RELAY_LIST_KIND,
+} from "./nip65";
+export type {
   RelayListEntry,
   RelayListEvent,
 } from "./nip65";

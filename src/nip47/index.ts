@@ -14,8 +14,9 @@ export {
   parseNWCURL,
   generateNWCURL,
   NIP47ClientError,
-  RetryOptions,
 } from "./client";
+export type { RetryOptions } from "./client";
 
 // Export service implementation
-export { NostrWalletService, NostrWalletServiceOptions } from "./service";
+export { NostrWalletService } from "./service";
+export type { NostrWalletServiceOptions } from "./service";

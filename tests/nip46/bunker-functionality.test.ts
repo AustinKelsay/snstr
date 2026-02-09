@@ -368,7 +368,7 @@ describe("NIP-46 Bunker Functionality", () => {
       );
 
       // Should not throw when stopping a bunker that was never started
-      await expect(bunker.stop()).resolves.not.toThrow();
+      await expect(bunker.stop()).resolves.toBeUndefined();
     });
   });
 
@@ -437,7 +437,7 @@ describe("NIP-46 Bunker Functionality", () => {
       bunker.setSignerPrivateKey(validKeypair.privateKey);
 
       // Should succeed now that private keys are set with a working relay connection
-      await expect(bunker.start()).resolves.not.toThrow();
+      await expect(bunker.start()).resolves.toBeUndefined();
 
       // Clean up
       await bunker.stop().catch(() => {});

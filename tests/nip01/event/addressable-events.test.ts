@@ -8,7 +8,7 @@ import { asTestRelay } from "../../types";
 import { NostrEvent } from "../../../src/types/nostr";
 
 // Mock WebSocket
-jest.mock("websocket-polyfill", () => {});
+jest.mock("websocket-polyfill", () => ({}));
 
 describe("Addressable Events (NIP-01 §7.1)", () => {
   let relay: Relay;

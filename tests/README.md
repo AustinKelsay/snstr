@@ -72,6 +72,12 @@ To run all tests:
 npm test
 ```
 
+To run all tests with Bun:
+
+```bash
+bun run test:bun
+```
+
 To run tests for a specific NIP:
 
 ```bash
