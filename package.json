@@ -1,6 +1,6 @@
 {
   "name": "snstr",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Secure Nostr Software Toolkit for Renegades - A comprehensive TypeScript library for Nostr protocol implementation",
   "files": [
     "dist/src/**",
