@@ -324,7 +324,7 @@ describe("NIP-57: Lightning Zaps", () => {
       const mockHashHex = "01020304";
       // Setup mocks for this test only
       sha256HexSpy.mockReturnValueOnce(mockHashHex);
-      verifySignatureSpy.mockReturnValueOnce(true);
+      verifySignatureSpy.mockResolvedValueOnce(true);
       parseBolt11InvoiceSpy.mockReturnValueOnce({
         descriptionHash: mockHashHex,
         paymentHash: "123abc",
@@ -438,7 +438,7 @@ describe("NIP-57: Lightning Zaps", () => {
         // Mock hash calculation to match the hash in invoice - scoped to this test only
         const mockHashHex = "01020304";
         sha256HexSpy.mockReturnValueOnce(mockHashHex);
-        verifySignatureSpy.mockReturnValueOnce(true);
+        verifySignatureSpy.mockResolvedValueOnce(true);
 
         // Mock invoice parsing to return matching hash - scoped to this test only
         parseBolt11InvoiceSpy.mockReturnValueOnce({
