@@ -150,7 +150,7 @@ export class NostrRelay {
       }
     };
 
-    const isPermissionError = (error: unknown) => {
+    const shouldFallbackToInMemory = (error: unknown) => {
       if (!error || typeof error !== "object") {
         return false;
       }
@@ -163,7 +163,13 @@ export class NostrRelay {
         typeof (error as { message: unknown }).message === "string"
           ? ((error as { message: string }).message as string)
           : "";
+      // In restricted runtimes, binding to port 0 may report EADDRINUSE even
+      // though no specific port was requested; fall back to in-memory relay.
+      const isDynamicPortConflict =
+        this._port === 0 &&
+        (code === "EADDRINUSE" || message.includes("EADDRINUSE"));
       return (
+        isDynamicPortConflict ||
         code === "EACCES" ||
         code === "EPERM" ||
         code === "EADDRNOTAVAIL" ||
@@ -230,7 +236,7 @@ export class NostrRelay {
 
         const onError = (error: unknown) => {
           cleanup();
-          if (isPermissionError(error)) {
+          if (shouldFallbackToInMemory(error)) {
             try {
               wss.removeAllListeners();
               wss.close();
@@ -247,7 +253,7 @@ export class NostrRelay {
         wss.once("listening", onListening);
         wss.once("error", onError);
       } catch (error) {
-        if (isPermissionError(error)) {
+        if (shouldFallbackToInMemory(error)) {
           startInMemory().then(resolve).catch(reject);
         } else {
           reject(error);

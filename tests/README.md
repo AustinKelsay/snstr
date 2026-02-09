@@ -72,7 +72,7 @@ To run all tests:
 npm test
 ```
 
-To run the Bun-native migration subset:
+To run all tests with Bun:
 
 ```bash
 bun run test:bun

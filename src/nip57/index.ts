@@ -15,9 +15,9 @@ import { sha256Hex, verifySignature } from "../utils/crypto";
 import { parseBolt11Invoice } from "./utils";
 export type { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 
-// Export types from client.ts
-export {
-  NostrZapClient,
+// Export values and types from client.ts
+export { NostrZapClient } from "./client";
+export type {
   ZapClientOptions,
   ZapInvoiceResult,
   ZapFilterOptions,

@@ -245,8 +245,20 @@ describe("Nostr Client", () => {
         sig: "fake-sig-for-testing",
       };
 
-      // The client with wrong keys should not be able to decrypt
-      expect(() => client.decryptDirectMessage(event)).toThrow();
+      // Wrong keys must not recover the original plaintext.
+      // Some runtimes throw, others may return undecodable/garbled output.
+      let decrypted: string | undefined;
+      let threw = false;
+
+      try {
+        decrypted = client.decryptDirectMessage(event);
+      } catch {
+        threw = true;
+      }
+
+      if (!threw) {
+        expect(decrypted).not.toBe(content);
+      }
     });
   });
 
@@ -301,7 +313,7 @@ describe("Nostr Client", () => {
     // Add test for unsubscribeAll() method
     test("should properly close all subscriptions with unsubscribeAll", async () => {
       // Start ephemeral relay
-      const mockRelay = new NostrRelay(3405);
+      const mockRelay = new NostrRelay(0);
       await mockRelay.start();
 
       const client = new Nostr([mockRelay.url]);
@@ -486,26 +498,37 @@ describe("Nostr Client", () => {
     });
 
     test("fetchMany should use default timeout when none provided", async () => {
-      // Use fake timers to avoid waiting 5 seconds in tests
-      jest.useFakeTimers();
+      // Capture timeout delays without relying on Jest-specific fake timers.
+      const timeouts: number[] = [];
+      const originalSetTimeout = globalThis.setTimeout;
+      const patchedSetTimeout: typeof setTimeout = (
+        callback: TimerHandler,
+        delay?: number,
+        ...args: unknown[]
+      ) => {
+        const numericDelay = typeof delay === "number" ? delay : 0;
+        timeouts.push(numericDelay);
+
+        return originalSetTimeout(callback, 0, ...args);
+      };
+
+      // This test ensures our fix prevents hanging when no maxWait is provided
+      const emptyClient = new Nostr(["ws://nonexistent.relay"]);
 
       try {
-        // This test ensures our fix prevents hanging when no maxWait is provided
-        const emptyClient = new Nostr(["ws://nonexistent.relay"]);
+        (
+          globalThis as unknown as { setTimeout: typeof setTimeout }
+        ).setTimeout = patchedSetTimeout;
 
         // Start the fetchMany call (should use default 5000ms timeout)
-        const fetchPromise = emptyClient.fetchMany([{ kinds: [1] }]);
-
-        // Fast-forward time by the default timeout (5000ms)
-        jest.advanceTimersByTime(5000);
-
-        // Await the result
-        const events = await fetchPromise;
+        const events = await emptyClient.fetchMany([{ kinds: [1] }]);
 
         expect(events).toEqual([]);
+        expect(timeouts).toContain(5000);
       } finally {
-        // Always restore real timers
-        jest.useRealTimers();
+        (
+          globalThis as unknown as { setTimeout: typeof setTimeout }
+        ).setTimeout = originalSetTimeout;
       }
     });
   });

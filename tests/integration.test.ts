@@ -14,9 +14,7 @@ describe("Nostr Client Integration", () => {
   let relayUrl: string;
 
   beforeAll(async () => {
-    const port = 4444;
-    relayUrl = `ws://localhost:${port}`;
-    await startEphemeralRelay(port);
+    relayUrl = await startEphemeralRelay();
   });
 
   afterAll(async () => {

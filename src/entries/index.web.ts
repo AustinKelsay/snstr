@@ -179,6 +179,8 @@ export {
   createReplyTags,
   createQuoteTag,
   parseThreadReferences,
+} from "../nip10";
+export type {
   ThreadPointer,
   ThreadReferences,
 } from "../nip10";
@@ -198,6 +200,8 @@ export {
   calculateZapSplitAmounts,
   ZAP_REQUEST_KIND,
   ZAP_RECEIPT_KIND,
+} from "../nip57";
+export type {
   ZapRequestOptions,
   ZapReceiptOptions,
   ZapValidationResult,
@@ -210,6 +214,8 @@ export {
 export {
   NostrZapClient,
   ZapClient,
+} from "../nip57/client";
+export type {
   ZapClientOptions,
   ZapInvoiceResult,
   ZapFilterOptions,

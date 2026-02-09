@@ -250,7 +250,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
 
       // Test double disconnect doesn't throw
       await client.disconnect();
-      await expect(client.disconnect()).resolves.not.toThrow();
+      await expect(client.disconnect()).resolves.toBeUndefined();
     });
 
     test("Complex event tags and bunker permissions", async () => {
@@ -558,7 +558,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       await expect(unitClient.ping()).rejects.toThrow(NIP46ConnectionError);
 
       // Test disconnect when not connected
-      await expect(unitClient.disconnect()).resolves.not.toThrow();
+      await expect(unitClient.disconnect()).resolves.toBeUndefined();
 
       // Test generateConnectionString
       const connStr = NostrRemoteSignerClient.generateConnectionString(
