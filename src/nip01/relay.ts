@@ -23,6 +23,7 @@ import {
   getSecureRandom,
   secureRandomHex,
 } from "../utils/security-validator";
+import { maybeUnref } from "../utils/timers";
 import {
   BivariantHandler,
   OpenEventLike,
@@ -181,7 +182,7 @@ export class Relay {
             reject(new Error("connection timeout"));
           }
         }, this.connectionTimeout);
-        (timeoutId as unknown as { unref?: () => void }).unref?.();
+        maybeUnref(timeoutId);
 
         socket.onopen = () => {
           if (attemptId !== this.connectionAttempt) return;
@@ -416,7 +417,7 @@ export class Relay {
         // The next reconnection will be scheduled in the connect() method's catch handler
       });
     }, reconnectDelay);
-    (this.reconnectTimer as unknown as { unref?: () => void }).unref?.();
+    maybeUnref(this.reconnectTimer);
   }
 
   /**
@@ -631,7 +632,7 @@ export class Relay {
           cleanup();
           resolve({ success: false, reason: "timeout", relay: this.url });
         }, timeout);
-        (timeoutId as unknown as { unref?: () => void }).unref?.();
+        maybeUnref(timeoutId);
       });
     } catch (error) {
       const errorMessage =
@@ -686,7 +687,7 @@ export class Relay {
       subscription.eoseTimer = setTimeout(() => {
         this.unsubscribe(id);
       }, options.eoseTimeout);
-      (subscription.eoseTimer as unknown as { unref?: () => void }).unref?.();
+      maybeUnref(subscription.eoseTimer);
     }
 
     this.subscriptions.set(id, subscription);
@@ -1192,7 +1193,7 @@ export class Relay {
     this.bufferFlushInterval = setInterval(() => {
       this.flushAllBuffers();
     }, this.bufferFlushDelay);
-    (this.bufferFlushInterval as unknown as { unref?: () => void }).unref?.();
+    maybeUnref(this.bufferFlushInterval);
   }
 
   /**

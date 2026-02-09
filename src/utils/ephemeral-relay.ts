@@ -18,6 +18,7 @@ import {
   registerInMemoryServer,
   unregisterInMemoryServer,
 } from "./inMemoryWebSocket";
+import { maybeUnref } from "./timers";
 
 /**
  * Validates if a string is a valid 32-byte hex string (case-insensitive).
@@ -364,7 +365,7 @@ export class NostrRelay {
           this._wss = null;
           resolve();
         }, 1000);
-        (timeout as unknown as { unref?: () => void }).unref?.(); // Avoid keeping the process alive when supported
+        maybeUnref(timeout); // Avoid keeping the process alive when supported
 
         const wss = this._wss;
         this._wss = null;

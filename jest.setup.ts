@@ -24,22 +24,12 @@ useWebSocketImplementation(wsImpl);
 // Ensure any code that resets the implementation picks up the test WebSocket
 resetWebSocketImplementation();
 
-// Suppress expected console noise from tests that validate error paths
+// Suppress expected console noise from tests that validate error paths.
+// Use beforeEach so test suites that call jest.restoreAllMocks() don't permanently
+// re-enable warnings/errors for the rest of the run (which can also break CI output).
 const noop = () => {};
-let restoreConsoleError: (() => void) | undefined;
-let restoreConsoleWarn: (() => void) | undefined;
 
-beforeAll(() => {
-  const errorSpy = jest.spyOn(console, "error").mockImplementation(noop);
-  const warnSpy = jest.spyOn(console, "warn").mockImplementation(noop);
-
-  restoreConsoleError = () => errorSpy.mockRestore();
-  restoreConsoleWarn = () => warnSpy.mockRestore();
-});
-
-afterAll(() => {
-  restoreConsoleError?.();
-  restoreConsoleWarn?.();
-  restoreConsoleError = undefined;
-  restoreConsoleWarn = undefined;
+beforeEach(() => {
+  jest.spyOn(console, "error").mockImplementation(noop);
+  jest.spyOn(console, "warn").mockImplementation(noop);
 });
