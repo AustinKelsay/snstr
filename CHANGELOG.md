@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - NIP-57: zap receipt validation now verifies signatures synchronously.
 - Test/teardown stability: timer cleanup and WebSocket isolation improvements so Jest exits cleanly and suites are less flaky across runtimes.
 
+## [0.2.0] - 2026-01-22
+
+### Added
+- NIP-04: crypto registry pattern for improved ESM/bundler compatibility.
+- Utilities: export the ephemeral relay entrypoint for easier test/integration setups.
+
+### Changed
+- NIP-04: replaced `eval`-style `require` usage with safer dynamic imports.
+
+### Fixed
+- NIP-51: corrected `content` field requirement behavior.
+- NIP-57: clarified zap pubkey usage and added coverage for invalid `p`-tag scenarios.
+- Misc: improved error messaging to match the public API name and tightened type consistency.
+
 ## [0.1.10] - 2025-11-14
 
 ### Fixed
@@ -117,6 +131,22 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - Dynamic WebSocket implementation selection with safer fallback behavior
 - Improved error signaling in WebSocket implementation resolution
 
+## [0.1.4] - 2025-09-19
+
+### Fixed
+- React Native/Expo: avoid Node `crypto` usage in RN by using bundler-safe loading in NIP-04 and the security validator, improving bundling stability.
+
+### Changed
+- Packaging: exclude local/dev folders from the published npm package.
+
+## [0.1.3] - 2025-09-19
+
+### Added
+- NIP-04: added a web/RN implementation (`src/nip04/web.ts`) and exported it via the web entrypoint.
+
+### Fixed
+- Web/RN bundling: fixed Expo/web build issues around NIP-04.
+
 ## [0.1.2] - 2025-08-16
 
 ### Fixed
@@ -179,7 +209,9 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 [0.1.8]: https://github.com/AustinKelsay/snstr/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/AustinKelsay/snstr/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/AustinKelsay/snstr/compare/v0.1.5...v0.1.6
-[0.1.5]: https://github.com/AustinKelsay/snstr/compare/v0.1.2...v0.1.5
+[0.1.5]: https://github.com/AustinKelsay/snstr/compare/v0.1.4...v0.1.5
+[0.1.4]: https://github.com/AustinKelsay/snstr/compare/v0.1.3...v0.1.4
+[0.1.3]: https://github.com/AustinKelsay/snstr/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/AustinKelsay/snstr/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/AustinKelsay/snstr/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/AustinKelsay/snstr/releases/tag/v0.1.0
