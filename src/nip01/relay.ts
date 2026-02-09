@@ -55,6 +55,8 @@ export class Relay {
   private connected = false;
   // Incremented to invalidate timers/handlers from older connection attempts (helps tests + teardown).
   private connectionAttempt = 0;
+  // Incremented on explicit disconnect() so auto-reconnect can be suppressed for user-initiated teardown.
+  private disconnectGeneration = 0;
   private subscriptions: Map<string, Subscription> = new Map();
   private eventHandlers: RelayEventHandler = {};
   private connectionPromise: Promise<boolean> | null = null;
@@ -116,6 +118,7 @@ export class Relay {
     if (this.connected) return true;
     if (this.connectionPromise) return this.connectionPromise;
     const attemptId = ++this.connectionAttempt;
+    const disconnectGenAtStart = this.disconnectGeneration;
 
     // Reset WebSocket if it exists already
     if (this.ws) {
@@ -143,6 +146,17 @@ export class Relay {
           throw new Error("WebSocket implementation unavailable");
         }
 
+        const detachHandlers = () => {
+          try {
+            socket.onopen = null;
+            socket.onclose = null;
+            socket.onerror = null;
+            socket.onmessage = null;
+          } catch {
+            // Ignore failures (some implementations may not allow reassignment).
+          }
+        };
+
         // Set up connection timeout
         const timeoutId = setTimeout(() => {
           if (attemptId !== this.connectionAttempt) return;
@@ -154,6 +168,7 @@ export class Relay {
               new Error("connection timeout"),
             );
             try {
+              detachHandlers();
               this.ws.close();
             } catch (e) {
               // Ignore errors during force close
@@ -161,6 +176,7 @@ export class Relay {
             this.ws = null;
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.
+            // Auto-reconnect is handled in the catch() block below.
             this.connectionAttempt++;
             reject(new Error("connection timeout"));
           }
@@ -187,8 +203,10 @@ export class Relay {
 
           // Only reject the promise if we're still waiting to connect
           if (!wasConnected && this.connectionPromise) {
+            detachHandlers();
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.
+            // Auto-reconnect is handled in the catch() block below.
             this.connectionAttempt++;
             reject(new Error("connection closed"));
           }
@@ -206,8 +224,10 @@ export class Relay {
 
           // Only reject the promise if we haven't connected yet
           if (!this.connected && this.connectionPromise) {
+            detachHandlers();
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.
+            // Auto-reconnect is handled in the catch() block below.
             this.connectionAttempt++;
             reject(
               error instanceof Error ? error : new Error("websocket error"),
@@ -230,8 +250,20 @@ export class Relay {
         reject(error);
       }
     }).catch((_error) => {
-      // Ignore late errors from an old attempt (e.g. disconnect() during connect()).
-      if (attemptId !== this.connectionAttempt) return false as boolean;
+      // If the user explicitly disconnected while connect() was in-flight, don't log or reconnect.
+      if (disconnectGenAtStart !== this.disconnectGeneration) {
+        return false as boolean;
+      }
+
+      // If the attempt was invalidated by its own handlers (timeout/onerror/onclose before connect),
+      // suppress logs but still honor autoReconnect.
+      if (attemptId !== this.connectionAttempt) {
+        if (this.autoReconnect) {
+          this.scheduleReconnect();
+        }
+        return false as boolean;
+      }
+
       // Ensure we return false if connection fails but don't re-throw
       this.logger.error(`Connection failed:`, _error);
 
@@ -267,6 +299,8 @@ export class Relay {
   }
 
   public disconnect(): void {
+    // Mark this as a user-initiated teardown so auto-reconnect doesn't keep the process alive.
+    this.disconnectGeneration++;
     // Invalidate any in-flight connect attempt so its timers/handlers become no-ops.
     this.connectionAttempt++;
     this.connectionPromise = null;
