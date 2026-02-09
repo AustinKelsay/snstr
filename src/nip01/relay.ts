@@ -124,7 +124,26 @@ export class Relay {
     // Reset WebSocket if it exists already
     if (this.ws) {
       try {
-        this.ws.close();
+        // When CONNECTING, ws.close() can throw and may emit an error event.
+        // Prefer terminate() when available.
+        const maybeWs = this.ws;
+        const nodeWs = maybeWs as unknown as {
+          readyState?: number;
+          close?: () => void;
+          terminate?: () => void;
+          once?: (event: string, cb: (...args: unknown[]) => void) => void;
+        };
+        if (typeof nodeWs.once === "function") {
+          nodeWs.once("error", () => {});
+        }
+        if (
+          typeof nodeWs.terminate === "function" &&
+          nodeWs.readyState === WS_READY_STATE.CONNECTING
+        ) {
+          nodeWs.terminate();
+        } else {
+          maybeWs.close();
+        }
       } catch (e) {
         // Ignore close errors, the socket might already be in a closing state
       }
@@ -170,7 +189,23 @@ export class Relay {
             );
             try {
               detachHandlers();
-              this.ws.close();
+              const nodeWs = this.ws as unknown as {
+                readyState?: number;
+                close?: () => void;
+                terminate?: () => void;
+                once?: (event: string, cb: (...args: unknown[]) => void) => void;
+              };
+              if (typeof nodeWs.once === "function") {
+                nodeWs.once("error", () => {});
+              }
+              if (
+                typeof nodeWs.terminate === "function" &&
+                nodeWs.readyState === WS_READY_STATE.CONNECTING
+              ) {
+                nodeWs.terminate();
+              } else {
+                this.ws.close();
+              }
             } catch (e) {
               // Ignore errors during force close
             }
@@ -351,7 +386,23 @@ export class Relay {
       ) {
         // First try to send CLOSE messages for any active subscriptions
         try {
-          this.ws.close();
+          const nodeWs = this.ws as unknown as {
+            readyState?: number;
+            close?: () => void;
+            terminate?: () => void;
+            once?: (event: string, cb: (...args: unknown[]) => void) => void;
+          };
+          if (typeof nodeWs.once === "function") {
+            nodeWs.once("error", () => {});
+          }
+          if (
+            typeof nodeWs.terminate === "function" &&
+            nodeWs.readyState === WS_READY_STATE.CONNECTING
+          ) {
+            nodeWs.terminate();
+          } else {
+            this.ws.close();
+          }
         } catch (e) {
           // Ignore close errors, the connection might already be closed or invalid
         }
