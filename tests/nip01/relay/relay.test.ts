@@ -569,7 +569,9 @@ describe("Relay", () => {
 
     test("should auto unsubscribe after timeout if EOSE not received", async () => {
       // This behavior depends on the local timer, not on server EOSE responses.
-      const relay = new Relay("ws://localhost:65535");
+      // Use the ephemeral relay URL to avoid any accidental dependency on the local machine/network.
+      // Note: we intentionally do not call relay.connect() in this test.
+      const relay = new Relay(ephemeralRelay.url);
 
       const subId = relay.subscribe([{ kinds: [1] }], () => {}, undefined, {
         autoClose: true,

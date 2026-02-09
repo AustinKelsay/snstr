@@ -30,6 +30,7 @@ export {
   getPublicKey,
   signEvent,
   verifySignature,
+  verifySignatureSync,
 } from "./utils/crypto";
 
 export { getUnixTime } from "./utils/time";
