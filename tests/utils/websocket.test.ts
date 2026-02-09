@@ -9,6 +9,8 @@ type WebSocketCtorTest = {
   prototype: Record<string, unknown>;
 };
 
+let originalRuntimeWebSocket: unknown;
+
 function createMockWebSocket(options: {
   hasBinaryTypeSetter: boolean;
   label: string;
@@ -44,7 +46,16 @@ function createMockWebSocket(options: {
   return MockWebSocket as unknown as WebSocketCtorTest;
 }
 
+beforeEach(() => {
+  // Capture the runtime global WebSocket so each test can safely mutate it.
+  originalRuntimeWebSocket = (globalThis as Record<string, unknown>).WebSocket;
+});
+
 afterEach(() => {
+  // Always restore the runtime global WebSocket to avoid leakage between tests,
+  // even if a test throws before it can clean up.
+  (globalThis as Record<string, unknown>).WebSocket = originalRuntimeWebSocket;
+
   // Restore module-selected default after each test to avoid test leakage.
   resetWebSocketImplementation();
 });
