@@ -18,8 +18,6 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testTimeout: 30000,
-  // Prevent Jest from hanging on open handles
-  forceExit: true,
-  // Handle potential memory leaks in tests
+  // Handle potential memory leaks in tests (enable ad-hoc with CLI when needed)
   detectOpenHandles: false
 }; 

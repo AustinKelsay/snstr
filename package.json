@@ -37,7 +37,7 @@
   },
   "scripts": {
     "// Build": "-------------- Build Commands --------------",
-    "build": "rimraf dist && npm run build:cjs && npm run build:esm",
+    "build": "npx rimraf dist && npm run build:cjs && npm run build:esm",
     "build:cjs": "tsc -p tsconfig.json",
     "build:esm": "tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js",
     "build:examples": "tsc -p examples/tsconfig.json",
@@ -49,6 +49,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:integration": "jest tests/integration.test.ts",
+    "// Bun Migration": "-------------- Bun Test Migration --------------",
+    "test:bun": "bun test ./tests --max-concurrency 1 --timeout 30000",
+    "test:bun:watch": "bun test ./tests --watch --max-concurrency 1 --timeout 30000",
     "// Test Core": "-------------- Core Component Tests --------------",
     "test:nip01": "jest tests/nip01",
     "test:nip01:event": "jest tests/nip01/event",

@@ -4,8 +4,8 @@ import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { createTextNote, createSignedEvent } from "../../../src/nip01/event";
 
-const PORT1 = 4501;
-const PORT2 = 4502;
+const PORT1 = 0;
+const PORT2 = 0;
 
 describe("RelayPool", () => {
   let relay1: NostrRelay;
@@ -513,7 +513,7 @@ describe("RelayPool", () => {
       await pool.close();
 
       // Verify that calling close again doesn't throw errors
-      await expect(pool.close()).resolves.not.toThrow();
+      await expect(pool.close()).resolves.toBeUndefined();
     } catch (error) {
       // If something goes wrong in the try block, still attempt cleanup
       await pool.close();

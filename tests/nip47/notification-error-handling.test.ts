@@ -208,7 +208,7 @@ describe("NIP-47: Notification error handling", () => {
         NIP47NotificationType.PAYMENT_RECEIVED,
         { payment_hash: "test", amount: 1000 },
       ),
-    ).resolves.not.toThrow();
+    ).resolves.toBeUndefined();
 
     // Verify both failures were logged
     expect(consoleErrorSpy).toHaveBeenCalledTimes(2);

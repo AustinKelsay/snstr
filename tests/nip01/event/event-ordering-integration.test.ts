@@ -9,7 +9,7 @@ import {
   useWebSocketImplementation,
   resetWebSocketImplementation,
 } from "../../../src/utils/websocket";
-import { jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
 
 /**
  * Mock WebSocket interface for testing

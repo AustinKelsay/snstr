@@ -31,6 +31,7 @@ import {
   safeArrayAccess,
   SecurityValidationError,
 } from "../utils/security-validator";
+import { maybeUnref } from "../utils/timers";
 
 /**
  * TTL Map implementation with automatic cleanup
@@ -104,6 +105,7 @@ class TTLMap<K, V> {
 
   private startCleanup(): void {
     this.cleanupInterval = setInterval(() => this.cleanup(), 30000);
+    maybeUnref(this.cleanupInterval);
   }
 
   destroy(): void {
@@ -263,7 +265,10 @@ export class NostrWalletService {
       }
 
       // Short delay to allow any other cleanup to complete
-      return new Promise((resolve) => setTimeout(resolve, 100));
+      return new Promise((resolve) => {
+        const t = setTimeout(resolve, 100);
+        maybeUnref(t);
+      });
     } catch (error) {
       console.error("Error during service disconnect:", error);
     }
