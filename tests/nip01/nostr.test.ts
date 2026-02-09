@@ -501,7 +501,7 @@ describe("Nostr Client", () => {
       // Capture timeout delays without relying on Jest-specific fake timers.
       const timeouts: number[] = [];
       const originalSetTimeout = globalThis.setTimeout;
-      const patchedSetTimeout: typeof setTimeout = (
+      const patchedSetTimeout = ((
         callback: TimerHandler,
         delay?: number,
         ...args: unknown[]
@@ -510,7 +510,7 @@ describe("Nostr Client", () => {
         timeouts.push(numericDelay);
 
         return originalSetTimeout(callback, 0, ...args);
-      };
+      }) as typeof globalThis.setTimeout;
 
       // This test ensures our fix prevents hanging when no maxWait is provided
       const emptyClient = new Nostr(["ws://nonexistent.relay"]);

@@ -430,7 +430,7 @@ describe("Relay", () => {
 
         // Should immediately return success without waiting for OK
         expect(result.success).toBe(true);
-        expect(result.relay).toBe(isolatedRelay.url);
+        expect(result.relay).toBe(asTestRelay(isolatedRelay).url);
         expect(mockSend).toHaveBeenCalled();
       } finally {
         // Restore original relay connection state
