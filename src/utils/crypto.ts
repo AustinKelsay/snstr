@@ -18,20 +18,28 @@ export async function signEvent(
 /**
  * Verify the signature of an event
  */
+export function verifySignatureSync(
+  eventId: string,
+  signature: string,
+  publicKey: string,
+): boolean {
+  try {
+    const eventIdBytes = hexToBytes(eventId);
+    const signatureBytes = hexToBytes(signature);
+    const publicKeyBytes = hexToBytes(publicKey);
+    return schnorr.verify(signatureBytes, eventIdBytes, publicKeyBytes);
+  } catch (error) {
+    console.error("Failed to verify signature:", error);
+    return false;
+  }
+}
+
 export async function verifySignature(
   eventId: string,
   signature: string,
   publicKey: string,
 ): Promise<boolean> {
-  try {
-    const eventIdBytes = hexToBytes(eventId);
-    const signatureBytes = hexToBytes(signature);
-    const publicKeyBytes = hexToBytes(publicKey);
-    return await schnorr.verify(signatureBytes, eventIdBytes, publicKeyBytes);
-  } catch (error) {
-    console.error("Failed to verify signature:", error);
-    return false;
-  }
+  return verifySignatureSync(eventId, signature, publicKey);
 }
 
 /**
