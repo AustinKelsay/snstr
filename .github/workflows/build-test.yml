@@ -16,7 +16,62 @@ jobs:
         node-version: [16.x, 18.x, 20.x]
     
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (retry)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Work around intermittent GitHub git-over-HTTP flakiness (500/502) by:
+          # 1) forcing HTTP/1.1 (some runners have seen HTTP/2-related fetch issues)
+          # 2) retrying fetches with backoff
+          # 3) for pull requests, falling back to the PR head ref if the merge ref is unavailable/flaky
+          git config --global http.version HTTP/1.1
+
+          git init .
+          git remote add origin "https://github.com/${REPO}.git"
+
+          primary_ref="${REF}"
+          fallback_ref=""
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_NUMBER:-}" ]; then
+            fallback_ref="refs/pull/${PR_NUMBER}/head"
+          fi
+
+          fetch_ref_with_retry() {
+            local ref="$1"
+            local attempts=12
+            local i=1
+            while [ "$i" -le "$attempts" ]; do
+              echo "Fetch attempt ${i}/${attempts}: ${ref}"
+              if git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64)" \
+                fetch --no-tags --prune --no-recurse-submodules --depth=1 origin "+${ref}:refs/remotes/origin/ci"; then
+                return 0
+              fi
+              sleep $((i * 5))
+              i=$((i + 1))
+            done
+            return 1
+          }
+
+          if fetch_ref_with_retry "${primary_ref}"; then
+            git checkout --detach refs/remotes/origin/ci
+            exit 0
+          fi
+
+          if [ -n "${fallback_ref}" ]; then
+            echo "Primary ref failed; trying PR head ref: ${fallback_ref}"
+            fetch_ref_with_retry "${fallback_ref}"
+            git checkout --detach refs/remotes/origin/ci
+            exit 0
+          fi
+
+          echo "Checkout failed after retries."
+          exit 1
       
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -48,7 +103,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (retry)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config --global http.version HTTP/1.1
+
+          git init .
+          git remote add origin "https://github.com/${REPO}.git"
+
+          primary_ref="${REF}"
+          fallback_ref=""
+          if [ "${EVENT_NAME}" = "pull_request" ] && [ -n "${PR_NUMBER:-}" ]; then
+            fallback_ref="refs/pull/${PR_NUMBER}/head"
+          fi
+
+          fetch_ref_with_retry() {
+            local ref="$1"
+            local attempts=12
+            local i=1
+            while [ "$i" -le "$attempts" ]; do
+              echo "Fetch attempt ${i}/${attempts}: ${ref}"
+              if git -c http.extraheader="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64)" \
+                fetch --no-tags --prune --no-recurse-submodules --depth=1 origin "+${ref}:refs/remotes/origin/ci"; then
+                return 0
+              fi
+              sleep $((i * 5))
+              i=$((i + 1))
+            done
+            return 1
+          }
+
+          if fetch_ref_with_retry "${primary_ref}"; then
+            git checkout --detach refs/remotes/origin/ci
+            exit 0
+          fi
+
+          if [ -n "${fallback_ref}" ]; then
+            echo "Primary ref failed; trying PR head ref: ${fallback_ref}"
+            fetch_ref_with_retry "${fallback_ref}"
+            git checkout --detach refs/remotes/origin/ci
+            exit 0
+          fi
+
+          echo "Checkout failed after retries."
+          exit 1
 
       - name: Use Node.js 20.x
         uses: actions/setup-node@v4
