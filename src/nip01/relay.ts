@@ -53,6 +53,8 @@ export class Relay {
   private url: string;
   private ws: WebSocketLike | null = null;
   private connected = false;
+  // Incremented to invalidate timers/handlers from older connection attempts (helps tests + teardown).
+  private connectionAttempt = 0;
   private subscriptions: Map<string, Subscription> = new Map();
   private eventHandlers: RelayEventHandler = {};
   private connectionPromise: Promise<boolean> | null = null;
@@ -113,6 +115,7 @@ export class Relay {
   public async connect(): Promise<boolean> {
     if (this.connected) return true;
     if (this.connectionPromise) return this.connectionPromise;
+    const attemptId = ++this.connectionAttempt;
 
     // Reset WebSocket if it exists already
     if (this.ws) {
@@ -142,6 +145,7 @@ export class Relay {
 
         // Set up connection timeout
         const timeoutId = setTimeout(() => {
+          if (attemptId !== this.connectionAttempt) return;
           // Only run this if we haven't connected yet
           if (this.ws && !this.connected) {
             this.triggerEvent(
@@ -156,11 +160,15 @@ export class Relay {
             }
             this.ws = null;
             this.connectionPromise = null;
+            // Invalidate this attempt so any late socket events are ignored.
+            this.connectionAttempt++;
             reject(new Error("connection timeout"));
           }
         }, this.connectionTimeout);
+        (timeoutId as unknown as { unref?: () => void }).unref?.();
 
         socket.onopen = () => {
+          if (attemptId !== this.connectionAttempt) return;
           clearTimeout(timeoutId);
           this.connected = true;
           this.resetReconnectAttempts(); // Reset reconnect counter on successful connection
@@ -170,6 +178,7 @@ export class Relay {
         };
 
         socket.onclose = () => {
+          if (attemptId !== this.connectionAttempt) return;
           clearTimeout(timeoutId);
           const wasConnected = this.connected;
           this.connected = false;
@@ -179,6 +188,8 @@ export class Relay {
           // Only reject the promise if we're still waiting to connect
           if (!wasConnected && this.connectionPromise) {
             this.connectionPromise = null;
+            // Invalidate this attempt so any late socket events are ignored.
+            this.connectionAttempt++;
             reject(new Error("connection closed"));
           }
 
@@ -189,12 +200,15 @@ export class Relay {
         };
 
         socket.onerror = (error) => {
+          if (attemptId !== this.connectionAttempt) return;
           clearTimeout(timeoutId);
           this.triggerEvent(RelayEvent.Error, this.url, error);
 
           // Only reject the promise if we haven't connected yet
           if (!this.connected && this.connectionPromise) {
             this.connectionPromise = null;
+            // Invalidate this attempt so any late socket events are ignored.
+            this.connectionAttempt++;
             reject(
               error instanceof Error ? error : new Error("websocket error"),
             );
@@ -202,6 +216,7 @@ export class Relay {
         };
 
         socket.onmessage = (message) => {
+          if (attemptId !== this.connectionAttempt) return;
           try {
             const data = JSON.parse(message.data);
             this.handleMessage(data);
@@ -215,6 +230,8 @@ export class Relay {
         reject(error);
       }
     }).catch((_error) => {
+      // Ignore late errors from an old attempt (e.g. disconnect() during connect()).
+      if (attemptId !== this.connectionAttempt) return false as boolean;
       // Ensure we return false if connection fails but don't re-throw
       this.logger.error(`Connection failed:`, _error);
 
@@ -250,12 +267,30 @@ export class Relay {
   }
 
   public disconnect(): void {
+    // Invalidate any in-flight connect attempt so its timers/handlers become no-ops.
+    this.connectionAttempt++;
+    this.connectionPromise = null;
+
     // Cancel any scheduled reconnection
     this.cancelReconnect();
 
-    if (!this.ws) return;
+    if (!this.ws) {
+      this.connected = false;
+      this.clearBufferFlush();
+      return;
+    }
 
     try {
+      // Detach handlers first so any late socket events don't fire callbacks after teardown.
+      try {
+        this.ws.onopen = null;
+        this.ws.onclose = null;
+        this.ws.onerror = null;
+        this.ws.onmessage = null;
+      } catch {
+        // Ignore failures (some implementations may not allow reassignment).
+      }
+
       // Clear all subscriptions to prevent further processing
       this.subscriptions.clear();
 
@@ -286,8 +321,12 @@ export class Relay {
           // Ignore close errors, the connection might already be closed or invalid
         }
 
-        // Reset the connection promise if it exists
-        this.connectionPromise = null;
+        // As a fallback, force-close if the implementation supports it (e.g. ws)
+        try {
+          this.ws.terminate?.();
+        } catch {
+          // Ignore terminate errors
+        }
       }
     } catch (error) {
       console.error(`Error closing WebSocket for ${this.url}:`, error);
@@ -343,6 +382,7 @@ export class Relay {
         // The next reconnection will be scheduled in the connect() method's catch handler
       });
     }, reconnectDelay);
+    (this.reconnectTimer as unknown as { unref?: () => void }).unref?.();
   }
 
   /**
@@ -501,10 +541,7 @@ export class Relay {
       // Return a Promise that will resolve when we get the OK response for this event
       return new Promise<PublishResponse>((resolve) => {
         const timeout = options.timeout ?? 10000;
-        let timeoutId: NodeJS.Timeout = setTimeout(() => {
-          cleanup();
-          resolve({ success: false, reason: "timeout", relay: this.url });
-        }, timeout);
+        let timeoutId: NodeJS.Timeout | null = null;
 
         // Create unique handler function for this specific publish operation
         const handleOk = (
@@ -546,7 +583,8 @@ export class Relay {
           this.off(RelayEvent.OK, handleOk);
           this.off(RelayEvent.Error, handleError);
           this.off(RelayEvent.Disconnect, handleDisconnect);
-          clearTimeout(timeoutId);
+          if (timeoutId) clearTimeout(timeoutId);
+          timeoutId = null;
         };
 
         // Register the event handlers
@@ -559,6 +597,7 @@ export class Relay {
           cleanup();
           resolve({ success: false, reason: "timeout", relay: this.url });
         }, timeout);
+        (timeoutId as unknown as { unref?: () => void }).unref?.();
       });
     } catch (error) {
       const errorMessage =
@@ -613,6 +652,7 @@ export class Relay {
       subscription.eoseTimer = setTimeout(() => {
         this.unsubscribe(id);
       }, options.eoseTimeout);
+      (subscription.eoseTimer as unknown as { unref?: () => void }).unref?.();
     }
 
     this.subscriptions.set(id, subscription);
@@ -1118,6 +1158,7 @@ export class Relay {
     this.bufferFlushInterval = setInterval(() => {
       this.flushAllBuffers();
     }, this.bufferFlushDelay);
+    (this.bufferFlushInterval as unknown as { unref?: () => void }).unref?.();
   }
 
   /**

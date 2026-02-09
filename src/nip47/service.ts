@@ -104,6 +104,7 @@ class TTLMap<K, V> {
 
   private startCleanup(): void {
     this.cleanupInterval = setInterval(() => this.cleanup(), 30000);
+    (this.cleanupInterval as unknown as { unref?: () => void }).unref?.();
   }
 
   destroy(): void {
@@ -263,7 +264,10 @@ export class NostrWalletService {
       }
 
       // Short delay to allow any other cleanup to complete
-      return new Promise((resolve) => setTimeout(resolve, 100));
+      return new Promise((resolve) => {
+        const t = setTimeout(resolve, 100);
+        (t as unknown as { unref?: () => void }).unref?.();
+      });
     } catch (error) {
       console.error("Error during service disconnect:", error);
     }
