@@ -37,7 +37,8 @@ function isValid64ByteHex(hex: string): boolean {
 
 /* ================ [ Configuration ] ================ */
 
-const HOST = "ws://localhost";
+// Prefer 127.0.0.1 over localhost to avoid IPv6 resolution issues in CI.
+const HOST = "ws://127.0.0.1";
 const DEBUG = process.env["DEBUG"] === "true";
 const VERBOSE = process.env["VERBOSE"] === "true" || DEBUG;
 
@@ -206,7 +207,7 @@ export class NostrRelay {
 
     return new Promise<NostrRelay>((resolve, reject) => {
       try {
-        const wss = new WebSocketServer({ port: this._port });
+        const wss = new WebSocketServer({ port: this._port, host: "127.0.0.1" });
         this._wss = wss;
         this._usingInMemory = false;
         wss.on("connection", handleConnection);
