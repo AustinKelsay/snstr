@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-03-01
+
 ### Fixed
 - NIP-01: normalize relay teardown by replacing socket lifecycle handlers with no-op callbacks during disconnect/cleanup to avoid listener-type crashes in strict WebSocket implementations (including some polyfills) that can propagate as CLI failures.
 
@@ -210,7 +212,8 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/AustinKelsay/snstr/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/AustinKelsay/snstr/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/AustinKelsay/snstr/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/AustinKelsay/snstr/compare/v0.1.10...v0.2.0
