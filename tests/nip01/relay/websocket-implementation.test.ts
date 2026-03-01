@@ -143,6 +143,43 @@ describe("useWebSocketImplementation", () => {
     resetWebSocketImplementation();
   });
 
+  const expectPreConnectFailure = async (lifecycle: "close" | "error" | "timeout") => {
+    const capturedErrors: unknown[] = [];
+    const handleUncaught = (error: unknown) => {
+      capturedErrors.push(error);
+    };
+    const wsLifecycle = lifecycle === "timeout" ? "hang" : lifecycle;
+    const relay = new Relay(
+      "wss://example.com",
+      lifecycle === "timeout" ? { connectionTimeout: 10 } : {},
+    );
+
+    StrictDispatchWebSocket.lifecycle = wsLifecycle;
+    useWebSocketImplementation(
+      StrictDispatchWebSocket as unknown as typeof WebSocket,
+    );
+
+    const connectPromise = relay.connect();
+    expect(StrictDispatchWebSocket.instances.length).toBe(1);
+
+    const socket = StrictDispatchWebSocket.instances[0];
+    process.once("uncaughtException", handleUncaught);
+    try {
+      await expect(connectPromise).resolves.toBe(false);
+      relay.disconnect();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(typeof socket.onopen).toBe("function");
+      expect(typeof socket.onclose).toBe("function");
+      expect(typeof socket.onerror).toBe("function");
+      expect(typeof socket.onmessage).toBe("function");
+      expect(capturedErrors).toHaveLength(0);
+    } finally {
+      process.removeListener("uncaughtException", handleUncaught);
+      relay.disconnect();
+    }
+  };
+
   test("Relay.connect should use injected WebSocket", async () => {
     const relay = new Relay("wss://example.com");
     const result = await relay.connect();
@@ -183,104 +220,10 @@ describe("useWebSocketImplementation", () => {
     }
   });
 
-  test("Relay.disconnect should detach socket handlers on pre-connect close", async () => {
-    const capturedErrors: unknown[] = [];
-    const handleUncaught = (error: unknown) => {
-      capturedErrors.push(error);
-    };
-
-    StrictDispatchWebSocket.lifecycle = "close";
-    useWebSocketImplementation(
-      StrictDispatchWebSocket as unknown as typeof WebSocket,
-    );
-    const relay = new Relay("wss://example.com");
-
-    const connectPromise = relay.connect();
-    expect(StrictDispatchWebSocket.instances.length).toBe(1);
-
-    const socket = StrictDispatchWebSocket.instances[0];
-    process.once("uncaughtException", handleUncaught);
-    try {
-      await expect(connectPromise).rejects.toBeInstanceOf(Error);
-      relay.disconnect();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(typeof socket.onopen).toBe("function");
-      expect(typeof socket.onclose).toBe("function");
-      expect(typeof socket.onerror).toBe("function");
-      expect(typeof socket.onmessage).toBe("function");
-      expect(capturedErrors).toHaveLength(0);
-    } finally {
-      process.removeListener("uncaughtException", handleUncaught);
-      relay.disconnect();
-    }
-  });
-
-  test("Relay.disconnect should detach socket handlers on pre-connect error", async () => {
-    const capturedErrors: unknown[] = [];
-    const handleUncaught = (error: unknown) => {
-      capturedErrors.push(error);
-    };
-
-    StrictDispatchWebSocket.lifecycle = "error";
-    useWebSocketImplementation(
-      StrictDispatchWebSocket as unknown as typeof WebSocket,
-    );
-    const relay = new Relay("wss://example.com");
-
-    const connectPromise = relay.connect();
-    expect(StrictDispatchWebSocket.instances.length).toBe(1);
-
-    const socket = StrictDispatchWebSocket.instances[0];
-    process.once("uncaughtException", handleUncaught);
-    try {
-      await expect(connectPromise).rejects.toBeInstanceOf(Error);
-      relay.disconnect();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(typeof socket.onopen).toBe("function");
-      expect(typeof socket.onclose).toBe("function");
-      expect(typeof socket.onerror).toBe("function");
-      expect(typeof socket.onmessage).toBe("function");
-      expect(capturedErrors).toHaveLength(0);
-    } finally {
-      process.removeListener("uncaughtException", handleUncaught);
-      relay.disconnect();
-    }
-  });
-
-  test("Relay.disconnect should detach socket handlers on pre-connect timeout", async () => {
-    const capturedErrors: unknown[] = [];
-    const handleUncaught = (error: unknown) => {
-      capturedErrors.push(error);
-    };
-
-    StrictDispatchWebSocket.lifecycle = "hang";
-    useWebSocketImplementation(
-      StrictDispatchWebSocket as unknown as typeof WebSocket,
-    );
-    const relay = new Relay("wss://example.com", {
-      connectionTimeout: 10,
-    });
-
-    const connectPromise = relay.connect();
-    expect(StrictDispatchWebSocket.instances.length).toBe(1);
-
-    const socket = StrictDispatchWebSocket.instances[0];
-    process.once("uncaughtException", handleUncaught);
-    try {
-      await expect(connectPromise).rejects.toThrow("connection timeout");
-      relay.disconnect();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(typeof socket.onopen).toBe("function");
-      expect(typeof socket.onclose).toBe("function");
-      expect(typeof socket.onerror).toBe("function");
-      expect(typeof socket.onmessage).toBe("function");
-      expect(capturedErrors).toHaveLength(0);
-    } finally {
-      process.removeListener("uncaughtException", handleUncaught);
-      relay.disconnect();
-    }
-  });
+  test.each(["close", "error", "timeout"] as const)(
+    "Relay.disconnect should detach socket handlers on pre-connect %s",
+    async (lifecycle) => {
+      await expectPreConnectFailure(lifecycle);
+    },
+  );
 });
