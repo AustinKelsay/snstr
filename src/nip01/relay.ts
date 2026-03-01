@@ -229,7 +229,7 @@ export class Relay {
 
           // Only reject the promise if we're still waiting to connect
           if (!wasConnected && this.connectionPromise) {
-            detachHandlers();
+            this.detachSocketHandlers(socket);
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.
             // Auto-reconnect is handled in the catch() block below.

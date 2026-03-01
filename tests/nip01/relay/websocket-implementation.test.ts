@@ -84,11 +84,13 @@ class StrictDispatchWebSocket {
   close() {
     const listener = this._onclose;
     queueMicrotask(() => {
-      listener({
-        type: "close",
-        code: 1000,
-        reason: "Strict polyfill cleanup",
-      });
+      if (listener) {
+        listener({
+          type: "close",
+          code: 1000,
+          reason: "Strict polyfill cleanup",
+        });
+      }
     });
     this.readyState = StrictDispatchWebSocket.CLOSED;
   }
