@@ -126,6 +126,8 @@ describe("useWebSocketImplementation", () => {
     originalGlobalWebSocket = globalThis.WebSocket;
 
     MockWebSocket.instances.length = 0;
+    StrictDispatchWebSocket.instances.length = 0;
+    StrictDispatchWebSocket.lifecycle = "open";
     useWebSocketImplementation(MockWebSocket as unknown as typeof WebSocket);
   });
 
@@ -156,7 +158,6 @@ describe("useWebSocketImplementation", () => {
       capturedErrors.push(error);
     };
 
-    StrictDispatchWebSocket.instances.length = 0;
     useWebSocketImplementation(
       StrictDispatchWebSocket as unknown as typeof WebSocket,
     );
@@ -188,7 +189,6 @@ describe("useWebSocketImplementation", () => {
       capturedErrors.push(error);
     };
 
-    StrictDispatchWebSocket.instances.length = 0;
     StrictDispatchWebSocket.lifecycle = "close";
     useWebSocketImplementation(
       StrictDispatchWebSocket as unknown as typeof WebSocket,
@@ -222,7 +222,6 @@ describe("useWebSocketImplementation", () => {
       capturedErrors.push(error);
     };
 
-    StrictDispatchWebSocket.instances.length = 0;
     StrictDispatchWebSocket.lifecycle = "error";
     useWebSocketImplementation(
       StrictDispatchWebSocket as unknown as typeof WebSocket,
@@ -256,7 +255,6 @@ describe("useWebSocketImplementation", () => {
       capturedErrors.push(error);
     };
 
-    StrictDispatchWebSocket.instances.length = 0;
     StrictDispatchWebSocket.lifecycle = "hang";
     useWebSocketImplementation(
       StrictDispatchWebSocket as unknown as typeof WebSocket,
