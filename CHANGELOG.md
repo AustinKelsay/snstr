@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- NIP-01: normalize relay teardown by replacing socket lifecycle handlers with no-op callbacks during disconnect/cleanup to avoid listener-type crashes in strict WebSocket implementations (including some polyfills) that can propagate as CLI failures.
+
 ## [0.3.1] - 2026-02-09
 
 ### Fixed

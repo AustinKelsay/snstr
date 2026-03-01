@@ -51,6 +51,7 @@ const WS_READY_STATE = {
 } as const;
 
 export class Relay {
+  private static readonly noopSocketHandler: BivariantHandler<unknown> = () => {};
   private url: string;
   private ws: WebSocketLike | null = null;
   private connected = false;
@@ -166,17 +167,6 @@ export class Relay {
           throw new Error("WebSocket implementation unavailable");
         }
 
-        const detachHandlers = () => {
-          try {
-            socket.onopen = null;
-            socket.onclose = null;
-            socket.onerror = null;
-            socket.onmessage = null;
-          } catch {
-            // Ignore failures (some implementations may not allow reassignment).
-          }
-        };
-
         // Set up connection timeout
         const timeoutId = setTimeout(() => {
           if (attemptId !== this.connectionAttempt) return;
@@ -188,7 +178,7 @@ export class Relay {
               new Error("connection timeout"),
             );
             try {
-              detachHandlers();
+              this.detachSocketHandlers(socket);
               const nodeWs = this.ws as unknown as {
                 readyState?: number;
                 close?: () => void;
@@ -239,7 +229,7 @@ export class Relay {
 
           // Only reject the promise if we're still waiting to connect
           if (!wasConnected && this.connectionPromise) {
-            detachHandlers();
+            this.detachSocketHandlers(socket);
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.
             // Auto-reconnect is handled in the catch() block below.
@@ -260,7 +250,7 @@ export class Relay {
 
           // Only reject the promise if we haven't connected yet
           if (!this.connected && this.connectionPromise) {
-            detachHandlers();
+            this.detachSocketHandlers(socket);
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.
             // Auto-reconnect is handled in the catch() block below.
@@ -352,14 +342,7 @@ export class Relay {
 
     try {
       // Detach handlers first so any late socket events don't fire callbacks after teardown.
-      try {
-        this.ws.onopen = null;
-        this.ws.onclose = null;
-        this.ws.onerror = null;
-        this.ws.onmessage = null;
-      } catch {
-        // Ignore failures (some implementations may not allow reassignment).
-      }
+      this.detachSocketHandlers(this.ws);
 
       // Clear all subscriptions to prevent further processing
       this.subscriptions.clear();
@@ -421,6 +404,23 @@ export class Relay {
       this.ws = null;
       this.connected = false;
       this.triggerEvent(RelayEvent.Disconnect, this.url);
+    }
+  }
+
+  private detachSocketHandlers(socket: WebSocketLike | null): void {
+    if (!socket) {
+      return;
+    }
+
+    try {
+      // Keep handlers callable for implementations that dispatch socket callbacks without type checks.
+      socket.onopen = Relay.noopSocketHandler as BivariantHandler<OpenEventLike>;
+      socket.onclose = Relay.noopSocketHandler as BivariantHandler<CloseEventLike>;
+      socket.onerror = Relay.noopSocketHandler as BivariantHandler<ErrorEventLike>;
+      socket.onmessage =
+        Relay.noopSocketHandler as BivariantHandler<MessageEventLike>;
+    } catch {
+      // Ignore failures (some implementations may not allow reassignment).
     }
   }
 

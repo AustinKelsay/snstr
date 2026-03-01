@@ -145,6 +145,7 @@ The relay connection includes:
 2. Connection pooling for efficient relay communication
 3. Message queue for handling offline scenarios
 4. Proper subscription management across reconnects
+5. Safe teardown paths for non-standard WebSocket implementations (e.g., polyfills) by replacing lifecycle callbacks with no-op functions during disconnect
 
 ### RelayPool Management
 
