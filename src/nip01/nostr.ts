@@ -541,23 +541,7 @@ export class Nostr {
     tags: string[][] = [],
     options?: { timeout?: number },
   ): Promise<NostrEvent | null> {
-    // Rate limiting check
-    const rateLimitCheck = checkRateLimit(
-      this.publishRateLimit,
-      this.RATE_LIMITS.PUBLISH.limit,
-      this.RATE_LIMITS.PUBLISH.windowMs,
-    );
-
-    if (!rateLimitCheck.allowed) {
-      throw new SecurityValidationError(
-        `Publish rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
-        "RATE_LIMIT_EXCEEDED",
-        "publish",
-      );
-    }
-
-    // Update rate limit state (increment count)
-    this.publishRateLimit.count++;
+    this.enforcePublishRateLimit();
 
     if (!this.privateKey || !this.publicKey) {
       throw new Error("Private key is not set");
@@ -739,21 +723,36 @@ export class Nostr {
     try {
       const validatedFilters = validateFilters(filters);
       const subscriptionIds: string[] = [];
+      const relaySubscriptions: Array<{
+        relay: Relay;
+        subscriptionId: string;
+      }> = [];
 
       this.relays.forEach((relay, url) => {
-        const subscriptionRef = { id: "" };
-        subscriptionRef.id = relay.subscribe(
-          validatedFilters,
-          (event) =>
-            onEvent({
-              event,
-              relay: url,
-              subscriptionId: subscriptionRef.id,
-            }),
-          onEOSE ? () => onEOSE(url, subscriptionRef.id) : undefined,
-          options,
-        );
-        subscriptionIds.push(subscriptionRef.id);
+        try {
+          const subscriptionRef = { id: "" };
+          subscriptionRef.id = relay.subscribe(
+            validatedFilters,
+            (event) =>
+              onEvent({
+                event,
+                relay: url,
+                subscriptionId: subscriptionRef.id,
+              }),
+            onEOSE ? () => onEOSE(url, subscriptionRef.id) : undefined,
+            options,
+          );
+          subscriptionIds.push(subscriptionRef.id);
+          relaySubscriptions.push({
+            relay,
+            subscriptionId: subscriptionRef.id,
+          });
+        } catch (error) {
+          relaySubscriptions.forEach(({ relay: activeRelay, subscriptionId }) =>
+            activeRelay.unsubscribe(subscriptionId),
+          );
+          throw error;
+        }
       });
 
       return subscriptionIds;
@@ -1229,6 +1228,8 @@ export class Nostr {
     auth: NostrEvent | string,
     options: PublishOptions & { createdAt?: number } = {},
   ): Promise<PublishResponse> {
+    this.enforcePublishRateLimit();
+
     const relay = this.getRelayByUrl(relayUrl);
     const { createdAt, ...publishOptions } = options;
 
@@ -1237,10 +1238,7 @@ export class Nostr {
         ? await this.createSignedAuthEventForRelay(relayUrl, auth, createdAt)
         : auth;
 
-    return relay.authenticate(authEvent, {
-      waitForAck: false,
-      ...publishOptions,
-    });
+    return relay.authenticate(authEvent, publishOptions);
   }
 
   private async createSignedAuthEventForRelay(
@@ -1270,5 +1268,23 @@ export class Nostr {
     }
 
     return relay;
+  }
+
+  private enforcePublishRateLimit(): void {
+    const rateLimitCheck = checkRateLimit(
+      this.publishRateLimit,
+      this.RATE_LIMITS.PUBLISH.limit,
+      this.RATE_LIMITS.PUBLISH.windowMs,
+    );
+
+    if (!rateLimitCheck.allowed) {
+      throw new SecurityValidationError(
+        `Publish rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        "RATE_LIMIT_EXCEEDED",
+        "publish",
+      );
+    }
+
+    this.publishRateLimit.count++;
   }
 }

@@ -1160,6 +1160,60 @@ describe("Nostr client", () => {
       ).rejects.toThrow("Private key is not set");
       expect(relay.authenticateCalls).toHaveLength(0);
     });
+
+    it("should enforce publish rate limits for authenticateRelay", async () => {
+      const nostr = new Nostr([], {
+        rateLimits: {
+          publish: { limit: 1, windowMs: 60000 },
+        },
+      });
+      const relay = new MockRelay("wss://mock-relay1.com");
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-1"),
+      ).resolves.toMatchObject({ success: true });
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-2"),
+      ).rejects.toThrow(/Publish rate limit exceeded/);
+      expect(relay.authenticateCalls).toHaveLength(1);
+    });
+  });
+});
+
+describe("Detailed subscription cleanup", () => {
+  it("should unsubscribe earlier relays when a later detailed subscribe fails", () => {
+    const nostr = new Nostr();
+    const firstRelay = {
+      subscribe: jest.fn().mockReturnValue("sub-1"),
+      unsubscribe: jest.fn(),
+    };
+    const secondRelay = {
+      subscribe: jest.fn(() => {
+        throw new Error("subscribe failed");
+      }),
+      unsubscribe: jest.fn(),
+    };
+
+    getNostrInternals(nostr).relays.set(
+      "wss://mock-relay1.com",
+      firstRelay as unknown as Relay,
+    );
+    getNostrInternals(nostr).relays.set(
+      "wss://mock-relay2.com",
+      secondRelay as unknown as Relay,
+    );
+
+    expect(() =>
+      nostr.subscribeDetailed([{ kinds: [1], limit: 1 }], () => {}),
+    ).toThrow(/subscribe failed/);
+    expect(firstRelay.unsubscribe).toHaveBeenCalledWith("sub-1");
+    expect(secondRelay.unsubscribe).not.toHaveBeenCalled();
   });
 });
 

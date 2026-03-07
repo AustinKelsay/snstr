@@ -328,7 +328,96 @@ describe("Relay", () => {
       relay.on = originalOn;
     });
 
-    test("should send AUTH events to the relay", async () => {
+    test("should send AUTH events to the relay and wait for OK by default", async () => {
+      const authRelay = new Relay(ephemeralRelay.url);
+      const relayInternals = asTestRelay(authRelay);
+
+      relayInternals.connected = true;
+      relayInternals.ws = {
+        readyState: 1,
+        onopen: null,
+        onclose: null,
+        onerror: null,
+        onmessage: null,
+        send: jest.fn((payload: string) => {
+          expect(payload).toBe(JSON.stringify(["AUTH", authEvent]));
+          relayInternals.handleMessage(["OK", authEvent.id, true, "accepted"]);
+        }),
+        close: jest.fn(),
+      } as unknown as WebSocket;
+
+      const authEvent: NostrEvent = {
+        id: "auth-event-id",
+        pubkey: "f".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 22242,
+        tags: [
+          ["relay", ephemeralRelay.url],
+          ["challenge", "challenge-abc"],
+        ],
+        content: "",
+        sig: "a".repeat(128),
+      };
+
+      const result = await authRelay.authenticate(authEvent);
+
+      expect(result).toEqual({
+        success: true,
+        reason: "accepted",
+        parsedReason: {
+          rawMessage: "accepted",
+          message: "accepted",
+        },
+        relay: ephemeralRelay.url,
+      });
+    });
+
+    test("should ignore unrelated relay errors while waiting for OK", async () => {
+      const callbacks = new Map<RelayEvent, AnyRelayCallback>();
+      const originalOn = relay.on;
+      relay.on = jest.fn((event: RelayEvent, callback: AnyRelayCallback) => {
+        callbacks.set(event, callback);
+        return originalOn.call(relay, event, callback);
+      });
+
+      const event: NostrEvent = {
+        id: "test-event-id-unrelated-error",
+        pubkey: "test-pubkey",
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: "Test event content",
+        sig: "test-signature",
+      };
+
+      const publishPromise = relay.publish(event);
+
+      const errorCallback = callbacks.get(RelayEvent.Error) as (
+        relayUrl: string,
+        error: unknown,
+      ) => void;
+      const okCallback = callbacks.get(RelayEvent.OK) as RelayOkCallback;
+
+      errorCallback(ephemeralRelay.url, new Error("unrelated relay error"));
+      okCallback(event.id, true, {
+        rawMessage: "accepted",
+        message: "accepted",
+      });
+
+      await expect(publishPromise).resolves.toEqual({
+        success: true,
+        reason: "accepted",
+        parsedReason: {
+          rawMessage: "accepted",
+          message: "accepted",
+        },
+        relay: ephemeralRelay.url,
+      });
+
+      relay.on = originalOn;
+    });
+
+    test("should support waitForAck false for AUTH events", async () => {
       const authRelay = new Relay(ephemeralRelay.url);
       const send = jest.fn();
       const relayInternals = asTestRelay(authRelay);
@@ -357,7 +446,9 @@ describe("Relay", () => {
         sig: "a".repeat(128),
       };
 
-      const result = await authRelay.authenticate(authEvent);
+      const result = await authRelay.authenticate(authEvent, {
+        waitForAck: false,
+      });
 
       expect(send).toHaveBeenCalledWith(JSON.stringify(["AUTH", authEvent]));
       expect(result).toEqual({
