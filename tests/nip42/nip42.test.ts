@@ -6,6 +6,7 @@ import {
   parseAuthRequiredReason,
   validateAuthEvent,
 } from "../../src/nip42";
+import { createAuthEventTemplate as createAuthEventTemplateFromEntry } from "../../src";
 import { generateKeypair } from "../../src/utils/crypto";
 
 describe("NIP-42", () => {
@@ -50,5 +51,19 @@ describe("NIP-42", () => {
       "membership required",
     );
     expect(parseAuthRequiredReason("blocked: nope")).toBeUndefined();
+  });
+
+  test("should expose NIP-42 helpers from the main entry surface", () => {
+    const template = createAuthEventTemplateFromEntry(
+      "entry-challenge",
+      "wss://relay.example.com",
+      42,
+    );
+
+    expect(template.kind).toBe(AUTH_EVENT_KIND);
+    expect(template.tags).toEqual([
+      ["relay", "wss://relay.example.com"],
+      ["challenge", "entry-challenge"],
+    ]);
   });
 });
