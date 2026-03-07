@@ -1047,6 +1047,37 @@ describe("Nostr client", () => {
         false,
       );
     });
+
+    it("should enforce publish rate limits through publishEvent", async () => {
+      const nostr = new Nostr([], {
+        rateLimits: {
+          publish: { limit: 2, windowMs: 60000 },
+        },
+      });
+
+      const relay = new MockRelay("wss://mock-relay1.com", [{ success: true }]);
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+
+      const event = (id: string): NostrEvent => ({
+        id,
+        pubkey: "test-pubkey",
+        created_at: 100,
+        kind: 1,
+        tags: [],
+        content: id,
+        sig: "test-signature",
+      });
+
+      await expect(nostr.publishEvent(event("event-1"))).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(nostr.publishEvent(event("event-2"))).resolves.toMatchObject({
+        success: true,
+      });
+      await expect(nostr.publishEvent(event("event-3"))).rejects.toThrow(
+        /Publish rate limit exceeded/,
+      );
+    });
   });
 
   describe("publishWithDetails", () => {
@@ -1129,6 +1160,25 @@ describe("Nostr client", () => {
       expect(relay.authenticateCalls).toHaveLength(1);
       expect(relay.authenticateCalls[0].kind).toBe(22242);
       expect(relay.authenticateCalls[0].content).toBe("");
+      expect(relay.authenticateCalls[0].tags).toEqual(
+        expect.arrayContaining([
+          ["relay", "wss://mock-relay1.com"],
+          ["challenge", "challenge-789"],
+        ]),
+      );
+    });
+
+    it("should canonicalize the relay tag when signing auth challenges", async () => {
+      const nostr = new Nostr();
+      const relay = new MockRelay("wss://mock-relay1.com");
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      await nostr.authenticateRelay("WSS://MOCK-RELAY1.COM/", "challenge-789");
+
       expect(relay.authenticateCalls[0].tags).toEqual(
         expect.arrayContaining([
           ["relay", "wss://mock-relay1.com"],

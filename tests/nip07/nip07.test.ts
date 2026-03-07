@@ -96,6 +96,30 @@ describe("NIP-07 Core Functions", () => {
     });
   });
 
+  describe("NIP-04/NIP-44 support detection", () => {
+    it("should require callable nip04 methods", () => {
+      if (mockWindow?.nostr) {
+        mockWindow.nostr.nip04 = {
+          encrypt: "yes" as unknown as jest.Mock,
+          decrypt: mockDecryptNip04,
+        };
+      }
+
+      expect(nip07.hasNip04Support()).toBe(false);
+    });
+
+    it("should require callable nip44 methods", () => {
+      if (mockWindow?.nostr) {
+        mockWindow.nostr.nip44 = {
+          encrypt: mockEncryptNip44,
+          decrypt: "yes" as unknown as jest.Mock,
+        };
+      }
+
+      expect(nip07.hasNip44Support()).toBe(false);
+    });
+  });
+
   describe("getPublicKey", () => {
     it("should call window.nostr.getPublicKey and return the result", async () => {
       const result = await nip07.getPublicKey();
