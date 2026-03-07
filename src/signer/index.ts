@@ -1,6 +1,7 @@
 import { decrypt as decryptNIP04, encrypt as encryptNIP04 } from "../nip04";
 import type { EventTemplate, NostrEvent } from "../types/nostr";
 import { LocalKeySignerBase } from "./local-base";
+import type { SignerEncryption } from "./types";
 
 export type {
   Signer,
@@ -17,8 +18,8 @@ export {
 export class LocalKeySigner {
   private readonly base: LocalKeySignerBase;
 
-  readonly nip04;
-  readonly nip44;
+  readonly nip04: SignerEncryption;
+  readonly nip44: SignerEncryption;
 
   constructor(privateKey: string) {
     this.base = new LocalKeySignerBase(privateKey, {

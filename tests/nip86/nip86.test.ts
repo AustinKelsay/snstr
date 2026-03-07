@@ -174,7 +174,7 @@ describe("NIP-86 relay management helpers", () => {
     await expect(client.listBannedPubkeys()).rejects.toEqual(
       expect.objectContaining<Partial<RelayManagementError>>({
         name: "RelayManagementError",
-        message: "Relay management request failed: The operation was aborted",
+        message: "Relay management request aborted/timed out: The operation was aborted",
         status: undefined,
       }),
     );

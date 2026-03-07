@@ -47,8 +47,18 @@ export class RelayManagementError extends Error {
   }
 }
 
+/**
+ * Global fetch implementation used by all `RelayManagementClient` instances in
+ * the current runtime. Set this once at process/app startup in non-standard
+ * environments, or save/restore the previous value if tests temporarily swap it.
+ */
 let fetchImplementation = globalThis.fetch;
 
+/**
+ * Replaces the shared fetch implementation for all `RelayManagementClient`
+ * consumers in the current runtime. This is global singleton state, so callers
+ * should typically configure it once at startup rather than per-request.
+ */
 export function useRelayManagementFetchImplementation(fetchImpl: typeof fetch) {
   fetchImplementation = fetchImpl;
 }
@@ -187,6 +197,19 @@ export class RelayManagementClient {
         signal: controller.signal,
       });
     } catch (error) {
+      const isAbortError =
+        (typeof DOMException !== "undefined" && error instanceof DOMException)
+          ? error.name === "AbortError"
+          : error instanceof Error && error.name === "AbortError";
+
+      if (isAbortError) {
+        const detail =
+          error instanceof Error && error.message ? `: ${error.message}` : "";
+        throw new RelayManagementError(
+          `Relay management request aborted/timed out${detail}`,
+        );
+      }
+
       throw new RelayManagementError(
         `Relay management request failed: ${error instanceof Error ? error.message : String(error)}`,
       );
