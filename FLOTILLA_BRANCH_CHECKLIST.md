@@ -22,18 +22,18 @@ Scope: authentication and relay-scoped data primitives that the other branches d
 
 Scope: relay-group and room semantics built on top of the branch 1 foundation.
 
-- [ ] Add a dedicated `src/nip29/` module.
-- [ ] Add constants for relay/group and room event kinds used by NIP-29 flows.
-- [ ] Add builders for relay join/leave and room metadata events.
-- [ ] Add parsers for relay members, room members, room admins, and room metadata events.
-- [ ] Add reducers for relay membership state.
-- [ ] Add reducers for room membership state.
-- [ ] Add reducers/helpers for pending vs granted membership status.
-- [ ] Add convenience filter builders for relay membership and room membership queries.
-- [ ] Add tests for snapshot-plus-delta membership reduction.
-- [ ] Add tests for room metadata and membership parsing.
-- [ ] Export the new APIs from `src/index.ts`.
-- [ ] Add README/example coverage for relay-group flows.
+- [x] Add a dedicated `src/nip29/` module.
+- [x] Add constants for relay/group and room event kinds used by NIP-29 flows.
+- [x] Add builders for relay join/leave and room metadata events.
+- [x] Add parsers for relay members, room members, room admins, and room metadata events.
+- [x] Add reducers for relay membership state.
+- [x] Add reducers for room membership state.
+- [x] Add reducers/helpers for pending vs granted membership status.
+- [x] Add convenience filter builders for relay membership and room membership queries.
+- [x] Add tests for snapshot-plus-delta membership reduction.
+- [x] Add tests for room metadata and membership parsing.
+- [x] Export the new APIs from `src/index.ts`.
+- [x] Add README/example coverage for relay-group flows.
 
 ## Branch 3: `codex/flotilla-management-signer-moderation`
 

@@ -185,6 +185,55 @@ export {
   isDeletionRequestForEvent,
 } from "../nip09";
 
+// Export NIP-29 utilities
+export {
+  GROUP_METADATA_KIND,
+  GROUP_ADMINS_KIND,
+  GROUP_MEMBERS_KIND,
+  GROUP_ROLES_KIND,
+  PUT_USER_KIND,
+  REMOVE_USER_KIND,
+  EDIT_METADATA_KIND,
+  DELETE_EVENT_KIND,
+  CREATE_GROUP_KIND,
+  DELETE_GROUP_KIND,
+  CREATE_INVITE_KIND,
+  JOIN_REQUEST_KIND,
+  LEAVE_REQUEST_KIND,
+  GroupMembershipStatus,
+  createGroupJoinRequest,
+  createGroupLeaveRequest,
+  createPutUserEvent,
+  createRemoveUserEvent,
+  createEditGroupMetadataEvent,
+  createGroupMetadataEvent,
+  createGroupAdminsEvent,
+  createGroupMembersEvent,
+  createGroupRolesEvent,
+  parseGroupMetadataEvent,
+  parseGroupAdminsEvent,
+  parseGroupMembersEvent,
+  parseGroupRolesEvent,
+  reduceGroupMembers,
+  reduceGroupAdmins,
+  reduceGroupMembershipStatus,
+  buildGroupMetadataFilters,
+  buildGroupMembershipFilters,
+  buildGroupContentFilters,
+} from "../nip29";
+export type {
+  GroupMetadata,
+  GroupAdmin,
+  GroupRole,
+  ParsedGroupMetadataEvent,
+  ParsedGroupAdminsEvent,
+  ParsedGroupMembersEvent,
+  ParsedGroupRolesEvent,
+  GroupMetadataOptions,
+  GroupMetadataEditOptions,
+  GroupMembershipEventOptions,
+} from "../nip29";
+
 // Export NIP-10 utilities
 export {
   createReplyTags,
