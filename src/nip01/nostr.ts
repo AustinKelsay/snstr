@@ -748,9 +748,9 @@ export class Nostr {
             subscriptionId: subscriptionRef.id,
           });
         } catch (error) {
-          relaySubscriptions.forEach(({ relay: activeRelay, subscriptionId }) =>
-            activeRelay.unsubscribe(subscriptionId),
-          );
+          relaySubscriptions.forEach(({ relay: activeRelay, subscriptionId }) => {
+            activeRelay.unsubscribe(subscriptionId);
+          });
           throw error;
         }
       });

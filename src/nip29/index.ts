@@ -92,6 +92,10 @@ export interface GroupMembershipEventOptions {
   additionalTags?: string[][];
 }
 
+function hasOwn(options: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(options, key);
+}
+
 function assertGroupId(groupId: string): void {
   if (!/^[a-z0-9_-]+$/.test(groupId)) {
     throw new Error(
@@ -251,9 +255,9 @@ export function createEditGroupMetadataEvent(
 ): UnsignedEvent {
   const tags: string[][] = [];
 
-  if (options.name) tags.push(["name", options.name]);
-  if (options.picture) tags.push(["picture", options.picture]);
-  if (options.about) tags.push(["about", options.about]);
+  if (hasOwn(options, "name")) tags.push(["name", options.name ?? ""]);
+  if (hasOwn(options, "picture")) tags.push(["picture", options.picture ?? ""]);
+  if (hasOwn(options, "about")) tags.push(["about", options.about ?? ""]);
 
   if (options.private === true) tags.push(["private"]);
   if (options.private === false) tags.push(["public"]);
@@ -460,7 +464,7 @@ export function parseGroupRolesEvent(
 }
 
 function filterEventsByGroupId(events: NostrEvent[], groupId?: string): NostrEvent[] {
-  if (!groupId) return events;
+  if (groupId === undefined) return events;
   assertGroupId(groupId);
 
   return events.filter((event) => {
@@ -629,8 +633,12 @@ export function buildGroupMembershipFilters(
   memberPubkey?: string,
 ): Filter[] {
   assertGroupId(groupId);
-  const memberFilter = memberPubkey ? { "#p": [memberPubkey] } : {};
-  const authorFilter = memberPubkey ? { authors: [memberPubkey] } : {};
+  if (memberPubkey !== undefined) {
+    assertPubkey(memberPubkey, "memberPubkey");
+  }
+
+  const memberFilter = memberPubkey !== undefined ? { "#p": [memberPubkey] } : {};
+  const authorFilter = memberPubkey !== undefined ? { authors: [memberPubkey] } : {};
 
   return [
     { kinds: [GROUP_MEMBERS_KIND], "#d": [groupId] },

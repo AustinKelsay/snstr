@@ -43,6 +43,26 @@ export const hasNip07Support = (): boolean => {
 };
 
 /**
+ * Checks if the browser's NIP-07 extension exposes NIP-04 helpers.
+ */
+export const hasNip04Support = (): boolean => {
+  return (
+    typeof getNostr()?.nip04?.encrypt === "function" &&
+    typeof getNostr()?.nip04?.decrypt === "function"
+  );
+};
+
+/**
+ * Checks if the browser's NIP-07 extension exposes NIP-44 helpers.
+ */
+export const hasNip44Support = (): boolean => {
+  return (
+    typeof getNostr()?.nip44?.encrypt === "function" &&
+    typeof getNostr()?.nip44?.decrypt === "function"
+  );
+};
+
+/**
  * Gets the public key from the NIP-07 extension
  * @returns The public key in hex format
  * @throws Error if NIP-07 is not supported or fails

@@ -170,6 +170,10 @@ export {
 // Export NIP-07 utilities
 export {
   hasNip07Support,
+  hasNip04Support,
+  hasNip44Support,
+  hasNip04Support as hasNip07Nip04Support,
+  hasNip44Support as hasNip07Nip44Support,
   getPublicKey as getNip07PublicKey,
   signEvent as signEventWithNip07,
   encryptNip04 as encryptNip04WithExtension,
@@ -245,6 +249,20 @@ export type {
   ThreadReferences,
 } from "../nip10";
 
+// Export signer utilities
+export {
+  LocalKeySigner,
+  Nip07Signer,
+  Nip46Signer,
+  getSignerCapabilities,
+} from "../signer/web";
+export type {
+  Signer,
+  SignerCapabilities,
+  SignerEncryption,
+  RemoteSigner,
+} from "../signer/web";
+
 // Export NIP-07 adapter
 export { Nip07Nostr } from "../nip07/adapter";
 
@@ -294,3 +312,48 @@ export {
 
 // NIP-50 search utilities
 export { createSearchFilter } from "../nip50";
+
+// NIP-56 reporting
+export {
+  REPORT_KIND,
+  REPORT_TYPES,
+  createReportEvent,
+  getReportTargets,
+  parseReportEvent,
+} from "../nip56";
+export type {
+  ReportType,
+  ReportTargetTag,
+  ReportTargetInput,
+  ParsedReportTarget,
+  ParsedReportEvent,
+} from "../nip56";
+
+// NIP-70 protected events
+export {
+  PROTECTED_TAG_NAME,
+  PROTECTED_TAG,
+  hasProtectedTag,
+  withProtectedTag,
+  inheritProtectedTag,
+} from "../nip70";
+
+// NIP-86 relay management
+export {
+  RELAY_MANAGEMENT_CONTENT_TYPE,
+  HTTP_AUTH_KIND,
+  RelayManagementError,
+  RelayManagementClient,
+  useRelayManagementFetchImplementation,
+  toRelayManagementHttpUrl,
+  createHttpAuthEventTemplate,
+  createHttpAuthHeader,
+} from "../nip86";
+export type {
+  RelayManagementRequest,
+  RelayManagementResponse,
+  RelayManagementPubkeyEntry,
+  RelayManagementEventEntry,
+  RelayManagementBlockedIpEntry,
+  RelayManagementClientOptions,
+} from "../nip86";
