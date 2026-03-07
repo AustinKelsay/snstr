@@ -151,6 +151,32 @@ describe("NIP-86 relay management helpers", () => {
     );
   });
 
+  test("RelayManagementClient rejects non-serializable circular params", async () => {
+    const client = new RelayManagementClient("wss://relay.example.com");
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+
+    await expect(client.call("testmethod", [circular])).rejects.toEqual(
+      expect.objectContaining<Partial<RelayManagementError>>({
+        name: "RelayManagementError",
+        message: "Relay management params contain circular references",
+      }),
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  test("RelayManagementClient rejects invalid numeric params before fetch", async () => {
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.call("testmethod", [Infinity])).rejects.toEqual(
+      expect.objectContaining<Partial<RelayManagementError>>({
+        name: "RelayManagementError",
+        message: expect.stringContaining("Relay management params are invalid"),
+      }),
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   test("RelayManagementClient keeps the timeout active while parsing stalled bodies", async () => {
     let capturedSignal: AbortSignal | undefined;
     mockFetch.mockImplementation(

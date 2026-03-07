@@ -6,6 +6,7 @@ import {
   parseAuthRequiredReason,
   validateAuthEvent,
 } from "../../src/nip42";
+import { createEvent, createSignedEvent } from "../../src/nip01/event";
 import { createAuthEventTemplate as createAuthEventTemplateFromEntry } from "../../src";
 import { generateKeypair } from "../../src/utils/crypto";
 
@@ -83,5 +84,24 @@ describe("NIP-42", () => {
         `wss://relay.example.com/${"r".repeat(600)}`,
       ),
     ).toThrow(/maximum length/i);
+  });
+
+  test("should reject malformed relay tags even without an expected relay URL", async () => {
+    const keypair = await generateKeypair();
+    const unsignedEvent = createEvent(
+      {
+        kind: AUTH_EVENT_KIND,
+        content: "",
+        tags: [
+          ["relay", "not a relay url"],
+          ["challenge", "challenge"],
+        ],
+        created_at: Math.floor(Date.now() / 1000),
+      },
+      keypair.publicKey,
+    );
+    const authEvent = await createSignedEvent(unsignedEvent, keypair.privateKey);
+
+    await expect(validateAuthEvent(authEvent)).rejects.toThrow();
   });
 });

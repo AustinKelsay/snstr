@@ -399,6 +399,7 @@ export function parseGroupMetadataEvent(
   if (!id) {
     throw new Error("Group metadata event is missing d tag");
   }
+  assertGroupId(id);
 
   return {
     id,
@@ -424,11 +425,12 @@ export function parseGroupAdminsEvent(
   if (!id) {
     throw new Error("Group admins event is missing d tag");
   }
+  assertGroupId(id);
 
   return {
     id,
     admins: event.tags
-      .filter((tag) => getValidatedPubkey(tag) !== undefined)
+      .filter((tag) => tag[0] === "p" && getValidatedPubkey(tag) !== undefined)
       .map((tag) => ({
         pubkey: getValidatedPubkey(tag)!,
         roles: getRoleValues(tag),
@@ -448,6 +450,7 @@ export function parseGroupMembersEvent(
   if (!id) {
     throw new Error("Group members event is missing d tag");
   }
+  assertGroupId(id);
 
   return {
     id,
@@ -467,6 +470,7 @@ export function parseGroupRolesEvent(
   if (!id) {
     throw new Error("Group roles event is missing d tag");
   }
+  assertGroupId(id);
 
   return {
     id,
@@ -485,8 +489,15 @@ function filterEventsByGroupId(events: NostrEvent[], groupId?: string): NostrEve
   assertGroupId(groupId);
 
   return events.filter((event) => {
-    const scopedGroupId =
-      getFirstTagValue(event.tags, "h") ?? getFirstTagValue(event.tags, "d");
+    const isSnapshotKind = [
+      GROUP_METADATA_KIND,
+      GROUP_ADMINS_KIND,
+      GROUP_MEMBERS_KIND,
+      GROUP_ROLES_KIND,
+    ].includes(event.kind);
+    const scopedGroupId = isSnapshotKind
+      ? getFirstTagValue(event.tags, "d") ?? getFirstTagValue(event.tags, "h")
+      : getFirstTagValue(event.tags, "h") ?? getFirstTagValue(event.tags, "d");
     return scopedGroupId === groupId;
   });
 }

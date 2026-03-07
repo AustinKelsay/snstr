@@ -73,6 +73,63 @@ export function useRelayManagementFetchImplementation(fetchImpl: typeof fetch) {
   fetchImplementation = fetchImpl;
 }
 
+function sanitizeManagementParam(
+  value: unknown,
+  seen: WeakSet<object>,
+): unknown {
+  if (
+    value === null ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return sanitizeString(value);
+  }
+
+  if (typeof value === "number") {
+    return validateNumber(
+      value,
+      -Number.MAX_SAFE_INTEGER,
+      Number.MAX_SAFE_INTEGER,
+      "params",
+    );
+  }
+
+  if (typeof value === "undefined") {
+    return null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeManagementParam(item, seen));
+  }
+
+  if (typeof value !== "object") {
+    throw new RelayManagementError(
+      `Relay management params contain unsupported value type: ${typeof value}`,
+    );
+  }
+
+  if (seen.has(value)) {
+    throw new RelayManagementError(
+      "Relay management params contain circular references",
+    );
+  }
+  seen.add(value);
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, childValue] of Object.entries(value)) {
+    sanitized[sanitizeString(key)] = sanitizeManagementParam(childValue, seen);
+  }
+  seen.delete(value);
+  return sanitized;
+}
+
+function sanitizeManagementParams(params: unknown[]): unknown[] {
+  return params.map((param) => sanitizeManagementParam(param, new WeakSet()));
+}
+
 function encodeBase64(value: string): string {
   if (typeof globalThis?.btoa === "function") {
     return globalThis.btoa(value);
@@ -189,11 +246,33 @@ export class RelayManagementClient {
       throw new Error("Fetch implementation is not available");
     }
 
+    if (!Array.isArray(params)) {
+      throw new RelayManagementError("Relay management params must be an array");
+    }
+
+    let sanitizedParams: unknown[];
+    try {
+      sanitizedParams = sanitizeManagementParams(params);
+    } catch (error) {
+      if (error instanceof RelayManagementError) {
+        throw error;
+      }
+      throw new RelayManagementError(
+        `Relay management params are invalid: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     const request: RelayManagementRequest = {
       method: sanitizeString(method),
-      params,
+      params: sanitizedParams,
     };
-    const body = JSON.stringify(request);
+    let body: string;
+    try {
+      body = JSON.stringify(request);
+    } catch (error) {
+      throw new RelayManagementError(
+        `Relay management request could not be serialized: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
     const headers: Record<string, string> = {
       Accept: "application/json",
       "Content-Type": RELAY_MANAGEMENT_CONTENT_TYPE,

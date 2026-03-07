@@ -772,6 +772,23 @@ describe("Nostr Client", () => {
       client.disconnectFromRelays();
     });
 
+    test("should report subscription retry-after in seconds", async () => {
+      const client = new Nostr([ephemeralRelay.url], {
+        rateLimits: {
+          subscribe: { limit: 1, windowMs: 60000 },
+        },
+      });
+
+      await client.connectToRelays();
+      client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+
+      expect(() => {
+        client.subscribe([{ kinds: [1], limit: 1 }], () => {});
+      }).toThrow("Subscription rate limit exceeded. Try again in 60 seconds");
+
+      client.disconnectFromRelays();
+    });
+
     test("should enforce custom fetch rate limits", async () => {
       const client = new Nostr([ephemeralRelay.url], {
         rateLimits: {
@@ -1261,7 +1278,7 @@ describe("Detailed subscription cleanup", () => {
 
     expect(() =>
       nostr.subscribeDetailed([{ kinds: [1], limit: 1 }], () => {}),
-    ).toThrow(/subscribe failed/);
+    ).toThrow(/^subscribe failed$/);
     expect(firstRelay.unsubscribe).toHaveBeenCalledWith("sub-1");
     expect(secondRelay.unsubscribe).not.toHaveBeenCalled();
   });

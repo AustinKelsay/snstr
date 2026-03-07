@@ -176,6 +176,46 @@ describe("NIP-29", () => {
     ]);
   });
 
+  test("should reject malformed group ids in all group parsers", () => {
+    const badGroupId = "BAD GROUP";
+    const baseEvent = {
+      id: "id",
+      pubkey: "pubkey",
+      sig: "sig",
+      created_at: 1,
+      content: "",
+    };
+
+    expect(() =>
+      parseGroupMetadataEvent({
+        ...baseEvent,
+        kind: GROUP_METADATA_KIND,
+        tags: [["d", badGroupId]],
+      }),
+    ).toThrow(/Group id must contain only lowercase letters/);
+    expect(() =>
+      parseGroupAdminsEvent({
+        ...baseEvent,
+        kind: GROUP_ADMINS_KIND,
+        tags: [["d", badGroupId]],
+      }),
+    ).toThrow(/Group id must contain only lowercase letters/);
+    expect(() =>
+      parseGroupMembersEvent({
+        ...baseEvent,
+        kind: GROUP_MEMBERS_KIND,
+        tags: [["d", badGroupId]],
+      }),
+    ).toThrow(/Group id must contain only lowercase letters/);
+    expect(() =>
+      parseGroupRolesEvent({
+        ...baseEvent,
+        kind: GROUP_ROLES_KIND,
+        tags: [["d", badGroupId]],
+      }),
+    ).toThrow(/Group id must contain only lowercase letters/);
+  });
+
   test("should build edit-metadata events using on/off flags", async () => {
     const adminKeys = await generateKeypair();
     const event = createEditGroupMetadataEvent(
@@ -325,6 +365,26 @@ describe("NIP-29", () => {
     expect(reduceGroupMembers([snapshotA, snapshotB], "pizza_lovers")).toEqual(
       expectedMembers,
     );
+  });
+
+  test("should scope snapshot events by d tags before h tags", async () => {
+    const relayKeys = await generateKeypair();
+    const memberPubkey = "e".repeat(64);
+
+    const snapshot = await createSignedEvent(
+      {
+        ...createGroupMembersEvent("pizza_lovers", relayKeys.privateKey, [memberPubkey]),
+        tags: [
+          ["d", "pizza_lovers"],
+          ["h", "pasta_lovers"],
+          ["p", memberPubkey],
+        ],
+      },
+      relayKeys.privateKey,
+    );
+
+    expect(reduceGroupMembers([snapshot], "pizza_lovers")).toEqual([memberPubkey]);
+    expect(reduceGroupMembers([snapshot], "pasta_lovers")).toEqual([]);
   });
 
   test("should reduce membership status for pending and granted users", async () => {

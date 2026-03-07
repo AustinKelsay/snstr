@@ -119,6 +119,10 @@ type RelayEventHandler =
   | RelayClosedHandler
   | RelayAuthHandler;
 
+function formatRetryAfterSeconds(retryAfter?: number): number {
+  return Math.ceil(retryAfter || 0);
+}
+
 export class Nostr {
   private relays: Map<string, Relay> = new Map();
   private privateKey?: string;
@@ -710,54 +714,55 @@ export class Nostr {
 
     if (!rateLimitCheck.allowed) {
       throw new SecurityValidationError(
-        `Subscription rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        `Subscription rate limit exceeded. Try again in ${formatRetryAfterSeconds(rateLimitCheck.retryAfter)} seconds`,
         "RATE_LIMIT_EXCEEDED",
         "subscribe",
       );
     }
 
-    // Validate filters before sending to relays
+    let validatedFilters: Filter[];
     try {
-      const validatedFilters = validateFilters(filters);
-      const subscriptionIds: string[] = [];
-      const relaySubscriptions: Array<{
-        relay: Relay;
-        subscriptionId: string;
-      }> = [];
-
-      this.relays.forEach((relay, url) => {
-        try {
-          const subscriptionRef = { id: "" };
-          subscriptionRef.id = relay.subscribe(
-            validatedFilters,
-            (event) =>
-              onEvent({
-                event,
-                relay: url,
-                subscriptionId: subscriptionRef.id,
-              }),
-            onEOSE ? () => onEOSE(url, subscriptionRef.id) : undefined,
-            options,
-          );
-          subscriptionIds.push(subscriptionRef.id);
-          relaySubscriptions.push({
-            relay,
-            subscriptionId: subscriptionRef.id,
-          });
-        } catch (error) {
-          relaySubscriptions.forEach(({ relay: activeRelay, subscriptionId }) => {
-            activeRelay.unsubscribe(subscriptionId);
-          });
-          throw error;
-        }
-      });
-
-      return subscriptionIds;
+      validatedFilters = validateFilters(filters);
     } catch (error) {
       throw new Error(
         `Filter validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     }
+
+    const subscriptionIds: string[] = [];
+    const relaySubscriptions: Array<{
+      relay: Relay;
+      subscriptionId: string;
+    }> = [];
+
+    this.relays.forEach((relay, url) => {
+      try {
+        const subscriptionRef = { id: "" };
+        subscriptionRef.id = relay.subscribe(
+          validatedFilters,
+          (event) =>
+            onEvent({
+              event,
+              relay: url,
+              subscriptionId: subscriptionRef.id,
+            }),
+          onEOSE ? () => onEOSE(url, subscriptionRef.id) : undefined,
+          options,
+        );
+        subscriptionIds.push(subscriptionRef.id);
+        relaySubscriptions.push({
+          relay,
+          subscriptionId: subscriptionRef.id,
+        });
+      } catch (error) {
+        relaySubscriptions.forEach(({ relay: activeRelay, subscriptionId }) => {
+          activeRelay.unsubscribe(subscriptionId);
+        });
+        throw error;
+      }
+    });
+
+    return subscriptionIds;
   }
 
   public unsubscribe(subscriptionIds: string[]): void {
@@ -811,7 +816,7 @@ export class Nostr {
 
     if (!rateLimitCheck.allowed) {
       throw new SecurityValidationError(
-        `Fetch rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        `Fetch rate limit exceeded. Try again in ${formatRetryAfterSeconds(rateLimitCheck.retryAfter)} seconds`,
         "RATE_LIMIT_EXCEEDED",
         "fetch",
       );
@@ -1280,7 +1285,7 @@ export class Nostr {
 
     if (!rateLimitCheck.allowed) {
       throw new SecurityValidationError(
-        `Publish rate limit exceeded. Try again in ${Math.ceil((rateLimitCheck.retryAfter || 0) / 1000)} seconds`,
+        `Publish rate limit exceeded. Try again in ${formatRetryAfterSeconds(rateLimitCheck.retryAfter)} seconds`,
         "RATE_LIMIT_EXCEEDED",
         "publish",
       );

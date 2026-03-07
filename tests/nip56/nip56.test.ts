@@ -88,4 +88,31 @@ describe("NIP-56 reporting helpers", () => {
       labelTags: [["L", "social.nos.ontology"]],
     });
   });
+
+  test("createReportEvent rejects unsupported report types", () => {
+    expect(() =>
+      createReportEvent([
+        {
+          type: "p",
+          value: "profile-pubkey",
+          reportType: "not-real" as never,
+        },
+      ]),
+    ).toThrow(/Unsupported report type/);
+  });
+
+  test("createReportEvent rejects oversized content", () => {
+    expect(() =>
+      createReportEvent(
+        [
+          {
+            type: "p",
+            value: "profile-pubkey",
+            reportType: "spam",
+          },
+        ],
+        "x".repeat(100001),
+      ),
+    ).toThrow(/maximum length/i);
+  });
 });

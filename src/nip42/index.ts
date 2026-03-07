@@ -96,9 +96,10 @@ export async function validateAuthEvent(
     throw new Error("Auth event must include relay and challenge tags");
   }
 
+  const normalizedRelayTag = normalizeRelayUrl(relayTag);
+
   if (options.relayUrl) {
     const normalizedExpectedRelay = normalizeRelayUrl(options.relayUrl);
-    const normalizedRelayTag = normalizeRelayUrl(relayTag);
     if (normalizedRelayTag !== normalizedExpectedRelay) {
       throw new Error("Auth event relay tag does not match expected relay");
     }

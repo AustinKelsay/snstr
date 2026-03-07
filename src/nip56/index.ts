@@ -1,4 +1,9 @@
 import type { EventTemplate, NostrEvent } from "../types/nostr";
+import {
+  sanitizeString,
+  SECURITY_LIMITS,
+  validateEventContent,
+} from "../utils/security-validator";
 
 export const REPORT_KIND = 1984;
 
@@ -59,24 +64,53 @@ export function createReportEvent(
   const tags: string[][] = [];
 
   for (const target of targets) {
-    tags.push([target.type, target.value, target.reportType]);
+    if (!["p", "e", "x"].includes(target.type)) {
+      throw new Error(`Unsupported report target type: ${String(target.type)}`);
+    }
+    if (!REPORT_TYPES.includes(target.reportType)) {
+      throw new Error(`Unsupported report type: ${String(target.reportType)}`);
+    }
+
+    const sanitizedType = sanitizeString(target.type, 1) as ReportTargetTag;
+    const sanitizedValue = sanitizeString(
+      target.value,
+      sanitizedType === "p"
+        ? SECURITY_LIMITS.MAX_PUBKEY_LENGTH
+        : SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE,
+    );
+    const sanitizedReportType = sanitizeString(
+      target.reportType,
+      SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE,
+    ) as ReportType;
+
+    tags.push([sanitizedType, sanitizedValue, sanitizedReportType]);
 
     if (target.type === "e") {
-      tags.push(["p", target.pubkey]);
+      tags.push([
+        "p",
+        sanitizeString(target.pubkey, SECURITY_LIMITS.MAX_PUBKEY_LENGTH),
+      ]);
     }
 
     if (target.type === "x" && target.eventId) {
-      tags.push(["e", target.eventId, target.reportType]);
+      tags.push([
+        "e",
+        sanitizeString(target.eventId, SECURITY_LIMITS.MAX_ID_LENGTH),
+        sanitizedReportType,
+      ]);
     }
 
     if (target.type === "x" && target.server) {
-      tags.push(["server", target.server]);
+      tags.push([
+        "server",
+        sanitizeString(target.server, SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE),
+      ]);
     }
   }
 
   return {
     kind: REPORT_KIND,
-    content,
+    content: validateEventContent(content),
     tags,
   };
 }
