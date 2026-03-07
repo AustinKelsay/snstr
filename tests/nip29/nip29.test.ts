@@ -476,6 +476,13 @@ describe("NIP-29", () => {
       reduceGroupMembershipStatus(
         [pizzaEvent, pastaEvent],
         memberPubkey,
+        "pizza_lovers",
+      ),
+    ).toBe(GroupMembershipStatus.Granted);
+    expect(
+      reduceGroupMembershipStatus(
+        [pizzaEvent, pastaEvent],
+        memberPubkey,
         "pasta_lovers",
       ),
     ).toBe(GroupMembershipStatus.Initial);

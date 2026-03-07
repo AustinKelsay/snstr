@@ -507,7 +507,23 @@ function getLatestAddressableSnapshot(
   kind: number,
 ): NostrEvent | undefined {
   return events
-    .filter((event) => event.kind === kind)
+    .filter((event) => {
+      if (event.kind !== kind) {
+        return false;
+      }
+
+      const groupId = getFirstTagValue(event.tags, "d");
+      if (!groupId) {
+        return false;
+      }
+
+      try {
+        assertGroupId(groupId);
+        return true;
+      } catch {
+        return false;
+      }
+    })
     .sort(compareEventsDesc)[0];
 }
 
