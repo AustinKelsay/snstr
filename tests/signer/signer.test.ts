@@ -44,6 +44,12 @@ describe("Signer utilities", () => {
       .toBe("secret-44");
   });
 
+  test("LocalKeySigner rejects malformed private keys", () => {
+    expect(() => new LocalKeySigner("not-a-private-key")).toThrow(
+      "Private key must be exactly 64 characters",
+    );
+  });
+
   test("Nip07Signer uses the extension surface and detects capabilities", async () => {
     globalWithWindow.window = {
       nostr: {

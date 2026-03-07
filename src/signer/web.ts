@@ -4,6 +4,8 @@ import {
 } from "../nip04/web";
 import type { EventTemplate, NostrEvent } from "../types/nostr";
 import { LocalKeySignerBase } from "./local-base";
+import { validatePrivateKey } from "../utils/security-validator";
+import type { SignerEncryption } from "./types";
 
 export type {
   Signer,
@@ -20,11 +22,12 @@ export {
 export class LocalKeySigner {
   private readonly base: LocalKeySignerBase;
 
-  readonly nip04;
-  readonly nip44;
+  readonly nip04: SignerEncryption;
+  readonly nip44: SignerEncryption;
 
   constructor(privateKey: string) {
-    this.base = new LocalKeySignerBase(privateKey, {
+    const validatedPrivateKey = validatePrivateKey(privateKey);
+    this.base = new LocalKeySignerBase(validatedPrivateKey, {
       encrypt: encryptNIP04,
       decrypt: decryptNIP04,
     });

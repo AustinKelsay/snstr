@@ -2,6 +2,10 @@ import type { EventTemplate } from "../types/nostr";
 import { sha256Hex } from "../utils/crypto";
 import type { Signer } from "../signer";
 import { normalizeRelayUrl } from "../utils/relayUrl";
+import {
+  sanitizeString,
+  validateNumber,
+} from "../utils/security-validator";
 
 export const RELAY_MANAGEMENT_CONTENT_TYPE = "application/nostr+json+rpc";
 export const HTTP_AUTH_KIND = 27235;
@@ -45,6 +49,12 @@ export class RelayManagementError extends Error {
     super(message);
     this.name = "RelayManagementError";
   }
+}
+
+function isAbortLikeError(error: unknown): boolean {
+  return (typeof DOMException !== "undefined" && error instanceof DOMException)
+    ? error.name === "AbortError"
+    : error instanceof Error && error.name === "AbortError";
 }
 
 /**
@@ -136,6 +146,15 @@ async function parseManagementResponse<T>(
   try {
     return (await response.json()) as RelayManagementResponse<T>;
   } catch (error) {
+    if (isAbortLikeError(error)) {
+      const detail =
+        error instanceof Error && error.message ? `: ${error.message}` : "";
+      throw new RelayManagementError(
+        `Relay management request aborted/timed out${detail}`,
+        response.status,
+      );
+    }
+
     throw new RelayManagementError(
       "Relay management endpoint returned invalid JSON",
       response.status,
@@ -149,9 +168,13 @@ export class RelayManagementClient {
   private signer?: Signer;
 
   constructor(relayUrl: string, options: RelayManagementClientOptions = {}) {
-    this.relayUrl = toRelayManagementHttpUrl(relayUrl);
+    const validatedRelayUrl = sanitizeString(relayUrl);
+    this.relayUrl = toRelayManagementHttpUrl(validatedRelayUrl);
     this.signer = options.signer;
-    this.timeoutMs = options.timeoutMs ?? 5000;
+    this.timeoutMs =
+      options.timeoutMs === undefined
+        ? 5000
+        : validateNumber(options.timeoutMs, 1, 300000, "timeoutMs");
   }
 
   setSigner(signer?: Signer): void {
@@ -167,7 +190,7 @@ export class RelayManagementClient {
     }
 
     const request: RelayManagementRequest = {
-      method,
+      method: sanitizeString(method),
       params,
     };
     const body = JSON.stringify(request);
@@ -197,12 +220,7 @@ export class RelayManagementClient {
         signal: controller.signal,
       });
     } catch (error) {
-      const isAbortError =
-        (typeof DOMException !== "undefined" && error instanceof DOMException)
-          ? error.name === "AbortError"
-          : error instanceof Error && error.name === "AbortError";
-
-      if (isAbortError) {
+      if (isAbortLikeError(error)) {
         const detail =
           error instanceof Error && error.message ? `: ${error.message}` : "";
         throw new RelayManagementError(
@@ -213,11 +231,14 @@ export class RelayManagementClient {
       throw new RelayManagementError(
         `Relay management request failed: ${error instanceof Error ? error.message : String(error)}`,
       );
+    }
+
+    let payload: RelayManagementResponse<T>;
+    try {
+      payload = await parseManagementResponse<T>(response);
     } finally {
       clearTimeout(timeoutId);
     }
-
-    const payload = await parseManagementResponse<T>(response);
 
     if (!response.ok) {
       throw new RelayManagementError(

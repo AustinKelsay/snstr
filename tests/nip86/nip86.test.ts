@@ -151,19 +151,24 @@ describe("NIP-86 relay management helpers", () => {
     );
   });
 
-  test("RelayManagementClient wraps aborted requests", async () => {
+  test("RelayManagementClient keeps the timeout active while parsing stalled bodies", async () => {
     let capturedSignal: AbortSignal | undefined;
     mockFetch.mockImplementation(
-      async (_url: string, init?: RequestInit): Promise<never> => {
+      async (_url: string, init?: RequestInit) => {
         capturedSignal = init?.signal ?? undefined;
 
-        return new Promise((_, reject) => {
-          capturedSignal?.addEventListener("abort", () => {
-            const abortError = new Error("The operation was aborted");
-            abortError.name = "AbortError";
-            reject(abortError);
-          });
-        });
+        return {
+          ok: true,
+          status: 200,
+          json: async () =>
+            new Promise((_, reject) => {
+              capturedSignal?.addEventListener("abort", () => {
+                const abortError = new Error("The operation was aborted");
+                abortError.name = "AbortError";
+                reject(abortError);
+              });
+            }),
+        };
       },
     );
 
@@ -171,12 +176,20 @@ describe("NIP-86 relay management helpers", () => {
       timeoutMs: 1,
     });
 
-    await expect(client.listBannedPubkeys()).rejects.toEqual(
-      expect.objectContaining<Partial<RelayManagementError>>({
-        name: "RelayManagementError",
-        message: "Relay management request aborted/timed out: The operation was aborted",
-        status: undefined,
-      }),
+    let caughtError: unknown;
+    try {
+      await client.listBannedPubkeys();
+    } catch (error) {
+      caughtError = error;
+    }
+
+    expect(caughtError).toBeInstanceOf(RelayManagementError);
+    expect(caughtError).toMatchObject({
+      name: "RelayManagementError",
+      status: 200,
+    });
+    expect((caughtError as RelayManagementError).message).toBe(
+      "Relay management request aborted/timed out: The operation was aborted",
     );
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(capturedSignal).toBeDefined();
