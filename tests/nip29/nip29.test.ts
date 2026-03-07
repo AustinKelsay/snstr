@@ -125,6 +125,57 @@ describe("NIP-29", () => {
     });
   });
 
+  test("should skip malformed pubkeys when parsing and reducing group state", () => {
+    const validPubkey = "a".repeat(64);
+    const invalidPubkey = "not-a-pubkey";
+    const adminsEvent = {
+      id: "admins-id",
+      pubkey: "relay-pubkey",
+      sig: "sig",
+      kind: GROUP_ADMINS_KIND,
+      created_at: 100,
+      content: "",
+      tags: [
+        ["d", "pizza_lovers"],
+        ["p", invalidPubkey, "moderator"],
+        ["p", validPubkey, "founder"],
+      ],
+    };
+    const membersEvent = {
+      id: "members-id",
+      pubkey: "relay-pubkey",
+      sig: "sig",
+      kind: GROUP_MEMBERS_KIND,
+      created_at: 100,
+      content: "",
+      tags: [
+        ["d", "pizza_lovers"],
+        ["p", invalidPubkey],
+        ["p", validPubkey],
+      ],
+    };
+    const invalidPutEvent = {
+      id: "put-id",
+      pubkey: "relay-pubkey",
+      sig: "sig",
+      kind: 9000,
+      created_at: 110,
+      content: "",
+      tags: [["h", "pizza_lovers"], ["p", invalidPubkey]],
+    };
+
+    expect(parseGroupAdminsEvent(adminsEvent).admins).toEqual([
+      { pubkey: validPubkey, roles: ["founder"] },
+    ]);
+    expect(parseGroupMembersEvent(membersEvent).members).toEqual([validPubkey]);
+    expect(reduceGroupMembers([membersEvent, invalidPutEvent], "pizza_lovers")).toEqual([
+      validPubkey,
+    ]);
+    expect(reduceGroupAdmins([adminsEvent, invalidPutEvent], "pizza_lovers")).toEqual([
+      { pubkey: validPubkey, roles: ["founder"] },
+    ]);
+  });
+
   test("should build edit-metadata events using on/off flags", async () => {
     const adminKeys = await generateKeypair();
     const event = createEditGroupMetadataEvent(
@@ -248,6 +299,34 @@ describe("NIP-29", () => {
     ]);
   });
 
+  test("should prefer the descending id tie-breaker for equal timestamps", async () => {
+    const relayKeys = await generateKeypair();
+    const member1 = "1".repeat(64);
+    const member2 = "2".repeat(64);
+
+    const snapshotA = await createSignedEvent(
+      {
+        ...createGroupMembersEvent("pizza_lovers", relayKeys.privateKey, [member1]),
+        created_at: 100,
+      },
+      relayKeys.privateKey,
+    );
+    const snapshotB = await createSignedEvent(
+      {
+        ...createGroupMembersEvent("pizza_lovers", relayKeys.privateKey, [member2]),
+        created_at: 100,
+      },
+      relayKeys.privateKey,
+    );
+
+    const expectedMembers =
+      snapshotA.id.localeCompare(snapshotB.id) > 0 ? [member1] : [member2];
+
+    expect(reduceGroupMembers([snapshotA, snapshotB], "pizza_lovers")).toEqual(
+      expectedMembers,
+    );
+  });
+
   test("should reduce membership status for pending and granted users", async () => {
     const adminKeys = await generateKeypair();
     const userKeys = await generateKeypair();
@@ -315,12 +394,18 @@ describe("NIP-29", () => {
     const memberPubkey = "c".repeat(64);
 
     const pizzaEvent = await createSignedEvent(
-      createPutUserEvent("pizza_lovers", memberPubkey, adminKeys.privateKey),
+      {
+        ...createPutUserEvent("pizza_lovers", memberPubkey, adminKeys.privateKey),
+        created_at: 100,
+      },
       adminKeys.privateKey,
     );
 
     const pastaEvent = await createSignedEvent(
-      createPutUserEvent("pasta_lovers", memberPubkey, adminKeys.privateKey),
+      {
+        ...createRemoveUserEvent("pasta_lovers", memberPubkey, adminKeys.privateKey),
+        created_at: 200,
+      },
       adminKeys.privateKey,
     );
 
@@ -333,7 +418,7 @@ describe("NIP-29", () => {
         memberPubkey,
         "pasta_lovers",
       ),
-    ).toBe(GroupMembershipStatus.Granted);
+    ).toBe(GroupMembershipStatus.Initial);
   });
 
   test("should reject empty group ids when reducing members", async () => {

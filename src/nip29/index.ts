@@ -114,7 +114,7 @@ function compareEventsDesc(a: NostrEvent, b: NostrEvent): number {
   if (a.created_at !== b.created_at) {
     return b.created_at - a.created_at;
   }
-  return a.id.localeCompare(b.id);
+  return b.id.localeCompare(a.id);
 }
 
 function compareEventsAsc(a: NostrEvent, b: NostrEvent): number {
@@ -128,8 +128,25 @@ function getFirstTagValue(tags: string[][], tagName: string): string | undefined
   return tags.find((tag) => tag[0] === tagName)?.[1];
 }
 
-function getTagValues(tags: string[][], tagName: string): string[] {
-  return tags.filter((tag) => tag[0] === tagName && typeof tag[1] === "string").map((tag) => tag[1]);
+function getValidatedPubkey(tag: string[] | undefined): string | undefined {
+  const pubkey = tag?.[1];
+  if (typeof pubkey !== "string") {
+    return undefined;
+  }
+
+  try {
+    assertPubkey(pubkey);
+    return pubkey;
+  } catch {
+    return undefined;
+  }
+}
+
+function getValidatedPubkeys(tags: string[][]): string[] {
+  return tags
+    .filter((tag) => tag[0] === "p")
+    .map((tag) => getValidatedPubkey(tag))
+    .filter((pubkey): pubkey is string => pubkey !== undefined);
 }
 
 function getRoleValues(tag: string[]): string[] {
@@ -411,9 +428,9 @@ export function parseGroupAdminsEvent(
   return {
     id,
     admins: event.tags
-      .filter((tag) => tag[0] === "p" && typeof tag[1] === "string")
+      .filter((tag) => getValidatedPubkey(tag) !== undefined)
       .map((tag) => ({
-        pubkey: tag[1],
+        pubkey: getValidatedPubkey(tag)!,
         roles: getRoleValues(tag),
       })),
     event,
@@ -434,7 +451,7 @@ export function parseGroupMembersEvent(
 
   return {
     id,
-    members: getTagValues(event.tags, "p"),
+    members: getValidatedPubkeys(event.tags),
     event,
   };
 }
@@ -508,7 +525,9 @@ export function reduceGroupMembers(
     .sort(compareEventsAsc);
 
   for (const event of moderationEvents) {
-    const targetPubkey = getFirstTagValue(event.tags, "p");
+    const targetPubkey = getValidatedPubkey(
+      event.tags.find((tag) => tag[0] === "p"),
+    );
     if (!targetPubkey) continue;
 
     if (event.kind === PUT_USER_KIND) {
@@ -551,7 +570,7 @@ export function reduceGroupAdmins(
 
   for (const event of moderationEvents) {
     const targetTag = event.tags.find((tag) => tag[0] === "p");
-    const targetPubkey = targetTag?.[1];
+    const targetPubkey = getValidatedPubkey(targetTag);
     if (!targetPubkey) continue;
 
     if (event.kind === REMOVE_USER_KIND) {

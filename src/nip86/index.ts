@@ -1,6 +1,7 @@
 import type { EventTemplate } from "../types/nostr";
 import { sha256Hex } from "../utils/crypto";
 import type { Signer } from "../signer";
+import { normalizeRelayUrl } from "../utils/relayUrl";
 
 export const RELAY_MANAGEMENT_CONTENT_TYPE = "application/nostr+json+rpc";
 export const HTTP_AUTH_KIND = 27235;
@@ -65,7 +66,14 @@ function encodeBase64(value: string): string {
 }
 
 export function toRelayManagementHttpUrl(relayUrl: string): string {
-  const url = new URL(relayUrl);
+  const trimmedRelayUrl = relayUrl.trim();
+  const isWebsocketLike =
+    !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmedRelayUrl) ||
+    /^wss?:\/\//i.test(trimmedRelayUrl);
+  const normalizedInput = isWebsocketLike
+    ? normalizeRelayUrl(trimmedRelayUrl)
+    : trimmedRelayUrl;
+  const url = new URL(normalizedInput);
 
   if (url.protocol === "ws:") {
     url.protocol = "http:";

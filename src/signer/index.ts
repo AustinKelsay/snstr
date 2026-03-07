@@ -1,9 +1,6 @@
-import { createEvent, createSignedEvent } from "../nip01/event";
 import { decrypt as decryptNIP04, encrypt as encryptNIP04 } from "../nip04";
-import { decrypt as decryptNIP44, encrypt as encryptNIP44 } from "../nip44";
-import { getPublicKey } from "../utils/crypto";
 import type { EventTemplate, NostrEvent } from "../types/nostr";
-import type { SignerEncryption } from "./types";
+import { LocalKeySignerBase } from "./local-base";
 
 export type {
   Signer,
@@ -18,35 +15,25 @@ export {
 } from "./shared";
 
 export class LocalKeySigner {
-  private readonly publicKey: string;
+  private readonly base: LocalKeySignerBase;
 
-  readonly nip04: SignerEncryption;
-  readonly nip44: SignerEncryption;
+  readonly nip04;
+  readonly nip44;
 
-  constructor(private readonly privateKey: string) {
-    this.publicKey = getPublicKey(privateKey);
-
-    this.nip04 = {
-      encrypt: async (pubkey, plaintext) =>
-        encryptNIP04(this.privateKey, pubkey, plaintext),
-      decrypt: async (pubkey, ciphertext) =>
-        decryptNIP04(this.privateKey, pubkey, ciphertext),
-    };
-
-    this.nip44 = {
-      encrypt: async (pubkey, plaintext) =>
-        encryptNIP44(plaintext, this.privateKey, pubkey),
-      decrypt: async (pubkey, ciphertext) =>
-        decryptNIP44(ciphertext, this.privateKey, pubkey),
-    };
+  constructor(privateKey: string) {
+    this.base = new LocalKeySignerBase(privateKey, {
+      encrypt: encryptNIP04,
+      decrypt: decryptNIP04,
+    });
+    this.nip04 = this.base.nip04;
+    this.nip44 = this.base.nip44;
   }
 
   async getPublicKey(): Promise<string> {
-    return this.publicKey;
+    return this.base.getPublicKey();
   }
 
   async signEvent(event: EventTemplate): Promise<NostrEvent> {
-    const unsignedEvent = createEvent(event, this.publicKey);
-    return createSignedEvent(unsignedEvent, this.privateKey);
+    return this.base.signEvent(event);
   }
 }

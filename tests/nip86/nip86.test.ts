@@ -152,9 +152,20 @@ describe("NIP-86 relay management helpers", () => {
   });
 
   test("RelayManagementClient wraps aborted requests", async () => {
-    const abortError = new Error("The operation was aborted");
-    abortError.name = "AbortError";
-    mockFetch.mockRejectedValue(abortError);
+    let capturedSignal: AbortSignal | undefined;
+    mockFetch.mockImplementation(
+      async (_url: string, init?: RequestInit): Promise<never> => {
+        capturedSignal = init?.signal ?? undefined;
+
+        return new Promise((_, reject) => {
+          capturedSignal?.addEventListener("abort", () => {
+            const abortError = new Error("The operation was aborted");
+            abortError.name = "AbortError";
+            reject(abortError);
+          });
+        });
+      },
+    );
 
     const client = new RelayManagementClient("wss://relay.example.com", {
       timeoutMs: 1,
@@ -167,6 +178,9 @@ describe("NIP-86 relay management helpers", () => {
         status: undefined,
       }),
     );
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(true);
   });
 
   test("toRelayManagementHttpUrl converts websocket URLs", () => {
@@ -175,6 +189,9 @@ describe("NIP-86 relay management helpers", () => {
     );
     expect(toRelayManagementHttpUrl("wss://relay.example.com")).toBe(
       "https://relay.example.com/",
+    );
+    expect(toRelayManagementHttpUrl("Relay.Example.com/admin")).toBe(
+      "https://relay.example.com/admin",
     );
   });
 });

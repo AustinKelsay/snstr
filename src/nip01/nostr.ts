@@ -475,6 +475,8 @@ export class Nostr {
       };
     }
 
+    this.enforcePublishRateLimit();
+
     try {
       const relayResults = new Map<
         string,
@@ -541,8 +543,6 @@ export class Nostr {
     tags: string[][] = [],
     options?: { timeout?: number },
   ): Promise<NostrEvent | null> {
-    this.enforcePublishRateLimit();
-
     if (!this.privateKey || !this.publicKey) {
       throw new Error("Private key is not set");
     }
@@ -716,9 +716,6 @@ export class Nostr {
       );
     }
 
-    // Update rate limit state (increment count)
-    this.subscribeRateLimit.count++;
-
     // Validate filters before sending to relays
     try {
       const validatedFilters = validateFilters(filters);
@@ -819,9 +816,6 @@ export class Nostr {
         "fetch",
       );
     }
-
-    // Update rate limit state (increment count)
-    this.fetchRateLimit.count++;
 
     if (this.relays.size === 0) return [];
 
@@ -1230,12 +1224,19 @@ export class Nostr {
   ): Promise<PublishResponse> {
     this.enforcePublishRateLimit();
 
-    const relay = this.getRelayByUrl(relayUrl);
+    const normalizedRelayUrl = this.normalizeRelayUrl(
+      this.preprocessRelayUrl(relayUrl),
+    );
+    const relay = this.getRelayByUrl(normalizedRelayUrl);
     const { createdAt, ...publishOptions } = options;
 
     const authEvent =
       typeof auth === "string"
-        ? await this.createSignedAuthEventForRelay(relayUrl, auth, createdAt)
+        ? await this.createSignedAuthEventForRelay(
+            normalizedRelayUrl,
+            auth,
+            createdAt,
+          )
         : auth;
 
     return relay.authenticate(authEvent, publishOptions);
@@ -1284,7 +1285,5 @@ export class Nostr {
         "publish",
       );
     }
-
-    this.publishRateLimit.count++;
   }
 }

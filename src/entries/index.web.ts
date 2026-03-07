@@ -253,7 +253,6 @@ export type {
 export {
   LocalKeySigner,
   Nip07Signer,
-  Nip46Signer,
   getSignerCapabilities,
 } from "../signer/web";
 export type {
