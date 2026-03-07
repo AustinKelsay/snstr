@@ -2,6 +2,7 @@ import { createSignedEvent, validateEvent } from "../nip01/event";
 import { EventTemplate, NIP20Prefix, NostrEvent } from "../types/nostr";
 import { getPublicKey } from "../utils/crypto";
 import { normalizeRelayUrl } from "../utils/relayUrl";
+import { sanitizeString, SECURITY_LIMITS } from "../utils/security-validator";
 
 export const AUTH_EVENT_KIND = 22242;
 
@@ -25,14 +26,21 @@ export function createAuthEventTemplate(
     throw new Error("Challenge must be a non-empty string");
   }
 
-  const normalizedRelay = normalizeRelayUrl(relayUrl);
+  const validatedChallenge = sanitizeString(
+    challenge,
+    SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE,
+  );
+  const normalizedRelay = sanitizeString(
+    normalizeRelayUrl(relayUrl),
+    SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE,
+  );
 
   return {
     kind: AUTH_EVENT_KIND,
     content: "",
     tags: [
       ["relay", normalizedRelay],
-      ["challenge", challenge],
+      ["challenge", validatedChallenge],
     ],
     ...(created_at !== undefined ? { created_at } : {}),
   };
