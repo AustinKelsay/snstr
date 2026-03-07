@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-03-07
+
+### Added
+- NIP-42 auth helpers plus relay-scoped subscription and fetch APIs for building relay-authenticated clients.
+- NIP-29 relay-group builders, parsers, reducers, filters, and module docs for Flotilla-style group state.
+- NIP-56 report helpers, NIP-70 protected-tag helpers, a signer abstraction layer, and a NIP-86 relay-management client with example usage.
+
+### Changed
+- Root and web exports now expose the new Flotilla-related modules while keeping compatibility aliases for existing NIP-07 support helpers.
+- Relay-management documentation now covers HTTP URL conversion, fetch wiring, NIP-98 auth headers, timeout behavior, and end-to-end usage.
+
+### Fixed
+- NIP-01 relay auth, publish, and subscription flows now use normalized relay URLs, shared publish rate limiting, safer ACK/timeout handling, and rollback for partial relay subscriptions.
+- NIP-29 reducers now validate scoped group IDs and pubkeys, ignore malformed later snapshots, and fail fast on mixed-group reducer input without an explicit `groupId`.
+- NIP-56/NIP-86/signer helpers now validate caller-controlled inputs more strictly and surface clearer timeout, abort, and parsing errors.
+
 ## [0.3.2] - 2026-03-01
 
 ### Fixed
@@ -212,7 +228,8 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/AustinKelsay/snstr/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/AustinKelsay/snstr/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/AustinKelsay/snstr/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/AustinKelsay/snstr/compare/v0.2.0...v0.3.0
