@@ -43,6 +43,17 @@ export {
   getEventHash,
 } from "../nip01/event";
 
+// Export NIP-42 utilities
+export {
+  AUTH_EVENT_KIND,
+  createAuthEventTemplate,
+  createSignedAuthEvent,
+  isAuthEvent,
+  validateAuthEvent,
+  parseAuthRequiredReason,
+} from "../nip42";
+export type { NIP42ValidationOptions } from "../nip42";
+
 // Export NIP-02 utilities
 export {
   createContactListEvent,

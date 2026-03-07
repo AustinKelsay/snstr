@@ -585,6 +585,25 @@ export class Relay {
     event: NostrEvent,
     options: PublishOptions = {},
   ): Promise<PublishResponse> {
+    return this.sendClientMessage(["EVENT", event], options, event.id);
+  }
+
+  public async authenticate(
+    authEvent: NostrEvent,
+    options: PublishOptions = {},
+  ): Promise<PublishResponse> {
+    return this.sendClientMessage(
+      ["AUTH", authEvent],
+      { waitForAck: false, ...options },
+      authEvent.id,
+    );
+  }
+
+  private async sendClientMessage(
+    message: unknown[],
+    options: PublishOptions = {},
+    ackEventId?: string,
+  ): Promise<PublishResponse> {
     if (!this.connected) {
       try {
         const connected = await this.connect();
@@ -615,16 +634,12 @@ export class Relay {
     }
 
     try {
-      // First send the event
-      const message = JSON.stringify(["EVENT", event]);
-      this.ws.send(message);
+      this.ws.send(JSON.stringify(message));
 
-      // If we don't need to wait for acknowledgment, return immediately
-      if (options.waitForAck === false) {
+      if (options.waitForAck === false || !ackEventId) {
         return { success: true, relay: this.url };
       }
 
-      // Return a Promise that will resolve when we get the OK response for this event
       return new Promise<PublishResponse>((resolve) => {
         const timeout = options.timeout ?? 10000;
         let timeoutId: NodeJS.Timeout | null = null;
@@ -635,7 +650,7 @@ export class Relay {
           success: boolean,
           details: ParsedOkReason,
         ) => {
-          if (eventId === event.id) {
+          if (eventId === ackEventId) {
             cleanup();
             resolve({
               success,
@@ -688,7 +703,7 @@ export class Relay {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
-      console.error(`Error publishing event to ${this.url}:`, errorMessage);
+      console.error(`Error sending message to ${this.url}:`, errorMessage);
       return {
         success: false,
         reason: `error: ${errorMessage}`,
@@ -896,17 +911,15 @@ export class Relay {
         break;
       }
       case "AUTH": {
-        const [challengeEvent] = rest;
-        // Check if the challenge is a proper NostrEvent
-        if (this.isNostrEvent(challengeEvent)) {
-          this.triggerEvent(RelayEvent.Auth, challengeEvent);
+        const [challenge] = rest;
+        if (typeof challenge === "string") {
+          this.triggerEvent(RelayEvent.Auth, challenge);
         } else {
-          // If it's not a proper event, log an error
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
             new Error(
-              `Invalid AUTH challenge: ${JSON.stringify(challengeEvent)}`,
+              `Invalid AUTH challenge: ${JSON.stringify(challenge)}`,
             ),
           );
         }
@@ -1180,7 +1193,7 @@ export class Relay {
   ): void;
   private triggerEvent(
     event: RelayEvent.Auth,
-    challengeEvent: NostrEvent,
+    challenge: string,
   ): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
     const callbacks = this.eventHandlers[event];

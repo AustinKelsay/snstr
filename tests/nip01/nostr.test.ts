@@ -1,4 +1,11 @@
-import { Nostr, NostrEvent, Filter, RelayEvent, Relay } from "../../src";
+import {
+  Nostr,
+  NostrEvent,
+  Filter,
+  RelayEvent,
+  Relay,
+  RelayReceivedEvent,
+} from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
@@ -80,6 +87,18 @@ describe("Nostr Client", () => {
       expect(connectCount).toBe(1);
     });
 
+    test("should surface relay auth challenges as strings", () => {
+      let challenge = "";
+      client.on(RelayEvent.Auth, (_relayUrl, nextChallenge) => {
+        challenge = nextChallenge;
+      });
+
+      const relay = Array.from(getNostrInternals(client).relays.values())[0];
+      asTestRelay(relay as Relay).handleMessage(["AUTH", "relay-challenge"]);
+
+      expect(challenge).toBe("relay-challenge");
+    });
+
     test("should disconnect from relays", async () => {
       await client.connectToRelays();
 
@@ -156,6 +175,54 @@ describe("Nostr Client", () => {
       await expect(
         client.publishTextNote("This should fail"),
       ).rejects.toThrow();
+    });
+
+    test("should fetch events with relay provenance preserved", async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      const note = await client.publishTextNote("relay-aware fetch");
+      expect(note).toBeDefined();
+
+      const events = await client.fetchManyDetailed(
+        [{ ids: [note!.id] }],
+        { maxWait: 500 },
+      );
+
+      expect(events).toHaveLength(1);
+      expect(events[0].relay).toBe(ephemeralRelay.url);
+      expect(events[0].event.id).toBe(note!.id);
+    });
+
+    test("should subscribe with relay provenance preserved", async () => {
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      const note = await client.publishTextNote("relay-aware subscribe");
+      expect(note).toBeDefined();
+
+      const received = await new Promise<RelayReceivedEvent>((resolve, reject) => {
+        let subscriptionIds: string[] = [];
+        const timeout = setTimeout(() => {
+          client.unsubscribe(subscriptionIds);
+          reject(new Error("Timed out waiting for detailed subscription event"));
+        }, 1000);
+
+        subscriptionIds = client.subscribeDetailed(
+          [{ ids: [note!.id] }],
+          (relayEvent) => {
+            clearTimeout(timeout);
+            client.unsubscribe(subscriptionIds);
+            resolve(relayEvent);
+          },
+          undefined,
+          { autoClose: true, eoseTimeout: 500 },
+        );
+      });
+
+      expect(received.relay).toBe(ephemeralRelay.url);
+      expect(received.event.id).toBe(note!.id);
+      expect(received.subscriptionId).toBeTruthy();
     });
   });
 
@@ -780,6 +847,8 @@ describe("Nostr client", () => {
   // Mock relay for testing
   class MockRelay {
     public publishResults: { success: boolean; reason?: string }[] = [];
+    public authResults: { success: boolean; reason?: string }[] = [];
+    public authenticateCalls: NostrEvent[] = [];
     public readonly url: string;
     public connected = true;
     private connectionTimeout = 10000;
@@ -793,6 +862,7 @@ describe("Nostr client", () => {
       this.publishResults = publishResults.length
         ? publishResults
         : [{ success: true }];
+      this.authResults = [{ success: true }];
       if (options.connectionTimeout !== undefined) {
         this.connectionTimeout = options.connectionTimeout;
       }
@@ -810,6 +880,16 @@ describe("Nostr client", () => {
       return this.publishResults.length > 1
         ? this.publishResults.shift()!
         : this.publishResults[0];
+    }
+
+    public async authenticate(
+      authEvent: NostrEvent,
+      _options: { timeout?: number; waitForAck?: boolean } = {},
+    ): Promise<{ success: boolean; reason?: string }> {
+      this.authenticateCalls.push(authEvent);
+      return this.authResults.length > 1
+        ? this.authResults.shift()!
+        : this.authResults[0];
     }
 
     disconnect(): void {
@@ -986,6 +1066,34 @@ describe("Nostr client", () => {
       );
       expect(result.relayResults.get("wss://mock-relay3.com")?.success).toBe(
         true,
+      );
+    });
+  });
+
+  describe("authenticateRelay", () => {
+    it("should create and send a signed auth event from a challenge", async () => {
+      const nostr = new Nostr();
+      const relay = new MockRelay("wss://mock-relay1.com");
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      const result = await nostr.authenticateRelay(
+        "wss://mock-relay1.com",
+        "challenge-789",
+      );
+
+      expect(result.success).toBe(true);
+      expect(relay.authenticateCalls).toHaveLength(1);
+      expect(relay.authenticateCalls[0].kind).toBe(22242);
+      expect(relay.authenticateCalls[0].content).toBe("");
+      expect(relay.authenticateCalls[0].tags).toEqual(
+        expect.arrayContaining([
+          ["relay", "wss://mock-relay1.com"],
+          ["challenge", "challenge-789"],
+        ]),
       );
     });
   });

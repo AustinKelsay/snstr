@@ -33,6 +33,11 @@ export interface MockRelay {
   ): NostrEvent | undefined;
   getAddressableEventsByPubkey?(pubkey: string): NostrEvent[];
   getAddressableEventsByKind?(kind: number): NostrEvent[];
+  authenticate?(
+    authEvent: NostrEvent,
+    options?: { timeout?: number; waitForAck?: boolean },
+  ): Promise<{ success: boolean; reason?: string }>;
+  getLatestReplaceableEvent?(pubkey: string, kind: number): NostrEvent | undefined;
 }
 
 /**

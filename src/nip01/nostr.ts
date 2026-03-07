@@ -2,12 +2,16 @@ import { Relay } from "./relay";
 import {
   NostrEvent,
   Filter,
+  RelayReceivedEvent,
   RelayEvent,
   ParsedOkReason,
+  PublishOptions,
+  PublishResponse,
   SubscriptionOptions,
 } from "../types/nostr";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
+import { createSignedAuthEvent } from "../nip42";
 import {
   createSignedEvent,
   createTextNote,
@@ -84,7 +88,7 @@ export type NostrClosedCallback = (
 ) => void;
 export type NostrAuthCallback = (
   relay: string,
-  challengeEvent: NostrEvent,
+  challenge: string,
 ) => void;
 
 export type NostrEventCallback =
@@ -105,7 +109,7 @@ type RelayOkHandler = (
   details: ParsedOkReason,
 ) => void;
 type RelayClosedHandler = (subscriptionId: string, message: string) => void;
-type RelayAuthHandler = (challengeEvent: NostrEvent) => void;
+type RelayAuthHandler = (challenge: string) => void;
 
 type RelayEventHandler =
   | RelayConnectHandler
@@ -243,8 +247,8 @@ export class Nostr {
           );
         };
       case RelayEvent.Auth:
-        return (challengeEvent: NostrEvent) => {
-          (originalCallback as NostrAuthCallback)(relayUrl, challengeEvent);
+        return (challenge: string) => {
+          (originalCallback as NostrAuthCallback)(relayUrl, challenge);
         };
       default:
         // Should not happen if RelayEvent enum is comprehensive
@@ -699,6 +703,20 @@ export class Nostr {
     onEOSE?: () => void,
     options: SubscriptionOptions = {},
   ): string[] {
+    return this.subscribeDetailed(
+      filters,
+      ({ event, relay }) => onEvent(event, relay),
+      onEOSE ? () => onEOSE() : undefined,
+      options,
+    );
+  }
+
+  public subscribeDetailed(
+    filters: Filter[],
+    onEvent: (receivedEvent: RelayReceivedEvent) => void,
+    onEOSE?: (relay: string, subscriptionId: string) => void,
+    options: SubscriptionOptions = {},
+  ): string[] {
     // Rate limiting check
     const rateLimitCheck = checkRateLimit(
       this.subscribeRateLimit,
@@ -723,13 +741,19 @@ export class Nostr {
       const subscriptionIds: string[] = [];
 
       this.relays.forEach((relay, url) => {
-        const id = relay.subscribe(
+        let relaySubscriptionId = "";
+        relaySubscriptionId = relay.subscribe(
           validatedFilters,
-          (event) => onEvent(event, url),
-          onEOSE,
+          (event) =>
+            onEvent({
+              event,
+              relay: url,
+              subscriptionId: relaySubscriptionId,
+            }),
+          onEOSE ? () => onEOSE(url, relaySubscriptionId) : undefined,
           options,
         );
-        subscriptionIds.push(id);
+        subscriptionIds.push(relaySubscriptionId);
       });
 
       return subscriptionIds;
@@ -768,6 +792,20 @@ export class Nostr {
     filters: Filter[],
     options: { maxWait?: number; signal?: AbortSignal } = {},
   ): Promise<NostrEvent[]> {
+    const detailedEvents = await this.fetchManyDetailed(filters, options);
+    const eventsMap = new Map<string, NostrEvent>();
+
+    for (const { event } of detailedEvents) {
+      eventsMap.set(event.id, event);
+    }
+
+    return Array.from(eventsMap.values());
+  }
+
+  public async fetchManyDetailed(
+    filters: Filter[],
+    options: { maxWait?: number; signal?: AbortSignal } = {},
+  ): Promise<RelayReceivedEvent[]> {
     // Rate limiting check
     const rateLimitCheck = checkRateLimit(
       this.fetchRateLimit,
@@ -796,14 +834,17 @@ export class Nostr {
         : 5000;
 
       return new Promise((resolve, reject) => {
-        const eventsMap = new Map<string, NostrEvent>();
+        const eventsMap = new Map<string, RelayReceivedEvent>();
         let eoseCount = 0;
         let isCleanedUp = false;
 
-        const subIds = this.subscribe(
+        const subIds = this.subscribeDetailed(
           validatedFilters,
-          (event) => {
-            eventsMap.set(event.id, event);
+          (receivedEvent) => {
+            eventsMap.set(
+              `${receivedEvent.relay}:${receivedEvent.event.id}`,
+              receivedEvent,
+            );
           },
           () => {
             eoseCount++;
@@ -868,6 +909,25 @@ export class Nostr {
     }
   }
 
+  public async fetchOneDetailed(
+    filters: Filter[],
+    options?: { maxWait?: number; signal?: AbortSignal },
+  ): Promise<RelayReceivedEvent | null> {
+    const limitedFilters = filters.map((f) => ({ ...f, limit: 1 }));
+    const events = await this.fetchManyDetailed(limitedFilters, options);
+
+    if (events.length === 0) return null;
+
+    events.sort((a, b) => {
+      if (a.event.created_at !== b.event.created_at) {
+        return b.event.created_at - a.event.created_at;
+      }
+      return a.event.id.localeCompare(b.event.id);
+    });
+
+    return events[0];
+  }
+
   /**
    * Retrieve the newest single event matching the filters from all relays.
    *
@@ -922,7 +982,7 @@ export class Nostr {
   ): void;
   public on(
     event: RelayEvent.Auth,
-    callback: (relay: string, challengeEvent: NostrEvent) => void,
+    callback: (relay: string, challenge: string) => void,
   ): void;
   public on(event: RelayEvent, callback: unknown): void {
     if (typeof callback !== "function") {
@@ -1129,5 +1189,85 @@ export class Nostr {
     }
 
     return Array.from(eventsMap.values());
+  }
+
+  public getLatestReplaceableEventFromRelay(
+    relayUrl: string,
+    pubkey: string,
+    kind: number,
+  ): NostrEvent | null {
+    const relay = this.getRelayByUrl(relayUrl);
+    return relay.getLatestReplaceableEvent(pubkey, kind) || null;
+  }
+
+  public getLatestAddressableEventFromRelay(
+    relayUrl: string,
+    kind: number,
+    pubkey: string,
+    dTagValue: string = "",
+  ): NostrEvent | null {
+    const relay = this.getRelayByUrl(relayUrl);
+    return relay.getLatestAddressableEvent(kind, pubkey, dTagValue) || null;
+  }
+
+  public getAddressableEventsByPubkeyFromRelay(
+    relayUrl: string,
+    pubkey: string,
+  ): NostrEvent[] {
+    return this.getRelayByUrl(relayUrl).getAddressableEventsByPubkey(pubkey);
+  }
+
+  public getAddressableEventsByKindFromRelay(
+    relayUrl: string,
+    kind: number,
+  ): NostrEvent[] {
+    return this.getRelayByUrl(relayUrl).getAddressableEventsByKind(kind);
+  }
+
+  public async authenticateRelay(
+    relayUrl: string,
+    auth: NostrEvent | string,
+    options: PublishOptions & { createdAt?: number } = {},
+  ): Promise<PublishResponse> {
+    const relay = this.getRelayByUrl(relayUrl);
+    const { createdAt, ...publishOptions } = options;
+
+    const authEvent =
+      typeof auth === "string"
+        ? await this.createSignedAuthEventForRelay(relayUrl, auth, createdAt)
+        : auth;
+
+    return relay.authenticate(authEvent, {
+      waitForAck: false,
+      ...publishOptions,
+    });
+  }
+
+  private async createSignedAuthEventForRelay(
+    relayUrl: string,
+    challenge: string,
+    createdAt?: number,
+  ): Promise<NostrEvent> {
+    if (!this.privateKey) {
+      throw new Error("Private key is not set");
+    }
+
+    return createSignedAuthEvent(
+      challenge,
+      relayUrl,
+      this.privateKey,
+      createdAt,
+    );
+  }
+
+  private getRelayByUrl(relayUrl: string): Relay {
+    const normalizedUrl = this.normalizeRelayUrl(relayUrl);
+    const relay = this.relays.get(normalizedUrl);
+
+    if (!relay) {
+      throw new Error(`Relay not found: ${normalizedUrl}`);
+    }
+
+    return relay;
   }
 }
