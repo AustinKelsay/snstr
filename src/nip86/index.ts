@@ -200,7 +200,15 @@ export class RelayManagementClient {
       throw new RelayManagementError(payload.error, response.status, payload);
     }
 
-    return payload.result as T;
+    if (payload.result === undefined || payload.result === null) {
+      throw new RelayManagementError(
+        "Relay management response missing result",
+        response.status,
+        payload,
+      );
+    }
+
+    return payload.result;
   }
 
   supportedMethods(): Promise<string[]> {

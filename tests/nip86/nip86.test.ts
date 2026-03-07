@@ -119,6 +119,56 @@ describe("NIP-86 relay management helpers", () => {
     );
   });
 
+  test("RelayManagementClient throws on missing successful results", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    });
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.listBannedPubkeys()).rejects.toEqual(
+      expect.objectContaining<Partial<RelayManagementError>>({
+        name: "RelayManagementError",
+        message: "Relay management response missing result",
+        status: 200,
+      }),
+    );
+  });
+
+  test("RelayManagementClient wraps fetch rejections", async () => {
+    mockFetch.mockRejectedValue(new Error("network"));
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.listBannedPubkeys()).rejects.toEqual(
+      expect.objectContaining<Partial<RelayManagementError>>({
+        name: "RelayManagementError",
+        message: "Relay management request failed: network",
+        status: undefined,
+      }),
+    );
+  });
+
+  test("RelayManagementClient wraps aborted requests", async () => {
+    const abortError = new Error("The operation was aborted");
+    abortError.name = "AbortError";
+    mockFetch.mockRejectedValue(abortError);
+
+    const client = new RelayManagementClient("wss://relay.example.com", {
+      timeoutMs: 1,
+    });
+
+    await expect(client.listBannedPubkeys()).rejects.toEqual(
+      expect.objectContaining<Partial<RelayManagementError>>({
+        name: "RelayManagementError",
+        message: "Relay management request failed: The operation was aborted",
+        status: undefined,
+      }),
+    );
+  });
+
   test("toRelayManagementHttpUrl converts websocket URLs", () => {
     expect(toRelayManagementHttpUrl("ws://relay.example.com/admin")).toBe(
       "http://relay.example.com/admin",

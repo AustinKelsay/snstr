@@ -19,13 +19,7 @@ export interface SignerCapabilities {
 
 export interface RemoteSigner {
   getPublicKey(): Promise<string>;
-  signEvent(event: {
-    kind: number;
-    content: string;
-    created_at: number;
-    tags?: string[][];
-    pubkey?: string;
-  }): Promise<NostrEvent>;
+  signEvent(event: EventTemplate): Promise<NostrEvent>;
   nip04Encrypt?(pubkey: string, plaintext: string): Promise<string>;
   nip04Decrypt?(pubkey: string, ciphertext: string): Promise<string>;
   nip44Encrypt?(pubkey: string, plaintext: string): Promise<string>;

@@ -92,7 +92,8 @@ export function getReportTargets(event: NostrEvent): ParsedReportTarget[] {
         Array.isArray(tag) &&
         tag.length >= 2 &&
         (tag[0] === "p" || tag[0] === "e" || tag[0] === "x") &&
-        typeof tag[1] === "string",
+        typeof tag[1] === "string" &&
+        (tag[0] !== "p" || typeof tag[2] === "string"),
     )
     .map((tag) => ({
       type: tag[0] as ReportTargetTag,

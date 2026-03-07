@@ -187,6 +187,8 @@ export {
 // Export NIP-07 utilities
 export {
   hasNip07Support,
+  hasNip04Support,
+  hasNip44Support,
   hasNip04Support as hasNip07Nip04Support,
   hasNip44Support as hasNip07Nip44Support,
   getPublicKey as getNip07PublicKey,

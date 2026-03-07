@@ -46,14 +46,20 @@ export const hasNip07Support = (): boolean => {
  * Checks if the browser's NIP-07 extension exposes NIP-04 helpers.
  */
 export const hasNip04Support = (): boolean => {
-  return !!getNostr()?.nip04?.encrypt && !!getNostr()?.nip04?.decrypt;
+  return (
+    typeof getNostr()?.nip04?.encrypt === "function" &&
+    typeof getNostr()?.nip04?.decrypt === "function"
+  );
 };
 
 /**
  * Checks if the browser's NIP-07 extension exposes NIP-44 helpers.
  */
 export const hasNip44Support = (): boolean => {
-  return !!getNostr()?.nip44?.encrypt && !!getNostr()?.nip44?.decrypt;
+  return (
+    typeof getNostr()?.nip44?.encrypt === "function" &&
+    typeof getNostr()?.nip44?.decrypt === "function"
+  );
 };
 
 /**
