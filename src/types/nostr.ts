@@ -761,7 +761,10 @@ export interface RelayInterface {
     onEose?: () => void,
   ): string;
   unsubscribe(subscriptionId: string): void;
-  publish(event: NostrEvent): Promise<PublishResponse>;
+  publish(
+    event: NostrEvent,
+    options?: PublishOptions,
+  ): Promise<PublishResponse>;
   authenticate(
     authEvent: NostrEvent,
     options?: PublishOptions,
