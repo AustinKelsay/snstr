@@ -43,6 +43,17 @@ export {
   getEventHash,
 } from "../nip01/event";
 
+// Export NIP-42 utilities
+export {
+  AUTH_EVENT_KIND,
+  createAuthEventTemplate,
+  createSignedAuthEvent,
+  isAuthEvent,
+  validateAuthEvent,
+  parseAuthRequiredReason,
+} from "../nip42";
+export type { NIP42ValidationOptions } from "../nip42";
+
 // Export NIP-02 utilities
 export {
   createContactListEvent,
@@ -159,6 +170,10 @@ export {
 // Export NIP-07 utilities
 export {
   hasNip07Support,
+  hasNip04Support,
+  hasNip44Support,
+  hasNip04Support as hasNip07Nip04Support,
+  hasNip44Support as hasNip07Nip44Support,
   getPublicKey as getNip07PublicKey,
   signEvent as signEventWithNip07,
   encryptNip04 as encryptNip04WithExtension,
@@ -174,6 +189,55 @@ export {
   isDeletionRequestForEvent,
 } from "../nip09";
 
+// Export NIP-29 utilities
+export {
+  GROUP_METADATA_KIND,
+  GROUP_ADMINS_KIND,
+  GROUP_MEMBERS_KIND,
+  GROUP_ROLES_KIND,
+  PUT_USER_KIND,
+  REMOVE_USER_KIND,
+  EDIT_METADATA_KIND,
+  DELETE_EVENT_KIND,
+  CREATE_GROUP_KIND,
+  DELETE_GROUP_KIND,
+  CREATE_INVITE_KIND,
+  JOIN_REQUEST_KIND,
+  LEAVE_REQUEST_KIND,
+  GroupMembershipStatus,
+  createGroupJoinRequest,
+  createGroupLeaveRequest,
+  createPutUserEvent,
+  createRemoveUserEvent,
+  createEditGroupMetadataEvent,
+  createGroupMetadataEvent,
+  createGroupAdminsEvent,
+  createGroupMembersEvent,
+  createGroupRolesEvent,
+  parseGroupMetadataEvent,
+  parseGroupAdminsEvent,
+  parseGroupMembersEvent,
+  parseGroupRolesEvent,
+  reduceGroupMembers,
+  reduceGroupAdmins,
+  reduceGroupMembershipStatus,
+  buildGroupMetadataFilters,
+  buildGroupMembershipFilters,
+  buildGroupContentFilters,
+} from "../nip29";
+export type {
+  GroupMetadata,
+  GroupAdmin,
+  GroupRole,
+  ParsedGroupMetadataEvent,
+  ParsedGroupAdminsEvent,
+  ParsedGroupMembersEvent,
+  ParsedGroupRolesEvent,
+  GroupMetadataOptions,
+  GroupMetadataEditOptions,
+  GroupMembershipEventOptions,
+} from "../nip29";
+
 // Export NIP-10 utilities
 export {
   createReplyTags,
@@ -184,6 +248,19 @@ export type {
   ThreadPointer,
   ThreadReferences,
 } from "../nip10";
+
+// Export signer utilities
+export {
+  LocalKeySigner,
+  Nip07Signer,
+  getSignerCapabilities,
+} from "../signer/web";
+export type {
+  Signer,
+  SignerCapabilities,
+  SignerEncryption,
+  RemoteSigner,
+} from "../signer/web";
 
 // Export NIP-07 adapter
 export { Nip07Nostr } from "../nip07/adapter";
@@ -234,3 +311,48 @@ export {
 
 // NIP-50 search utilities
 export { createSearchFilter } from "../nip50";
+
+// NIP-56 reporting
+export {
+  REPORT_KIND,
+  REPORT_TYPES,
+  createReportEvent,
+  getReportTargets,
+  parseReportEvent,
+} from "../nip56";
+export type {
+  ReportType,
+  ReportTargetTag,
+  ReportTargetInput,
+  ParsedReportTarget,
+  ParsedReportEvent,
+} from "../nip56";
+
+// NIP-70 protected events
+export {
+  PROTECTED_TAG_NAME,
+  PROTECTED_TAG,
+  hasProtectedTag,
+  withProtectedTag,
+  inheritProtectedTag,
+} from "../nip70";
+
+// NIP-86 relay management
+export {
+  RELAY_MANAGEMENT_CONTENT_TYPE,
+  HTTP_AUTH_KIND,
+  RelayManagementError,
+  RelayManagementClient,
+  useRelayManagementFetchImplementation,
+  toRelayManagementHttpUrl,
+  createHttpAuthEventTemplate,
+  createHttpAuthHeader,
+} from "../nip86";
+export type {
+  RelayManagementRequest,
+  RelayManagementResponse,
+  RelayManagementPubkeyEntry,
+  RelayManagementEventEntry,
+  RelayManagementBlockedIpEntry,
+  RelayManagementClientOptions,
+} from "../nip86";
