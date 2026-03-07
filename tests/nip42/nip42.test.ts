@@ -66,4 +66,22 @@ describe("NIP-42", () => {
       ["challenge", "entry-challenge"],
     ]);
   });
+
+  test("should reject oversized auth challenge tag values", () => {
+    expect(() =>
+      createAuthEventTemplate(
+        "c".repeat(513),
+        "wss://relay.example.com",
+      ),
+    ).toThrow(/maximum length/i);
+  });
+
+  test("should reject oversized normalized relay tag values", () => {
+    expect(() =>
+      createAuthEventTemplate(
+        "challenge",
+        `wss://relay.example.com/${"r".repeat(600)}`,
+      ),
+    ).toThrow(/maximum length/i);
+  });
 });

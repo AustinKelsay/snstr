@@ -600,7 +600,7 @@ export class Relay {
   ): Promise<PublishResponse> {
     return this.sendClientMessage(
       ["AUTH", authEvent],
-      { waitForAck: false, ...options },
+      { waitForAck: true, ...options },
       authEvent.id,
     );
   }
@@ -640,9 +640,8 @@ export class Relay {
     }
 
     try {
-      this.ws.send(JSON.stringify(message));
-
       if (options.waitForAck === false || !ackEventId) {
+        this.ws.send(JSON.stringify(message));
         return { success: true, relay: this.url };
       }
 
@@ -650,7 +649,26 @@ export class Relay {
         const timeout = options.timeout ?? 10000;
         let timeoutId: NodeJS.Timeout | null = null;
 
-        // Create unique handler function for this specific publish operation
+        const extractErrorEventId = (error: unknown): string | undefined => {
+          if (
+            error &&
+            typeof error === "object" &&
+            "details" in error &&
+            error.details &&
+            typeof error.details === "object" &&
+            "eventId" in error.details &&
+            typeof error.details.eventId === "string"
+          ) {
+            return error.details.eventId;
+          }
+
+          if (error instanceof Error && ackEventId && error.message.includes(ackEventId)) {
+            return ackEventId;
+          }
+
+          return undefined;
+        };
+
         const handleOk = (
           eventId: string,
           success: boolean,
@@ -667,8 +685,11 @@ export class Relay {
           }
         };
 
-        // Setup error handler in case of WebSocket errors during publishing
         const handleError = (_: string, error: unknown) => {
+          if (extractErrorEventId(error) !== ackEventId) {
+            return;
+          }
+
           cleanup();
           const errorMsg =
             error instanceof Error ? error.message : "unknown error";
@@ -679,13 +700,11 @@ export class Relay {
           });
         };
 
-        // Setup disconnect handler in case connection drops during wait
         const handleDisconnect = () => {
           cleanup();
           resolve({ success: false, reason: "disconnected", relay: this.url });
         };
 
-        // Helper to clean up all handlers and timeout
         const cleanup = () => {
           this.off(RelayEvent.OK, handleOk);
           this.off(RelayEvent.Error, handleError);
@@ -694,17 +713,28 @@ export class Relay {
           timeoutId = null;
         };
 
-        // Register the event handlers
         this.on(RelayEvent.OK, handleOk);
         this.on(RelayEvent.Error, handleError);
         this.on(RelayEvent.Disconnect, handleDisconnect);
 
-        // Set timeout to avoid hanging indefinitely
         timeoutId = setTimeout(() => {
           cleanup();
           resolve({ success: false, reason: "timeout", relay: this.url });
         }, timeout);
         maybeUnref(timeoutId);
+
+        try {
+          this.ws!.send(JSON.stringify(message));
+        } catch (error) {
+          cleanup();
+          const errorMsg =
+            error instanceof Error ? error.message : "unknown error";
+          resolve({
+            success: false,
+            reason: `error: ${errorMsg}`,
+            relay: this.url,
+          });
+        }
       });
     } catch (error) {
       const errorMessage =
