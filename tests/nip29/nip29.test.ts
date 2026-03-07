@@ -152,6 +152,24 @@ describe("NIP-29", () => {
     );
   });
 
+  test("should preserve explicit metadata clears in edit events", async () => {
+    const adminKeys = await generateKeypair();
+    const event = createEditGroupMetadataEvent("pizza_lovers", adminKeys.privateKey, {
+      name: "",
+      picture: "",
+      about: "",
+    });
+
+    expect(event.tags).toEqual(
+      expect.arrayContaining([
+        ["h", "pizza_lovers"],
+        ["name", ""],
+        ["picture", ""],
+        ["about", ""],
+      ]),
+    );
+  });
+
   test("should reduce members from snapshots and newer moderation deltas", async () => {
     const relayKeys = await generateKeypair();
     const adminKeys = await generateKeypair();
@@ -286,6 +304,12 @@ describe("NIP-29", () => {
     ]);
   });
 
+  test("should reject invalid member pubkeys when building membership filters", () => {
+    expect(() => buildGroupMembershipFilters("pizza_lovers", "")).toThrow(
+      "memberPubkey must be a 64-character lowercase hex string",
+    );
+  });
+
   test("should ignore other groups when reducing membership", async () => {
     const adminKeys = await generateKeypair();
     const memberPubkey = "c".repeat(64);
@@ -310,5 +334,19 @@ describe("NIP-29", () => {
         "pasta_lovers",
       ),
     ).toBe(GroupMembershipStatus.Granted);
+  });
+
+  test("should reject empty group ids when reducing members", async () => {
+    const adminKeys = await generateKeypair();
+    const memberPubkey = "d".repeat(64);
+
+    const event = await createSignedEvent(
+      createPutUserEvent("pizza_lovers", memberPubkey, adminKeys.privateKey),
+      adminKeys.privateKey,
+    );
+
+    expect(() => reduceGroupMembers([event], "")).toThrow(
+      "Group id must contain only lowercase letters, numbers, hyphens, or underscores",
+    );
   });
 });
