@@ -149,6 +149,29 @@ function getValidatedPubkeys(tags: string[][]): string[] {
     .filter((pubkey): pubkey is string => pubkey !== undefined);
 }
 
+function getScopedGroupId(event: NostrEvent): string | undefined {
+  const isSnapshotKind = [
+    GROUP_METADATA_KIND,
+    GROUP_ADMINS_KIND,
+    GROUP_MEMBERS_KIND,
+    GROUP_ROLES_KIND,
+  ].includes(event.kind);
+  const scopedGroupId = isSnapshotKind
+    ? getFirstTagValue(event.tags, "d") ?? getFirstTagValue(event.tags, "h")
+    : getFirstTagValue(event.tags, "h") ?? getFirstTagValue(event.tags, "d");
+
+  if (scopedGroupId === undefined) {
+    return undefined;
+  }
+
+  try {
+    assertGroupId(scopedGroupId);
+    return scopedGroupId;
+  } catch {
+    return undefined;
+  }
+}
+
 function getRoleValues(tag: string[]): string[] {
   return tag.slice(2).filter((value) => typeof value === "string" && value.length > 0);
 }
@@ -485,21 +508,22 @@ export function parseGroupRolesEvent(
 }
 
 function filterEventsByGroupId(events: NostrEvent[], groupId?: string): NostrEvent[] {
-  if (groupId === undefined) return events;
+  if (groupId === undefined) {
+    const scopedGroupIds = new Set(
+      events
+        .map((event) => getScopedGroupId(event))
+        .filter((value): value is string => value !== undefined),
+    );
+
+    if (scopedGroupIds.size > 1) {
+      throw new Error("Mixed group events require an explicit groupId");
+    }
+
+    return events;
+  }
   assertGroupId(groupId);
 
-  return events.filter((event) => {
-    const isSnapshotKind = [
-      GROUP_METADATA_KIND,
-      GROUP_ADMINS_KIND,
-      GROUP_MEMBERS_KIND,
-      GROUP_ROLES_KIND,
-    ].includes(event.kind);
-    const scopedGroupId = isSnapshotKind
-      ? getFirstTagValue(event.tags, "d") ?? getFirstTagValue(event.tags, "h")
-      : getFirstTagValue(event.tags, "h") ?? getFirstTagValue(event.tags, "d");
-    return scopedGroupId === groupId;
-  });
+  return events.filter((event) => getScopedGroupId(event) === groupId);
 }
 
 function getLatestAddressableSnapshot(

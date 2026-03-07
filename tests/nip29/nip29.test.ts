@@ -300,6 +300,33 @@ describe("NIP-29", () => {
     ).toEqual([member1, member3]);
   });
 
+  test("should ignore a later malformed members snapshot and keep the last valid one", async () => {
+    const relayKeys = await generateKeypair();
+    const memberPubkey = "4".repeat(64);
+
+    const validSnapshot = await createSignedEvent(
+      {
+        ...createGroupMembersEvent("pizza_lovers", relayKeys.privateKey, [memberPubkey]),
+        created_at: 100,
+      },
+      relayKeys.privateKey,
+    );
+
+    const malformedLaterSnapshot = {
+      ...validSnapshot,
+      id: "f".repeat(64),
+      created_at: 200,
+      tags: [
+        ["d", "BAD GROUP"],
+        ["p", "5".repeat(64)],
+      ],
+    };
+
+    expect(reduceGroupMembers([validSnapshot, malformedLaterSnapshot])).toEqual([
+      memberPubkey,
+    ]);
+  });
+
   test("should reduce admins from snapshots and role changes", async () => {
     const relayKeys = await generateKeypair();
     const adminKeys = await generateKeypair();
@@ -336,6 +363,35 @@ describe("NIP-29", () => {
 
     expect(reduceGroupAdmins([snapshot, promoteAdmin2, demoteAdmin1])).toEqual([
       { pubkey: admin2, roles: ["moderator"] },
+    ]);
+  });
+
+  test("should ignore a later malformed admins snapshot and keep the last valid one", async () => {
+    const relayKeys = await generateKeypair();
+    const adminPubkey = "6".repeat(64);
+
+    const validSnapshot = await createSignedEvent(
+      {
+        ...createGroupAdminsEvent("pizza_lovers", relayKeys.privateKey, [
+          { pubkey: adminPubkey, roles: ["founder"] },
+        ]),
+        created_at: 100,
+      },
+      relayKeys.privateKey,
+    );
+
+    const malformedLaterSnapshot = {
+      ...validSnapshot,
+      id: "e".repeat(64),
+      created_at: 200,
+      tags: [
+        ["d", "BAD GROUP"],
+        ["p", "7".repeat(64), "moderator"],
+      ],
+    };
+
+    expect(reduceGroupAdmins([validSnapshot, malformedLaterSnapshot])).toEqual([
+      { pubkey: adminPubkey, roles: ["founder"] },
     ]);
   });
 
@@ -486,6 +542,27 @@ describe("NIP-29", () => {
         "pasta_lovers",
       ),
     ).toBe(GroupMembershipStatus.Initial);
+  });
+
+  test("should reject mixed-group reducer input without an explicit group id", async () => {
+    const adminKeys = await generateKeypair();
+    const memberPubkey = "8".repeat(64);
+
+    const pizzaEvent = await createSignedEvent(
+      createPutUserEvent("pizza_lovers", memberPubkey, adminKeys.privateKey),
+      adminKeys.privateKey,
+    );
+    const pastaEvent = await createSignedEvent(
+      createRemoveUserEvent("pasta_lovers", memberPubkey, adminKeys.privateKey),
+      adminKeys.privateKey,
+    );
+
+    expect(() => reduceGroupMembers([pizzaEvent, pastaEvent])).toThrow(
+      "Mixed group events require an explicit groupId",
+    );
+    expect(() =>
+      reduceGroupMembershipStatus([pizzaEvent, pastaEvent], memberPubkey),
+    ).toThrow("Mixed group events require an explicit groupId");
   });
 
   test("should reject empty group ids when reducing members", async () => {
