@@ -1,6 +1,8 @@
 import {
   Nostr,
   NostrEvent,
+  PublishOptions,
+  PublishResponse,
   Relay,
   RelayEvent,
   RelayEventCallbacks,
@@ -15,11 +17,11 @@ import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/rela
 export interface MockRelay {
   url: string;
   connected: boolean;
-  publishResults: { success: boolean; reason?: string }[];
+  publishResults: PublishResponse[];
   publish(
     event: NostrEvent,
-    options?: { timeout?: number },
-  ): Promise<{ success: boolean; reason?: string }>;
+    options?: PublishOptions,
+  ): Promise<PublishResponse>;
   connect(): Promise<boolean>;
   disconnect(): void;
   on(): void;
@@ -35,8 +37,8 @@ export interface MockRelay {
   getAddressableEventsByKind?(kind: number): NostrEvent[];
   authenticate?(
     authEvent: NostrEvent,
-    options?: { timeout?: number; waitForAck?: boolean },
-  ): Promise<{ success: boolean; reason?: string }>;
+    options?: PublishOptions,
+  ): Promise<PublishResponse>;
   getLatestReplaceableEvent?(pubkey: string, kind: number): NostrEvent | undefined;
 }
 

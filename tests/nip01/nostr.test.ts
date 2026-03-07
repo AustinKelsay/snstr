@@ -178,51 +178,91 @@ describe("Nostr Client", () => {
     });
 
     test("should fetch events with relay provenance preserved", async () => {
+      const secondRelay = await createEphemeralRelay();
+      client.addRelay(secondRelay.url);
       await client.generateKeys();
       await client.connectToRelays();
 
-      const note = await client.publishTextNote("relay-aware fetch");
-      expect(note).toBeDefined();
+      try {
+        const note = await client.publishTextNote("relay-aware fetch");
+        expect(note).toBeDefined();
 
-      const events = await client.fetchManyDetailed(
-        [{ ids: [note!.id] }],
-        { maxWait: 500 },
-      );
+        const events = await client.fetchManyDetailed(
+          [{ ids: [note!.id] }],
+          { maxWait: 500 },
+        );
 
-      expect(events).toHaveLength(1);
-      expect(events[0].relay).toBe(ephemeralRelay.url);
-      expect(events[0].event.id).toBe(note!.id);
+        expect(events).toHaveLength(2);
+        expect(events.map((event) => event.event.id)).toEqual([
+          note!.id,
+          note!.id,
+        ]);
+        expect(new Set(events.map((event) => event.relay))).toEqual(
+          new Set([ephemeralRelay.url, secondRelay.url]),
+        );
+      } finally {
+        await secondRelay.close();
+      }
     });
 
     test("should subscribe with relay provenance preserved", async () => {
+      const secondRelay = await createEphemeralRelay();
+      client.addRelay(secondRelay.url);
       await client.generateKeys();
       await client.connectToRelays();
 
-      const note = await client.publishTextNote("relay-aware subscribe");
-      expect(note).toBeDefined();
+      try {
+        const note = await client.publishTextNote("relay-aware subscribe");
+        expect(note).toBeDefined();
 
-      const received = await new Promise<RelayReceivedEvent>((resolve, reject) => {
-        let subscriptionIds: string[] = [];
-        const timeout = setTimeout(() => {
-          client.unsubscribe(subscriptionIds);
-          reject(new Error("Timed out waiting for detailed subscription event"));
-        }, 1000);
+        const received = await new Promise<RelayReceivedEvent[]>(
+          (resolve, reject) => {
+            let subscriptionIds: string[] = [];
+            const receivedEvents: RelayReceivedEvent[] = [];
+            const timeout = setTimeout(() => {
+              client.unsubscribe(subscriptionIds);
+              reject(
+                new Error("Timed out waiting for detailed subscription events"),
+              );
+            }, 1000);
 
-        subscriptionIds = client.subscribeDetailed(
-          [{ ids: [note!.id] }],
-          (relayEvent) => {
-            clearTimeout(timeout);
-            client.unsubscribe(subscriptionIds);
-            resolve(relayEvent);
+            subscriptionIds = client.subscribeDetailed(
+              [{ ids: [note!.id] }],
+              (relayEvent) => {
+                receivedEvents.push(relayEvent);
+
+                if (receivedEvents.length === 2) {
+                  clearTimeout(timeout);
+                  client.unsubscribe(subscriptionIds);
+                  resolve(receivedEvents);
+                }
+              },
+              undefined,
+              { autoClose: true, eoseTimeout: 500 },
+            );
           },
-          undefined,
-          { autoClose: true, eoseTimeout: 500 },
         );
-      });
 
-      expect(received.relay).toBe(ephemeralRelay.url);
-      expect(received.event.id).toBe(note!.id);
-      expect(received.subscriptionId).toBeTruthy();
+        expect(received).toHaveLength(2);
+        expect(new Set(received.map((event) => event.relay))).toEqual(
+          new Set([ephemeralRelay.url, secondRelay.url]),
+        );
+        expect(received.map((event) => event.event.id)).toEqual([
+          note!.id,
+          note!.id,
+        ]);
+
+        const subscriptionIdsByRelay = new Map(
+          received.map((event) => [event.relay, event.subscriptionId]),
+        );
+        expect(subscriptionIdsByRelay.get(ephemeralRelay.url)).toBeTruthy();
+        expect(subscriptionIdsByRelay.get(secondRelay.url)).toBeTruthy();
+        expect(
+          subscriptionIdsByRelay.get(ephemeralRelay.url),
+        ).not.toEqual(subscriptionIdsByRelay.get(secondRelay.url));
+      } finally {
+        await secondRelay.close();
+      }
     });
   });
 
@@ -1095,6 +1135,30 @@ describe("Nostr client", () => {
           ["challenge", "challenge-789"],
         ]),
       );
+    });
+
+    it("should reject authenticateRelay for unknown relays", async () => {
+      const nostr = new Nostr();
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-789"),
+      ).rejects.toThrow("Relay not found");
+    });
+
+    it("should reject authenticateRelay when the private key is missing", async () => {
+      const nostr = new Nostr();
+      const relay = new MockRelay("wss://mock-relay1.com");
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-789"),
+      ).rejects.toThrow("Private key is not set");
+      expect(relay.authenticateCalls).toHaveLength(0);
     });
   });
 });

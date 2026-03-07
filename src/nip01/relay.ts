@@ -43,6 +43,12 @@ type WebSocketLike = {
   terminate?: () => void;
 };
 
+type ClientMessage =
+  | ["EVENT", NostrEvent]
+  | ["AUTH", NostrEvent]
+  | ["REQ", string, ...Filter[]]
+  | ["CLOSE", string];
+
 const WS_READY_STATE = {
   CONNECTING: 0,
   OPEN: 1,
@@ -600,7 +606,7 @@ export class Relay {
   }
 
   private async sendClientMessage(
-    message: unknown[],
+    message: ClientMessage,
     options: PublishOptions = {},
     ackEventId?: string,
   ): Promise<PublishResponse> {

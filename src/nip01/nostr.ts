@@ -741,19 +741,19 @@ export class Nostr {
       const subscriptionIds: string[] = [];
 
       this.relays.forEach((relay, url) => {
-        let relaySubscriptionId = "";
-        relaySubscriptionId = relay.subscribe(
+        const subscriptionRef = { id: "" };
+        subscriptionRef.id = relay.subscribe(
           validatedFilters,
           (event) =>
             onEvent({
               event,
               relay: url,
-              subscriptionId: relaySubscriptionId,
+              subscriptionId: subscriptionRef.id,
             }),
-          onEOSE ? () => onEOSE(url, relaySubscriptionId) : undefined,
+          onEOSE ? () => onEOSE(url, subscriptionRef.id) : undefined,
           options,
         );
-        subscriptionIds.push(relaySubscriptionId);
+        subscriptionIds.push(subscriptionRef.id);
       });
 
       return subscriptionIds;
@@ -1261,7 +1261,8 @@ export class Nostr {
   }
 
   private getRelayByUrl(relayUrl: string): Relay {
-    const normalizedUrl = this.normalizeRelayUrl(relayUrl);
+    const preprocessedUrl = this.preprocessRelayUrl(relayUrl);
+    const normalizedUrl = this.normalizeRelayUrl(preprocessedUrl);
     const relay = this.relays.get(normalizedUrl);
 
     if (!relay) {

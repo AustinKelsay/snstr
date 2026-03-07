@@ -194,6 +194,24 @@ describe("Relay", () => {
 
       expect(authHandler).toHaveBeenCalledWith("challenge-123");
     });
+
+    test("should reject non-string AUTH challenges", () => {
+      const relay = new Relay(ephemeralRelay.url);
+      const authHandler = jest.fn();
+      const errorHandler = jest.fn();
+
+      relay.on(RelayEvent.Auth, authHandler);
+      relay.on(RelayEvent.Error, errorHandler);
+      asTestRelay(relay).handleMessage(["AUTH", 123]);
+
+      expect(authHandler).not.toHaveBeenCalled();
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler.mock.calls[0][0]).toBe(ephemeralRelay.url);
+      expect(errorHandler.mock.calls[0][1]).toBeInstanceOf(Error);
+      expect(errorHandler.mock.calls[0][1].message).toContain(
+        "Invalid AUTH challenge",
+      );
+    });
   });
 
   describe("Publishing Events", () => {
