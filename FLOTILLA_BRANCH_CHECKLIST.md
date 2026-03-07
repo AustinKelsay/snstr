@@ -6,16 +6,16 @@ This file tracks the three feature branches for the `snstr` work needed to suppo
 
 Scope: authentication and relay-scoped data primitives that the other branches depend on.
 
-- [ ] Fix NIP-42 typing so relay AUTH challenges are represented correctly.
-- [ ] Add a dedicated `src/nip42/` module.
-- [ ] Add auth event builders and validators.
-- [ ] Add relay authentication send flow on `Relay`.
-- [ ] Add relay authentication entry points on `Nostr`.
-- [ ] Add relay-scoped subscribe/fetch helpers that preserve relay provenance.
-- [ ] Add relay-specific replaceable/addressable query helpers.
-- [ ] Add tests for NIP-42 challenge handling and auth publishing.
-- [ ] Add tests for relay-scoped event/query APIs.
-- [ ] Export the new APIs from `src/index.ts`.
+- [x] Fix NIP-42 typing so relay AUTH challenges are represented correctly.
+- [x] Add a dedicated `src/nip42/` module.
+- [x] Add auth event builders and validators.
+- [x] Add relay authentication send flow on `Relay`.
+- [x] Add relay authentication entry points on `Nostr`.
+- [x] Add relay-scoped subscribe/fetch helpers that preserve relay provenance.
+- [x] Add relay-specific replaceable/addressable query helpers.
+- [x] Add tests for NIP-42 challenge handling and auth publishing.
+- [x] Add tests for relay-scoped event/query APIs.
+- [x] Export the new APIs from `src/index.ts`.
 - [ ] Add README/example coverage for the new foundation APIs.
 
 ## Branch 2: `codex/flotilla-groups-nip29`
@@ -54,7 +54,7 @@ Scope: admin/moderation and higher-level ergonomics used by a Flotilla-like clie
 ## Shared Completion Checks
 
 - [ ] `npm test`
-- [ ] `npm run build`
-- [ ] `npm run lint`
+- [x] `npm run build`
+- [x] `npm run lint`
 - [ ] Public exports and docs stay aligned with implementation.
 - [ ] New examples reflect the intended Flotilla-facing usage.

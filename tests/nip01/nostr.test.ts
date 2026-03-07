@@ -1,4 +1,11 @@
-import { Nostr, NostrEvent, Filter, RelayEvent, Relay } from "../../src";
+import {
+  Nostr,
+  NostrEvent,
+  Filter,
+  RelayEvent,
+  Relay,
+  RelayReceivedEvent,
+} from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
@@ -80,6 +87,18 @@ describe("Nostr Client", () => {
       expect(connectCount).toBe(1);
     });
 
+    test("should surface relay auth challenges as strings", () => {
+      let challenge = "";
+      client.on(RelayEvent.Auth, (_relayUrl, nextChallenge) => {
+        challenge = nextChallenge;
+      });
+
+      const relay = Array.from(getNostrInternals(client).relays.values())[0];
+      asTestRelay(relay as Relay).handleMessage(["AUTH", "relay-challenge"]);
+
+      expect(challenge).toBe("relay-challenge");
+    });
+
     test("should disconnect from relays", async () => {
       await client.connectToRelays();
 
@@ -156,6 +175,94 @@ describe("Nostr Client", () => {
       await expect(
         client.publishTextNote("This should fail"),
       ).rejects.toThrow();
+    });
+
+    test("should fetch events with relay provenance preserved", async () => {
+      const secondRelay = await createEphemeralRelay();
+      client.addRelay(secondRelay.url);
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      try {
+        const note = await client.publishTextNote("relay-aware fetch");
+        expect(note).toBeDefined();
+
+        const events = await client.fetchManyDetailed(
+          [{ ids: [note!.id] }],
+          { maxWait: 500 },
+        );
+
+        expect(events).toHaveLength(2);
+        expect(events.map((event) => event.event.id)).toEqual([
+          note!.id,
+          note!.id,
+        ]);
+        expect(new Set(events.map((event) => event.relay))).toEqual(
+          new Set([ephemeralRelay.url, secondRelay.url]),
+        );
+      } finally {
+        await secondRelay.close();
+      }
+    });
+
+    test("should subscribe with relay provenance preserved", async () => {
+      const secondRelay = await createEphemeralRelay();
+      client.addRelay(secondRelay.url);
+      await client.generateKeys();
+      await client.connectToRelays();
+
+      try {
+        const note = await client.publishTextNote("relay-aware subscribe");
+        expect(note).toBeDefined();
+
+        const received = await new Promise<RelayReceivedEvent[]>(
+          (resolve, reject) => {
+            let subscriptionIds: string[] = [];
+            const receivedEvents: RelayReceivedEvent[] = [];
+            const timeout = setTimeout(() => {
+              client.unsubscribe(subscriptionIds);
+              reject(
+                new Error("Timed out waiting for detailed subscription events"),
+              );
+            }, 1000);
+
+            subscriptionIds = client.subscribeDetailed(
+              [{ ids: [note!.id] }],
+              (relayEvent) => {
+                receivedEvents.push(relayEvent);
+
+                if (receivedEvents.length === 2) {
+                  clearTimeout(timeout);
+                  client.unsubscribe(subscriptionIds);
+                  resolve(receivedEvents);
+                }
+              },
+              undefined,
+              { autoClose: true, eoseTimeout: 500 },
+            );
+          },
+        );
+
+        expect(received).toHaveLength(2);
+        expect(new Set(received.map((event) => event.relay))).toEqual(
+          new Set([ephemeralRelay.url, secondRelay.url]),
+        );
+        expect(received.map((event) => event.event.id)).toEqual([
+          note!.id,
+          note!.id,
+        ]);
+
+        const subscriptionIdsByRelay = new Map(
+          received.map((event) => [event.relay, event.subscriptionId]),
+        );
+        expect(subscriptionIdsByRelay.get(ephemeralRelay.url)).toBeTruthy();
+        expect(subscriptionIdsByRelay.get(secondRelay.url)).toBeTruthy();
+        expect(
+          subscriptionIdsByRelay.get(ephemeralRelay.url),
+        ).not.toEqual(subscriptionIdsByRelay.get(secondRelay.url));
+      } finally {
+        await secondRelay.close();
+      }
     });
   });
 
@@ -780,6 +887,8 @@ describe("Nostr client", () => {
   // Mock relay for testing
   class MockRelay {
     public publishResults: { success: boolean; reason?: string }[] = [];
+    public authResults: { success: boolean; reason?: string }[] = [];
+    public authenticateCalls: NostrEvent[] = [];
     public readonly url: string;
     public connected = true;
     private connectionTimeout = 10000;
@@ -793,6 +902,7 @@ describe("Nostr client", () => {
       this.publishResults = publishResults.length
         ? publishResults
         : [{ success: true }];
+      this.authResults = [{ success: true }];
       if (options.connectionTimeout !== undefined) {
         this.connectionTimeout = options.connectionTimeout;
       }
@@ -810,6 +920,16 @@ describe("Nostr client", () => {
       return this.publishResults.length > 1
         ? this.publishResults.shift()!
         : this.publishResults[0];
+    }
+
+    public async authenticate(
+      authEvent: NostrEvent,
+      _options: { timeout?: number; waitForAck?: boolean } = {},
+    ): Promise<{ success: boolean; reason?: string }> {
+      this.authenticateCalls.push(authEvent);
+      return this.authResults.length > 1
+        ? this.authResults.shift()!
+        : this.authResults[0];
     }
 
     disconnect(): void {
@@ -988,6 +1108,112 @@ describe("Nostr client", () => {
         true,
       );
     });
+  });
+
+  describe("authenticateRelay", () => {
+    it("should create and send a signed auth event from a challenge", async () => {
+      const nostr = new Nostr();
+      const relay = new MockRelay("wss://mock-relay1.com");
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      const result = await nostr.authenticateRelay(
+        "wss://mock-relay1.com",
+        "challenge-789",
+      );
+
+      expect(result.success).toBe(true);
+      expect(relay.authenticateCalls).toHaveLength(1);
+      expect(relay.authenticateCalls[0].kind).toBe(22242);
+      expect(relay.authenticateCalls[0].content).toBe("");
+      expect(relay.authenticateCalls[0].tags).toEqual(
+        expect.arrayContaining([
+          ["relay", "wss://mock-relay1.com"],
+          ["challenge", "challenge-789"],
+        ]),
+      );
+    });
+
+    it("should reject authenticateRelay for unknown relays", async () => {
+      const nostr = new Nostr();
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-789"),
+      ).rejects.toThrow("Relay not found");
+    });
+
+    it("should reject authenticateRelay when the private key is missing", async () => {
+      const nostr = new Nostr();
+      const relay = new MockRelay("wss://mock-relay1.com");
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-789"),
+      ).rejects.toThrow("Private key is not set");
+      expect(relay.authenticateCalls).toHaveLength(0);
+    });
+
+    it("should enforce publish rate limits for authenticateRelay", async () => {
+      const nostr = new Nostr([], {
+        rateLimits: {
+          publish: { limit: 1, windowMs: 60000 },
+        },
+      });
+      const relay = new MockRelay("wss://mock-relay1.com");
+      const keys = await generateKeypair();
+
+      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      getNostrInternals(nostr).privateKey = keys.privateKey;
+      getNostrInternals(nostr).publicKey = keys.publicKey;
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-1"),
+      ).resolves.toMatchObject({ success: true });
+
+      await expect(
+        nostr.authenticateRelay("wss://mock-relay1.com", "challenge-2"),
+      ).rejects.toThrow(/Publish rate limit exceeded/);
+      expect(relay.authenticateCalls).toHaveLength(1);
+    });
+  });
+});
+
+describe("Detailed subscription cleanup", () => {
+  it("should unsubscribe earlier relays when a later detailed subscribe fails", () => {
+    const nostr = new Nostr();
+    const firstRelay = {
+      subscribe: jest.fn().mockReturnValue("sub-1"),
+      unsubscribe: jest.fn(),
+    };
+    const secondRelay = {
+      subscribe: jest.fn(() => {
+        throw new Error("subscribe failed");
+      }),
+      unsubscribe: jest.fn(),
+    };
+
+    getNostrInternals(nostr).relays.set(
+      "wss://mock-relay1.com",
+      firstRelay as unknown as Relay,
+    );
+    getNostrInternals(nostr).relays.set(
+      "wss://mock-relay2.com",
+      secondRelay as unknown as Relay,
+    );
+
+    expect(() =>
+      nostr.subscribeDetailed([{ kinds: [1], limit: 1 }], () => {}),
+    ).toThrow(/subscribe failed/);
+    expect(firstRelay.unsubscribe).toHaveBeenCalledWith("sub-1");
+    expect(secondRelay.unsubscribe).not.toHaveBeenCalled();
   });
 });
 

@@ -43,6 +43,12 @@ type WebSocketLike = {
   terminate?: () => void;
 };
 
+type ClientMessage =
+  | ["EVENT", NostrEvent]
+  | ["AUTH", NostrEvent]
+  | ["REQ", string, ...Filter[]]
+  | ["CLOSE", string];
+
 const WS_READY_STATE = {
   CONNECTING: 0,
   OPEN: 1,
@@ -585,6 +591,25 @@ export class Relay {
     event: NostrEvent,
     options: PublishOptions = {},
   ): Promise<PublishResponse> {
+    return this.sendClientMessage(["EVENT", event], options, event.id);
+  }
+
+  public async authenticate(
+    authEvent: NostrEvent,
+    options: PublishOptions = {},
+  ): Promise<PublishResponse> {
+    return this.sendClientMessage(
+      ["AUTH", authEvent],
+      { waitForAck: true, ...options },
+      authEvent.id,
+    );
+  }
+
+  private async sendClientMessage(
+    message: ClientMessage,
+    options: PublishOptions = {},
+    ackEventId?: string,
+  ): Promise<PublishResponse> {
     if (!this.connected) {
       try {
         const connected = await this.connect();
@@ -615,27 +640,41 @@ export class Relay {
     }
 
     try {
-      // First send the event
-      const message = JSON.stringify(["EVENT", event]);
-      this.ws.send(message);
-
-      // If we don't need to wait for acknowledgment, return immediately
-      if (options.waitForAck === false) {
+      if (options.waitForAck === false || !ackEventId) {
+        this.ws.send(JSON.stringify(message));
         return { success: true, relay: this.url };
       }
 
-      // Return a Promise that will resolve when we get the OK response for this event
       return new Promise<PublishResponse>((resolve) => {
         const timeout = options.timeout ?? 10000;
         let timeoutId: NodeJS.Timeout | null = null;
 
-        // Create unique handler function for this specific publish operation
+        const extractErrorEventId = (error: unknown): string | undefined => {
+          if (
+            error &&
+            typeof error === "object" &&
+            "details" in error &&
+            error.details &&
+            typeof error.details === "object" &&
+            "eventId" in error.details &&
+            typeof error.details.eventId === "string"
+          ) {
+            return error.details.eventId;
+          }
+
+          if (error instanceof Error && ackEventId && error.message.includes(ackEventId)) {
+            return ackEventId;
+          }
+
+          return undefined;
+        };
+
         const handleOk = (
           eventId: string,
           success: boolean,
           details: ParsedOkReason,
         ) => {
-          if (eventId === event.id) {
+          if (eventId === ackEventId) {
             cleanup();
             resolve({
               success,
@@ -646,8 +685,11 @@ export class Relay {
           }
         };
 
-        // Setup error handler in case of WebSocket errors during publishing
         const handleError = (_: string, error: unknown) => {
+          if (extractErrorEventId(error) !== ackEventId) {
+            return;
+          }
+
           cleanup();
           const errorMsg =
             error instanceof Error ? error.message : "unknown error";
@@ -658,13 +700,11 @@ export class Relay {
           });
         };
 
-        // Setup disconnect handler in case connection drops during wait
         const handleDisconnect = () => {
           cleanup();
           resolve({ success: false, reason: "disconnected", relay: this.url });
         };
 
-        // Helper to clean up all handlers and timeout
         const cleanup = () => {
           this.off(RelayEvent.OK, handleOk);
           this.off(RelayEvent.Error, handleError);
@@ -673,22 +713,33 @@ export class Relay {
           timeoutId = null;
         };
 
-        // Register the event handlers
         this.on(RelayEvent.OK, handleOk);
         this.on(RelayEvent.Error, handleError);
         this.on(RelayEvent.Disconnect, handleDisconnect);
 
-        // Set timeout to avoid hanging indefinitely
         timeoutId = setTimeout(() => {
           cleanup();
           resolve({ success: false, reason: "timeout", relay: this.url });
         }, timeout);
         maybeUnref(timeoutId);
+
+        try {
+          this.ws!.send(JSON.stringify(message));
+        } catch (error) {
+          cleanup();
+          const errorMsg =
+            error instanceof Error ? error.message : "unknown error";
+          resolve({
+            success: false,
+            reason: `error: ${errorMsg}`,
+            relay: this.url,
+          });
+        }
       });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
-      console.error(`Error publishing event to ${this.url}:`, errorMessage);
+      console.error(`Error sending message to ${this.url}:`, errorMessage);
       return {
         success: false,
         reason: `error: ${errorMessage}`,
@@ -896,17 +947,15 @@ export class Relay {
         break;
       }
       case "AUTH": {
-        const [challengeEvent] = rest;
-        // Check if the challenge is a proper NostrEvent
-        if (this.isNostrEvent(challengeEvent)) {
-          this.triggerEvent(RelayEvent.Auth, challengeEvent);
+        const [challenge] = rest;
+        if (typeof challenge === "string") {
+          this.triggerEvent(RelayEvent.Auth, challenge);
         } else {
-          // If it's not a proper event, log an error
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
             new Error(
-              `Invalid AUTH challenge: ${JSON.stringify(challengeEvent)}`,
+              `Invalid AUTH challenge: ${JSON.stringify(challenge)}`,
             ),
           );
         }
@@ -1180,7 +1229,7 @@ export class Relay {
   ): void;
   private triggerEvent(
     event: RelayEvent.Auth,
-    challengeEvent: NostrEvent,
+    challenge: string,
   ): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
     const callbacks = this.eventHandlers[event];

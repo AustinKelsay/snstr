@@ -184,6 +184,34 @@ describe("Relay", () => {
         relay.on(RelayEvent.Error, () => {});
       }).not.toThrow();
     });
+
+    test("should surface AUTH challenges as strings", () => {
+      const relay = new Relay(ephemeralRelay.url);
+      const authHandler = jest.fn();
+
+      relay.on(RelayEvent.Auth, authHandler);
+      asTestRelay(relay).handleMessage(["AUTH", "challenge-123"]);
+
+      expect(authHandler).toHaveBeenCalledWith("challenge-123");
+    });
+
+    test("should reject non-string AUTH challenges", () => {
+      const relay = new Relay(ephemeralRelay.url);
+      const authHandler = jest.fn();
+      const errorHandler = jest.fn();
+
+      relay.on(RelayEvent.Auth, authHandler);
+      relay.on(RelayEvent.Error, errorHandler);
+      asTestRelay(relay).handleMessage(["AUTH", 123]);
+
+      expect(authHandler).not.toHaveBeenCalled();
+      expect(errorHandler).toHaveBeenCalledTimes(1);
+      expect(errorHandler.mock.calls[0][0]).toBe(ephemeralRelay.url);
+      expect(errorHandler.mock.calls[0][1]).toBeInstanceOf(Error);
+      expect(errorHandler.mock.calls[0][1].message).toContain(
+        "Invalid AUTH challenge",
+      );
+    });
   });
 
   describe("Publishing Events", () => {
@@ -298,6 +326,135 @@ describe("Relay", () => {
 
       // Restore the original implementation
       relay.on = originalOn;
+    });
+
+    test("should send AUTH events to the relay and wait for OK by default", async () => {
+      const authRelay = new Relay(ephemeralRelay.url);
+      const relayInternals = asTestRelay(authRelay);
+
+      relayInternals.connected = true;
+      relayInternals.ws = {
+        readyState: 1,
+        onopen: null,
+        onclose: null,
+        onerror: null,
+        onmessage: null,
+        send: jest.fn((payload: string) => {
+          expect(payload).toBe(JSON.stringify(["AUTH", authEvent]));
+          relayInternals.handleMessage(["OK", authEvent.id, true, "accepted"]);
+        }),
+        close: jest.fn(),
+      } as unknown as WebSocket;
+
+      const authEvent: NostrEvent = {
+        id: "auth-event-id",
+        pubkey: "f".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 22242,
+        tags: [
+          ["relay", ephemeralRelay.url],
+          ["challenge", "challenge-abc"],
+        ],
+        content: "",
+        sig: "a".repeat(128),
+      };
+
+      const result = await authRelay.authenticate(authEvent);
+
+      expect(result).toEqual({
+        success: true,
+        reason: "accepted",
+        parsedReason: {
+          rawMessage: "accepted",
+          message: "accepted",
+        },
+        relay: ephemeralRelay.url,
+      });
+    });
+
+    test("should ignore unrelated relay errors while waiting for OK", async () => {
+      const callbacks = new Map<RelayEvent, AnyRelayCallback>();
+      const originalOn = relay.on;
+      relay.on = jest.fn((event: RelayEvent, callback: AnyRelayCallback) => {
+        callbacks.set(event, callback);
+        return originalOn.call(relay, event, callback);
+      });
+
+      const event: NostrEvent = {
+        id: "test-event-id-unrelated-error",
+        pubkey: "test-pubkey",
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: "Test event content",
+        sig: "test-signature",
+      };
+
+      const publishPromise = relay.publish(event);
+
+      const errorCallback = callbacks.get(RelayEvent.Error) as (
+        relayUrl: string,
+        error: unknown,
+      ) => void;
+      const okCallback = callbacks.get(RelayEvent.OK) as RelayOkCallback;
+
+      errorCallback(ephemeralRelay.url, new Error("unrelated relay error"));
+      okCallback(event.id, true, {
+        rawMessage: "accepted",
+        message: "accepted",
+      });
+
+      await expect(publishPromise).resolves.toEqual({
+        success: true,
+        reason: "accepted",
+        parsedReason: {
+          rawMessage: "accepted",
+          message: "accepted",
+        },
+        relay: ephemeralRelay.url,
+      });
+
+      relay.on = originalOn;
+    });
+
+    test("should support waitForAck false for AUTH events", async () => {
+      const authRelay = new Relay(ephemeralRelay.url);
+      const send = jest.fn();
+      const relayInternals = asTestRelay(authRelay);
+
+      relayInternals.connected = true;
+      relayInternals.ws = {
+        readyState: 1,
+        onopen: null,
+        onclose: null,
+        onerror: null,
+        onmessage: null,
+        send,
+        close: jest.fn(),
+      } as unknown as WebSocket;
+
+      const authEvent: NostrEvent = {
+        id: "auth-event-id",
+        pubkey: "f".repeat(64),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 22242,
+        tags: [
+          ["relay", ephemeralRelay.url],
+          ["challenge", "challenge-abc"],
+        ],
+        content: "",
+        sig: "a".repeat(128),
+      };
+
+      const result = await authRelay.authenticate(authEvent, {
+        waitForAck: false,
+      });
+
+      expect(send).toHaveBeenCalledWith(JSON.stringify(["AUTH", authEvent]));
+      expect(result).toEqual({
+        success: true,
+        relay: ephemeralRelay.url,
+      });
     });
 
     test("should resolve with timeout reason after timeout with no OK response", async () => {

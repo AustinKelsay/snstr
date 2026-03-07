@@ -117,6 +117,15 @@ export type Subscription = {
   eoseTimer?: ReturnType<typeof setTimeout>;
 };
 
+export interface RelayReceivedEvent {
+  /** The event delivered by the relay */
+  event: NostrEvent;
+  /** The relay URL that delivered the event */
+  relay: string;
+  /** The relay-local subscription identifier */
+  subscriptionId: string;
+}
+
 /**
  * Relay event types as specified in NIP-01
  */
@@ -151,7 +160,7 @@ export type RelayEventCallbacks = {
     details: ParsedOkReason,
   ) => void;
   [RelayEvent.Closed]: (subscriptionId: string, message: string) => void;
-  [RelayEvent.Auth]: (challengeEvent: NostrEvent) => void;
+  [RelayEvent.Auth]: (challenge: string) => void;
 };
 
 /**
@@ -752,7 +761,14 @@ export interface RelayInterface {
     onEose?: () => void,
   ): string;
   unsubscribe(subscriptionId: string): void;
-  publish(event: NostrEvent): Promise<PublishResponse>;
+  publish(
+    event: NostrEvent,
+    options?: PublishOptions,
+  ): Promise<PublishResponse>;
+  authenticate(
+    authEvent: NostrEvent,
+    options?: PublishOptions,
+  ): Promise<PublishResponse>;
 }
 
 /**
