@@ -7,24 +7,18 @@ import {
   TaggedEvent,
   TagValues,
   EventTags,
-  Filter,
 } from "../types/nostr";
-import { getPublicKey, verifySignature } from "../utils/crypto";
-import { sha256Hex } from "../utils/crypto";
-import { signEvent as signEventCrypto } from "../utils/crypto";
+import { getPublicKey, signEvent as signEventCrypto } from "../utils/crypto";
+import { getUnixTime } from "../utils/time";
 import { isValidRelayUrl } from "../nip19";
 import { isValidPrivateKey, isValidPublicKeyPoint } from "../nip44";
 import { getRegisteredNIP04 } from "../nip04/registry";
-
-/**
- * Validate if a string is a valid lowercase hex public key format for NIP-01 events
- * NIP-01 specifically requires lowercase hex for event fields
- */
-function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
-  // Must be exactly 64 characters of lowercase hex
-  return /^[0-9a-f]{64}$/.test(publicKey);
-}
-import { getUnixTime } from "../utils/time";
+import { calculateEventHash } from "./serialization";
+import {
+  isValidLowercasePublicKeyFormat,
+  NostrValidationError,
+  validateSignedNostrEvent,
+} from "./validation";
 import {
   validateEventContent,
   validateTags,
@@ -34,36 +28,9 @@ import {
   safeArrayAccess,
 } from "../utils/security-validator";
 
+export { NostrValidationError } from "./validation";
+
 export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
-
-/**
- * Custom error class for Nostr event validation errors
- */
-export class NostrValidationError extends Error {
-  /** The field that failed validation */
-  readonly field?: string;
-  /** The data that failed validation (can be an event, filter, etc.) */
-  readonly invalidData?:
-    | Partial<NostrEvent>
-    | Filter
-    | Record<string, unknown>
-    | EventTemplate;
-
-  constructor(
-    message: string,
-    field?: string,
-    invalidData?:
-      | Partial<NostrEvent>
-      | Filter
-      | Record<string, unknown>
-      | EventTemplate,
-  ) {
-    super(message);
-    this.name = "NostrValidationError";
-    this.field = field;
-    this.invalidData = invalidData;
-  }
-}
 
 /**
  * Calculate the event hash following NIP-01 specification exactly
@@ -125,32 +92,7 @@ export async function getEventHash(
       event,
     );
 
-  // NIP-01 specifies the serialization format as:
-  // [0, pubkey, created_at, kind, tags, content]
-  // We need to ensure deterministic serialization
-
-  // Create the array to be serialized
-  const eventData = [
-    0,
-    event.pubkey,
-    event.created_at,
-    event.kind,
-    event.tags,
-    event.content,
-  ];
-
-  // Per NIP-01: whitespace, line breaks or other unnecessary formatting
-  // should not be included in the output JSON
-  // JavaScript's JSON.stringify doesn't add whitespace by default
-  // so we don't need to pass additional options
-
-  // Serialize to JSON without pretty formatting
-  // JSON.stringify on arrays is deterministic in all JS engines
-  // because array order is preserved
-  const serialized = JSON.stringify(eventData);
-
-  // Hash the serialized data
-  return sha256Hex(serialized);
+  return calculateEventHash(event);
 }
 
 /**
@@ -339,7 +281,11 @@ export async function createDirectMessage(
     // Encrypt the content using NIP-04
     // Registry pattern: implementation registered at import time by snstr or snstr/nip04
     const { encrypt } = getRegisteredNIP04();
-    const encryptedContent = encrypt(privateKey, recipientPubkey, validatedContent);
+    const encryptedContent = encrypt(
+      privateKey,
+      recipientPubkey,
+      validatedContent,
+    );
 
     return {
       pubkey,
@@ -492,202 +438,11 @@ export async function validateEvent(
   event: NostrEvent,
   options: ValidationOptions = {},
 ): Promise<boolean> {
-  const {
-    validateSignatures = true,
-    maxTimestampDrift = 60 * 60, // 1 hour by default
-    validateIds = true,
-    validateFields = true,
-    validateTags = true,
-    validateContent = true,
-    customValidator,
-  } = options;
+  const { validateContent = true, customValidator } = options;
 
-  // 1. Validate basic required fields
-  if (validateFields) {
-    // Check ID exists
-    if (!event.id || typeof event.id !== "string" || event.id.length !== 64) {
-      throw new NostrValidationError(
-        "Invalid or missing event ID: must be a 64-character hex string",
-        "id",
-        event,
-      );
-    }
-    if (event.id !== event.id.toLowerCase()) {
-      throw new NostrValidationError(
-        "Invalid event ID: must be lowercase hex",
-        "id",
-        event,
-      );
-    }
+  await validateSignedNostrEvent(event, options);
 
-    // Check pubkey exists and is valid hex
-    if (!event.pubkey || typeof event.pubkey !== "string") {
-      throw new NostrValidationError(
-        "Invalid or missing pubkey: must be a string",
-        "pubkey",
-        event,
-      );
-    }
-
-    // First check basic format validation (hex format and case)
-    if (!isValidLowercasePublicKeyFormat(event.pubkey)) {
-      // Check for uppercase to provide specific error message
-      if (/^[0-9A-F]{64}$/.test(event.pubkey)) {
-        throw new NostrValidationError(
-          "Invalid pubkey: must be lowercase hex",
-          "pubkey",
-          event,
-        );
-      }
-      // Check length
-      if (event.pubkey.length !== 64) {
-        throw new NostrValidationError(
-          "Invalid pubkey: must be 64 characters long",
-          "pubkey",
-          event,
-        );
-      }
-      // Generic format error
-      throw new NostrValidationError(
-        "Invalid pubkey: must be a 64-character lowercase hex string",
-        "pubkey",
-        event,
-      );
-    }
-
-    // Then check if it represents a valid curve point
-    if (!isValidPublicKeyPoint(event.pubkey)) {
-      throw new NostrValidationError(
-        "Invalid pubkey: must be a valid secp256k1 curve point",
-        "pubkey",
-        event,
-      );
-    }
-
-    // Check signature exists
-    if (
-      !event.sig ||
-      typeof event.sig !== "string" ||
-      event.sig.length !== 128
-    ) {
-      throw new NostrValidationError(
-        "Invalid or missing signature: must be a 128-character hex string",
-        "sig",
-        event,
-      );
-    }
-    if (event.sig !== event.sig.toLowerCase()) {
-      throw new NostrValidationError(
-        "Invalid signature: must be lowercase hex",
-        "sig",
-        event,
-      );
-    }
-
-    // Check kind is a number
-    if (typeof event.kind !== "number") {
-      throw new NostrValidationError("Kind must be a number", "kind", event);
-    }
-
-    // Check created_at is a valid timestamp
-    if (typeof event.created_at !== "number" || event.created_at < 0) {
-      throw new NostrValidationError(
-        "Invalid created_at timestamp",
-        "created_at",
-        event,
-      );
-    }
-
-    // Check content is a string
-    if (typeof event.content !== "string") {
-      throw new NostrValidationError(
-        "Content must be a string",
-        "content",
-        event,
-      );
-    }
-  }
-
-  // 2. Validate tags format
-  if (validateTags) {
-    if (!Array.isArray(event.tags)) {
-      throw new NostrValidationError("Tags must be an array", "tags", event);
-    }
-
-    for (const tag of event.tags) {
-      if (!Array.isArray(tag)) {
-        throw new NostrValidationError(
-          "Each tag must be an array",
-          "tags",
-          event,
-        );
-      }
-
-      if (tag.length === 0) {
-        throw new NostrValidationError(
-          "Tags cannot be empty arrays",
-          "tags",
-          event,
-        );
-      }
-
-      for (const item of tag) {
-        if (typeof item !== "string") {
-          throw new NostrValidationError(
-            "Tag items must be strings",
-            "tags",
-            event,
-          );
-        }
-      }
-    }
-  }
-
-  // 3. Validate timestamp drift if enabled
-  if (maxTimestampDrift > 0) {
-    const now = getUnixTime();
-    const drift = Math.abs(now - event.created_at);
-
-    if (drift > maxTimestampDrift) {
-      throw new NostrValidationError(
-        `Event timestamp is too far from current time (drift: ${drift}s, max allowed: ${maxTimestampDrift}s)`,
-        "created_at",
-        event,
-      );
-    }
-  }
-
-  // 4. Validate event ID matches serialized content
-  if (validateIds) {
-    const unsignedEvent: UnsignedEvent = {
-      pubkey: event.pubkey,
-      created_at: event.created_at,
-      kind: event.kind,
-      tags: event.tags,
-      content: event.content,
-    };
-
-    const calculatedId = await getEventHash(unsignedEvent);
-
-    if (calculatedId !== event.id) {
-      throw new NostrValidationError(
-        "Event ID does not match content hash",
-        "id",
-        event,
-      );
-    }
-  }
-
-  // 5. Validate signature
-  if (validateSignatures) {
-    const isValid = await verifySignature(event.id, event.sig, event.pubkey);
-
-    if (!isValid) {
-      throw new NostrValidationError("Invalid signature", "sig", event);
-    }
-  }
-
-  // 6. Validate content format based on kind
+  // Validate content format based on kind
   if (validateContent) {
     switch (event.kind) {
       case NostrKind.Metadata:

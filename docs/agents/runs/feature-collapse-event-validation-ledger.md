@@ -22,9 +22,9 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 - ADRs: `docs/adr/0001-centralize-nostr-event-validation.md`
 - PRD issue: #82 - PRD: Collapse Nostr Event validation surfaces
 - Slice issues: #83, #84, #85
-- Issue sessions: pending
+- Issue sessions: `docs/agents/runs/issue-83-session.md`
 - Agent briefs: pending
-- Review packets: pending
+- Review packets: `docs/agents/runs/review-83-packet.md`
 - Local CodeRabbit report: pending
 - PR URL: pending
 
@@ -40,7 +40,7 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 
 | Issue | Type | Status | Review thread | Fixes needed | Verified |
 | --- | --- | --- | --- | --- | --- |
-| #83 - Add a central Nostr Event validation module | AFK | pending | pending | pending | pending |
+| #83 - Add a central Nostr Event validation module | AFK | implemented, pending commit | Composer 2.5 via `agent` | duplicate hash/helper fixed; module-test finding retained with reason | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
 | #84 - Route Relay event acceptance through central validation | AFK | pending | pending | pending | pending |
 | #85 - Retire duplicate validation test surfaces | AFK | pending | pending | pending | pending |
 
@@ -54,7 +54,7 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| #83 | `5e68a284399f02170a1a3d4d7d0e160c0520de22` | pending | pending | pending | pending |
+| #83 | `439ff8691d12531b46461f2b79488c88d1764ba5` | current session | pending | standards/spec findings addressed or recorded | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
 | #84 | pending | pending | pending | pending | pending |
 | #85 | pending | pending | pending | pending | pending |
 
