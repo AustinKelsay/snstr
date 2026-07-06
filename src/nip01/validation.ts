@@ -44,6 +44,18 @@ export interface SignedEventValidationOptions extends ValidationOptions {
   skipIdAndSignatureValidationForKinds?: number[];
   /** Whether kind must be in the NIP-01 0-65535 range. */
   validateKindRange?: boolean;
+  /** Maximum allowed future timestamp deviation in seconds. */
+  maxFutureTimestampDrift?: number;
+  /** Maximum allowed past timestamp deviation in seconds. */
+  maxPastTimestampDrift?: number;
+}
+
+export interface RelayIngressValidationOptions
+  extends SignedEventValidationOptions {
+  /** Whether Relay ingress should validate NIP-01 e/p/a tag references. */
+  validateRelayTagReferences?: boolean;
+  /** Whether NIP-46 remote-signing events must carry at least one p tag. */
+  requireNip46PTag?: boolean;
 }
 
 /**
@@ -51,6 +63,14 @@ export interface SignedEventValidationOptions extends ValidationOptions {
  */
 export function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
   return /^[0-9a-f]{64}$/.test(publicKey);
+}
+
+function isHexString(value: unknown, length: number): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-fA-F]+$/.test(value) &&
+    value.length === length
+  );
 }
 
 /**
@@ -242,12 +262,45 @@ export async function validateSignedNostrEvent(
     validateIds = true,
     validateSignatures = true,
     maxTimestampDrift = 60 * 60,
+    maxFutureTimestampDrift,
+    maxPastTimestampDrift,
     skipIdAndSignatureValidationForKinds = [],
   } = options;
 
   const sanitized = sanitizeNostrEvent(event, options);
 
-  if (maxTimestampDrift > 0) {
+  if (
+    maxFutureTimestampDrift !== undefined ||
+    maxPastTimestampDrift !== undefined
+  ) {
+    const now = getUnixTime();
+    const futureDrift = sanitized.created_at - now;
+    const pastDrift = now - sanitized.created_at;
+
+    if (
+      maxFutureTimestampDrift !== undefined &&
+      maxFutureTimestampDrift > 0 &&
+      futureDrift > maxFutureTimestampDrift
+    ) {
+      throw new NostrValidationError(
+        `Event timestamp is too far in the future (drift: ${futureDrift}s, max allowed: ${maxFutureTimestampDrift}s)`,
+        "created_at",
+        sanitized,
+      );
+    }
+
+    if (
+      maxPastTimestampDrift !== undefined &&
+      maxPastTimestampDrift > 0 &&
+      pastDrift > maxPastTimestampDrift
+    ) {
+      throw new NostrValidationError(
+        `Event timestamp is too far in the past (drift: ${pastDrift}s, max allowed: ${maxPastTimestampDrift}s)`,
+        "created_at",
+        sanitized,
+      );
+    }
+  } else if (maxTimestampDrift > 0) {
     const now = getUnixTime();
     const drift = Math.abs(now - sanitized.created_at);
 
@@ -286,6 +339,120 @@ export async function validateSignedNostrEvent(
     if (!isValid) {
       throw new NostrValidationError("Invalid signature", "sig", sanitized);
     }
+  }
+
+  return sanitized;
+}
+
+function validateRelayTagReferences(event: NostrEvent): void {
+  for (const tag of event.tags) {
+    const tagName = tag[0];
+
+    if (tagName === "e" || tagName === "p") {
+      if (tag.length < 2 || !isHexString(tag[1], 64)) {
+        throw new NostrValidationError(
+          `Invalid NIP-01 '${tagName}' tag: tag[1] must be a 64-character hex string`,
+          "tags",
+          event,
+        );
+      }
+      continue;
+    }
+
+    if (tagName !== "a") {
+      continue;
+    }
+
+    if (tag.length < 2 || typeof tag[1] !== "string") {
+      throw new NostrValidationError(
+        "Invalid NIP-01 'a' tag: tag[1] must be a coordinate string",
+        "tags",
+        event,
+      );
+    }
+
+    const coordinateParts = tag[1].split(":");
+    if (coordinateParts.length !== 3) {
+      throw new NostrValidationError(
+        "Invalid NIP-01 'a' tag: coordinate must be <kind>:<pubkey>:<d-identifier>",
+        "tags",
+        event,
+      );
+    }
+
+    const [kindValue, pubkeyValue] = coordinateParts;
+    const parsedKind = Number(kindValue);
+    if (
+      !Number.isInteger(parsedKind) ||
+      parsedKind < 0 ||
+      String(parsedKind) !== kindValue
+    ) {
+      throw new NostrValidationError(
+        "Invalid NIP-01 'a' tag: kind must be a non-negative integer string",
+        "tags",
+        event,
+      );
+    }
+
+    if (!isHexString(pubkeyValue, 64)) {
+      throw new NostrValidationError(
+        "Invalid NIP-01 'a' tag: pubkey must be a 64-character hex string",
+        "tags",
+        event,
+      );
+    }
+  }
+}
+
+function validateNip46RelayIngress(event: NostrEvent): void {
+  if (event.kind !== 24133) {
+    return;
+  }
+
+  const hasPTag = event.tags.some(
+    (tag) => tag[0] === "p" && tag.length >= 2 && isHexString(tag[1], 64),
+  );
+
+  if (!hasPTag) {
+    throw new NostrValidationError(
+      "NIP-46 Relay ingress events must include at least one p tag",
+      "tags",
+      event,
+    );
+  }
+}
+
+/**
+ * Validate an inbound Relay EVENT message through the central validation seam.
+ */
+export async function validateRelayIngressEvent(
+  event: unknown,
+  options: RelayIngressValidationOptions = {},
+): Promise<NostrEvent> {
+  const {
+    validateRelayTagReferences: shouldValidateRelayTagReferences = true,
+    requireNip46PTag = true,
+    skipIdAndSignatureValidationForKinds = [24133],
+    validateKindRange = true,
+    maxFutureTimestampDrift = 60 * 60,
+    maxPastTimestampDrift = 0,
+    ...signedOptions
+  } = options;
+
+  const sanitized = await validateSignedNostrEvent(event, {
+    ...signedOptions,
+    skipIdAndSignatureValidationForKinds,
+    validateKindRange,
+    maxFutureTimestampDrift,
+    maxPastTimestampDrift,
+  });
+
+  if (shouldValidateRelayTagReferences) {
+    validateRelayTagReferences(sanitized);
+  }
+
+  if (requireNip46PTag) {
+    validateNip46RelayIngress(sanitized);
   }
 
   return sanitized;

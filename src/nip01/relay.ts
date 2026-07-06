@@ -14,9 +14,7 @@ import {
   SubscriptionOptions,
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
-import { NostrValidationError, getEventHash } from "./event";
-import { getUnixTime } from "../utils/time";
-import { verifySignature } from "../utils/crypto";
+import { NostrValidationError, validateRelayIngressEvent } from "./validation";
 import { Logger, LogLevel } from "../nip46/utils/logger";
 import {
   SECURITY_LIMITS,
@@ -841,40 +839,9 @@ export class Relay {
 
         this.incrementPendingValidation(subscriptionId);
 
-        // Type guard to ensure event is a NostrEvent
-        if (!this.isNostrEvent(event)) {
-          this.decrementPendingValidation(subscriptionId);
-          this.triggerEvent(
-            RelayEvent.Error,
-            this.url,
-            new Error(`Invalid event structure: ${JSON.stringify(event)}`),
-          );
-          break;
-        }
-
-        // Perform initial synchronous validation
-        if (!this.performBasicValidation(event)) {
-          this.triggerEvent(
-            RelayEvent.Error,
-            this.url,
-            new Error(`Invalid event: ${event.id}`),
-          );
-          this.decrementPendingValidation(subscriptionId);
-          break;
-        }
-
-        // Launch async validation and handle the event only if validation passes
-        this.validateEventAsync(event)
-          .then((isValid) => {
-            if (isValid) {
-              this.processValidatedEvent(event, subscriptionId);
-            } else {
-              this.triggerEvent(
-                RelayEvent.Error,
-                this.url,
-                new Error(`Async validation failed for event: ${event.id}`),
-              );
-            }
+        this.validateInboundEvent(event)
+          .then((validatedEvent) => {
+            this.processValidatedEvent(validatedEvent, subscriptionId);
           })
           .catch((error) => {
             this.triggerEvent(
@@ -969,7 +936,7 @@ export class Relay {
   }
 
   /**
-   * Process a validated event - called only after both basic and async validation
+   * Process a validated event - called only after Relay ingress validation
    */
   private processValidatedEvent(
     event: NostrEvent,
@@ -996,209 +963,15 @@ export class Relay {
     }
   }
 
-  // Helper function to check if a string is a valid hex string of a specific length
-  private isHexString(value: unknown, length?: number): boolean {
-    if (typeof value !== "string") {
-      return false;
-    }
-    if (!/^[0-9a-fA-F]+$/.test(value)) {
-      return false;
-    }
-    if (length !== undefined && value.length !== length) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Perform basic synchronous validation of an event
-   *
-   * This checks:
-   * 1. Required fields are present with correct types
-   * 2. Fields have valid formats (lengths, structure)
-   * 3. Timestamps are reasonable
-   */
-  private performBasicValidation(event: unknown): boolean {
-    // Skip validation if event is not a NostrEvent
-    if (!this.isNostrEvent(event)) {
-      return false;
-    }
-
-    try {
-      // Now we can safely access event properties
-      // Check that all required fields are present and have the correct types
-      if (!this.isHexString(event.id, 64)) {
-        return false;
-      }
-
-      if (!this.isHexString(event.pubkey, 64)) {
-        return false;
-      }
-
-      if (event.kind < 0 || event.kind > 65535) {
-        return false;
-      }
-
-      // Validate tag structure
-      for (const tag of event.tags) {
-        if (!Array.isArray(tag) || tag.length === 0) {
-          // Ensure tag is a non-empty array
-          return false;
-        }
-
-        // All tag items must be strings according to NIP-01
-        for (const item of tag) {
-          if (typeof item !== "string") {
-            return false;
-          }
-        }
-
-        // Specific NIP-01 tag parameter validation
-        const tagName = tag[0];
-        if (tagName === "e" || tagName === "p") {
-          // For 'e' (event ID) and 'p' (pubkey) tags, the second element must be a 64-char hex string
-          // NIP-01: ["e", <event-id-hex>, <optional-relay-url-string>]
-          // NIP-01: ["p", <pubkey-hex>, <optional-relay-url-string>]
-          if (tag.length < 2 || !this.isHexString(tag[1], 64)) {
-            return false;
-          }
-        } else if (tagName === "a") {
-          // For 'a' tags, validate the <kind>:<pubkey>:<d-identifier> structure
-          // NIP-01: ["a", "<kind>:<pubkey>:<d-identifier>", <optional-relay-url>]
-          if (tag.length < 2 || typeof tag[1] !== "string") {
-            return false; // Must have at least name and value, value must be a string
-          }
-          const valueParts = tag[1].split(":");
-          if (valueParts.length !== 3) {
-            // This structure must contain exactly three parts: kind, pubkey, and d-tag value (which can be empty).
-            // e.g., "30023:pubkeyhex:identifier" or "10002:pubkeyhex:"
-            return false;
-          }
-
-          const kindStr = valueParts[0];
-          const pubkeyStr = valueParts[1];
-          // const dValueStr = valueParts[2]; // dValueStr is implicitly validated as a string by split
-
-          // Validate kind (must be a non-negative integer string)
-          const kindNum = parseInt(kindStr, 10);
-          if (
-            isNaN(kindNum) ||
-            !Number.isInteger(kindNum) ||
-            kindNum < 0 || // Kinds must be non-negative
-            String(kindNum) !== kindStr // Ensures no trailing characters, e.g., "123xyz"
-          ) {
-            return false;
-          }
-
-          // Validate pubkey (must be 64-char hex)
-          if (!this.isHexString(pubkeyStr, 64)) {
-            return false;
-          }
-          // dValueStr (valueParts[2]) is a string by virtue of the split.
-          // NIP-01 doesn't impose further generic constraints on its content for the 'a' tag structure itself.
-        }
-        // Other tag types might have different validation rules, not covered by this specific claim.
-      }
-
-      if (!this.isHexString(event.sig, 128)) {
-        return false;
-      }
-
-      // Check reasonable timestamp (not more than 1 hour in the future and not too far in the past)
-      const now = getUnixTime();
-      if (event.created_at > now + 3600) {
-        return false; // Reject events with future timestamps
-      }
-
-      // Special handling for NIP-46 events (kind 24133)
-      if (event.kind === 24133) {
-        // NIP-46 events require at least one 'p' tag.
-        // The format of such a 'p' tag (tag[0]==='p', tag.length >= 2, and tag[1] is 64-char hex)
-        // would have already been validated by the general tag loop above.
-        // Here, we just ensure at least one such 'p' tag exists.
-        const hasValidPTagForNIP46 = event.tags.some(
-          (tag: string[]) => tag.length >= 2 && tag[0] === "p",
-        );
-
-        if (!hasValidPTagForNIP46) {
-          // Optionally log here if needed
-          return false;
-        }
-      }
-
-      // Optionally log a warning for very old events (e.g., older than a year)
-      if (event.created_at < now - 31536000) {
-        // Optionally log here if needed
-      }
-
-      return true;
-    } catch (error) {
-      // If any validation throws an exception, reject the event
-      return false;
-    }
-  }
-
-  /**
-   * Validate an event (deprecated - use async validation directly)
-   * Maintained for backward compatibility with existing code
-   */
-  private validateEvent(event: unknown): boolean {
-    if (!this.isNostrEvent(event)) {
-      return false;
-    }
-
-    if (!this.performBasicValidation(event)) {
-      return false;
-    }
-
-    // For NIP-46 encrypted events, we can skip async validation since
-    // their content can only be verified after decryption
-    if (event.kind === 24133) {
-      return true;
-    }
-
-    // For all other events, indicate that basic validation passed, but defer
-    // to async validation before actually accepting the event
-    return true;
-  }
-
-  /**
-   * Perform async validations on an event
-   *
-   * This includes:
-   * 1. Verifying the event ID matches the hash of serialized data
-   * 2. Verifying the signature is valid
-   *
-   * These operations are computationally expensive, so they're performed
-   * asynchronously to avoid blocking the main thread.
-   */
-  private async validateEventAsync(event: NostrEvent): Promise<boolean> {
-    try {
-      // Extract the data needed for ID verification (excluding id and sig)
-      const eventData = {
-        pubkey: event.pubkey,
-        created_at: event.created_at,
-        kind: event.kind,
-        tags: event.tags,
-        content: event.content,
-      };
-
-      // Step 1: Validate event ID by comparing with calculated hash
-      const calculatedId = await getEventHash(eventData);
-      if (calculatedId !== event.id) {
-        return false;
-      }
-
-      // Step 2: Validate signature
-      return await verifySignature(event.id, event.sig, event.pubkey);
-    } catch (error) {
-      // Log error details if in debug mode
-      const debug = process.env.DEBUG?.includes("nostr:*") || false;
-      if (debug) {
-        console.error(`Relay(${this.url}): Event validation error:`, error);
-      }
-      return false;
-    }
+  private validateInboundEvent(event: unknown): Promise<NostrEvent> {
+    return validateRelayIngressEvent(event, {
+      validateKindRange: true,
+      validateRelayTagReferences: true,
+      requireNip46PTag: true,
+      maxFutureTimestampDrift: 60 * 60,
+      maxPastTimestampDrift: 0,
+      skipIdAndSignatureValidationForKinds: [24133],
+    });
   }
 
   // Use a type-safe approach with overloads for each event type
@@ -1649,23 +1422,6 @@ export class Relay {
       }
     }
     return result;
-  }
-
-  // Add this helper method to type guard for NostrEvent
-  private isNostrEvent(event: unknown): event is NostrEvent {
-    if (!event || typeof event !== "object") return false;
-
-    const e = event as Record<string, unknown>;
-
-    return (
-      typeof e.id === "string" &&
-      typeof e.pubkey === "string" &&
-      typeof e.created_at === "number" &&
-      typeof e.kind === "number" &&
-      Array.isArray(e.tags) &&
-      typeof e.content === "string" &&
-      typeof e.sig === "string"
-    );
   }
 
   // New private helper method for validating NIP-01 filter identifiers
