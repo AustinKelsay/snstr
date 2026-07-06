@@ -6,7 +6,7 @@
 - Slice type: AFK
 - Acceptance criteria: remove deprecated Relay-private validation test/helper access when public behavior is available; reduce duplicate validation setup in high-level publish helpers; keep public event creation, validation, and Relay delivery behavior unchanged; targeted NIP-01 event and Relay tests pass; ledger records remaining deferred private test access
 - Baseline: `66855bfac276ea6bc27f7f6c0c240ac065712c63`
-- Current diff: pending #85 commit
+- Current diff: `9c0c95d`
 
 ## Implementation Summary
 

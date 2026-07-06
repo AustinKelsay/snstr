@@ -19,14 +19,14 @@
 ## Implementation
 
 - Public interface used: existing `validateEvent`, `createSignedEvent`, and `createTextNote`; new internal seam `src/nip01/validation.ts`
-- Behaviors covered: event sanitization, malformed shape rejection before crypto, valid signed-event verification, mismatched id rejection, invalid signature rejection, encrypted Relay-ingress skip option, and public `validateEvent` compatibility
+- Behaviors covered: event sanitization, malformed shape rejection before crypto, valid signed-event verification, mismatched id rejection, invalid signature rejection, lower-level opt-in encrypted-event skip behavior, and public `validateEvent` compatibility
 - `tdd` used: yes; added focused red tests before the validation module existed
 - Commands run during implementation:
   - `npx jest tests/nip01/event/event-validation.test.ts --runInBand`
   - `npx jest tests/nip01/event --runInBand`
   - `npx tsc --noEmit`
   - `npx prettier --write src/nip01/event.ts src/nip01/validation.ts src/nip01/serialization.ts tests/nip01/event/event-validation.test.ts`
-- Full suite command: pending for final feature branch gate
+- Full suite command: `npm test -- --runInBand`
 
 ## Review
 

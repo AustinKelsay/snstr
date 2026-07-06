@@ -9,7 +9,7 @@
 - Feature branch: `feature/collapse-event-validation`
 - Human owner: plebdev
 - Started: 2026-07-06T13:30:37Z
-- Current status: in progress
+- Current status: final gates passed; PR pending
 - Skill setup status: created `docs/agents/*`; GitHub triage labels confirmed/created
 
 ## Goal
@@ -23,17 +23,19 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 - PRD issue: #82 - PRD: Collapse Nostr Event validation surfaces
 - Slice issues: #83, #84, #85
 - Issue sessions: `docs/agents/runs/issue-83-session.md`, `docs/agents/runs/issue-84-session.md`, `docs/agents/runs/issue-85-session.md`
-- Agent briefs: pending
+- Agent briefs: not created; slices were handled in the current session with Composer 2.5 review subagents
 - Review packets: `docs/agents/runs/review-83-packet.md`, `docs/agents/runs/review-84-packet.md`, `docs/agents/runs/review-85-packet.md`
-- Local CodeRabbit report: pending
+- Local CodeRabbit report: `docs/agents/runs/coderabbit-round-collapse-event-validation.md`
 - PR URL: pending
 
 ## Commands
 
 - Install: `npm install`
 - Typecheck: `npx tsc --noEmit`
-- Test: `npm test`
+- Test: `npm test -- --runInBand` (64 suites, 847 tests passed; existing Jest open-handle warning remains)
+- Lint: `npm run lint` (passed; existing TypeScript parser support warning remains)
 - Build: `npm run build`
+- Examples: `npm run build:examples`
 - Visual verification: not applicable
 
 ## Slice Ledger

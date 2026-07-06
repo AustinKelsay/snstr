@@ -6,7 +6,7 @@
 - Slice type: AFK
 - Acceptance criteria: central event validation module exists; `validateEvent` delegates shared shape/id/signature/timestamp behavior; behavior is covered by focused tests; public API remains compatible
 - Baseline: `439ff8691d12531b46461f2b79488c88d1764ba5`
-- Current diff: pending #83 commit
+- Current diff: `3fbddb0`
 
 ## Implementation Summary
 

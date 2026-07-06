@@ -24,7 +24,7 @@
 - Commands run during implementation:
   - `npx jest tests/nip01/event tests/nip01/relay tests/nip01/nostr.test.ts tests/utils/utf8-byte-length.test.ts --runInBand`
   - `npx tsc --noEmit`
-- Full suite command: pending for final feature branch gate
+- Full suite command: `npm test -- --runInBand`
 
 ## Review
 
