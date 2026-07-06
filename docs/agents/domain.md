@@ -4,8 +4,7 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root, or
-- **`CONTEXT-MAP.md`** at the repo root if it exists. It points at one `CONTEXT.md` per context; read each one relevant to the topic.
+- **`CONTEXT.md`** at the repo root.
 - **`docs/adr/`** for ADRs that touch the area being changed.
 
 If any of these files do not exist, proceed silently. The `/domain-modeling` skill creates them lazily when terms or decisions actually get resolved.

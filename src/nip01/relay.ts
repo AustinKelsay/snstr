@@ -970,7 +970,6 @@ export class Relay {
       requireNip46PTag: true,
       maxFutureTimestampDrift: 60 * 60,
       maxPastTimestampDrift: 0,
-      skipIdAndSignatureValidationForKinds: [24133],
     });
   }
 

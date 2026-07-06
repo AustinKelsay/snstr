@@ -79,7 +79,7 @@ describe("Nostr Event validation module", () => {
     await expect(verifySignedNostrEvent(tampered)).resolves.toBe(false);
   });
 
-  it("can explicitly skip id and signature checks for encrypted NIP-46 Relay ingress", async () => {
+  it("can explicitly skip id and signature checks for opt-in encrypted event paths", async () => {
     const encryptedRequest: NostrEvent = {
       id: "a".repeat(64),
       pubkey: publicKey,
@@ -100,6 +100,29 @@ describe("Nostr Event validation module", () => {
     );
   });
 
+  it("still rejects malformed id and signature shapes when hash and signature checks are skipped", async () => {
+    const encryptedRequest: NostrEvent = {
+      id: "g".repeat(64),
+      pubkey: publicKey,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 24133,
+      tags: [["p", publicKey]],
+      content: "encrypted request",
+      sig: "z".repeat(128),
+    };
+
+    await expect(
+      validateSignedNostrEvent(encryptedRequest, {
+        skipIdAndSignatureValidationForKinds: [24133],
+      }),
+    ).rejects.toThrow(
+      new NostrValidationError(
+        "Invalid or missing event ID: must be a 64-character hex string",
+        "id",
+      ),
+    );
+  });
+
   it("keeps the existing public validateEvent interface compatible", async () => {
     const signed = await signedTextNote("public compatibility");
 
@@ -110,8 +133,8 @@ describe("Nostr Event validation module", () => {
     const signed = await signedTextNote("shape compatibility");
     const eventWithOpaqueIdAndSig: NostrEvent = {
       ...signed,
-      id: "g".repeat(64),
-      sig: "z".repeat(128),
+      id: "a".repeat(64),
+      sig: "b".repeat(128),
     };
 
     await expect(

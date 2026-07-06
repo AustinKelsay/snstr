@@ -1157,16 +1157,11 @@ describe("Relay", () => {
       const errors: unknown[] = [];
       relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
       const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
-      const pubkey = getPublicKey(RELAY_TEST_PRIVATE_KEY);
-      const encryptedEvent: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey,
-        created_at: Math.floor(Date.now() / 1000),
+      const encryptedEvent = await createSignedRelayEvent({
         kind: 24133,
         tags: [],
         content: "encrypted request",
-        sig: "b".repeat(128),
-      };
+      });
 
       await handleInboundEvent(relay, subscriptionId, encryptedEvent);
 
@@ -1177,19 +1172,15 @@ describe("Relay", () => {
       );
     });
 
-    test("should keep NIP-46 encrypted inbound EVENT validation explicit", async () => {
+    test("should accept signed NIP-46 encrypted inbound EVENT messages with p tags", async () => {
       const onEvent = jest.fn();
       const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
       const pubkey = getPublicKey(RELAY_TEST_PRIVATE_KEY);
-      const encryptedEvent: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey,
-        created_at: Math.floor(Date.now() / 1000),
+      const encryptedEvent = await createSignedRelayEvent({
         kind: 24133,
         tags: [["p", pubkey]],
         content: "encrypted request",
-        sig: "b".repeat(128),
-      };
+      });
 
       await handleInboundEvent(relay, subscriptionId, encryptedEvent);
 

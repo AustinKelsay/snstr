@@ -15,9 +15,9 @@ Infer the repo from `git remote -v`; `gh` does this automatically when run insid
 
 ## Pull requests as a triage surface
 
-**PRs as a request surface: no.** `/triage` should not pull external PRs into the issue triage queue by default.
+**PRs as a request surface: no.** `/triage` should not pull external PRs into the issue triage queue by default. GitHub Issues are the source of truth for triage.
 
-GitHub shares one number space across issues and PRs, so a bare `#42` may be either. Resolve with `gh pr view 42` and fall back to `gh issue view 42`.
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either. Resolve triage references issue-first with `gh issue view 42`; only use `gh pr view 42` when the user explicitly asks about a pull request.
 
 ## When a skill says "publish to the issue tracker"
 

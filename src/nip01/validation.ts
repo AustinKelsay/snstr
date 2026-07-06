@@ -99,7 +99,7 @@ export function sanitizeNostrEvent(
     if (
       !candidate.id ||
       typeof candidate.id !== "string" ||
-      candidate.id.length !== 64
+      !isHexString(candidate.id, 64)
     ) {
       throw new NostrValidationError(
         "Invalid or missing event ID: must be a 64-character hex string",
@@ -156,7 +156,7 @@ export function sanitizeNostrEvent(
     if (
       !candidate.sig ||
       typeof candidate.sig !== "string" ||
-      candidate.sig.length !== 128
+      !isHexString(candidate.sig, 128)
     ) {
       throw new NostrValidationError(
         "Invalid or missing signature: must be a 128-character hex string",
@@ -432,7 +432,7 @@ export async function validateRelayIngressEvent(
   const {
     validateRelayTagReferences: shouldValidateRelayTagReferences = true,
     requireNip46PTag = true,
-    skipIdAndSignatureValidationForKinds = [24133],
+    skipIdAndSignatureValidationForKinds = [],
     validateKindRange = true,
     maxFutureTimestampDrift = 60 * 60,
     maxPastTimestampDrift = 0,
