@@ -6,6 +6,7 @@ import {
 } from "../../../src/nip01/event";
 import {
   sanitizeNostrEvent,
+  validateRelayIngressEvent,
   validateSignedNostrEvent,
   verifySignedNostrEvent,
 } from "../../../src/nip01/validation";
@@ -119,6 +120,30 @@ describe("Nostr Event validation module", () => {
       new NostrValidationError(
         "Invalid or missing event ID: must be a 64-character hex string",
         "id",
+      ),
+    );
+  });
+
+  it("requires lowercase NIP-46 p tags even when relay tag reference checks are disabled", async () => {
+    const encryptedRequest = await createSignedEvent(
+      {
+        pubkey: publicKey,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 24133,
+        tags: [["p", publicKey.toUpperCase()]],
+        content: "encrypted request",
+      },
+      privateKey,
+    );
+
+    await expect(
+      validateRelayIngressEvent(encryptedRequest, {
+        validateRelayTagReferences: false,
+      }),
+    ).rejects.toThrow(
+      new NostrValidationError(
+        "NIP-46 Relay ingress events must include at least one p tag",
+        "tags",
       ),
     );
   });

@@ -77,6 +77,13 @@ export interface RelayConnectionOptions {
   maxReconnectAttempts?: number;
   /** Maximum delay between reconnection attempts (ms) */
   maxReconnectDelay?: number;
+  /** Inbound relay EVENT validation settings */
+  inboundValidation?: {
+    /** Maximum allowed future timestamp deviation in seconds */
+    maxFutureTimestampDrift?: number;
+    /** Maximum allowed past timestamp deviation in seconds */
+    maxPastTimestampDrift?: number;
+  };
   /** Optional list of ephemeral subscriptions to initialize with */
   ephemeralSubscriptions?: Array<{
     filters: NostrFilter[];

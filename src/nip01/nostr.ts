@@ -9,6 +9,7 @@ import {
   PublishResponse,
   SubscriptionOptions,
 } from "../types/nostr";
+import type { RelayConnectionOptions } from "../types/protocol";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
 import { createSignedAuthEvent } from "../nip42";
@@ -60,10 +61,7 @@ export interface NostrRateLimits {
  */
 export interface NostrOptions {
   /** Options to pass to each Relay instance */
-  relayOptions?: {
-    connectionTimeout?: number;
-    bufferFlushDelay?: number;
-  };
+  relayOptions?: RelayConnectionOptions;
   /** Rate limiting configuration for different operations */
   rateLimits?: NostrRateLimits;
 }
@@ -124,10 +122,7 @@ export class Nostr {
   private relays: Map<string, Relay> = new Map();
   private privateKey?: string;
   private publicKey?: string;
-  private relayOptions?: {
-    connectionTimeout?: number;
-    bufferFlushDelay?: number;
-  };
+  private relayOptions?: RelayConnectionOptions;
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
   private logger: Logger;
 

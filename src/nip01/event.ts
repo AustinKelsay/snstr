@@ -17,6 +17,8 @@ import { calculateEventHash } from "./serialization";
 import {
   isValidLowercasePublicKeyFormat,
   NostrValidationError,
+  sanitizeUnsignedNostrEvent,
+  type UnsignedNostrEvent,
   validateSignedNostrEvent,
 } from "./validation";
 import {
@@ -30,7 +32,7 @@ import {
 
 export { NostrValidationError } from "./validation";
 
-export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
+export type UnsignedEvent = UnsignedNostrEvent;
 
 /**
  * Calculate the event hash following NIP-01 specification exactly
@@ -40,59 +42,8 @@ export type UnsignedEvent = Omit<NostrEvent, "id" | "sig">;
 export async function getEventHash(
   event: UnsignedEvent | NostrEvent,
 ): Promise<string> {
-  // Validate event structure first - these fields are required by the Nostr protocol
-  if (!event.pubkey)
-    throw new NostrValidationError(
-      "Invalid event: missing pubkey",
-      "pubkey",
-      event,
-    );
-  if (event.created_at === undefined || event.created_at === null)
-    throw new NostrValidationError(
-      "Invalid event: missing created_at",
-      "created_at",
-      event,
-    );
-  if (event.kind === undefined)
-    throw new NostrValidationError(
-      "Invalid event: missing kind",
-      "kind",
-      event,
-    );
-  if (!Array.isArray(event.tags))
-    throw new NostrValidationError(
-      "Invalid event: tags must be an array",
-      "tags",
-      event,
-    );
-
-  // Ensure the tags are valid arrays of strings
-  for (const tag of event.tags) {
-    if (!Array.isArray(tag))
-      throw new NostrValidationError(
-        "Invalid event: each tag must be an array",
-        "tags",
-        event,
-      );
-    for (const item of tag) {
-      if (typeof item !== "string")
-        throw new NostrValidationError(
-          "Invalid event: tag items must be strings",
-          "tags",
-          event,
-        );
-    }
-  }
-
-  // Check that content is a string
-  if (typeof event.content !== "string")
-    throw new NostrValidationError(
-      "Invalid event: content must be a string",
-      "content",
-      event,
-    );
-
-  return calculateEventHash(event);
+  const sanitized = sanitizeUnsignedNostrEvent(event);
+  return calculateEventHash(sanitized);
 }
 
 /**

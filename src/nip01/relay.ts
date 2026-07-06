@@ -81,6 +81,8 @@ export class Relay {
   private autoReconnect = true; // Whether to automatically reconnect
   private maxReconnectAttempts = 10; // Maximum number of reconnection attempts
   private maxReconnectDelay = 30000; // Maximum delay between reconnect attempts (ms)
+  private maxFutureTimestampDrift = 60 * 60; // Maximum accepted future event timestamp drift (s)
+  private maxPastTimestampDrift = 0; // Maximum accepted past event timestamp drift (s); 0 disables this check
   // Track replaceable and addressable events according to NIP-01 with memory limits
   private replaceableEvents: Map<string, Map<number, NostrEvent>> = new Map();
   private replaceableEventAccessTimes: Map<string, number> = new Map(); // For LRU eviction
@@ -117,6 +119,14 @@ export class Relay {
     }
     if (options.maxReconnectDelay !== undefined) {
       this.maxReconnectDelay = options.maxReconnectDelay;
+    }
+    if (options.inboundValidation?.maxFutureTimestampDrift !== undefined) {
+      this.maxFutureTimestampDrift =
+        options.inboundValidation.maxFutureTimestampDrift;
+    }
+    if (options.inboundValidation?.maxPastTimestampDrift !== undefined) {
+      this.maxPastTimestampDrift =
+        options.inboundValidation.maxPastTimestampDrift;
     }
   }
 
@@ -968,8 +978,8 @@ export class Relay {
       validateKindRange: true,
       validateRelayTagReferences: true,
       requireNip46PTag: true,
-      maxFutureTimestampDrift: 60 * 60,
-      maxPastTimestampDrift: 0,
+      maxFutureTimestampDrift: this.maxFutureTimestampDrift,
+      maxPastTimestampDrift: this.maxPastTimestampDrift,
     });
   }
 

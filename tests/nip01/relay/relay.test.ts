@@ -1112,6 +1112,44 @@ describe("Relay", () => {
       expectRelayError(errors, "too far in the future");
     });
 
+    test("should allow inbound EVENT messages within configured future timestamp drift", async () => {
+      relay = new Relay("wss://example.com", {
+        inboundValidation: {
+          maxFutureTimestampDrift: 3 * 60 * 60,
+        },
+      });
+      const onEvent = jest.fn();
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = await createSignedRelayEvent({
+        created_at: Math.floor(Date.now() / 1000) + 7200,
+      });
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).toHaveBeenCalledTimes(1);
+      expect(onEvent).toHaveBeenCalledWith(event);
+    });
+
+    test("should reject inbound EVENT messages outside configured past timestamp drift", async () => {
+      relay = new Relay("wss://example.com", {
+        inboundValidation: {
+          maxPastTimestampDrift: 60,
+        },
+      });
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = await createSignedRelayEvent({
+        created_at: Math.floor(Date.now() / 1000) - 120,
+      });
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "too far in the past");
+    });
+
     test("should reject inbound EVENT messages with out-of-range kinds", async () => {
       const onEvent = jest.fn();
       const errors: unknown[] = [];
@@ -1132,9 +1170,24 @@ describe("Relay", () => {
         expectedMessage: "Invalid NIP-01 'p' tag",
       },
       {
+        description: "mixed-case e tag reference",
+        tags: [["e", "A".repeat(64)]],
+        expectedMessage: "Invalid NIP-01 'e' tag",
+      },
+      {
+        description: "mixed-case p tag reference",
+        tags: [["p", "A".repeat(64)]],
+        expectedMessage: "Invalid NIP-01 'p' tag",
+      },
+      {
         description: "invalid a tag coordinate",
         tags: [["a", "bad-coordinate"]],
         expectedMessage: "Invalid NIP-01 'a' tag",
+      },
+      {
+        description: "mixed-case a tag pubkey coordinate",
+        tags: [["a", `1:${"A".repeat(64)}:identifier`]],
+        expectedMessage: "Invalid NIP-01 'a' tag: pubkey",
       },
     ])(
       "should reject inbound EVENT messages with $description",

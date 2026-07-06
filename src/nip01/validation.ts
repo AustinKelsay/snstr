@@ -15,6 +15,8 @@ type ValidationInvalidData =
   | Record<string, unknown>
   | EventTemplate;
 
+export type UnsignedNostrEvent = Omit<NostrEvent, "id" | "sig">;
+
 /**
  * Custom error class for Nostr event validation errors.
  */
@@ -62,7 +64,15 @@ export interface RelayIngressValidationOptions
  * Validate if a string is a valid lowercase hex public key format for NIP-01 events.
  */
 export function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
-  return /^[0-9a-f]{64}$/.test(publicKey);
+  return isLowercaseHexString(publicKey, 64);
+}
+
+function isLowercaseHexString(value: unknown, length: number): value is string {
+  return (
+    typeof value === "string" &&
+    /^[0-9a-f]+$/.test(value) &&
+    value.length === length
+  );
 }
 
 function isHexString(value: unknown, length: number): value is string {
@@ -73,48 +83,17 @@ function isHexString(value: unknown, length: number): value is string {
   );
 }
 
-/**
- * Sanitizes unknown input into a Nostr Event shape.
- *
- * This is intentionally synchronous: it validates shape, scalar formats, tag
- * structure, and timestamp shape, but not the event id or signature.
- */
-export function sanitizeNostrEvent(
-  event: unknown,
+function validateNostrEventPayload(
+  candidate: Partial<NostrEvent>,
   options: SignedEventValidationOptions = {},
-): NostrEvent {
+): void {
   const {
     validateFields = true,
     validateTags = true,
     validateKindRange = false,
   } = options;
 
-  if (!event || typeof event !== "object") {
-    throw new NostrValidationError("Invalid event: must be an object", "event");
-  }
-
-  const candidate = event as Partial<NostrEvent>;
-
   if (validateFields) {
-    if (
-      !candidate.id ||
-      typeof candidate.id !== "string" ||
-      !isHexString(candidate.id, 64)
-    ) {
-      throw new NostrValidationError(
-        "Invalid or missing event ID: must be a 64-character hex string",
-        "id",
-        candidate,
-      );
-    }
-    if (candidate.id !== candidate.id.toLowerCase()) {
-      throw new NostrValidationError(
-        "Invalid event ID: must be lowercase hex",
-        "id",
-        candidate,
-      );
-    }
-
     if (!candidate.pubkey || typeof candidate.pubkey !== "string") {
       throw new NostrValidationError(
         "Invalid or missing pubkey: must be a string",
@@ -149,25 +128,6 @@ export function sanitizeNostrEvent(
       throw new NostrValidationError(
         "Invalid pubkey: must be a valid secp256k1 curve point",
         "pubkey",
-        candidate,
-      );
-    }
-
-    if (
-      !candidate.sig ||
-      typeof candidate.sig !== "string" ||
-      !isHexString(candidate.sig, 128)
-    ) {
-      throw new NostrValidationError(
-        "Invalid or missing signature: must be a 128-character hex string",
-        "sig",
-        candidate,
-      );
-    }
-    if (candidate.sig !== candidate.sig.toLowerCase()) {
-      throw new NostrValidationError(
-        "Invalid signature: must be lowercase hex",
-        "sig",
         candidate,
       );
     }
@@ -247,6 +207,90 @@ export function sanitizeNostrEvent(
       }
     }
   }
+}
+
+/**
+ * Sanitizes unknown input into the unsigned Nostr Event shape used for hashing.
+ */
+export function sanitizeUnsignedNostrEvent(
+  event: unknown,
+  options: SignedEventValidationOptions = {},
+): UnsignedNostrEvent {
+  if (!event || typeof event !== "object") {
+    throw new NostrValidationError("Invalid event: must be an object", "event");
+  }
+
+  const candidate = event as Partial<NostrEvent>;
+  validateNostrEventPayload(candidate, options);
+
+  return {
+    pubkey: candidate.pubkey,
+    created_at: candidate.created_at,
+    kind: candidate.kind,
+    tags: candidate.tags,
+    content: candidate.content,
+  } as UnsignedNostrEvent;
+}
+
+/**
+ * Sanitizes unknown input into a Nostr Event shape.
+ *
+ * This is intentionally synchronous: it validates shape, scalar formats, tag
+ * structure, and timestamp shape, but not the event id or signature.
+ */
+export function sanitizeNostrEvent(
+  event: unknown,
+  options: SignedEventValidationOptions = {},
+): NostrEvent {
+  const { validateFields = true } = options;
+
+  if (!event || typeof event !== "object") {
+    throw new NostrValidationError("Invalid event: must be an object", "event");
+  }
+
+  const candidate = event as Partial<NostrEvent>;
+
+  if (validateFields) {
+    if (
+      !candidate.id ||
+      typeof candidate.id !== "string" ||
+      !isHexString(candidate.id, 64)
+    ) {
+      throw new NostrValidationError(
+        "Invalid or missing event ID: must be a 64-character hex string",
+        "id",
+        candidate,
+      );
+    }
+    if (candidate.id !== candidate.id.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid event ID: must be lowercase hex",
+        "id",
+        candidate,
+      );
+    }
+
+    if (
+      !candidate.sig ||
+      typeof candidate.sig !== "string" ||
+      !isHexString(candidate.sig, 128)
+    ) {
+      throw new NostrValidationError(
+        "Invalid or missing signature: must be a 128-character hex string",
+        "sig",
+        candidate,
+      );
+    }
+    if (candidate.sig !== candidate.sig.toLowerCase()) {
+      throw new NostrValidationError(
+        "Invalid signature: must be lowercase hex",
+        "sig",
+        candidate,
+      );
+    }
+  }
+
+  validateNostrEventPayload(candidate, options);
 
   return candidate as NostrEvent;
 }
@@ -349,9 +393,9 @@ function validateRelayTagReferences(event: NostrEvent): void {
     const tagName = tag[0];
 
     if (tagName === "e" || tagName === "p") {
-      if (tag.length < 2 || !isHexString(tag[1], 64)) {
+      if (tag.length < 2 || !isLowercaseHexString(tag[1], 64)) {
         throw new NostrValidationError(
-          `Invalid NIP-01 '${tagName}' tag: tag[1] must be a 64-character hex string`,
+          `Invalid NIP-01 '${tagName}' tag: tag[1] must be a 64-character lowercase hex string`,
           "tags",
           event,
         );
@@ -394,9 +438,9 @@ function validateRelayTagReferences(event: NostrEvent): void {
       );
     }
 
-    if (!isHexString(pubkeyValue, 64)) {
+    if (!isLowercaseHexString(pubkeyValue, 64)) {
       throw new NostrValidationError(
-        "Invalid NIP-01 'a' tag: pubkey must be a 64-character hex string",
+        "Invalid NIP-01 'a' tag: pubkey must be a 64-character lowercase hex string",
         "tags",
         event,
       );
@@ -410,7 +454,8 @@ function validateNip46RelayIngress(event: NostrEvent): void {
   }
 
   const hasPTag = event.tags.some(
-    (tag) => tag[0] === "p" && tag.length >= 2 && isHexString(tag[1], 64),
+    (tag) =>
+      tag[0] === "p" && tag.length >= 2 && isLowercaseHexString(tag[1], 64),
   );
 
   if (!hasPTag) {
