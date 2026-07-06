@@ -8,7 +8,7 @@
 - Started: 2026-07-06
 - Completed: 2026-07-06
 - Availability: timed out after emitting actionable findings; rerun emitted no findings before hanging in `reviewing` heartbeats
-- Fallback review thread: Composer 2.5 via `agent` attempted twice; both broad and diff-only prompts produced no output before clean interruption
+- Fallback review thread: Composer 2.5 via `agent`; broad prompt produced no output before interruption, narrowed prompt completed with no blocking findings
 
 ## Findings To Address
 
@@ -29,4 +29,4 @@
 
 - Continue: yes
 - Escalate: no
-- Notes: Initial CodeRabbit run was interrupted after several minutes of repeated `reviewing` heartbeats once findings had been captured. The post-fix rerun reached `tools_completed` and emitted no findings before repeating heartbeats; it was interrupted cleanly and Composer 2.5 fallback attempts were recorded as unavailable due no-output hangs.
+- Notes: Initial CodeRabbit run was interrupted after several minutes of repeated `reviewing` heartbeats once findings had been captured. The post-fix rerun reached `tools_completed` and emitted no findings before repeating heartbeats; it was interrupted cleanly. Composer 2.5 fallback review found no blocking findings. Non-blocking follow-ups were addressed with a Relay-level tampered NIP-46 ingress test and valid pubkeys in relay example fixtures.
