@@ -1,13 +1,34 @@
 import { Relay } from "../../../src/nip01/relay";
 import { RelayEvent, NostrEvent } from "../../../src/types/nostr";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
-import { createSignedEvent, createTextNote } from "../../../src/nip01/event";
+import { createEvent, createSignedEvent } from "../../../src/nip01/event";
 import { validateRelayIngressEvent } from "../../../src/nip01/validation";
+import { getPublicKey } from "../../../src/utils/crypto";
 
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
 const RELAY_PORT = 0;
 const DEMO_PRIVATE_KEY =
   "1111111111111111111111111111111111111111111111111111111111111111";
+
+async function createSignedRelayExampleEvent(
+  overrides: {
+    tags?: string[][];
+    content?: string;
+    created_at?: number;
+  } = {},
+): Promise<NostrEvent> {
+  const unsigned = createEvent(
+    {
+      kind: 1,
+      tags: overrides.tags ?? [],
+      content: overrides.content ?? "Relay ingress event",
+      created_at: overrides.created_at ?? Math.floor(Date.now() / 1000),
+    },
+    getPublicKey(DEMO_PRIVATE_KEY),
+  );
+
+  return createSignedEvent(unsigned, DEMO_PRIVATE_KEY);
+}
 
 /**
  * This example demonstrates the improved connection handling in SNSTR
@@ -127,20 +148,19 @@ async function main() {
       };
 
       // Test 1: Valid event (should pass Relay ingress validation)
-      const validEvent = await createSignedEvent(
-        createTextNote("This is a valid event", DEMO_PRIVATE_KEY, [
-          ["t", "test"],
-        ]),
-        DEMO_PRIVATE_KEY,
-      );
+      const validEvent = await createSignedRelayExampleEvent({
+        content: "This is a valid event",
+        tags: [["t", "test"]],
+      });
       const demoPubkey = validEvent.pubkey;
       await testValidation(validEvent, "Valid signed event");
 
       // Test 2: Event with future timestamp (should fail)
-      const futureEvent = {
-        ...validEvent,
+      const futureEvent = await createSignedRelayExampleEvent({
+        content: validEvent.content,
+        tags: validEvent.tags,
         created_at: Math.floor(Date.now() / 1000) + 7200, // 2 hours in the future
-      };
+      });
       await testValidation(futureEvent, "Event with future timestamp");
 
       // Test 3: Event with missing field
