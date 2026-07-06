@@ -5,13 +5,12 @@
  * where events are only propagated after full validation including signature verification.
  */
 
-import { Nostr, Relay, RelayEvent, NostrEvent } from "../../src";
+import { Nostr, Relay, RelayEvent } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { validateRelayIngressEvent } from "../../src/nip01/validation";
 
-// Type for accessing private relay methods for demonstration
+// Type for debug-only message injection in this example.
 interface RelayInternal {
-  performBasicValidation(event: Record<string, unknown>): boolean;
-  validateEventAsync(event: NostrEvent): Promise<boolean>;
   handleMessage(message: [string, string, unknown]): void;
 }
 
@@ -121,40 +120,17 @@ async function main() {
     // No signature
   };
 
-  // Show the validation flow happening internally
-  console.log("Internal validation process:");
+  // Show the central Relay ingress validation seam.
+  console.log("Relay ingress validation process:");
 
-  // 1. Basic validation (manually demonstrate)
-  let validationPassed;
   try {
-    validationPassed = (
-      relay as unknown as RelayInternal
-    ).performBasicValidation(invalidEvent);
-    console.log(
-      `  1. Basic Validation: ${validationPassed ? "✅ Passed" : "❌ Failed"}`,
-    );
+    await validateRelayIngressEvent(invalidEvent);
+    console.log("  1. Central Relay ingress validation: ✅ Passed");
   } catch (error) {
-    console.log(`  1. Basic Validation: ❌ Failed with error: ${error}`);
-    validationPassed = false;
-  }
-
-  // 2. Attempt to process event manually to demonstrate flow
-  if (validationPassed) {
+    const message = error instanceof Error ? error.message : String(error);
     console.log(
-      "  2. Event would proceed to async validation (signature/hash verification)",
+      `  1. Central Relay ingress validation: ❌ Failed with error: ${message}`,
     );
-
-    // This would normally be handled by the relay
-    try {
-      const asyncResult = await (
-        relay as unknown as RelayInternal
-      ).validateEventAsync(invalidEvent as NostrEvent);
-      console.log(
-        `  3. Async Validation: ${asyncResult ? "✅ Passed" : "❌ Failed"}`,
-      );
-    } catch (error) {
-      console.log(`  3. Async Validation: ❌ Failed with error: ${error}`);
-    }
   }
 
   console.log(
@@ -170,7 +146,7 @@ async function main() {
         subscriptionId[0],
         invalidEvent,
       ]);
-      console.log("→ Event sent to validation pipeline");
+      console.log("→ Event sent to Relay ingress validation pipeline");
       console.log("→ Check your debug logs to see full validation flow");
     } catch (error) {
       console.error("Error injecting event:", error);
@@ -180,7 +156,7 @@ async function main() {
       "→ Enable DEBUG=nostr:* environment variable to see full validation details",
     );
     console.log(
-      "→ Events failing validation won't be propagated to subscribers",
+      "→ Events failing Relay ingress validation won't be propagated to subscribers",
     );
   }
 
@@ -214,7 +190,7 @@ async function main() {
   }
 
   console.log(
-    "\n✅ Example completed - Events must pass BOTH basic and cryptographic validation",
+    "\n✅ Example completed - Events must pass central Relay ingress validation",
   );
   console.log("This ensures full compliance with NIP-01 §7 specification.");
 

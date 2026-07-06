@@ -9,6 +9,7 @@ import {
   PublishResponse,
   SubscriptionOptions,
 } from "../types/nostr";
+import type { RelayConnectionOptions } from "../types/protocol";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
 import { isValidRelayUrl } from "../nip19";
 import { createSignedAuthEvent } from "../nip42";
@@ -26,13 +27,10 @@ import {
 import { Logger, LogLevel } from "../nip46/utils/logger";
 import {
   validateFilters,
-  validateEventContent,
-  validateTags,
   validateNumber,
   SecurityValidationError,
   checkRateLimit,
   RateLimitState,
-  SECURITY_LIMITS,
 } from "../utils/security-validator";
 import { getRegisteredNIP04 } from "../nip04/registry";
 
@@ -63,10 +61,7 @@ export interface NostrRateLimits {
  */
 export interface NostrOptions {
   /** Options to pass to each Relay instance */
-  relayOptions?: {
-    connectionTimeout?: number;
-    bufferFlushDelay?: number;
-  };
+  relayOptions?: RelayConnectionOptions;
   /** Rate limiting configuration for different operations */
   rateLimits?: NostrRateLimits;
 }
@@ -127,10 +122,7 @@ export class Nostr {
   private relays: Map<string, Relay> = new Map();
   private privateKey?: string;
   private publicKey?: string;
-  private relayOptions?: {
-    connectionTimeout?: number;
-    bufferFlushDelay?: number;
-  };
+  private relayOptions?: RelayConnectionOptions;
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
   private logger: Logger;
 
@@ -551,26 +543,8 @@ export class Nostr {
       throw new Error("Private key is not set");
     }
 
-    // Validate inputs
     try {
-      const validatedContent = validateEventContent(content);
-      const validatedTags = validateTags(tags);
-
-      // Calculate actual UTF-8 byte length for proper size validation
-      const contentByteLength = new TextEncoder().encode(
-        validatedContent,
-      ).length;
-      if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
-        throw new Error(
-          `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
-        );
-      }
-
-      const noteTemplate = createTextNote(
-        validatedContent,
-        this.privateKey,
-        validatedTags,
-      );
+      const noteTemplate = createTextNote(content, this.privateKey, tags);
       const signedEvent = await createSignedEvent(
         noteTemplate,
         this.privateKey,

@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SNSTR (Secure Nostr Software Toolkit for Renegades) is a comprehensive TypeScript library for the Nostr protocol. It implements multiple NIPs (Nostr Implementation Possibilities) with a focus on security, performance, and ease of use.
 
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live in GitHub Issues; external PRs are not a triage request surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default Matt Pocock skill label vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This is a single-context repo with root `CONTEXT.md` and root `docs/adr/` decisions. See `docs/agents/domain.md`.
+
 ## Essential Commands
 
 ### Build and Development

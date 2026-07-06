@@ -8,6 +8,7 @@ import {
   RelayEventCallbacks,
   Subscription,
 } from "../../src";
+import type { RelayConnectionOptions } from "../../src/types/protocol";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/relayUrl";
 
@@ -50,10 +51,7 @@ export interface NostrInternals {
   privateKey: string;
   publicKey: string;
   relays: Map<string, Relay | MockRelay>;
-  relayOptions?: {
-    connectionTimeout?: number;
-    bufferFlushDelay?: number;
-  };
+  relayOptions?: RelayConnectionOptions;
 }
 
 /**
@@ -104,9 +102,6 @@ export interface RelayTestAccess {
   processReplaceableEvent(event: NostrEvent): void;
   processAddressableEvent(event: NostrEvent): void;
   flushSubscriptionBuffer(subscriptionId: string): void;
-  performBasicValidation(event: NostrEvent): boolean;
-  validateEvent(event: NostrEvent): boolean;
-  validateEventAsync(event: NostrEvent): Promise<boolean>;
 }
 
 /**

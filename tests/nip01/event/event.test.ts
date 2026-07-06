@@ -46,7 +46,7 @@ describe("Event Creation and Signing", () => {
       } as unknown as UnsignedEvent;
 
       await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: missing pubkey",
+        "Invalid or missing pubkey: must be a string",
       );
     });
 
@@ -59,7 +59,21 @@ describe("Event Creation and Signing", () => {
       } as unknown as UnsignedEvent;
 
       await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: missing created_at",
+        "Invalid created_at timestamp",
+      );
+    });
+
+    it("should throw error for non-number created_at", async () => {
+      const event = {
+        pubkey: publicKey,
+        created_at: "1652347275",
+        kind: 1,
+        tags: [],
+        content: "Hello, world!",
+      } as unknown as UnsignedEvent;
+
+      await expect(getEventHash(event)).rejects.toThrow(
+        "Invalid created_at timestamp",
       );
     });
 
@@ -71,9 +85,19 @@ describe("Event Creation and Signing", () => {
         content: "Hello, world!",
       } as unknown as UnsignedEvent;
 
-      await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: missing kind",
-      );
+      await expect(getEventHash(event)).rejects.toThrow("Kind must be a number");
+    });
+
+    it("should throw error for non-number kind", async () => {
+      const event = {
+        pubkey: publicKey,
+        created_at: 1652347275,
+        kind: "1",
+        tags: [],
+        content: "Hello, world!",
+      } as unknown as UnsignedEvent;
+
+      await expect(getEventHash(event)).rejects.toThrow("Kind must be a number");
     });
 
     it("should throw error for invalid tags (not an array)", async () => {
@@ -85,9 +109,7 @@ describe("Event Creation and Signing", () => {
         content: "Hello, world!",
       } as unknown as UnsignedEvent;
 
-      await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: tags must be an array",
-      );
+      await expect(getEventHash(event)).rejects.toThrow("Tags must be an array");
     });
 
     it("should throw error for invalid tag item (not an array)", async () => {
@@ -100,7 +122,7 @@ describe("Event Creation and Signing", () => {
       } as unknown as UnsignedEvent;
 
       await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: each tag must be an array",
+        "Each tag must be an array",
       );
     });
 
@@ -114,7 +136,7 @@ describe("Event Creation and Signing", () => {
       } as unknown as UnsignedEvent;
 
       await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: tag items must be strings",
+        "Tag items must be strings",
       );
     });
 
@@ -128,7 +150,7 @@ describe("Event Creation and Signing", () => {
       } as unknown as UnsignedEvent;
 
       await expect(getEventHash(event)).rejects.toThrow(
-        "Invalid event: content must be a string",
+        "Content must be a string",
       );
     });
 
