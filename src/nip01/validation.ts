@@ -83,6 +83,10 @@ function isHexString(value: unknown, length: number): value is string {
   );
 }
 
+function isValidCreatedAtTimestamp(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
 function validateNostrEventPayload(
   candidate: Partial<NostrEvent>,
   options: SignedEventValidationOptions = {},
@@ -153,7 +157,7 @@ function validateNostrEventPayload(
       );
     }
 
-    if (typeof candidate.created_at !== "number" || candidate.created_at < 0) {
+    if (!isValidCreatedAtTimestamp(candidate.created_at)) {
       throw new NostrValidationError(
         "Invalid created_at timestamp",
         "created_at",
@@ -317,6 +321,14 @@ export async function validateSignedNostrEvent(
     maxFutureTimestampDrift !== undefined ||
     maxPastTimestampDrift !== undefined
   ) {
+    if (!isValidCreatedAtTimestamp(sanitized.created_at)) {
+      throw new NostrValidationError(
+        "Invalid created_at timestamp",
+        "created_at",
+        sanitized,
+      );
+    }
+
     const now = getUnixTime();
     const futureDrift = sanitized.created_at - now;
     const pastDrift = now - sanitized.created_at;
@@ -345,6 +357,14 @@ export async function validateSignedNostrEvent(
       );
     }
   } else if (maxTimestampDrift > 0) {
+    if (!isValidCreatedAtTimestamp(sanitized.created_at)) {
+      throw new NostrValidationError(
+        "Invalid created_at timestamp",
+        "created_at",
+        sanitized,
+      );
+    }
+
     const now = getUnixTime();
     const drift = Math.abs(now - sanitized.created_at);
 

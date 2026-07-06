@@ -72,8 +72,24 @@ async function handleInboundEvent(
   subscriptionId: string,
   event: unknown,
 ): Promise<void> {
-  asTestRelay(relay).handleMessage(["EVENT", subscriptionId, event]);
-  await testUtils.sleep(20);
+  const relayInternals = asTestRelay(relay);
+  relayInternals.handleMessage(["EVENT", subscriptionId, event]);
+
+  const deadline = Date.now() + 1000;
+  while (Date.now() < deadline) {
+    const pendingValidations =
+      relayInternals.pendingValidationCounts.get(subscriptionId) ?? 0;
+
+    if (pendingValidations === 0) {
+      return;
+    }
+
+    await testUtils.sleep(1);
+  }
+
+  throw new Error(
+    `Timed out waiting for inbound EVENT validation for ${subscriptionId}`,
+  );
 }
 
 function expectRelayError(errors: unknown[], message: string): void {

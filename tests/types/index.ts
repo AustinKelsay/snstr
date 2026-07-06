@@ -94,6 +94,7 @@ export interface RelayTestAccess {
   // Private internal state
   subscriptions: Map<string, Subscription>;
   eventBuffers: Map<string, NostrEvent[]>;
+  pendingValidationCounts: Map<string, number>;
   status: string;
 
   // Private internal methods

@@ -47,6 +47,45 @@ describe("Nostr Event validation module", () => {
     );
   });
 
+  it("rejects non-finite created_at values during shape validation", () => {
+    expect(() =>
+      sanitizeNostrEvent({
+        id: "a".repeat(64),
+        pubkey: publicKey,
+        created_at: Number.NaN,
+        kind: 1,
+        tags: [],
+        content: "non-finite timestamp",
+        sig: "b".repeat(128),
+      }),
+    ).toThrow(
+      new NostrValidationError("Invalid created_at timestamp", "created_at"),
+    );
+  });
+
+  it("rejects non-finite created_at values before drift enforcement", async () => {
+    const signedLikeEvent = {
+      id: "a".repeat(64),
+      pubkey: publicKey,
+      created_at: Number.NaN,
+      kind: 1,
+      tags: [],
+      content: "non-finite timestamp",
+      sig: "b".repeat(128),
+    };
+
+    await expect(
+      validateSignedNostrEvent(signedLikeEvent, {
+        validateFields: false,
+        validateIds: false,
+        validateSignatures: false,
+        maxFutureTimestampDrift: 60,
+      }),
+    ).rejects.toThrow(
+      new NostrValidationError("Invalid created_at timestamp", "created_at"),
+    );
+  });
+
   it("verifies a valid signed Nostr Event", async () => {
     const signed = await signedTextNote();
 

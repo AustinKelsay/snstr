@@ -79,9 +79,9 @@ export interface RelayConnectionOptions {
   maxReconnectDelay?: number;
   /** Inbound relay EVENT validation settings */
   inboundValidation?: {
-    /** Maximum allowed future timestamp deviation in seconds */
+    /** Maximum allowed future timestamp deviation in seconds; values greater than 0 enable the check, while 0 or negative values disable it */
     maxFutureTimestampDrift?: number;
-    /** Maximum allowed past timestamp deviation in seconds */
+    /** Maximum allowed past timestamp deviation in seconds; values greater than 0 enable the check, while 0 or negative values disable it */
     maxPastTimestampDrift?: number;
   };
   /** Optional list of ephemeral subscriptions to initialize with */
