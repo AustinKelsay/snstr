@@ -9,7 +9,7 @@
 - Feature branch: `feature/collapse-event-validation`
 - Human owner: plebdev
 - Started: 2026-07-06T13:30:37Z
-- Current status: final gates passed; PR pending
+- Current status: PR opened
 - Skill setup status: created `docs/agents/*`; GitHub triage labels confirmed/created
 
 ## Goal
@@ -26,7 +26,7 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 - Agent briefs: not created; slices were handled in the current session with Composer 2.5 review subagents
 - Review packets: `docs/agents/runs/review-83-packet.md`, `docs/agents/runs/review-84-packet.md`, `docs/agents/runs/review-85-packet.md`
 - Local CodeRabbit report: `docs/agents/runs/coderabbit-round-collapse-event-validation.md`
-- PR URL: pending
+- PR URL: https://github.com/AustinKelsay/snstr/pull/86
 
 ## Commands
 
