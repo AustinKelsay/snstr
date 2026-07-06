@@ -40,7 +40,7 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 
 | Issue | Type | Status | Review thread | Fixes needed | Verified |
 | --- | --- | --- | --- | --- | --- |
-| #83 - Add a central Nostr Event validation module | AFK | implemented, pending commit | Composer 2.5 via `agent` | duplicate hash/helper fixed; module-test finding retained with reason | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
+| #83 - Add a central Nostr Event validation module | AFK | complete | Composer 2.5 via `agent` | duplicate hash/helper fixed; module-test finding retained with reason | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
 | #84 - Route Relay event acceptance through central validation | AFK | pending | pending | pending | pending |
 | #85 - Retire duplicate validation test surfaces | AFK | pending | pending | pending | pending |
 
@@ -54,8 +54,8 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| #83 | `439ff8691d12531b46461f2b79488c88d1764ba5` | current session | pending | standards/spec findings addressed or recorded | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
-| #84 | pending | pending | pending | pending | pending |
+| #83 | `439ff8691d12531b46461f2b79488c88d1764ba5` | current session | `3fbddb0` | standards/spec findings addressed or recorded | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
+| #84 | `3fbddb0` | pending | pending | pending | pending |
 | #85 | pending | pending | pending | pending | pending |
 
 ## Open Questions
