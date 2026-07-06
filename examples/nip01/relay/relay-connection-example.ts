@@ -133,6 +133,7 @@ async function main() {
         ]),
         DEMO_PRIVATE_KEY,
       );
+      const demoPubkey = validEvent.pubkey;
       await testValidation(validEvent, "Valid signed event");
 
       // Test 2: Event with future timestamp (should fail)
@@ -145,7 +146,7 @@ async function main() {
       // Test 3: Event with missing field
       const missingFieldEvent = {
         id: "a".repeat(64),
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         // missing created_at
         kind: 1,
         tags: [],
@@ -157,7 +158,7 @@ async function main() {
       // Test 4: Event with invalid field type
       const invalidFieldTypeEvent = {
         id: "a".repeat(64),
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         created_at: "not a number" as unknown as number, // wrong type
         kind: 1,
         tags: [],
@@ -172,7 +173,7 @@ async function main() {
       // Test 5: Event with invalid tag structure
       const invalidTagsEvent = {
         id: "a".repeat(64),
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: ["not an array of arrays"] as unknown as string[][], // invalid tag structure
@@ -187,7 +188,7 @@ async function main() {
       // Test 6: Event with too short ID
       const invalidIdEvent = {
         id: "a".repeat(60), // too short
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: [],

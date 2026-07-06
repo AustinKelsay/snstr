@@ -1172,6 +1172,28 @@ describe("Relay", () => {
       );
     });
 
+    test("should reject NIP-46 encrypted inbound EVENT messages with invalid signatures", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
+      const pubkey = getPublicKey(RELAY_TEST_PRIVATE_KEY);
+      const encryptedEvent = await createSignedRelayEvent({
+        kind: 24133,
+        tags: [["p", pubkey]],
+        content: "encrypted request",
+      });
+      const tamperedEvent: NostrEvent = {
+        ...encryptedEvent,
+        sig: "0".repeat(128),
+      };
+
+      await handleInboundEvent(relay, subscriptionId, tamperedEvent);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "Invalid signature");
+    });
+
     test("should accept signed NIP-46 encrypted inbound EVENT messages with p tags", async () => {
       const onEvent = jest.fn();
       const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
