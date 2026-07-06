@@ -5,7 +5,7 @@
  * where events are only propagated after full validation including signature verification.
  */
 
-import { Nostr, Relay, RelayEvent, NostrEvent } from "../../src";
+import { Nostr, Relay, RelayEvent } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { validateRelayIngressEvent } from "../../src/nip01/validation";
 
