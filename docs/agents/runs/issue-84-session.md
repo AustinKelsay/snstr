@@ -5,8 +5,8 @@
 - Issue: #84 - Route Relay event acceptance through central validation
 - Fixed point before session: `1f26f97fa20d9fe201ed298e1ea36e8f399b1b0e`
 - Worker session: current Codex session with Composer 2.5 review subagents via `agent`
-- Commit: pending
-- Status: implementation complete, pending commit
+- Commit: `983430b`
+- Status: complete
 
 ## Inputs
 
