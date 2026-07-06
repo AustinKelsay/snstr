@@ -26,13 +26,10 @@ import {
 import { Logger, LogLevel } from "../nip46/utils/logger";
 import {
   validateFilters,
-  validateEventContent,
-  validateTags,
   validateNumber,
   SecurityValidationError,
   checkRateLimit,
   RateLimitState,
-  SECURITY_LIMITS,
 } from "../utils/security-validator";
 import { getRegisteredNIP04 } from "../nip04/registry";
 
@@ -551,26 +548,8 @@ export class Nostr {
       throw new Error("Private key is not set");
     }
 
-    // Validate inputs
     try {
-      const validatedContent = validateEventContent(content);
-      const validatedTags = validateTags(tags);
-
-      // Calculate actual UTF-8 byte length for proper size validation
-      const contentByteLength = new TextEncoder().encode(
-        validatedContent,
-      ).length;
-      if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
-        throw new Error(
-          `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
-        );
-      }
-
-      const noteTemplate = createTextNote(
-        validatedContent,
-        this.privateKey,
-        validatedTags,
-      );
+      const noteTemplate = createTextNote(content, this.privateKey, tags);
       const signedEvent = await createSignedEvent(
         noteTemplate,
         this.privateKey,

@@ -104,7 +104,6 @@ export interface RelayTestAccess {
   processReplaceableEvent(event: NostrEvent): void;
   processAddressableEvent(event: NostrEvent): void;
   flushSubscriptionBuffer(subscriptionId: string): void;
-  validateInboundEvent(event: unknown): Promise<NostrEvent>;
 }
 
 /**
