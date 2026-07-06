@@ -5,8 +5,8 @@
 - Issue: #85 - Retire duplicate validation test surfaces
 - Fixed point before session: `66855bfac276ea6bc27f7f6c0c240ac065712c63`
 - Worker session: current Codex session with Composer 2.5 spec review via `agent`
-- Commit: pending
-- Status: implementation complete, pending commit
+- Commit: `9c0c95d`
+- Status: complete
 
 ## Inputs
 

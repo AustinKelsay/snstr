@@ -42,7 +42,7 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 | --- | --- | --- | --- | --- | --- |
 | #83 - Add a central Nostr Event validation module | AFK | complete | Composer 2.5 via `agent` | duplicate hash/helper fixed; module-test finding retained with reason | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
 | #84 - Route Relay event acceptance through central validation | AFK | complete | Composer 2.5 via `agent` | tests/options/examples fixed; stricter ingress recorded as intentional | `npx jest tests/nip01/event tests/nip01/relay --runInBand`; `npx tsc --noEmit` |
-| #85 - Retire duplicate validation test surfaces | AFK | implemented, pending commit | Composer 2.5 spec via `agent`; standards unavailable | duplicate publish validation removed; validation test-access hook removed | `npx jest tests/nip01/event tests/nip01/relay tests/nip01/nostr.test.ts tests/utils/utf8-byte-length.test.ts --runInBand`; `npx tsc --noEmit` |
+| #85 - Retire duplicate validation test surfaces | AFK | complete | Composer 2.5 spec via `agent`; standards unavailable | duplicate publish validation removed; validation test-access hook removed | `npx jest tests/nip01/event tests/nip01/relay tests/nip01/nostr.test.ts tests/utils/utf8-byte-length.test.ts --runInBand`; `npx tsc --noEmit` |
 
 ## Parked HITL Slices
 
@@ -56,7 +56,7 @@ Collapse the Nostr event validation surfaces so event shape sanitization, signed
 | --- | --- | --- | --- | --- | --- |
 | #83 | `439ff8691d12531b46461f2b79488c88d1764ba5` | current session | `3fbddb0` | standards/spec findings addressed or recorded | `npx jest tests/nip01/event --runInBand`; `npx tsc --noEmit` |
 | #84 | `1f26f97fa20d9fe201ed298e1ea36e8f399b1b0e` | current session | `983430b` | standards/spec findings addressed or recorded | `npx jest tests/nip01/event tests/nip01/relay --runInBand`; `npx tsc --noEmit` |
-| #85 | `66855bfac276ea6bc27f7f6c0c240ac065712c63` | current session | pending | spec findings addressed; standards review unavailable after no-output attempt | `npx jest tests/nip01/event tests/nip01/relay tests/nip01/nostr.test.ts tests/utils/utf8-byte-length.test.ts --runInBand`; `npx tsc --noEmit` |
+| #85 | `66855bfac276ea6bc27f7f6c0c240ac065712c63` | current session | `9c0c95d` | spec findings addressed; standards review unavailable after no-output attempt | `npx jest tests/nip01/event tests/nip01/relay tests/nip01/nostr.test.ts tests/utils/utf8-byte-length.test.ts --runInBand`; `npx tsc --noEmit` |
 
 ## Open Questions
 
