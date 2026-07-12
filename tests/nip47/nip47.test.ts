@@ -26,6 +26,7 @@ import {
   MakeInvoiceResponseResult,
   SignMessageResponseResult,
   NIP47Notification,
+  NIP47Logger,
 } from "../../src/nip47";
 import { NIP47ClientError } from "../../src/nip47/client";
 import { createEvent, createSignedEvent } from "../../src/nip01/event";
@@ -287,6 +288,50 @@ describe("NIP-47: Nostr Wallet Connect", () => {
   });
 
   describe("Basic Client-Service Communication", () => {
+    it("keeps routine diagnostics quiet by default", async () => {
+      const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await client.getInfo();
+        expect(logSpy).not.toHaveBeenCalled();
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it("routes diagnostics through an injected logger", async () => {
+      const serviceKeys = await generateKeypair();
+      const messages: string[] = [];
+      const logger: NIP47Logger = {
+        error: (message) => messages.push(message),
+        warn: (message) => messages.push(message),
+        info: (message) => messages.push(message),
+        debug: (message) => messages.push(message),
+        trace: (message) => messages.push(message),
+      };
+      const diagnosticService = new NostrWalletService(
+        {
+          relays: [relay.url],
+          pubkey: serviceKeys.publicKey,
+          privkey: serviceKeys.privateKey,
+          methods: [NIP47Method.GET_INFO],
+          logger,
+        },
+        new MockWalletImplementation(),
+      );
+
+      try {
+        await diagnosticService.init();
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining("Service connected to relays"),
+          ]),
+        );
+      } finally {
+        await diagnosticService.disconnect();
+      }
+    });
+
     it("should get wallet info", async () => {
       jest.setTimeout(10000);
       const info = await client.getInfo();

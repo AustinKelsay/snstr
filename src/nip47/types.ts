@@ -13,6 +13,18 @@ export enum NIP47EncryptionScheme {
   NIP44_V2 = "nip44_v2",
 }
 
+/** Arguments accepted by the shared NIP-47 diagnostic logger. */
+export type NIP47LogArgument = unknown;
+
+/** Logger seam used by NIP-47 client and service diagnostics. */
+export interface NIP47Logger {
+  error(message: string, ...args: NIP47LogArgument[]): void;
+  warn(message: string, ...args: NIP47LogArgument[]): void;
+  info(message: string, ...args: NIP47LogArgument[]): void;
+  debug(message: string, ...args: NIP47LogArgument[]): void;
+  trace(message: string, ...args: NIP47LogArgument[]): void;
+}
+
 // Methods defined in NIP-47
 export enum NIP47Method {
   GET_INFO = "get_info",
@@ -204,6 +216,9 @@ export interface NIP47ConnectionOptions {
    * Preferred encryption scheme (optional, defaults to NIP-44 if supported)
    */
   preferredEncryption?: NIP47EncryptionScheme;
+
+  /** Optional diagnostic logger. INFO/DEBUG output is disabled by default. */
+  logger?: NIP47Logger;
 }
 
 // Base request interface

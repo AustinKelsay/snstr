@@ -367,6 +367,8 @@ export type {
   NIP47Notification,
   NIP47Transaction,
   NIP47ConnectionOptions,
+  NIP47Logger,
+  NIP47LogArgument,
   GetInfoResponseResult,
   PaymentResponseResult,
   MakeInvoiceResponseResult,

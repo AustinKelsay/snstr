@@ -29,8 +29,10 @@ import {
   SignMessageResponseResult,
   NIP47EncryptionScheme,
   GetInfoResponseResult,
+  NIP47Logger,
 } from "./types";
 import { SecurityValidationError } from "../utils/security-validator";
+import { Logger, LogLevel } from "../nip46/utils/logger";
 
 /**
  * Parse a NWC URL into connection options
@@ -210,6 +212,7 @@ export class NostrWalletConnectClient {
   private clientPubkey: string;
   private relays: string[];
   private client: Nostr;
+  private logger: NIP47Logger;
   private supportedMethods: string[] = [];
   private supportedNotifications: string[] = [];
   private supportedEncryption: NIP47EncryptionScheme[] = [];
@@ -246,6 +249,9 @@ export class NostrWalletConnectClient {
     this.clientPubkey = getPublicKey(this.clientPrivkey);
     this.relays = options.relays;
     this.client = new Nostr(this.relays);
+    this.logger =
+      options.logger ??
+      new Logger({ level: LogLevel.WARN, prefix: "nip47-client" });
 
     // Set preferred encryption (default to NIP-44 if not specified)
     this.preferredEncryption =
@@ -258,18 +264,18 @@ export class NostrWalletConnectClient {
   public async init(): Promise<void> {
     // Connect to relays
     await this.client.connectToRelays();
-    console.log(`Client connected to relays: ${this.relays.join(", ")}`);
+    this.logger.info(`Client connected to relays: ${this.relays.join(", ")}`);
 
     // Set up subscription to receive responses
     this.setupSubscription();
-    console.log("Client subscribed to service events");
+    this.logger.info("Client subscribed to service events");
 
     // Wait for capabilities to be discovered via events
-    console.log("Waiting for service capabilities...");
+    this.logger.debug("Waiting for service capabilities...");
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     if (this.supportedMethods.length === 0) {
-      console.warn(
+      this.logger.warn(
         "No methods discovered from service after timeout, will try explicit getInfo call",
       );
       try {
@@ -277,13 +283,13 @@ export class NostrWalletConnectClient {
         const info = await this.getInfo();
         if (info && info.methods) {
           this.supportedMethods = info.methods;
-          console.log(
+          this.logger.info(
             `Discovered methods via getInfo: ${this.supportedMethods.join(", ")}`,
           );
         }
         if (info && info.notifications) {
           this.supportedNotifications = info.notifications;
-          console.log(
+          this.logger.info(
             `Discovered notifications via getInfo: ${this.supportedNotifications.join(", ")}`,
           );
         }
@@ -372,7 +378,7 @@ export class NostrWalletConnectClient {
         try {
           this.client.disconnectFromRelays();
         } catch (error) {
-          console.error("Error disconnecting from relays:", error);
+          this.logger.error("Error disconnecting from relays:", error);
         }
 
         this.initialized = false;
@@ -382,7 +388,7 @@ export class NostrWalletConnectClient {
           resolve();
         }, 100).unref();
       } catch (error) {
-        console.error("Error during client disconnect:", error);
+        this.logger.error("Error during client disconnect:", error);
         resolve();
       }
     });
@@ -409,40 +415,40 @@ export class NostrWalletConnectClient {
       authors: [this.pubkey],
     };
 
-    console.log("Setting up client subscriptions:");
-    console.log("Filter 1:", JSON.stringify(responseFilter));
-    console.log("Filter 2:", JSON.stringify(infoFilter));
+    this.logger.debug("Setting up client subscriptions");
+    this.logger.debug(`Filter 1: ${JSON.stringify(responseFilter)}`);
+    this.logger.debug(`Filter 2: ${JSON.stringify(infoFilter)}`);
 
     // Enhanced debug logging for the client filter
-    console.log("Client pubkey for filter:", this.clientPubkey);
-    console.log("Service pubkey for filter:", this.pubkey);
+    this.logger.debug(`Client pubkey for filter: ${this.clientPubkey}`);
+    this.logger.debug(`Service pubkey for filter: ${this.pubkey}`);
 
     this.subIds = this.client.subscribe(
       [responseFilter, infoFilter],
       (event: NostrEvent, relay: string) => {
-        console.log(
+        this.logger.debug(
           `Received event: ${event.id} of kind ${event.kind} from ${relay}`,
         );
-        console.log(
+        this.logger.trace(
           `Event pubkey: ${event.pubkey}, tags: ${JSON.stringify(event.tags)}`,
         );
 
         // Log all event data for debugging
-        console.log(`Full event:`, JSON.stringify(event));
+        this.logger.trace(`Full event: ${JSON.stringify(event)}`);
 
         this.handleEvent(event);
       },
     );
-    console.log("Subscription IDs:", this.subIds);
+    this.logger.debug(`Subscription IDs: ${this.subIds.join(", ")}`);
   }
 
   /**
    * Handle incoming events from the wallet service
    */
   private async handleEvent(event: NostrEvent): Promise<void> {
-    console.log(`Handling event of kind ${event.kind} from ${event.pubkey}`);
-    console.log(`Event id: ${event.id}`);
-    console.log(`Event tags: ${JSON.stringify(event.tags)}`);
+    this.logger.debug(`Handling event of kind ${event.kind} from ${event.pubkey}`);
+    this.logger.debug(`Event id: ${event.id}`);
+    this.logger.trace(`Event tags: ${JSON.stringify(event.tags)}`);
 
     // Extract p-tag and e-tag values for easier debugging
     const pTags = event.tags
@@ -452,12 +458,12 @@ export class NostrWalletConnectClient {
       (tag) => Array.isArray(tag) && tag.length > 0 && tag[0] === "e",
     );
 
-    console.log(`Event p-tags: ${pTags.join(", ")}`);
-    console.log(`Event e-tags: ${eTags.join(", ")}`);
-    console.log(`Expected p-tag for this client: ${this.clientPubkey}`);
+    this.logger.trace(`Event p-tags: ${pTags.join(", ")}`);
+    this.logger.trace(`Event e-tags: ${eTags.join(", ")}`);
+    this.logger.trace(`Expected p-tag for this client: ${this.clientPubkey}`);
 
     if (event.kind === NIP47EventKind.RESPONSE) {
-      console.log(
+      this.logger.debug(
         `Processing as RESPONSE event (kind ${NIP47EventKind.RESPONSE})`,
       );
       await this.handleResponse(event);
@@ -465,13 +471,13 @@ export class NostrWalletConnectClient {
       event.kind === NIP47EventKind.NOTIFICATION ||
       event.kind === NIP47EventKind.NOTIFICATION_NIP44
     ) {
-      console.log(`Processing as NOTIFICATION event (kind ${event.kind})`);
+      this.logger.debug(`Processing as NOTIFICATION event (kind ${event.kind})`);
       await this.handleNotification(event);
     } else if (event.kind === NIP47EventKind.INFO) {
-      console.log(`Processing as INFO event (kind ${NIP47EventKind.INFO})`);
+      this.logger.debug(`Processing as INFO event (kind ${NIP47EventKind.INFO})`);
       this.handleInfoEvent(event);
     } else {
-      console.log(
+      this.logger.debug(
         `Unknown event kind: ${event.kind}, expected one of: ${NIP47EventKind.RESPONSE}, ${NIP47EventKind.NOTIFICATION}, ${NIP47EventKind.NOTIFICATION_NIP44}, ${NIP47EventKind.INFO}`,
       );
     }
@@ -582,7 +588,7 @@ export class NostrWalletConnectClient {
       );
 
       if (eTags.length === 0) {
-        console.warn(
+        this.logger.warn(
           "Response event has no e-tag, cannot correlate with a request",
         );
         return;
@@ -595,7 +601,7 @@ export class NostrWalletConnectClient {
         requestId = firstETag[1]; // e-tags have structure ["e", requestId, ...]
       } catch (error) {
         if (error instanceof SecurityValidationError) {
-          console.warn(
+          this.logger.warn(
             `NIP-47: Bounds checking error in e-tag processing: ${error.message}`,
           );
         }
@@ -605,7 +611,7 @@ export class NostrWalletConnectClient {
       // Find the pending request to get the encryption scheme
       const pendingRequest = this.pendingRequests.get(requestId);
       if (!pendingRequest) {
-        console.warn(`No pending request found with ID: ${requestId}`);
+        this.logger.warn(`No pending request found with ID: ${requestId}`);
         return;
       }
 
@@ -628,7 +634,7 @@ export class NostrWalletConnectClient {
           );
         }
       } catch (decryptError) {
-        console.error(
+        this.logger.error(
           `Failed to decrypt response with ${encryptionScheme}:`,
           decryptError,
         );
@@ -640,23 +646,23 @@ export class NostrWalletConnectClient {
       // Validate response structure
       this.validateResponse(response);
 
-      console.log(
+      this.logger.debug(
         `Validated response of type: ${(response as NIP47Response).result_type}`,
       );
 
-      console.log(`Found request ID from e-tag: ${requestId}`);
+      this.logger.debug(`Found request ID from e-tag: ${requestId}`);
 
       // Resolve the pending request
       pendingRequest.resolve(response as NIP47Response);
       this.pendingRequests.delete(requestId);
-      console.log(`Request ${requestId} resolved successfully`);
+      this.logger.debug(`Request ${requestId} resolved successfully`);
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(
+        this.logger.warn(
           `NIP-47: Security validation error in response handling: ${error.message}`,
         );
       } else {
-        console.error("Error handling response event:", error);
+        this.logger.error("Error handling response event:", error);
       }
     }
   }
@@ -695,7 +701,7 @@ export class NostrWalletConnectClient {
         handlers.forEach((handler) => handler(notification));
       }
     } catch (error) {
-      console.error("Failed to handle notification:", error);
+      this.logger.error("Failed to handle notification:", error);
     }
   }
 
@@ -704,11 +710,13 @@ export class NostrWalletConnectClient {
    */
   private handleInfoEvent(event: NostrEvent): void {
     try {
-      console.log("Received INFO event from:", event.pubkey);
-      console.log("Expected service pubkey:", this.pubkey);
-      console.log("Event kind:", event.kind, "Expected:", NIP47EventKind.INFO);
-      console.log("Event content:", event.content);
-      console.log("Event tags:", JSON.stringify(event.tags));
+      this.logger.debug(`Received INFO event from: ${event.pubkey}`);
+      this.logger.debug(`Expected service pubkey: ${this.pubkey}`);
+      this.logger.debug(
+        `Event kind: ${event.kind} (expected ${NIP47EventKind.INFO})`,
+      );
+      this.logger.trace(`Event content: ${event.content}`);
+      this.logger.trace(`Event tags: ${JSON.stringify(event.tags)}`);
 
       // Extract supported methods from content
       if (event.content.trim()) {
@@ -741,17 +749,19 @@ export class NostrWalletConnectClient {
         this.supportedEncryption = [NIP47EncryptionScheme.NIP04];
       }
 
-      console.log("Discovered capabilities:");
-      console.log(`Methods: ${this.supportedMethods.join(", ")}`);
-      console.log(`Notifications: ${this.supportedNotifications.join(", ")}`);
-      console.log(`Encryption: ${this.supportedEncryption.join(", ")}`);
+      this.logger.info("Discovered capabilities");
+      this.logger.info(`Methods: ${this.supportedMethods.join(", ")}`);
+      this.logger.info(
+        `Notifications: ${this.supportedNotifications.join(", ")}`,
+      );
+      this.logger.info(`Encryption: ${this.supportedEncryption.join(", ")}`);
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(
+        this.logger.warn(
           `NIP-47: Security validation error in info event handling: ${error.message}`,
         );
       } else {
-        console.error("Failed to handle info event:", error);
+        this.logger.error("Failed to handle info event:", error);
       }
     }
   }

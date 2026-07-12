@@ -11,6 +11,7 @@ import {
   WalletImplementation,
   NIP47Transaction,
   TransactionType,
+  NIP47Logger,
 } from "../../src/nip47";
 import {
   NIP47Method,
@@ -74,6 +75,15 @@ describe("NIP-47: Notification error handling", () => {
     };
 
     // Create service with both encryption schemes
+    const diagnosticErrors: string[] = [];
+    const diagnosticInfo: string[] = [];
+    const logger: NIP47Logger = {
+      error: (message) => diagnosticErrors.push(message),
+      warn: () => {},
+      info: (message) => diagnosticInfo.push(message),
+      debug: (message) => diagnosticInfo.push(message),
+      trace: () => {},
+    };
     const service = new NostrWalletService(
       {
         relays: [relay.url],
@@ -86,6 +96,7 @@ describe("NIP-47: Notification error handling", () => {
           NIP47EncryptionScheme.NIP04,
           NIP47EncryptionScheme.NIP44_V2,
         ],
+        logger,
       },
       mockWallet,
     );
@@ -113,10 +124,6 @@ describe("NIP-47: Notification error handling", () => {
       return originalPublish(event);
     });
 
-    // Capture console.error to verify error logging
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
-    const consoleLogSpy = jest.spyOn(console, "log").mockImplementation();
-
     // Send notification
     await service.sendNotification(
       clientKeys.publicKey,
@@ -132,23 +139,24 @@ describe("NIP-47: Notification error handling", () => {
 
     // Verify that NIP-04 failed and was logged
     expect(publishErrors).toBe(1);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `Failed to send NIP-04 notification to ${clientKeys.publicKey}:`,
-      ),
-      expect.stringContaining("Simulated NIP-04 publish failure"),
+    expect(diagnosticErrors).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          `Failed to send NIP-04 notification to ${clientKeys.publicKey}:`,
+        ),
+      ]),
     );
 
     // Verify that NIP-44 succeeded and was logged
-    expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `Successfully sent NIP-44 notification to ${clientKeys.publicKey}`,
-      ),
+    expect(diagnosticInfo).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining(
+          `Successfully sent NIP-44 notification to ${clientKeys.publicKey}`,
+        ),
+      ]),
     );
 
     // Clean up
-    consoleErrorSpy.mockRestore();
-    consoleLogSpy.mockRestore();
     await service.disconnect();
   });
 
@@ -176,6 +184,14 @@ describe("NIP-47: Notification error handling", () => {
       signMessage: jest.fn(),
     };
 
+    const diagnosticErrors: string[] = [];
+    const logger: NIP47Logger = {
+      error: (message) => diagnosticErrors.push(message),
+      warn: () => {},
+      info: () => {},
+      debug: () => {},
+      trace: () => {},
+    };
     const service = new NostrWalletService(
       {
         relays: [relay.url],
@@ -188,6 +204,7 @@ describe("NIP-47: Notification error handling", () => {
           NIP47EncryptionScheme.NIP04,
           NIP47EncryptionScheme.NIP44_V2,
         ],
+        logger,
       },
       mockWallet,
     );
@@ -199,8 +216,6 @@ describe("NIP-47: Notification error handling", () => {
       .fn()
       .mockRejectedValue(new Error("Network error"));
 
-    const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation();
-
     // This should not throw despite all notifications failing
     await expect(
       service.sendNotification(
@@ -211,17 +226,14 @@ describe("NIP-47: Notification error handling", () => {
     ).resolves.toBeUndefined();
 
     // Verify both failures were logged
-    expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to send NIP-04 notification"),
-      expect.any(String),
-    );
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to send NIP-44 notification"),
-      expect.any(String),
+    expect(diagnosticErrors).toHaveLength(2);
+    expect(diagnosticErrors).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Failed to send NIP-04 notification"),
+        expect.stringContaining("Failed to send NIP-44 notification"),
+      ]),
     );
 
-    consoleErrorSpy.mockRestore();
     await service.disconnect();
   });
 });
