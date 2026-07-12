@@ -1,9 +1,34 @@
 import { Relay } from "../../../src/nip01/relay";
 import { RelayEvent, NostrEvent } from "../../../src/types/nostr";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { createEvent, createSignedEvent } from "../../../src/nip01/event";
+import { validateRelayIngressEvent } from "../../../src/nip01/validation";
+import { getPublicKey } from "../../../src/utils/crypto";
 
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
 const RELAY_PORT = 0;
+const DEMO_PRIVATE_KEY =
+  "1111111111111111111111111111111111111111111111111111111111111111";
+
+async function createSignedRelayExampleEvent(
+  overrides: {
+    tags?: string[][];
+    content?: string;
+    created_at?: number;
+  } = {},
+): Promise<NostrEvent> {
+  const unsigned = createEvent(
+    {
+      kind: 1,
+      tags: overrides.tags ?? [],
+      content: overrides.content ?? "Relay ingress event",
+      created_at: overrides.created_at ?? Math.floor(Date.now() / 1000),
+    },
+    getPublicKey(DEMO_PRIVATE_KEY),
+  );
+
+  return createSignedEvent(unsigned, DEMO_PRIVATE_KEY);
+}
 
 /**
  * This example demonstrates the improved connection handling in SNSTR
@@ -99,105 +124,110 @@ async function main() {
         },
       );
 
-      // Test the relay's validation by attempting to process invalid events
+      // Test Relay ingress validation by attempting to process invalid events
       console.log("\nTesting event validation with various invalid events...");
 
-      // Direct access to basic validation for testing purposes
-      const testValidation = (
+      const testValidation = async (
         event: Partial<NostrEvent>,
         description: string,
       ) => {
-        // Get access to private validation method for demonstration purposes
-        // Using index signature to access private method for demo purposes
-        const validationResult = (
-          relay as unknown as {
-            performBasicValidation(event: Partial<NostrEvent>): boolean;
-          }
-        ).performBasicValidation(event);
-        console.log(
-          `${validationResult ? "✅" : "❌"} ${description}: ${validationResult ? "PASSED basic validation" : "REJECTED in basic validation"}`,
-        );
-        return validationResult;
+        try {
+          await validateRelayIngressEvent(event);
+          console.log(
+            `✅ ${description}: ACCEPTED by Relay ingress validation`,
+          );
+          return true;
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          console.log(
+            `❌ ${description}: REJECTED by Relay ingress validation (${message})`,
+          );
+          return false;
+        }
       };
 
-      // Test 1: Valid event (should pass basic validation)
-      const validEvent: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [["t", "test"]],
+      // Test 1: Valid event (should pass Relay ingress validation)
+      const validEvent = await createSignedRelayExampleEvent({
         content: "This is a valid event",
-        sig: "c".repeat(128),
-      };
-      testValidation(validEvent, "Well-formed event");
+        tags: [["t", "test"]],
+      });
+      const demoPubkey = validEvent.pubkey;
+      await testValidation(validEvent, "Valid signed event");
 
       // Test 2: Event with future timestamp (should fail)
-      const futureEvent = {
-        ...validEvent,
+      const futureEvent = await createSignedRelayExampleEvent({
+        content: validEvent.content,
+        tags: validEvent.tags,
         created_at: Math.floor(Date.now() / 1000) + 7200, // 2 hours in the future
-      };
-      testValidation(futureEvent, "Event with future timestamp");
+      });
+      await testValidation(futureEvent, "Event with future timestamp");
 
       // Test 3: Event with missing field
       const missingFieldEvent = {
         id: "a".repeat(64),
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         // missing created_at
         kind: 1,
         tags: [],
         content: "Missing created_at",
         sig: "c".repeat(128),
       };
-      testValidation(missingFieldEvent, "Event missing required field");
+      await testValidation(missingFieldEvent, "Event missing required field");
 
       // Test 4: Event with invalid field type
       const invalidFieldTypeEvent = {
         id: "a".repeat(64),
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         created_at: "not a number" as unknown as number, // wrong type
         kind: 1,
         tags: [],
         content: "Invalid created_at type",
         sig: "c".repeat(128),
       };
-      testValidation(invalidFieldTypeEvent, "Event with invalid field type");
+      await testValidation(
+        invalidFieldTypeEvent,
+        "Event with invalid field type",
+      );
 
       // Test 5: Event with invalid tag structure
       const invalidTagsEvent = {
         id: "a".repeat(64),
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: ["not an array of arrays"] as unknown as string[][], // invalid tag structure
         content: "Invalid tags",
         sig: "c".repeat(128),
       };
-      testValidation(invalidTagsEvent, "Event with invalid tag structure");
+      await testValidation(
+        invalidTagsEvent,
+        "Event with invalid tag structure",
+      );
 
       // Test 6: Event with too short ID
       const invalidIdEvent = {
         id: "a".repeat(60), // too short
-        pubkey: "b".repeat(64),
+        pubkey: demoPubkey,
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: [],
         content: "ID too short",
         sig: "c".repeat(128),
       };
-      testValidation(invalidIdEvent, "Event with invalid ID length");
+      await testValidation(invalidIdEvent, "Event with invalid ID length");
 
       console.log("\nImproved Validation Process (NIP-01 §7 Compliant):");
       console.log(
-        "1. 🔍 Basic Validation: Synchronous checks for required fields and formats",
+        "1. 🔍 Shape Validation: Checks for required fields and formats",
       );
-      console.log("   - Performed immediately upon receipt of an event");
+      console.log(
+        "   - Performed at the central Relay ingress validation seam",
+      );
       console.log(
         "   - Rejects obviously invalid events without further processing",
       );
-      console.log(
-        "\n2. 🔐 Cryptographic Validation: Asynchronous verification of:",
-      );
+      console.log("\n2. 🔐 Cryptographic Validation: Verification of:");
       console.log("   - Event ID matches the SHA-256 hash of event data");
       console.log("   - Signature is valid for the event ID and pubkey");
       console.log("\n3. ⏱️ Process Flow:");
@@ -205,7 +235,7 @@ async function main() {
         "   - Events are held in a pending state until async validation completes",
       );
       console.log(
-        "   - Only events that pass BOTH validation stages are processed",
+        "   - Only events that pass Relay ingress validation are processed",
       );
       console.log(
         "   - Invalid events are rejected with appropriate error messages",

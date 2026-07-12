@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-07-06
+
+### Changed
+- NIP-01 event hashing, signed event validation, and relay ingress validation now share the centralized event validation path.
+- Relay inbound event timestamp drift can be configured through `RelayConnectionOptions.inboundValidation`.
+
+### Fixed
+- Relay ingress now requires signed events and validates NIP-01 `e`, `p`, and `a` tag references with lowercase hex semantics.
+- NIP-46 relay ingress now requires lowercase `p` tags consistently with event and filter validation.
+- Non-finite `created_at` values are rejected before timestamp drift enforcement.
+- Issue-tracker agent docs now show machine-readable GitHub issue reads and heredoc body-file usage.
+
 ## [0.3.3] - 2026-03-07
 
 ### Added

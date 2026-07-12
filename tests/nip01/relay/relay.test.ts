@@ -6,6 +6,10 @@ import {
   PublishResponse,
   NIP20Prefix,
   ParsedOkReason,
+  createEvent,
+  getEventHash,
+  getPublicKey,
+  signEvent,
 } from "../../../src";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { testUtils } from "../../types";
@@ -32,6 +36,70 @@ type AnyRelayCallback =
 
 // Ephemeral relay port for tests
 const RELAY_TEST_PORT = 0;
+const RELAY_TEST_PRIVATE_KEY =
+  "1111111111111111111111111111111111111111111111111111111111111111";
+
+async function createSignedRelayEvent(
+  overrides: {
+    kind?: number;
+    tags?: string[][];
+    content?: string;
+    created_at?: number;
+  } = {},
+): Promise<NostrEvent> {
+  const pubkey = getPublicKey(RELAY_TEST_PRIVATE_KEY);
+  const unsigned = createEvent(
+    {
+      kind: overrides.kind ?? 1,
+      tags: overrides.tags ?? [],
+      content: overrides.content ?? "Relay ingress event",
+      created_at: overrides.created_at ?? Math.floor(Date.now() / 1000),
+    },
+    pubkey,
+  );
+  const id = await getEventHash(unsigned);
+  const sig = await signEvent(id, RELAY_TEST_PRIVATE_KEY);
+
+  return {
+    ...unsigned,
+    id,
+    sig,
+  };
+}
+
+async function handleInboundEvent(
+  relay: Relay,
+  subscriptionId: string,
+  event: unknown,
+): Promise<void> {
+  const relayInternals = asTestRelay(relay);
+  relayInternals.handleMessage(["EVENT", subscriptionId, event]);
+
+  const deadline = Date.now() + 1000;
+  while (Date.now() < deadline) {
+    const pendingValidations =
+      relayInternals.pendingValidationCounts.get(subscriptionId) ?? 0;
+
+    if (pendingValidations === 0) {
+      return;
+    }
+
+    await testUtils.sleep(1);
+  }
+
+  throw new Error(
+    `Timed out waiting for inbound EVENT validation for ${subscriptionId}`,
+  );
+}
+
+function expectRelayError(errors: unknown[], message: string): void {
+  const errorMessages = errors.map((error) =>
+    error instanceof Error ? error.message : String(error),
+  );
+  expect(errorMessages).toEqual(
+    expect.arrayContaining([expect.stringContaining(message)]),
+  );
+}
 
 describe("Relay", () => {
   // Setup ephemeral relay for integration tests
@@ -982,302 +1050,233 @@ describe("Relay", () => {
       relay = new Relay("wss://example.com");
     });
 
-    test("should validate properly formed events", () => {
-      // Create a valid event
-      const validEvent: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [],
-        content: "Valid event",
-        sig: "d".repeat(128),
-      };
-
-      // Test basic validation
-      const internalRelay = asTestRelay(relay);
-      const basicResult = internalRelay.performBasicValidation(validEvent);
-      expect(basicResult).toBe(true);
-
-      // Test backward compatibility through validateEvent
-      const result = internalRelay.validateEvent(validEvent);
-      expect(result).toBe(true);
-    });
-
-    test("should reject events with future timestamps", () => {
-      // Create an event with a future timestamp
-      const futureEvent: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000) + 7200, // 2 hours in the future
-        kind: 1,
-        tags: [],
-        content: "Future event",
-        sig: "d".repeat(128),
-      };
-
-      // Event should be rejected by basic validation
-      const internalRelay = asTestRelay(relay);
-      const basicResult = internalRelay.performBasicValidation(futureEvent);
-      expect(basicResult).toBe(false);
-
-      // And by the compatibility method
-      const result = internalRelay.validateEvent(futureEvent);
-      expect(result).toBe(false);
-    });
-
-    test("should reject events with invalid structure", () => {
-      // Test various invalid structures
-      const internalRelay = asTestRelay(relay);
-
-      // Missing fields
-      const missingFields = {
-        id: "a".repeat(64),
-        // missing pubkey field
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [],
-        content: "Missing pubkey",
-        sig: "d".repeat(128),
-      };
-      expect(
-        internalRelay.performBasicValidation(
-          missingFields as unknown as NostrEvent,
-        ),
-      ).toBe(false);
-      expect(
-        internalRelay.validateEvent(missingFields as unknown as NostrEvent),
-      ).toBe(false);
-
-      // Invalid id length
-      const invalidId = {
-        id: "a".repeat(63), // Too short
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [],
-        content: "Invalid ID",
-        sig: "d".repeat(128),
-      };
-      expect(
-        internalRelay.performBasicValidation(
-          invalidId as unknown as NostrEvent,
-        ),
-      ).toBe(false);
-      expect(
-        internalRelay.validateEvent(invalidId as unknown as NostrEvent),
-      ).toBe(false);
-
-      // Invalid kind (outside range)
-      const invalidKind = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 70000, // Outside valid range
-        tags: [],
-        content: "Invalid kind",
-        sig: "d".repeat(128),
-      };
-      expect(
-        internalRelay.performBasicValidation(
-          invalidKind as unknown as NostrEvent,
-        ),
-      ).toBe(false);
-      expect(
-        internalRelay.validateEvent(invalidKind as unknown as NostrEvent),
-      ).toBe(false);
-
-      // Invalid tag structure
-      const invalidTags = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [["p", 123]], // Tag value is not a string
-        content: "Invalid tags",
-        sig: "d".repeat(128),
-      };
-      expect(
-        internalRelay.performBasicValidation(
-          invalidTags as unknown as NostrEvent,
-        ),
-      ).toBe(false);
-      expect(
-        internalRelay.validateEvent(invalidTags as unknown as NostrEvent),
-      ).toBe(false);
-    });
-
-    test("should properly handle async validation workflow", async () => {
-      // Create a valid event for structure validation
-      const event: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [],
-        content: "Test event",
-        sig: "d".repeat(128),
-      };
-
-      const internalRelay = asTestRelay(relay);
-
-      // Mock processValidatedEvent to track if it gets called
-      let eventProcessed = false;
-      const originalProcessValidatedEvent = internalRelay.processValidatedEvent;
-      internalRelay.processValidatedEvent = jest.fn((event, subId) => {
-        eventProcessed = true;
-        return originalProcessValidatedEvent.call(internalRelay, event, subId);
-      });
-
-      // Mock error tracking
-      let errorTriggered = false;
-      relay.on(RelayEvent.Error, () => {
-        errorTriggered = true;
-      });
-
-      // Test 1: Simulate failed async validation
-      internalRelay.validateEventAsync = jest.fn().mockResolvedValue(false);
-
-      // Trigger the validation via handleMessage
-      internalRelay.handleMessage(["EVENT", "test-sub", event]);
-
-      // Wait for promises to resolve
-      await testUtils.sleep(10);
-
-      // The event should not have been processed
-      expect(internalRelay.validateEventAsync).toHaveBeenCalledWith(event);
-      expect(errorTriggered).toBe(true);
-      expect(eventProcessed).toBe(false);
-
-      // Reset mocks for next test
-      errorTriggered = false;
-      eventProcessed = false;
-      jest.clearAllMocks();
-
-      // Test 2: Simulate successful async validation
-      internalRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
-
-      // Trigger the validation via handleMessage
-      internalRelay.handleMessage(["EVENT", "test-sub", event]);
-
-      // Wait for promises to resolve
-      await testUtils.sleep(10);
-
-      // The event should have been processed
-      expect(internalRelay.validateEventAsync).toHaveBeenCalledWith(event);
-      expect(errorTriggered).toBe(false);
-      expect(eventProcessed).toBe(true);
-
-      // Restore original implementation
-      internalRelay.processValidatedEvent = originalProcessValidatedEvent;
-    });
-
-    test("should properly verify event through full validation flow", async () => {
-      // Mock subscriptions and handlers
-      const subscriptionId = "test-sub";
+    test("should deliver valid signed inbound EVENT messages", async () => {
       const onEvent = jest.fn();
-      const testRelay = asTestRelay(relay);
-      testRelay.subscriptions.set(subscriptionId, {
-        id: subscriptionId,
-        filters: [],
-        onEvent,
-      });
-      testRelay.eventBuffers.set(subscriptionId, []);
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = await createSignedRelayEvent();
 
-      // Create a valid event
-      const validEvent: NostrEvent = {
-        id: "a".repeat(64),
-        pubkey: "b".repeat(64),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [],
-        content: "Valid event",
-        sig: "d".repeat(128),
-      };
+      await handleInboundEvent(relay, subscriptionId, event);
 
-      // Override the async validation to always return true for testing
-      testRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
-
-      // Also override processValidatedEvent to track calls
-      const originalProcessValidatedEvent = testRelay.processValidatedEvent;
-      const processValidatedEventMock = jest.fn((event, subId) => {
-        return originalProcessValidatedEvent.call(relay, event, subId);
-      });
-      testRelay.processValidatedEvent = processValidatedEventMock;
-
-      // Process the valid event through handleMessage
-      testRelay.handleMessage(["EVENT", subscriptionId, validEvent]);
-
-      // Verify validateEventAsync was called
-      expect(testRelay.validateEventAsync).toHaveBeenCalledWith(validEvent);
-
-      // Wait for promises to resolve
-      await testUtils.sleep(10);
-
-      // Verify the event was processed
-      expect(processValidatedEventMock).toHaveBeenCalledWith(
-        validEvent,
-        subscriptionId,
-      );
-
-      // Restore original implementation
-      testRelay.processValidatedEvent = originalProcessValidatedEvent;
+      expect(onEvent).toHaveBeenCalledTimes(1);
+      expect(onEvent).toHaveBeenCalledWith(event);
     });
 
-    test("should properly validate event ID and signature", async () => {
-      // Create a test event
-      const event: NostrEvent = {
-        id: "test-id-verification",
-        pubkey: "test-pubkey",
+    test("should reject malformed inbound EVENT messages", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = {
+        id: "a".repeat(64),
         created_at: Math.floor(Date.now() / 1000),
         kind: 1,
         tags: [],
-        content: "Test content",
-        sig: "test-signature",
+        content: "missing pubkey",
+        sig: "b".repeat(128),
       };
 
-      // Instead of trying to mock dynamic imports which is complex in Jest,
-      // create a custom implementation of validateEventAsync for testing
-      const validateEventAsyncTest = async (
-        event: NostrEvent,
-      ): Promise<boolean> => {
-        try {
-          // Extract the data for ID verification
-          const _eventData = {
-            pubkey: event.pubkey,
-            created_at: event.created_at,
-            kind: event.kind,
-            tags: event.tags,
-            content: event.content,
-          };
+      await handleInboundEvent(relay, subscriptionId, event);
 
-          // For positive test case, return true
-          if (event.id === "test-id-verification") {
-            return true;
-          }
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "Invalid or missing pubkey");
+    });
 
-          // For negative test case, return false
-          return false;
-        } catch (error) {
-          return false;
-        }
+    test("should reject inbound EVENT messages with invalid ids", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = {
+        ...(await createSignedRelayEvent()),
+        id: "0".repeat(64),
       };
 
-      // Replace the method in the relay instance
-      const testRelay = asTestRelay(relay);
-      testRelay.validateEventAsync = validateEventAsyncTest;
+      await handleInboundEvent(relay, subscriptionId, event);
 
-      // Test with valid ID
-      const result = await testRelay.validateEventAsync(event);
-      expect(result).toBe(true);
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "Event ID does not match content hash");
+    });
 
-      // Test with invalid ID
-      const invalidEvent = {
-        ...event,
-        id: "invalid-id",
+    test("should reject inbound EVENT messages with invalid signatures", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = {
+        ...(await createSignedRelayEvent()),
+        sig: "0".repeat(128),
       };
-      const invalidResult = await testRelay.validateEventAsync(invalidEvent);
-      expect(invalidResult).toBe(false);
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "Invalid signature");
+    });
+
+    test("should reject inbound EVENT messages with future timestamps", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = await createSignedRelayEvent({
+        created_at: Math.floor(Date.now() / 1000) + 7200,
+      });
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "too far in the future");
+    });
+
+    test("should allow inbound EVENT messages within configured future timestamp drift", async () => {
+      relay = new Relay("wss://example.com", {
+        inboundValidation: {
+          maxFutureTimestampDrift: 3 * 60 * 60,
+        },
+      });
+      const onEvent = jest.fn();
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = await createSignedRelayEvent({
+        created_at: Math.floor(Date.now() / 1000) + 7200,
+      });
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).toHaveBeenCalledTimes(1);
+      expect(onEvent).toHaveBeenCalledWith(event);
+    });
+
+    test("should reject inbound EVENT messages outside configured past timestamp drift", async () => {
+      relay = new Relay("wss://example.com", {
+        inboundValidation: {
+          maxPastTimestampDrift: 60,
+        },
+      });
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [1] }], onEvent);
+      const event = await createSignedRelayEvent({
+        created_at: Math.floor(Date.now() / 1000) - 120,
+      });
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "too far in the past");
+    });
+
+    test("should reject inbound EVENT messages with out-of-range kinds", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{}], onEvent);
+      const event = await createSignedRelayEvent({ kind: 70000 });
+
+      await handleInboundEvent(relay, subscriptionId, event);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "Kind must be an integer between 0 and 65535");
+    });
+
+    test.each([
+      {
+        description: "invalid p tag reference",
+        tags: [["p", "z".repeat(64)]],
+        expectedMessage: "Invalid NIP-01 'p' tag",
+      },
+      {
+        description: "mixed-case e tag reference",
+        tags: [["e", "A".repeat(64)]],
+        expectedMessage: "Invalid NIP-01 'e' tag",
+      },
+      {
+        description: "mixed-case p tag reference",
+        tags: [["p", "A".repeat(64)]],
+        expectedMessage: "Invalid NIP-01 'p' tag",
+      },
+      {
+        description: "invalid a tag coordinate",
+        tags: [["a", "bad-coordinate"]],
+        expectedMessage: "Invalid NIP-01 'a' tag",
+      },
+      {
+        description: "mixed-case a tag pubkey coordinate",
+        tags: [["a", `1:${"A".repeat(64)}:identifier`]],
+        expectedMessage: "Invalid NIP-01 'a' tag: pubkey",
+      },
+    ])(
+      "should reject inbound EVENT messages with $description",
+      async ({ tags, expectedMessage }) => {
+        const onEvent = jest.fn();
+        const errors: unknown[] = [];
+        relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+        const subscriptionId = relay.subscribe([{}], onEvent);
+        const event = await createSignedRelayEvent({ tags });
+
+        await handleInboundEvent(relay, subscriptionId, event);
+
+        expect(onEvent).not.toHaveBeenCalled();
+        expectRelayError(errors, expectedMessage);
+      },
+    );
+
+    test("should reject NIP-46 encrypted inbound EVENT messages without p tags", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
+      const encryptedEvent = await createSignedRelayEvent({
+        kind: 24133,
+        tags: [],
+        content: "encrypted request",
+      });
+
+      await handleInboundEvent(relay, subscriptionId, encryptedEvent);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(
+        errors,
+        "NIP-46 Relay ingress events must include at least one p tag",
+      );
+    });
+
+    test("should reject NIP-46 encrypted inbound EVENT messages with invalid signatures", async () => {
+      const onEvent = jest.fn();
+      const errors: unknown[] = [];
+      relay.on(RelayEvent.Error, (_url, error) => errors.push(error));
+      const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
+      const pubkey = getPublicKey(RELAY_TEST_PRIVATE_KEY);
+      const encryptedEvent = await createSignedRelayEvent({
+        kind: 24133,
+        tags: [["p", pubkey]],
+        content: "encrypted request",
+      });
+      const tamperedEvent: NostrEvent = {
+        ...encryptedEvent,
+        sig: "0".repeat(128),
+      };
+
+      await handleInboundEvent(relay, subscriptionId, tamperedEvent);
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expectRelayError(errors, "Invalid signature");
+    });
+
+    test("should accept signed NIP-46 encrypted inbound EVENT messages with p tags", async () => {
+      const onEvent = jest.fn();
+      const subscriptionId = relay.subscribe([{ kinds: [24133] }], onEvent);
+      const pubkey = getPublicKey(RELAY_TEST_PRIVATE_KEY);
+      const encryptedEvent = await createSignedRelayEvent({
+        kind: 24133,
+        tags: [["p", pubkey]],
+        content: "encrypted request",
+      });
+
+      await handleInboundEvent(relay, subscriptionId, encryptedEvent);
+
+      expect(onEvent).toHaveBeenCalledTimes(1);
+      expect(onEvent).toHaveBeenCalledWith(encryptedEvent);
     });
   });
 
@@ -1456,55 +1455,32 @@ describe("Relay", () => {
       expect(events.some((e) => e.id === differentPubkeyEvent.id)).toBe(true);
     });
 
-    test("should properly handle addressable events through handleMessage", () => {
+    test("should properly handle addressable events through handleMessage", async () => {
       // Create a subscription to receive events
-      const subscriptionId = "test-sub-id";
       const onEvent = jest.fn();
-      relay.subscribe([{}], onEvent);
-
-      // Manually set up the buffer for the subscription
+      const subscriptionId = relay.subscribe([{}], onEvent);
       const testRelay = asTestRelay(relay);
-      testRelay.eventBuffers.set(subscriptionId, []);
 
       // Create a valid addressable event
-      const addressableEvent: NostrEvent = {
-        id: "h0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f403",
-        pubkey: testEvent.pubkey,
-        created_at: Math.floor(Date.now() / 1000),
+      const addressableEvent = await createSignedRelayEvent({
         kind: 30001,
         tags: [["d", "test-identifier"]],
         content: "Addressable event through handleMessage",
-        sig: "d".repeat(128),
-      };
-
-      // Override both validation methods to make the test pass
-      // 1. Override the basic validation to return true
-      testRelay.performBasicValidation = jest.fn().mockReturnValue(true);
-
-      // 2. Override the async validation to always return true for testing
-      testRelay.validateEventAsync = jest.fn().mockResolvedValue(true);
+      });
 
       // Process the event through handleMessage
       testRelay.handleMessage(["EVENT", subscriptionId, addressableEvent]);
 
-      // Wait for async validation promise to resolve
-      return new Promise<void>((resolve) => {
-        setTimeout(() => {
-          // Manually flush the event buffer
-          testRelay.flushSubscriptionBuffer(subscriptionId);
+      await testUtils.sleep(20);
 
-          // Verify the event was processed as an addressable event
-          const storedEvent = relay.getLatestAddressableEvent(
-            30001,
-            testEvent.pubkey,
-            "test-identifier",
-          );
-          expect(storedEvent).toBeDefined();
-          expect(storedEvent?.id).toBe(addressableEvent.id);
-
-          resolve();
-        }, 10); // Small timeout to ensure promises resolve
-      });
+      const storedEvent = relay.getLatestAddressableEvent(
+        30001,
+        addressableEvent.pubkey,
+        "test-identifier",
+      );
+      expect(storedEvent).toBeDefined();
+      expect(storedEvent?.id).toBe(addressableEvent.id);
+      expect(onEvent).toHaveBeenCalledWith(addressableEvent);
     });
   });
 
