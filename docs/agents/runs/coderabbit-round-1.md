@@ -23,7 +23,7 @@
 
 | Finding | Reason |
 | --- | --- |
-| Possible duplicated logger initialization/test doubles | low | Non-blocking review heuristics; behavior is covered and the duplication is limited to two small seams. |
+| Possible duplicated logger initialization/test doubles | Non-blocking review heuristics; behavior is covered and the duplication is limited to two small seams. |
 
 ## Result
 

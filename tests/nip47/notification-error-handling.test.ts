@@ -142,7 +142,7 @@ describe("NIP-47: Notification error handling", () => {
     expect(diagnosticErrors).toEqual(
       expect.arrayContaining([
         expect.stringContaining(
-          `Failed to send NIP-04 notification to ${clientKeys.publicKey}:`,
+          "Failed to send NIP-04 notification:",
         ),
       ]),
     );
@@ -151,7 +151,7 @@ describe("NIP-47: Notification error handling", () => {
     expect(diagnosticInfo).toEqual(
       expect.arrayContaining([
         expect.stringContaining(
-          `Successfully sent NIP-44 notification to ${clientKeys.publicKey}`,
+          "Successfully sent NIP-44 notification",
         ),
       ]),
     );

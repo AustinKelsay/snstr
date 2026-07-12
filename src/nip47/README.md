@@ -165,8 +165,9 @@ The client and service accept an optional `logger` in their options. The
 logger must implement the exported `NIP47Logger` interface (`error`, `warn`,
 `info`, `debug`, and `trace`). By default, NIP-47 uses the shared logger at
 WARN level: warnings and errors remain visible, while routine INFO/DEBUG
-diagnostics and full event details stay quiet. Pass a logger with the desired
-behavior when troubleshooting or integrating with application logging:
+diagnostics stay quiet and event/tag payloads are not emitted. Pass a logger
+with the desired behavior when troubleshooting or integrating with application
+logging:
 
 ```typescript
 import type { NIP47Logger } from 'snstr';

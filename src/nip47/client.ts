@@ -422,12 +422,6 @@ export class NostrWalletConnectClient {
     };
 
     this.logger.debug("Setting up client subscriptions");
-    this.logger.debug(`Filter 1: ${JSON.stringify(responseFilter)}`);
-    this.logger.debug(`Filter 2: ${JSON.stringify(infoFilter)}`);
-
-    // Enhanced debug logging for the client filter
-    this.logger.debug(`Client pubkey for filter: ${this.clientPubkey}`);
-    this.logger.debug(`Service pubkey for filter: ${this.pubkey}`);
 
     this.subIds = this.client.subscribe(
       [responseFilter, infoFilter],
@@ -435,12 +429,6 @@ export class NostrWalletConnectClient {
         this.logger.debug(
           `Received event: ${event.id} of kind ${event.kind} from ${relay}`,
         );
-        this.logger.trace(
-          `Event pubkey: ${event.pubkey}, tags: ${JSON.stringify(event.tags)}`,
-        );
-
-        // Log all event data for debugging
-        this.logger.trace(`Full event: ${JSON.stringify(event)}`);
 
         this.handleEvent(event);
       },
@@ -452,21 +440,8 @@ export class NostrWalletConnectClient {
    * Handle incoming events from the wallet service
    */
   private async handleEvent(event: NostrEvent): Promise<void> {
-    this.logger.debug(`Handling event of kind ${event.kind} from ${event.pubkey}`);
+    this.logger.debug(`Handling event of kind ${event.kind}`);
     this.logger.debug(`Event id: ${event.id}`);
-    this.logger.trace(`Event tags: ${JSON.stringify(event.tags)}`);
-
-    // Extract p-tag and e-tag values for easier debugging
-    const pTags = event.tags
-      .filter((tag) => tag[0] === "p")
-      .map((tag) => tag[1]);
-    const eTags = event.tags.filter(
-      (tag) => Array.isArray(tag) && tag.length > 0 && tag[0] === "e",
-    );
-
-    this.logger.trace(`Event p-tags: ${pTags.join(", ")}`);
-    this.logger.trace(`Event e-tags: ${eTags.join(", ")}`);
-    this.logger.trace(`Expected p-tag for this client: ${this.clientPubkey}`);
 
     if (event.kind === NIP47EventKind.RESPONSE) {
       this.logger.debug(
@@ -617,7 +592,7 @@ export class NostrWalletConnectClient {
       // Find the pending request to get the encryption scheme
       const pendingRequest = this.pendingRequests.get(requestId);
       if (!pendingRequest) {
-        this.logger.warn(`No pending request found with ID: ${requestId}`);
+        this.logger.warn("No pending request found for response event");
         return;
       }
 
@@ -722,13 +697,10 @@ export class NostrWalletConnectClient {
    */
   private handleInfoEvent(event: NostrEvent): void {
     try {
-      this.logger.debug(`Received INFO event from: ${event.pubkey}`);
-      this.logger.debug(`Expected service pubkey: ${this.pubkey}`);
+      this.logger.debug("Received INFO event");
       this.logger.debug(
         `Event kind: ${event.kind} (expected ${NIP47EventKind.INFO})`,
       );
-      this.logger.trace(`Event content: ${event.content}`);
-      this.logger.trace(`Event tags: ${JSON.stringify(event.tags)}`);
 
       // Extract supported methods from content
       if (event.content.trim()) {

@@ -27,7 +27,7 @@
   - `npm test -- --runInBand --coverage=false tests/nip47/nip47.test.ts`
   - `npm test -- --runInBand --coverage=false tests/nip47/notification-error-handling.test.ts`
   - `npm run test:nip47 -- --runInBand --coverage=false`
-- Full suite command: pending final feature verification
+- Full suite command: `npm test -- --runInBand --coverage=false` — 65 suites, 864 tests passed
 
 ## Review
 

@@ -4,12 +4,12 @@
 
 - Run ID: snstr-cleanup-1-3-20260711
 - Loop: feature-dev
-- Target repo: `/Users/plebdev/Desktop/Projects/snstr`
+- Target repo: `snstr`
 - Base branch: `staging`
 - Feature branch: `feature/cleanup-logging-web-build`
 - Human owner: plebdev
 - Started: 2026-07-11
-- Current status: implementation complete; PR publication in progress
+- Current status: PR open; checks and review complete
 - Skill setup status: present and verified
 
 ## Goal
@@ -26,12 +26,12 @@ Implement cleanup items 1–3 from the repository scan end to end:
 - ADRs: none; choices are reversible and follow existing logger/build conventions
 - Prototype source branch, if any: none
 - Spec issue: #88 — https://github.com/AustinKelsay/snstr/issues/88
-- Tickets: #89, #90, #91 — ready-for-agent
+- Tickets: #89, #90, #91 — implemented; ready-for-review
 - Ticket sessions: `issue-89-session.md`, `issue-90-session.md`, `issue-91-session.md`
-- Agent briefs: pending
+- Agent briefs: not applicable; current orchestrator implemented the slices
 - Review packets: `issue-89-review-packet.md`, `issue-90-review-packet.md`, `issue-91-review-packet.md`
-- Local CodeRabbit report: `coderabbit-round-1.md` (rate-limited; fallback review used)
-- PR URL: pending
+- CodeRabbit reports: `coderabbit-round-1.md` (local rate-limited fallback), `coderabbit-round-2.md` (PR review complete)
+- PR URL: https://github.com/AustinKelsay/snstr/pull/92
 
 ## Commands
 
@@ -59,7 +59,7 @@ Implement cleanup items 1–3 from the repository scan end to end:
 
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| Cleanup NIP-47 logging | staging | current orchestrator | ticket commit: `fix(nip47): quiet and configure diagnostics` | pass/pass | typecheck, lint, 51 NIP-47 tests |
+| Cleanup NIP-47 logging | staging | current orchestrator | ticket commits: `fix(nip47): quiet and configure diagnostics`, `test(nip47): close review gaps` | pass/pass | typecheck, lint, 864 full-suite tests |
 | Restore web/RN NIP-65/66 exports | staging + #89 commit | current orchestrator | ticket commit: `fix(web): restore relay metadata exports` | pass/pass | typecheck, lint, NIP-65/66, parity test |
 | Separate production and example builds | staging + #90 commit | current orchestrator | ticket commit: `build: isolate production library artifacts` | pass/pass | build, examples, typecheck, pack verify |
 

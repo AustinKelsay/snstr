@@ -27,7 +27,7 @@
   - `npm run test:nip65 -- --runInBand --coverage=false`
   - `npm run test:nip66 -- --runInBand --coverage=false`
   - `npx eslint src/entries/index.web.ts tests/entries/web-exports.test.ts`
-- Full suite command: pending final feature verification
+- Full suite command: `npm test -- --runInBand --coverage=false` — 65 suites, 864 tests passed
 
 ## Review
 

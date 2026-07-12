@@ -299,6 +299,35 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       }
     });
 
+    it("keeps default warning diagnostics visible", async () => {
+      const malformedResponse = await createSignedEvent(
+        createEvent(
+          {
+            kind: 23195,
+            content: "",
+            tags: [["p", client.getPublicKey()]],
+          },
+          serviceKeypair.publicKey,
+        ),
+        serviceKeypair.privateKey,
+      );
+      const consoleWarnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      try {
+        await client.getNostrClient().publishEvent(malformedResponse);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining(
+            "Response event has no e-tag, cannot correlate with a request",
+          ),
+        );
+      } finally {
+        consoleWarnSpy.mockRestore();
+      }
+    });
+
     it("routes diagnostics through an injected logger", async () => {
       const serviceKeys = await generateKeypair();
       const messages: string[] = [];
@@ -610,35 +639,6 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         unauthorizedKeys = await generateKeypair();
       });
 
-      it("keeps default warning diagnostics visible", async () => {
-        const event = await createSignedEvent(
-          createEvent(
-            {
-              kind: 23194,
-              content: "",
-              tags: [["p", unauthorizedKeys.publicKey]],
-            },
-            clientKeypair.publicKey,
-          ),
-          clientKeypair.privateKey,
-        );
-        const consoleWarnSpy = jest
-          .spyOn(console, "warn")
-          .mockImplementation(() => {});
-
-        try {
-          const serviceWithPrivates = service as unknown as ServiceWithPrivates;
-          await serviceWithPrivates.handleEvent(event);
-          expect(consoleWarnSpy).toHaveBeenCalledWith(
-            expect.stringContaining(
-              "not directly addressed to this service based on p-tag",
-            ),
-          );
-        } finally {
-          consoleWarnSpy.mockRestore();
-        }
-      });
-
       it("should clean up requestEncryption map on expired request", async () => {
         // Create an expired request
         const request = {
@@ -746,7 +746,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           expect.stringContaining(
-            `Failed to decrypt message for event ${event.id}:`,
+            "Failed to decrypt message:",
           ),
           expect.any(Error),
         );
@@ -827,7 +827,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
 
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining(`Error processing request ${event.id}:`),
+          expect.stringContaining("Error processing request:"),
           expect.any(Error),
         );
 

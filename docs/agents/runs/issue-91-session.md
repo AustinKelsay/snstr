@@ -29,7 +29,7 @@
   - production/dev `--listFilesOnly` boundary assertions
   - `npm run pack:verify`
   - CJS and ESM web-entry runtime export checks
-- Full suite command: pending final feature verification
+- Full suite command: `npm test -- --runInBand --coverage=false` — 65 suites, 864 tests passed
 
 ## Review
 

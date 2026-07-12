@@ -1,6 +1,7 @@
 // Load the web entry at runtime so this test exercises the published platform entry.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const webEntry = require("../../src/entries/index.web") as typeof import("../../src/entries/index.web");
+import packageJson from "../../package.json";
 
 import {
   RELAY_LIST_KIND,
@@ -19,6 +20,15 @@ import {
 } from "../../src/nip66";
 
 describe("web entry relay metadata exports", () => {
+  it("uses the shared web entry for browser and React Native targets", () => {
+    const rootExports = packageJson.exports["."] as {
+      browser: string;
+      "react-native": string;
+    };
+
+    expect(rootExports["react-native"]).toBe(rootExports.browser);
+  });
+
   it("re-exports NIP-65 helpers and constants", () => {
     expect(webEntry.RELAY_LIST_KIND).toBe(RELAY_LIST_KIND);
     expect(webEntry.createRelayListEvent).toBe(createRelayListEvent);
