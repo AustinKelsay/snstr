@@ -47,7 +47,7 @@ Implement cleanup items 1–3 from the repository scan end to end:
 | --- | --- | --- | --- | --- | --- |
 | #89 Cleanup NIP-47 logging | AFK | completed | `issue-89-review-packet.md` | — | typecheck, lint, 51 NIP-47 tests |
 | #90 Restore web/RN NIP-65/66 exports | AFK | completed | `issue-90-review-packet.md` | — | typecheck, lint, NIP-65/66, parity test |
-| #91 Separate production and example builds | AFK | planned | pending | — | pending |
+| #91 Separate production and example builds | AFK | completed | `issue-91-review-packet.md` | — | build, examples, typecheck, pack verify |
 
 ## Parked HITL Slices
 
@@ -61,7 +61,7 @@ Implement cleanup items 1–3 from the repository scan end to end:
 | --- | --- | --- | --- | --- | --- |
 | Cleanup NIP-47 logging | staging | current orchestrator | ticket commit: `fix(nip47): quiet and configure diagnostics` | pass/pass | typecheck, lint, 51 NIP-47 tests |
 | Restore web/RN NIP-65/66 exports | staging + #89 commit | current orchestrator | ticket commit: pending | pass/pass | typecheck, lint, NIP-65/66, parity test |
-| Separate production and example builds | staging | current orchestrator | pending | pending | pending |
+| Separate production and example builds | staging + #90 commit | current orchestrator | ticket commit: pending | pass/pass | build, examples, typecheck, pack verify |
 
 ## Open Questions
 
