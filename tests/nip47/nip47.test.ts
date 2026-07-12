@@ -332,6 +332,32 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       }
     });
 
+    it("routes client diagnostics through an injected logger", async () => {
+      const messages: string[] = [];
+      const logger: NIP47Logger = {
+        error: (message) => messages.push(message),
+        warn: (message) => messages.push(message),
+        info: (message) => messages.push(message),
+        debug: (message) => messages.push(message),
+        trace: (message) => messages.push(message),
+      };
+      const diagnosticClient = new NostrWalletConnectClient({
+        ...connectionOptions,
+        logger,
+      });
+
+      try {
+        await diagnosticClient.init();
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining("Client connected to relays"),
+          ]),
+        );
+      } finally {
+        await diagnosticClient.disconnect();
+      }
+    });
+
     it("should get wallet info", async () => {
       jest.setTimeout(10000);
       const info = await client.getInfo();
@@ -582,6 +608,35 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       beforeEach(async () => {
         // Generate unauthorized keys for testing
         unauthorizedKeys = await generateKeypair();
+      });
+
+      it("keeps default warning diagnostics visible", async () => {
+        const event = await createSignedEvent(
+          createEvent(
+            {
+              kind: 23194,
+              content: "",
+              tags: [["p", unauthorizedKeys.publicKey]],
+            },
+            clientKeypair.publicKey,
+          ),
+          clientKeypair.privateKey,
+        );
+        const consoleWarnSpy = jest
+          .spyOn(console, "warn")
+          .mockImplementation(() => {});
+
+        try {
+          const serviceWithPrivates = service as unknown as ServiceWithPrivates;
+          await serviceWithPrivates.handleEvent(event);
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+              "not directly addressed to this service based on p-tag",
+            ),
+          );
+        } finally {
+          consoleWarnSpy.mockRestore();
+        }
       });
 
       it("should clean up requestEncryption map on expired request", async () => {

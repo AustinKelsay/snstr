@@ -18,7 +18,7 @@ Production builds now use a dedicated source-only TypeScript config. Tests and e
 - `tdd` used: boundary verification before and after implementation
 - Red test, if applicable: baseline build emitted 516 CJS and 258 ESM test/example files
 - Green implementation, if applicable: production build emits zero test/example paths; explicit example build emits 122 test/example paths
-- Refactor, if applicable: `tsconfig.esm.json` now inherits the source-only build config
+- Refactor, if applicable: `tsconfig.esm.json` now inherits the source-only build config; `pack:verify` rejects test/example trees in production `dist`
 - Commands run:
   - `npm run build`
   - `npm run build:examples`

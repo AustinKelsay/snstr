@@ -159,6 +159,32 @@ try {
 }
 ```
 
+## Diagnostics
+
+The client and service accept an optional `logger` in their options. The
+logger must implement the exported `NIP47Logger` interface (`error`, `warn`,
+`info`, `debug`, and `trace`). By default, NIP-47 uses the shared logger at
+WARN level: warnings and errors remain visible, while routine INFO/DEBUG
+diagnostics and full event details stay quiet. Pass a logger with the desired
+behavior when troubleshooting or integrating with application logging:
+
+```typescript
+import type { NIP47Logger } from 'snstr';
+
+const logger: NIP47Logger = {
+  error: (message, ...args) => appLogger.error(message, ...args),
+  warn: (message, ...args) => appLogger.warn(message, ...args),
+  info: (message, ...args) => appLogger.info(message, ...args),
+  debug: (message, ...args) => appLogger.debug(message, ...args),
+  trace: (message, ...args) => appLogger.trace(message, ...args),
+};
+
+const client = new NostrWalletConnectClient({
+  ...connectionOptions,
+  logger,
+});
+```
+
 ## Service Implementation
 
 ```typescript
@@ -491,4 +517,4 @@ This implementation **fully supports** all features defined in the official [NIP
 - **Response Structure Validation**: Strict validation enforces adherence to the NIP-47 message format specification, ensuring proper `result_type`, `error`, and `result` fields in all responses.
 - **Extension Features**: Several additional methods, error codes, and features (clearly marked below) have been added to enhance functionality while maintaining backward compatibility.
 
-When developing with this library, be aware of which features are part of the standard specification and which are extensions to ensure interoperability with other NIP-47 implementations. 
+When developing with this library, be aware of which features are part of the standard specification and which are extensions to ensure interoperability with other NIP-47 implementations.

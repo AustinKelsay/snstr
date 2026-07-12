@@ -18,8 +18,8 @@ export interface LoggerOptions {
   silent?: boolean; // For testing - suppress all output
 }
 
-// Loggers should preserve arbitrary diagnostic values for console inspection.
-type LogArg = unknown;
+// Type for log arguments that covers most common use cases
+type LogArg = string | number | boolean | object | null | undefined;
 
 export class Logger {
   private level: LogLevel;

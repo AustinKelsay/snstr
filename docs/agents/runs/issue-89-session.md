@@ -6,7 +6,7 @@
 - Fixed point before session: `staging`
 - Worker session: current orchestrator
 - Commit: ticket commit on `feature/cleanup-logging-web-build` — `fix(nip47): quiet and configure diagnostics`
-- Status: implementation complete; ticket verification passed
+- Status: implementation complete; ticket verification and review fix passed
 
 ## Inputs
 
@@ -34,7 +34,7 @@
 - Review fixed point: `staging`
 - Standards findings: none in the ticket slice
 - Spec findings: none; acceptance criteria are met
-- Worthy fixes applied: migrated notification logging assertions from global console spies to the public logger seam
+- Worthy fixes applied: migrated notification logging assertions from global console spies to the public logger seam; documented the public logger option and default level
 - Findings ignored with reasons: none
 
 ## Risks

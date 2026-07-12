@@ -71,6 +71,25 @@ if (missingOnDisk.length) {
   );
 }
 
+// The package build must contain library artifacts only. Examples are built
+// separately through `npm run build:examples` and must not leak into `dist`.
+const forbiddenBuildTrees = [
+  "dist/tests",
+  "dist/examples",
+  "dist/esm/tests",
+  "dist/esm/examples",
+];
+const presentForbiddenBuildTrees = forbiddenBuildTrees.filter((p) =>
+  fs.existsSync(path.join(repoRoot, p)),
+);
+if (presentForbiddenBuildTrees.length) {
+  fail(
+    `Production build contains test/example trees: ${presentForbiddenBuildTrees
+      .map((p) => JSON.stringify(p))
+      .join(", ")}`,
+  );
+}
+
 // 2) Ensure the referenced targets are included in the packed tarball.
 const cacheDir = path.join(repoRoot, ".npm-cache");
 fs.mkdirSync(cacheDir, { recursive: true });
@@ -108,4 +127,3 @@ if (missingInTarball.length) {
 console.log(
   `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files)`
 );
-

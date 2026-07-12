@@ -378,7 +378,10 @@ export class NostrWalletConnectClient {
         try {
           this.client.disconnectFromRelays();
         } catch (error) {
-          this.logger.error("Error disconnecting from relays:", error);
+          this.logger.error(
+            "Error disconnecting from relays:",
+            error instanceof Error ? error : String(error),
+          );
         }
 
         this.initialized = false;
@@ -388,7 +391,10 @@ export class NostrWalletConnectClient {
           resolve();
         }, 100).unref();
       } catch (error) {
-        this.logger.error("Error during client disconnect:", error);
+        this.logger.error(
+          "Error during client disconnect:",
+          error instanceof Error ? error : String(error),
+        );
         resolve();
       }
     });
@@ -636,7 +642,7 @@ export class NostrWalletConnectClient {
       } catch (decryptError) {
         this.logger.error(
           `Failed to decrypt response with ${encryptionScheme}:`,
-          decryptError,
+          decryptError instanceof Error ? decryptError : String(decryptError),
         );
         throw decryptError;
       }
@@ -662,7 +668,10 @@ export class NostrWalletConnectClient {
           `NIP-47: Security validation error in response handling: ${error.message}`,
         );
       } else {
-        this.logger.error("Error handling response event:", error);
+        this.logger.error(
+          "Error handling response event:",
+          error instanceof Error ? error : String(error),
+        );
       }
     }
   }
@@ -701,7 +710,10 @@ export class NostrWalletConnectClient {
         handlers.forEach((handler) => handler(notification));
       }
     } catch (error) {
-      this.logger.error("Failed to handle notification:", error);
+      this.logger.error(
+        "Failed to handle notification:",
+        error instanceof Error ? error : String(error),
+      );
     }
   }
 
@@ -761,7 +773,10 @@ export class NostrWalletConnectClient {
           `NIP-47: Security validation error in info event handling: ${error.message}`,
         );
       } else {
-        this.logger.error("Failed to handle info event:", error);
+        this.logger.error(
+          "Failed to handle info event:",
+          error instanceof Error ? error : String(error),
+        );
       }
     }
   }

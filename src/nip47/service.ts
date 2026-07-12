@@ -270,7 +270,10 @@ export class NostrWalletService {
       try {
         await this.client.disconnectFromRelays();
       } catch (error) {
-        this.logger.error("Error disconnecting service from relays:", error);
+        this.logger.error(
+          "Error disconnecting service from relays:",
+          error instanceof Error ? error : String(error),
+        );
       }
 
       // Short delay to allow any other cleanup to complete
@@ -279,7 +282,10 @@ export class NostrWalletService {
         maybeUnref(t);
       });
     } catch (error) {
-      this.logger.error("Error during service disconnect:", error);
+      this.logger.error(
+        "Error during service disconnect:",
+        error instanceof Error ? error : String(error),
+      );
     }
   }
 
@@ -560,7 +566,7 @@ export class NostrWalletService {
       } catch (decryptError) {
         this.logger.error(
           `Failed to decrypt message for event ${event.id}:`,
-          decryptError,
+          decryptError instanceof Error ? decryptError : String(decryptError),
         );
         // Do not send an error response here as per NIP-47 spec (section: "failed to decrypt")
         // "The recipient SHOULD NOT send a response event if it cannot decrypt the content."
@@ -629,7 +635,10 @@ export class NostrWalletService {
     } catch (error) {
       // General error handling for unexpected issues during the try block
       // (e.g., JSON parsing error if content is not valid JSON after decryption, or other unexpected errors)
-      this.logger.error(`Error processing request ${event.id}:`, error);
+      this.logger.error(
+        `Error processing request ${event.id}:`,
+        error instanceof Error ? error : String(error),
+      );
 
       // Determine method if possible, otherwise use UNKNOWN
       const methodForError = nip47Request?.method || NIP47Method.UNKNOWN;

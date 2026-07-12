@@ -14,7 +14,13 @@ export enum NIP47EncryptionScheme {
 }
 
 /** Arguments accepted by the shared NIP-47 diagnostic logger. */
-export type NIP47LogArgument = unknown;
+export type NIP47LogArgument =
+  | string
+  | number
+  | boolean
+  | object
+  | null
+  | undefined;
 
 /** Logger seam used by NIP-47 client and service diagnostics. */
 export interface NIP47Logger {
