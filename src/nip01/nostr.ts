@@ -24,7 +24,7 @@ import {
   normalizeRelayUrl as normalizeRelayUrlUtil,
   RelayUrlValidationError,
 } from "../utils/relayUrl";
-import { Logger, LogLevel } from "../nip46/utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 import {
   validateFilters,
   validateNumber,

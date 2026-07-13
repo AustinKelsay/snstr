@@ -5,7 +5,7 @@ import { getUnixTime } from "../utils/time";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { createSignedEvent } from "../nip01/event";
 import { generateRequestId } from "./utils/request-response";
-import { Logger, LogLevel } from "./utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 import { parseConnectionString } from "./utils/connection";
 import {
   NIP46KeyPair,

@@ -10,6 +10,7 @@
  *********************************************************************/
 
 import { EventEmitter } from "events";
+import { useInMemoryWebSocketFactory } from "./websocket";
 import {
   BivariantHandler,
   OpenEventLike,
@@ -259,3 +260,5 @@ export function createInMemoryWebSocket(
     return undefined;
   }
 }
+
+useInMemoryWebSocketFactory(createInMemoryWebSocket);

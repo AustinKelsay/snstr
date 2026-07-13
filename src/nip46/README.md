@@ -242,6 +242,11 @@ async function createProductionBunker() {
 
 ### Production Client with Error Handling
 
+`authDomainWhitelist` is opt-in. When it is omitted or empty, auth challenge
+URLs from any hostname are accepted if they pass the basic HTTPS and URL-safety
+checks. Production integrators should configure this list to restrict challenges
+to domains they trust.
+
 ```typescript
 import { NostrRemoteSignerClient } from 'snstr';
 
@@ -869,4 +874,4 @@ const bunkerString = buildConnectionString({
   relays: ['wss://relay.example.com'],
   secret: 'optional-secret'
 });
-``` 
+```

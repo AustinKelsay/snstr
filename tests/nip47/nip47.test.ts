@@ -26,11 +26,14 @@ import {
   MakeInvoiceResponseResult,
   SignMessageResponseResult,
   NIP47Notification,
+  NIP47Logger,
 } from "../../src/nip47";
 import { NIP47ClientError } from "../../src/nip47/client";
 import { createEvent, createSignedEvent } from "../../src/nip01/event";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { getUnixTime } from "../../src/utils/time";
+import type { NostrEvent } from "../../src/types/nostr";
+import { testUtils } from "../types";
 
 // Mock Implementation
 class MockWalletImplementation implements WalletImplementation {
@@ -163,6 +166,271 @@ interface ServiceWithPrivates {
   ) => Promise<void>;
 }
 
+interface ClientInitializationState {
+  initialized: boolean;
+  waitForCapabilityDiscovery: () => Promise<void>;
+  subIds: string[];
+  client: {
+    connectToRelays: () => Promise<void>;
+    subscribe: (
+      filters: unknown[],
+      callback: (event: NostrEvent, relay: string) => void,
+    ) => string[];
+    unsubscribe: (ids: string[]) => void;
+    disconnectFromRelays: () => void;
+  };
+  handleNotification: (event: NostrEvent) => Promise<void>;
+  sendRequest: (
+    request: { method: NIP47Method },
+    expiration?: number,
+    allowDuringInitialization?: boolean,
+  ) => Promise<{
+    result_type: NIP47Method;
+    result: unknown;
+    error: null;
+  }>;
+}
+
+describe("NIP-47 client initialization fallback", () => {
+  const createFallbackClient = () => {
+    const fallbackClient = new NostrWalletConnectClient({
+      pubkey: "02".repeat(32),
+      secret: "01".repeat(32),
+      relays: ["wss://relay.example.com"],
+    });
+    const internals = fallbackClient as unknown as ClientInitializationState;
+    internals.waitForCapabilityDiscovery = async () => {};
+    const subscriptions: string[][] = [];
+    const unsubscriptions: string[][] = [];
+    const callbacks: Array<(event: NostrEvent, relay: string) => void> = [];
+    internals.client = {
+      connectToRelays: async () => {},
+      subscribe: (_filters, callback) => {
+        const ids = [`sub-${subscriptions.length + 1}`];
+        subscriptions.push(ids);
+        callbacks.push(callback);
+        return ids;
+      },
+      unsubscribe: (ids) => unsubscriptions.push([...ids]),
+      disconnectFromRelays: () => {},
+    };
+    return {
+      fallbackClient,
+      internals,
+      subscriptions,
+      unsubscriptions,
+      callbacks,
+    };
+  };
+
+  it("allows explicit getInfo capability discovery during initialization", async () => {
+    const { fallbackClient, internals, subscriptions } = createFallbackClient();
+    internals.sendRequest = async (request, _expiration, allowed) => {
+      expect(request.method).toBe(NIP47Method.GET_INFO);
+      expect(allowed).toBe(true);
+      expect(internals.initialized).toBe(false);
+      return {
+        result_type: NIP47Method.GET_INFO,
+        result: {
+          methods: [NIP47Method.GET_INFO],
+          notifications: [],
+        } as GetInfoResponseResult,
+        error: null,
+      };
+    };
+
+    await fallbackClient.init();
+
+    expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(true);
+    expect(internals.initialized).toBe(true);
+    expect(subscriptions).toHaveLength(1);
+  });
+
+  it("cleans up and atomically retries after malformed capability discovery", async () => {
+    const { fallbackClient, internals, subscriptions, unsubscriptions } =
+      createFallbackClient();
+    let attempt = 0;
+    internals.sendRequest = async () => {
+      attempt += 1;
+      return {
+        result_type: NIP47Method.GET_INFO,
+        result:
+          attempt === 1
+            ? ({
+                methods: [NIP47Method.GET_INFO],
+                encryption: 1,
+              } as unknown as GetInfoResponseResult)
+            : ({
+                methods: [NIP47Method.GET_INFO],
+                notifications: [],
+              } as GetInfoResponseResult),
+        error: null,
+      };
+    };
+
+    await expect(fallbackClient.init()).rejects.toThrow(
+      "Failed to initialize wallet connection",
+    );
+
+    expect(internals.initialized).toBe(false);
+    expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(false);
+    expect(internals.subIds).toEqual([]);
+    expect(unsubscriptions).toEqual([["sub-1"]]);
+
+    await fallbackClient.init();
+
+    expect(internals.initialized).toBe(true);
+    expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(true);
+    expect(subscriptions).toEqual([["sub-1"], ["sub-2"]]);
+    expect(internals.subIds).toEqual(["sub-2"]);
+  });
+
+  it("coalesces concurrent and repeated initialization into one subscription", async () => {
+    const { fallbackClient, internals, subscriptions, callbacks } =
+      createFallbackClient();
+    internals.sendRequest = async () => ({
+      result_type: NIP47Method.GET_INFO,
+      result: {
+        methods: [NIP47Method.GET_INFO],
+        notifications: [NIP47NotificationType.PAYMENT_RECEIVED],
+      } as GetInfoResponseResult,
+      error: null,
+    });
+
+    const first = fallbackClient.init();
+    const concurrent = fallbackClient.init();
+    expect(concurrent).toBe(first);
+    await Promise.all([first, concurrent]);
+    await fallbackClient.init();
+
+    expect(subscriptions).toHaveLength(1);
+    expect(callbacks).toHaveLength(1);
+
+    let notificationDeliveries = 0;
+    internals.handleNotification = async () => {
+      notificationDeliveries += 1;
+    };
+    callbacks[0](
+      {
+        id: "notification-id",
+        pubkey: "02".repeat(32),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 23196,
+        tags: [],
+        content: "",
+        sig: "",
+      },
+      "wss://relay.example.com",
+    );
+    await Promise.resolve();
+    expect(notificationDeliveries).toBe(1);
+  });
+
+  it.each([0, false, ""])(
+    "rejects a falsy malformed capability result (%p)",
+    async (result) => {
+      const { fallbackClient, internals, unsubscriptions } =
+        createFallbackClient();
+      internals.sendRequest = async () => ({
+        result_type: NIP47Method.GET_INFO,
+        result,
+        error: null,
+      });
+
+      await expect(fallbackClient.init()).rejects.toThrow(
+        "Invalid get_info result",
+      );
+
+      expect(internals.initialized).toBe(false);
+      expect(unsubscriptions).toEqual([["sub-1"]]);
+    },
+  );
+
+  it("invalidates an in-flight initialization when disconnected", async () => {
+    const { fallbackClient, internals, subscriptions } =
+      createFallbackClient();
+    let releaseCapabilityWait!: () => void;
+    const capabilityWaitGate = new Promise<void>((resolve) => {
+      releaseCapabilityWait = resolve;
+    });
+    internals.waitForCapabilityDiscovery = () => capabilityWaitGate;
+
+    const initialization = fallbackClient.init();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    void fallbackClient.disconnect();
+    releaseCapabilityWait();
+    const initializationError = await initialization.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(initializationError).toBeInstanceOf(Error);
+    expect(String(initializationError)).toContain(
+      "Client initialization cancelled by disconnect",
+    );
+
+    expect(internals.initialized).toBe(false);
+    expect(internals.subIds).toEqual([]);
+
+    internals.waitForCapabilityDiscovery = async () => {};
+    internals.sendRequest = async () => ({
+      result_type: NIP47Method.GET_INFO,
+      result: {
+        methods: [NIP47Method.GET_INFO],
+      } as GetInfoResponseResult,
+      error: null,
+    });
+    await fallbackClient.init();
+    expect(internals.initialized).toBe(true);
+    expect(subscriptions).toEqual([["sub-1"], ["sub-2"]]);
+  });
+
+  it("prevents a stale attempt from resetting a newer successful initialization", async () => {
+    const { fallbackClient, internals, subscriptions } = createFallbackClient();
+    let releaseFirstConnection!: () => void;
+    const firstConnectionGate = new Promise<void>((resolve) => {
+      releaseFirstConnection = resolve;
+    });
+    let connectionAttempt = 0;
+    internals.client.connectToRelays = async () => {
+      connectionAttempt += 1;
+      if (connectionAttempt === 1) {
+        await firstConnectionGate;
+      }
+    };
+    internals.sendRequest = async () => ({
+      result_type: NIP47Method.GET_INFO,
+      result: {
+        methods: [NIP47Method.GET_INFO],
+      } as GetInfoResponseResult,
+      error: null,
+    });
+
+    const staleAttempt = fallbackClient.init();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    void fallbackClient.disconnect();
+    const currentAttempt = fallbackClient.init();
+    await currentAttempt;
+
+    expect(internals.initialized).toBe(true);
+    expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(true);
+    expect(subscriptions).toEqual([["sub-1"]]);
+
+    releaseFirstConnection();
+    const staleError = await staleAttempt.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(staleError).toBeInstanceOf(Error);
+    expect(String(staleError)).toContain(
+      "Client initialization cancelled by disconnect",
+    );
+
+    expect(internals.initialized).toBe(true);
+    expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(true);
+    expect(internals.subIds).toEqual(["sub-1"]);
+  });
+});
+
 describe("NIP-47: Nostr Wallet Connect", () => {
   let relay: NostrRelay;
   let serviceKeypair: { privateKey: string; publicKey: string };
@@ -287,6 +555,125 @@ describe("NIP-47: Nostr Wallet Connect", () => {
   });
 
   describe("Basic Client-Service Communication", () => {
+    it("keeps routine diagnostics quiet by default", async () => {
+      const logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+
+      try {
+        await client.getInfo();
+        expect(logSpy).not.toHaveBeenCalled();
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it("keeps default warning diagnostics visible", async () => {
+      const malformedResponse = await createSignedEvent(
+        createEvent(
+          {
+            kind: 23195,
+            content: "",
+            tags: [["p", client.getPublicKey()]],
+          },
+          serviceKeypair.publicKey,
+        ),
+        serviceKeypair.privateKey,
+      );
+      const consoleWarnSpy = jest
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
+      try {
+        await client.getNostrClient().publishEvent(malformedResponse);
+        await testUtils.waitFor(
+          () =>
+            consoleWarnSpy.mock.calls.some(([message]) =>
+              String(message).includes(
+                "Response event has no e-tag, cannot correlate with a request",
+              ),
+            ),
+          2000,
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining(
+            "Response event has no e-tag, cannot correlate with a request",
+          ),
+        );
+      } finally {
+        consoleWarnSpy.mockRestore();
+      }
+    });
+
+    it("routes diagnostics through an injected logger", async () => {
+      const serviceKeys = await generateKeypair();
+      const messages: string[] = [];
+      const logger: NIP47Logger = {
+        error: (message) => messages.push(message),
+        warn: (message) => messages.push(message),
+        info: (message) => messages.push(message),
+        debug: (message) => messages.push(message),
+        trace: (message) => messages.push(message),
+      };
+      const diagnosticService = new NostrWalletService(
+        {
+          relays: [relay.url],
+          pubkey: serviceKeys.publicKey,
+          privkey: serviceKeys.privateKey,
+          methods: [NIP47Method.GET_INFO],
+          logger,
+        },
+        new MockWalletImplementation(),
+      );
+
+      try {
+        await diagnosticService.init();
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining("Service connected to configured relays"),
+          ]),
+        );
+        const diagnostics = messages.join("\n");
+        expect(diagnostics).not.toContain(relay.url);
+        expect(diagnostics).not.toContain(serviceKeys.publicKey);
+        expect(diagnostics).not.toContain(serviceKeys.privateKey);
+      } finally {
+        await diagnosticService.disconnect();
+      }
+    });
+
+    it("routes client diagnostics through an injected logger", async () => {
+      const messages: string[] = [];
+      const logger: NIP47Logger = {
+        error: (message) => messages.push(message),
+        warn: (message) => messages.push(message),
+        info: (message) => messages.push(message),
+        debug: (message) => messages.push(message),
+        trace: (message) => messages.push(message),
+      };
+      const diagnosticClient = new NostrWalletConnectClient({
+        ...connectionOptions,
+        logger,
+      });
+
+      try {
+        await diagnosticClient.init();
+        await diagnosticClient.getInfo();
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.stringContaining("Client connected to configured relays"),
+          ]),
+        );
+        const diagnostics = messages.join("\n");
+        expect(diagnostics).not.toContain(relay.url);
+        expect(diagnostics).not.toContain(connectionOptions.pubkey);
+        expect(diagnostics).not.toContain(connectionOptions.secret);
+        expect(diagnostics).not.toContain(diagnosticClient.getPublicKey());
+        expect(diagnostics).not.toMatch(/\b[0-9a-f]{64}\b/i);
+        expect(diagnostics).not.toMatch(/event id|request id|subscription ids?/i);
+      } finally {
+        await diagnosticClient.disconnect();
+      }
+    });
+
     it("should get wallet info", async () => {
       jest.setTimeout(10000);
       const info = await client.getInfo();
@@ -646,7 +1033,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           expect.stringContaining(
-            `Failed to decrypt message for event ${event.id}:`,
+            "Failed to decrypt message:",
           ),
           expect.any(Error),
         );
@@ -727,7 +1114,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
 
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining(`Error processing request ${event.id}:`),
+          expect.stringContaining("Error processing request:"),
           expect.any(Error),
         );
 

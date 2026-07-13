@@ -33,6 +33,7 @@ export {
   getPublicKey,
   signEvent,
   verifySignature,
+  verifySignatureSync,
 } from "../utils/crypto";
 
 export { getUnixTime } from "../utils/time";
@@ -83,7 +84,10 @@ export {
   relaySupportsNIPs,
   getRelayPaymentInfo,
   relayRequiresPayment,
+  useFetchImplementation,
+  clearRelayInfoCache,
 } from "../nip11";
+export { fetchRelayInformation as getRelayInfo } from "../nip11";
 
 // Export NIP-11 types
 export type {
@@ -153,8 +157,29 @@ export {
   // Enums
   Prefix,
   TLVType,
+
+  // Security helpers
+  filterProfile,
+  filterEvent,
+  filterAddress,
+  filterEntity,
+  isValidRelayUrl,
 } from "../nip19";
-export type { ProfileData, EventData, AddressData } from "../nip19";
+export type {
+  ProfileData,
+  EventData,
+  AddressData,
+  HexString,
+  Bech32String,
+  RelayUrl,
+  TLVEntry,
+  Bech32Result,
+  Bech32BytesResult,
+  SimpleBech32Result,
+  DecodedEntity,
+  Bech32Options,
+  SecurityOptions,
+} from "../nip19";
 
 // Export NIP-21 utilities
 export { encodeNostrURI, decodeNostrURI, NOSTR_URI_PREFIX } from "../nip21";
@@ -181,6 +206,7 @@ export {
   encryptNip44 as encryptNip44WithExtension,
   decryptNip44 as decryptNip44WithExtension,
 } from "../nip07";
+export * from "../nip07/ambient";
 
 // Export NIP-09 utilities
 export {
@@ -253,6 +279,7 @@ export type {
 export {
   LocalKeySigner,
   Nip07Signer,
+  Nip46Signer,
   getSignerCapabilities,
 } from "../signer/web";
 export type {
@@ -265,8 +292,8 @@ export type {
 // Export NIP-07 adapter
 export { Nip07Nostr } from "../nip07/adapter";
 
-// NIP-46 utilities are Node-oriented; omit from RN/web entry to reduce bundle size
-// Consumers can import platform-appropriate implementations directly if needed.
+// NIP-46 implementations are Node-oriented; expose only platform-safe protocol enums.
+export { NIP46Method } from "../nip46/types";
 
 // NIP-57: Lightning Zaps
 export {
@@ -307,10 +334,41 @@ export {
   parseBolt11Invoice,
 } from "../nip57/utils";
 
-// NIP-47 is Node-leaning and may pull NIP-04; omit from RN/web entry.
+// NIP-47 wallet implementations are Node-leaning; expose platform-safe protocol enums.
+export {
+  NIP47Method,
+  NIP47EventKind,
+  NIP47NotificationType,
+  NIP47ErrorCode,
+  TransactionType,
+  NIP47EncryptionScheme,
+} from "../nip47/types";
 
 // NIP-50 search utilities
 export { createSearchFilter } from "../nip50";
+
+// NIP-65: Relay List Metadata
+export {
+  createRelayListEvent,
+  parseRelayList,
+  getReadRelays,
+  getWriteRelays,
+  RELAY_LIST_KIND,
+} from "../nip65";
+export type {
+  RelayListEntry,
+  RelayListEvent,
+} from "../nip65";
+
+// NIP-66: Relay Discovery and Liveness Monitoring
+export {
+  RELAY_DISCOVERY_KIND,
+  RELAY_MONITOR_KIND,
+  createRelayDiscoveryEvent,
+  parseRelayDiscoveryEvent,
+  createRelayMonitorAnnouncement,
+  parseRelayMonitorAnnouncement,
+} from "../nip66";
 
 // NIP-56 reporting
 export {
@@ -356,3 +414,8 @@ export type {
   RelayManagementBlockedIpEntry,
   RelayManagementClientOptions,
 } from "../nip86";
+
+/**
+ * @deprecated Use initializeNIP17Crypto instead. This alias will be removed in the next major version.
+ */
+export { initializeCrypto } from "../nip17";

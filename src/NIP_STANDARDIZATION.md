@@ -443,13 +443,18 @@ When implementing a NIP, ensure:
 - ✅ **NIP-17**: Gift Wrapped Direct Messages
 - ✅ **NIP-19**: Bech32-encoded Entities
 - ✅ **NIP-21**: URI Scheme
+- ✅ **NIP-29**: Relay-based Groups
+- ✅ **NIP-42**: Authentication of Clients to Relays
 - ✅ **NIP-44**: Versioned Encryption
 - ✅ **NIP-46**: Remote Signing
 - ✅ **NIP-47**: Nostr Wallet Connect
 - ✅ **NIP-50**: Search Capability
+- ✅ **NIP-56**: Reporting
 - ✅ **NIP-57**: Lightning Zaps
 - ✅ **NIP-65**: Relay List Metadata
 - ✅ **NIP-66**: Relay Discovery
+- ✅ **NIP-70**: Protected Events
+- ✅ **NIP-86**: Relay Management API
 
 ## Migration Plan
 

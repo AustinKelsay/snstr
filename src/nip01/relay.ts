@@ -1,5 +1,7 @@
-import { getWebSocketImplementation } from "../utils/websocket";
-import { createInMemoryWebSocket } from "../utils/inMemoryWebSocket";
+import {
+  getInMemoryWebSocket,
+  getWebSocketImplementation,
+} from "../utils/websocket";
 import {
   NostrEvent,
   Filter,
@@ -15,7 +17,7 @@ import {
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 import { NostrValidationError, validateRelayIngressEvent } from "./validation";
-import { Logger, LogLevel } from "../nip46/utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 import {
   SECURITY_LIMITS,
   getSecureRandom,
@@ -168,7 +170,9 @@ export class Relay {
     // Create the connection promise
     const connectionPromise = new Promise<boolean>((resolve, reject) => {
       try {
-        const inMemorySocket = createInMemoryWebSocket(this.url);
+        const inMemorySocket = getInMemoryWebSocket(this.url) as
+          | WebSocketLike
+          | undefined;
         if (inMemorySocket) {
           this.ws = inMemorySocket;
         } else {
@@ -471,8 +475,17 @@ export class Relay {
     }
     const jitter = secureJitter * 0.3 * baseDelay; // Add 0-30% jitter
     const reconnectDelay = baseDelay + jitter;
+    const reconnectGeneration = this.disconnectGeneration;
 
-    this.reconnectTimer = setTimeout(() => {
+    const reconnectTimer = setTimeout(() => {
+      // A cancelled callback can already be queued, and an older callback can
+      // run after a replacement timer is installed. Only the currently owned
+      // timer may mutate reconnect state.
+      if (this.reconnectTimer !== reconnectTimer) return;
+      this.reconnectTimer = null;
+      // A cancelled timer may already be queued. Never reconnect after an
+      // explicit disconnect, even if its callback still runs.
+      if (reconnectGeneration !== this.disconnectGeneration) return;
       this.reconnectAttempts++;
       this.connect().catch((error) => {
         console.error(
@@ -482,7 +495,8 @@ export class Relay {
         // The next reconnection will be scheduled in the connect() method's catch handler
       });
     }, reconnectDelay);
-    maybeUnref(this.reconnectTimer);
+    this.reconnectTimer = reconnectTimer;
+    maybeUnref(reconnectTimer);
   }
 
   /**

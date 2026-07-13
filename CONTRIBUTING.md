@@ -91,15 +91,14 @@ The CI pipeline runs tests for both `main` and `staging` branches, but releases 
 
 ## Release Process
 
-SNSTR uses GitHub Actions for automated releases. For detailed release instructions, see [RELEASE.md](RELEASE.md).
+SNSTR releases are currently performed manually from `main` after verified
+changes are promoted from `staging`.
 
 ### Quick Release Guide
 
-1. Ensure you're on the main branch with all changes merged
-2. Update [CHANGELOG.md](CHANGELOG.md) with release notes
-3. Go to [Actions](https://github.com/AustinKelsay/snstr/actions) → "Release to NPM"
-4. Run workflow with appropriate version bump (patch/minor/major)
+1. Ensure the release candidate is merged to `main` and CI is green.
+2. Update [CHANGELOG.md](CHANGELOG.md) with release notes.
+3. Run `npm run release:prepare` and `npm publish --dry-run` from a clean checkout.
+4. Follow the versioning, tag, publish, and GitHub release commands in [RELEASE.md](RELEASE.md).
 
-The workflow will automatically handle versioning, tagging, npm publishing, and GitHub release creation.
-
-For the complete release process, requirements, and troubleshooting, refer to [RELEASE.md](RELEASE.md). 
+For the complete release process, requirements, and troubleshooting, refer to [RELEASE.md](RELEASE.md).

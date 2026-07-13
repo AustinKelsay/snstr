@@ -14,11 +14,17 @@
   "react-native": "./dist/esm/src/entries/index.web.js",
   "exports": {
     ".": {
+      "react-native": {
+        "types": "./dist/esm/src/entries/index.web.d.ts",
+        "default": "./dist/esm/src/entries/index.web.js"
+      },
+      "browser": {
+        "types": "./dist/esm/src/entries/index.web.d.ts",
+        "default": "./dist/esm/src/entries/index.web.js"
+      },
       "types": "./dist/src/index.d.ts",
       "import": "./dist/esm/src/index.js",
       "require": "./dist/src/index.js",
-      "react-native": "./dist/esm/src/entries/index.web.js",
-      "browser": "./dist/esm/src/entries/index.web.js",
       "default": "./dist/src/index.js"
     },
     "./nip07-ambient": {
@@ -28,11 +34,17 @@
       "default": "./dist/src/nip07/ambient.js"
     },
     "./nip04": {
+      "react-native": {
+        "types": "./dist/esm/src/nip04/web.d.ts",
+        "default": "./dist/esm/src/nip04/web.js"
+      },
+      "browser": {
+        "types": "./dist/esm/src/nip04/web.d.ts",
+        "default": "./dist/esm/src/nip04/web.js"
+      },
       "types": "./dist/src/nip04/index.d.ts",
       "import": "./dist/esm/src/nip04/index.js",
       "require": "./dist/src/nip04/index.js",
-      "react-native": "./dist/esm/src/nip04/web.js",
-      "browser": "./dist/esm/src/nip04/web.js",
       "default": "./dist/src/nip04/index.js"
     },
     "./utils/ephemeral-relay": {
@@ -45,7 +57,7 @@
   "scripts": {
     "// Build": "-------------- Build Commands --------------",
     "build": "npx rimraf dist && npm run build:cjs && npm run build:esm",
-    "build:cjs": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.build.json",
     "build:esm": "tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js",
     "pack:verify": "node scripts/verify-pack.js",
     "prepack": "npm run build && npm run pack:verify",
@@ -89,13 +101,18 @@
     "test:nip17": "jest tests/nip17",
     "test:nip19": "jest tests/nip19",
     "test:nip21": "jest tests/nip21",
+    "test:nip29": "jest tests/nip29",
+    "test:nip42": "jest tests/nip42",
     "test:nip44": "jest tests/nip44",
     "test:nip46": "jest tests/nip46",
     "test:nip47": "jest tests/nip47",
     "test:nip50": "jest tests/nip50",
+    "test:nip56": "jest tests/nip56",
     "test:nip57": "jest tests/nip57",
     "test:nip65": "jest tests/nip65",
     "test:nip66": "jest tests/nip66",
+    "test:nip70": "jest tests/nip70",
+    "test:nip86": "jest tests/nip86",
     "// Test Groups": "-------------- Test Category Groups --------------",
     "test:all": "npm test",
     "test:core": "jest tests/nip01",
@@ -216,7 +233,6 @@
     "@types/ws": "^8.18.0",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
-    "browserify": "^17.0.1",
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
     "prettier": "^3.1.1",
@@ -233,7 +249,6 @@
     "crypto-js": "^4.2.0",
     "light-bolt11-decoder": "^3.2.0",
     "websocket-polyfill": "^0.0.3",
-    "ws": "^8.15.1",
-    "zod": "^3.22.4"
+    "ws": "^8.21.0"
   }
 }

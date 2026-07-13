@@ -5,7 +5,7 @@
  * addressing the critical vulnerabilities identified in the security audit.
  */
 
-import { NostrEvent, Filter } from "../types/nostr";
+import { Filter } from "../types/nostr";
 
 // Security Constants
 export const SECURITY_LIMITS = {
@@ -523,73 +523,6 @@ export function validateFilters(filters: unknown): Filter[] {
       throw error;
     }
   });
-}
-
-// Event validation
-export function validateEvent(event: unknown): NostrEvent {
-  if (!event || typeof event !== "object") {
-    throw new SecurityValidationError(
-      "Event must be an object",
-      "INVALID_EVENT_TYPE",
-      "event",
-    );
-  }
-
-  const e = event as Record<string, unknown>;
-
-  // Validate required fields
-  const id = sanitizeString(e.id, SECURITY_LIMITS.MAX_ID_LENGTH);
-  const pubkey = sanitizeString(e.pubkey, SECURITY_LIMITS.MAX_PUBKEY_LENGTH);
-  const sig = sanitizeString(e.sig, SECURITY_LIMITS.MAX_SIGNATURE_LENGTH);
-  const content = validateEventContent(e.content);
-  const tags = validateTags(e.tags);
-  const kind = validateNumber(
-    e.kind,
-    SECURITY_LIMITS.MIN_KIND,
-    SECURITY_LIMITS.MAX_KIND,
-    "event.kind",
-  );
-  const created_at = validateNumber(
-    e.created_at,
-    SECURITY_LIMITS.MIN_CREATED_AT,
-    SECURITY_LIMITS.MAX_CREATED_AT,
-    "event.created_at",
-  );
-
-  // Validate formats
-  if (!/^[0-9a-f]{64}$/i.test(id)) {
-    throw new SecurityValidationError(
-      "Event ID must be 64-character hex",
-      "INVALID_EVENT_ID_FORMAT",
-      "event.id",
-    );
-  }
-
-  if (!/^[0-9a-f]{64}$/i.test(pubkey)) {
-    throw new SecurityValidationError(
-      "Event pubkey must be 64-character hex",
-      "INVALID_EVENT_PUBKEY_FORMAT",
-      "event.pubkey",
-    );
-  }
-
-  if (!/^[0-9a-f]{128}$/i.test(sig)) {
-    throw new SecurityValidationError(
-      "Event signature must be 128-character hex",
-      "INVALID_EVENT_SIGNATURE_FORMAT",
-      "event.sig",
-    );
-  }
-
-  return {
-    id,
-    pubkey,
-    sig,
-    content,
-    tags,
-    kind,
-    created_at,
-  };
 }
 
 // Rate limiting helper

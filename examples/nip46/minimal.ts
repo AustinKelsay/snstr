@@ -3,7 +3,7 @@ import {
   SimpleNIP46Bunker,
   generateKeypair,
 } from "../../src";
-import { LogLevel } from "../../src/nip46/utils/logger";
+import { LogLevel } from "../../src/utils/logger";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 
 /**

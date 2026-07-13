@@ -1,9 +1,10 @@
-// Capture the native WebSocket implementation before importing polyfill (if it exists)
+// Capture the platform WebSocket. The Node package entry installs its polyfill
+// before loading this module; browser/React Native use their native global.
 const OriginalWebSocket: typeof WebSocket | undefined = globalThis.WebSocket;
 
-import "websocket-polyfill";
+type InMemoryWebSocketFactory = (url: string) => unknown | undefined;
 
-const PolyfilledWebSocket: typeof WebSocket | undefined = globalThis.WebSocket;
+let inMemoryWebSocketFactory: InMemoryWebSocketFactory | undefined;
 
 function hasRequiredWebSocketFeatures(
   wsCtor: typeof WebSocket | undefined,
@@ -30,15 +31,11 @@ function resolveDefaultWebSocket(): typeof WebSocket | undefined {
 
   const candidatesWithPriority: (typeof WebSocket | undefined)[] = [];
 
-  if (
-    currentGlobal &&
-    currentGlobal !== OriginalWebSocket &&
-    currentGlobal !== PolyfilledWebSocket
-  ) {
+  if (currentGlobal && currentGlobal !== OriginalWebSocket) {
     candidatesWithPriority.push(currentGlobal);
   }
 
-  candidatesWithPriority.push(OriginalWebSocket, PolyfilledWebSocket);
+  candidatesWithPriority.push(OriginalWebSocket);
 
   for (const candidate of candidatesWithPriority) {
     if (hasRequiredWebSocketFeatures(candidate)) {
@@ -49,7 +46,6 @@ function resolveDefaultWebSocket(): typeof WebSocket | undefined {
   const fallbackCandidates: (typeof WebSocket | undefined)[] = [
     OriginalWebSocket,
     currentGlobal,
-    PolyfilledWebSocket,
   ];
 
   for (const candidate of fallbackCandidates) {
@@ -78,4 +74,25 @@ export function getWebSocketImplementation(): typeof WebSocket {
     );
   }
   return WebSocketImpl;
+}
+
+/**
+ * Register the process-wide factory used to resolve deterministic in-memory sockets.
+ * Registering a new factory replaces the previous one for subsequent lookups.
+ */
+export function useInMemoryWebSocketFactory(
+  factory: InMemoryWebSocketFactory,
+): void {
+  inMemoryWebSocketFactory = factory;
+}
+
+/**
+ * Resolve an in-memory socket for the supplied URL when a factory is registered.
+ *
+ * This is an internal transport seam used by deterministic relay tests. It has
+ * no effect until {@link useInMemoryWebSocketFactory} installs a process-wide
+ * factory.
+ */
+export function getInMemoryWebSocket(url: string): unknown | undefined {
+  return inMemoryWebSocketFactory?.(url);
 }

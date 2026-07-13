@@ -15,6 +15,7 @@ import {
   NIP47Method,
   NIP47EncryptionScheme,
   NIP47ConnectionOptions,
+  NIP47Logger,
   NIP47Request,
 } from "../../src/nip47/types";
 import { NostrEvent } from "../../src/types/nostr";
@@ -220,4 +221,42 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     await client.disconnect();
     await service.disconnect();
   }, 10000);
+
+  test("logs a response decryption failure exactly once", async () => {
+    const serviceKeys = await generateKeypair();
+    const clientKeys = await generateKeypair();
+    const errors: string[] = [];
+    const logger: NIP47Logger = {
+      error: (message) => errors.push(message),
+      warn: () => {},
+      info: () => {},
+      debug: () => {},
+      trace: () => {},
+    };
+    const client = new NostrWalletConnectClient({
+      pubkey: serviceKeys.publicKey,
+      secret: clientKeys.privateKey,
+      relays: [relay.url],
+      logger,
+    });
+    const clientWithPrivates = client as unknown as ClientWithPrivateMethods;
+    clientWithPrivates.pendingRequests.set("request-id", {
+      encryptionScheme: NIP47EncryptionScheme.NIP04,
+      resolve: jest.fn(),
+    });
+
+    await clientWithPrivates.handleResponse({
+      id: "response-id",
+      pubkey: serviceKeys.publicKey,
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 23195,
+      tags: [["e", "request-id"]],
+      content: "invalid-encrypted-content",
+      sig: "",
+    });
+
+    expect(errors).toEqual([
+      expect.stringContaining("Error handling nip04 response event"),
+    ]);
+  });
 });
