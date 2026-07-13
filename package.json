@@ -249,6 +249,6 @@
     "crypto-js": "^4.2.0",
     "light-bolt11-decoder": "^3.2.0",
     "websocket-polyfill": "^0.0.3",
-    "ws": "^8.15.1"
+    "ws": "^8.21.0"
   }
 }

@@ -83,19 +83,12 @@ describe("platform entry export policy", () => {
 
     expect(webKeys.filter((key) => !nodeKeys.includes(key)).sort()).toEqual([]);
     expect(nodeKeys.filter((key) => !webKeys.includes(key)).sort()).toEqual([
-      "NIP46Method",
-      "NIP47EncryptionScheme",
-      "NIP47ErrorCode",
-      "NIP47EventKind",
-      "NIP47Method",
-      "NIP47NotificationType",
       "NostrRemoteSignerBunker",
       "NostrRemoteSignerClient",
       "NostrWalletConnectClient",
       "NostrWalletService",
       "SimpleNIP46Bunker",
       "SimpleNIP46Client",
-      "TransactionType",
       "generateNWCURL",
       "isValidAuthUrl",
       "parseNWCURL",

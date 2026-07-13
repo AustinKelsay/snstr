@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Browser and React Native package entries now expose the platform-safe NIP-65 relay-list and NIP-66 relay-discovery APIs.
+- Package verification now enforces conditional-export resolution, runtime/type parity, and the transitive browser dependency graph.
+
+### Changed
+- NIP-47 client and service diagnostics now use configurable injected loggers, remain quiet at routine levels by default, and redact sensitive event data.
+- CommonJS and ESM production builds now compile library source independently from tests and examples.
+- Coverage, supported-NIP documentation, targeted test scripts, and package dependencies now match the implementation surface shipped by the repository.
+- The shared logger now lives in core utilities while the existing NIP-46 import path remains a runtime-compatible re-export.
+
+### Fixed
+- NIP-47 initialization now handles concurrent, malformed, failed, disconnected, and stale capability-discovery attempts atomically.
+- Relay teardown now invalidates stale reconnect callbacks without discarding replacement timers.
+
+### Security
+- Updated `ws` to `^8.21.0` to incorporate fixes for memory-disclosure and fragmented-frame denial-of-service advisories.
+
 ## [0.3.4] - 2026-07-06
 
 ### Changed

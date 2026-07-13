@@ -2,6 +2,7 @@
  * Simple logger with configurable log levels
  */
 
+/** Supported logger verbosity levels, ordered from silent to most verbose. */
 export enum LogLevel {
   NONE = 0,
   ERROR = 1,
@@ -11,6 +12,7 @@ export enum LogLevel {
   TRACE = 5,
 }
 
+/** Configuration for a {@link Logger} instance. */
 export interface LoggerOptions {
   level?: LogLevel;
   prefix?: string;
@@ -21,6 +23,7 @@ export interface LoggerOptions {
 // Type for log arguments that covers most common use cases
 type LogArg = string | number | boolean | object | null | undefined;
 
+/** Lightweight console-backed logger with level filtering and optional prefixes. */
 export class Logger {
   private level: LogLevel;
   private prefix: string;

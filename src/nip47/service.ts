@@ -239,7 +239,7 @@ export class NostrWalletService {
   public async init(): Promise<void> {
     // Connect to relays
     await this.client.connectToRelays();
-    this.logger.info(`Service connected to relays: ${this.relays.join(", ")}`);
+    this.logger.info("Service connected to configured relays");
 
     // Set up subscription to receive requests
     this.setupSubscription();
@@ -682,7 +682,7 @@ export class NostrWalletService {
     const unsignedEvent = createEvent(eventTemplate, this.pubkey);
 
     this.logger.debug("Encrypting response");
-    this.logger.debug(`Response will reference request ID: ${requestId}`);
+    this.logger.debug("Response will reference the correlated request");
 
     // Get the encryption scheme used in the request
     const encryptionScheme =
@@ -712,7 +712,7 @@ export class NostrWalletService {
     // Sign the event
     const signedEvent = await createSignedEvent(unsignedEvent, this.privkey);
 
-    this.logger.debug(`Sending response for request ${requestId}`);
+    this.logger.debug("Sending response for correlated request");
 
     // Publish the event
     await this.client.publishEvent(signedEvent);

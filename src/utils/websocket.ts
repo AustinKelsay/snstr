@@ -31,10 +31,7 @@ function resolveDefaultWebSocket(): typeof WebSocket | undefined {
 
   const candidatesWithPriority: (typeof WebSocket | undefined)[] = [];
 
-  if (
-    currentGlobal &&
-    currentGlobal !== OriginalWebSocket
-  ) {
+  if (currentGlobal && currentGlobal !== OriginalWebSocket) {
     candidatesWithPriority.push(currentGlobal);
   }
 
@@ -79,12 +76,23 @@ export function getWebSocketImplementation(): typeof WebSocket {
   return WebSocketImpl;
 }
 
+/**
+ * Register the process-wide factory used to resolve deterministic in-memory sockets.
+ * Registering a new factory replaces the previous one for subsequent lookups.
+ */
 export function useInMemoryWebSocketFactory(
   factory: InMemoryWebSocketFactory,
 ): void {
   inMemoryWebSocketFactory = factory;
 }
 
+/**
+ * Resolve an in-memory socket for the supplied URL when a factory is registered.
+ *
+ * This is an internal transport seam used by deterministic relay tests. It has
+ * no effect until {@link useInMemoryWebSocketFactory} installs a process-wide
+ * factory.
+ */
 export function getInMemoryWebSocket(url: string): unknown | undefined {
   return inMemoryWebSocketFactory?.(url);
 }
