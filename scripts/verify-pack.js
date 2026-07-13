@@ -54,20 +54,38 @@ function packageName(specifier) {
   return specifier.split("/")[0];
 }
 
-function collectStaticSpecifiers(source) {
-  const specifiers = [];
+function collectDependencyReferences(source) {
+  const references = [];
   const statementPattern = /(?:^|\n)\s*(?:import|export)\b[\s\S]*?;/g;
   let statementMatch;
 
   while ((statementMatch = statementPattern.exec(source)) !== null) {
     const statement = statementMatch[0];
     const fromMatch = statement.match(/\bfrom\s*["']([^"']+)["']/);
-    const sideEffectMatch = statement.match(/^\s*import\s*["']([^"']+)["']/);
+    const sideEffectMatch = statement.match(/\bimport\s*["']([^"']+)["']/);
     const specifier = fromMatch?.[1] ?? sideEffectMatch?.[1];
-    if (specifier) specifiers.push(specifier);
+    if (specifier) references.push({ kind: "static", specifier });
   }
 
-  return specifiers;
+  const literalPatterns = [
+    {
+      kind: "dynamic-import",
+      pattern: /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+    },
+    {
+      kind: "require",
+      pattern: /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
+    },
+  ];
+
+  for (const { kind, pattern } of literalPatterns) {
+    let match;
+    while ((match = pattern.exec(source)) !== null) {
+      references.push({ kind, specifier: match[1] });
+    }
+  }
+
+  return references;
 }
 
 function verifyPlatformConditionOrder(exportsMap) {
@@ -117,6 +135,15 @@ function verifyWebEntryGraph(entryTarget) {
     "nip46/utils/auth.js",
     "nip47/",
   ];
+  // These exact Node crypto fallbacks are runtime-guarded and preserve Node 16
+  // and pure-ESM compatibility. Any new file, form, or dependency must be
+  // reviewed and added explicitly; stale exceptions fail below as well.
+  const allowedGuardedNodeReferences = new Set([
+    "nip17/index.js|dynamic-import|crypto",
+    "nip17/index.js|require|crypto",
+    "utils/security-validator.js|require|crypto",
+  ]);
+  const observedGuardedNodeReferences = new Set();
   const visited = new Set();
   const pending = [entryPath];
   const violations = [];
@@ -132,7 +159,7 @@ function verifyWebEntryGraph(entryTarget) {
     }
 
     const source = fs.readFileSync(filePath, "utf8");
-    for (const specifier of collectStaticSpecifiers(source)) {
+    for (const { kind, specifier } of collectDependencyReferences(source)) {
       if (specifier.startsWith(".")) {
         const resolved = path.resolve(path.dirname(filePath), specifier);
         const relativeModule = path.relative(sourceRoot, resolved).replaceAll(path.sep, "/");
@@ -159,18 +186,34 @@ function verifyWebEntryGraph(entryTarget) {
         builtins.has(dependency) ||
         forbiddenPackages.has(dependency)
       ) {
+        const relativeFile = path.relative(sourceRoot, filePath).replaceAll(path.sep, "/");
+        const exceptionKey = `${relativeFile}|${kind}|${specifier}`;
+        if (allowedGuardedNodeReferences.has(exceptionKey)) {
+          observedGuardedNodeReferences.add(exceptionKey);
+          continue;
+        }
         violations.push(
-          `${path.relative(repoRoot, filePath)} imports Node-only dependency ${specifier}`,
+          `${path.relative(repoRoot, filePath)} uses Node-only dependency ${specifier} via ${kind}`,
         );
       }
     }
+  }
+
+  const staleExceptions = [...allowedGuardedNodeReferences].filter(
+    (exception) => !observedGuardedNodeReferences.has(exception),
+  );
+  if (staleExceptions.length > 0) {
+    violations.push(`stale guarded dependency exceptions: ${staleExceptions.join(", ")}`);
   }
 
   if (violations.length > 0) {
     fail(`Web entry dependency graph is not platform-safe: ${violations.join("; ")}`);
   }
 
-  return visited.size;
+  return {
+    guardedNodeReferences: observedGuardedNodeReferences.size,
+    modules: visited.size,
+  };
 }
 
 const pkgPath = path.join(repoRoot, "package.json");
@@ -223,7 +266,7 @@ const webEntryTarget = toPackPath(pkg.exports?.["."]?.browser);
 if (!webEntryTarget) {
   fail("Missing browser target for the root package export");
 }
-const verifiedWebModules = verifyWebEntryGraph(webEntryTarget);
+const webGraph = verifyWebEntryGraph(webEntryTarget);
 
 // 2) Ensure the referenced targets are included in the packed tarball.
 const cacheDir = path.join(repoRoot, ".npm-cache");
@@ -260,5 +303,5 @@ if (missingInTarball.length) {
 }
 
 console.log(
-  `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${verifiedWebModules} web modules)`
+  `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${webGraph.modules} web modules, ${webGraph.guardedNodeReferences} guarded Node fallbacks)`
 );
