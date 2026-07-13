@@ -32,7 +32,7 @@ import {
   NIP47Logger,
 } from "./types";
 import { SecurityValidationError } from "../utils/security-validator";
-import { Logger, LogLevel } from "../nip46/utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 
 /**
  * Parse a NWC URL into connection options

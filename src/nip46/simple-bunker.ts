@@ -14,7 +14,7 @@ import {
   NIP46ConnectionError,
   NIP46Method,
 } from "./types";
-import { Logger, LogLevel } from "./utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 import {
   createSuccessResponse,
   createErrorResponse,

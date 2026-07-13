@@ -31,7 +31,7 @@ import {
   validateKeypairForCrypto,
   securePermissionCheck,
 } from "./utils/security";
-import { Logger, LogLevel } from "./utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 
 export class NostrRemoteSignerBunker {
   private nostr: Nostr;

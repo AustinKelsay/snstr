@@ -15,7 +15,7 @@ import {
 } from "../types/nostr";
 import { RelayConnectionOptions } from "../types/protocol";
 import { NostrValidationError, validateRelayIngressEvent } from "./validation";
-import { Logger, LogLevel } from "../nip46/utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 import {
   SECURITY_LIMITS,
   getSecureRandom,

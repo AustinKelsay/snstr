@@ -41,7 +41,7 @@ export { SimpleNIP46Client } from "./simple-client";
 export { SimpleNIP46Bunker } from "./simple-bunker";
 
 // Export utilities
-export { Logger, LogLevel } from "./utils/logger";
+export { Logger, LogLevel } from "../utils/logger";
 
 export {
   generateRequestId,

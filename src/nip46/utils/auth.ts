@@ -2,7 +2,7 @@
  * NIP-46 Auth URL validation utilities
  */
 
-import { Logger } from "./logger";
+import { Logger } from "../../utils/logger";
 
 /**
  * Sanitize URL for safe logging by removing sensitive parts

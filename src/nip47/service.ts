@@ -33,7 +33,7 @@ import {
   SecurityValidationError,
 } from "../utils/security-validator";
 import { maybeUnref } from "../utils/timers";
-import { Logger, LogLevel } from "../nip46/utils/logger";
+import { Logger, LogLevel } from "../utils/logger";
 
 /**
  * TTL Map implementation with automatic cleanup
