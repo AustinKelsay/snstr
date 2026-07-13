@@ -231,6 +231,8 @@ export class NostrWalletConnectClient {
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
   private lifecycleGeneration = 0;
+  private waitForCapabilityDiscovery = (): Promise<void> =>
+    new Promise((resolve) => setTimeout(resolve, 3000));
   private subIds: string[] = [];
 
   constructor(options: NIP47ConnectionOptions) {
@@ -293,7 +295,7 @@ export class NostrWalletConnectClient {
 
       // Wait for capabilities to be discovered via events
       this.logger.debug("Waiting for service capabilities...");
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+      await this.waitForCapabilityDiscovery();
       this.assertInitializationCurrent(generation);
 
       if (this.supportedMethods.length === 0) {

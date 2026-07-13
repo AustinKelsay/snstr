@@ -79,9 +79,10 @@ Complete all eight cleanup items from the repository scan end to end, optimizing
 - Grok sidecar limitation: the required `grok-4.5-xhigh` model was absent from the live `agent models` catalog on 2026-07-13, so the Grok skill requires local completion.
 - OpenCode free-model inspection confirmed the platform-safe omissions and supported an executable parity-policy approach.
 - Two Luna-high implementation workers reached model capacity after producing usable work/evidence; the orchestrator completed their slices and fresh independent reviewers closed every ticket.
-- Final local evidence: lint, typecheck, 66 suites / 879 tests with coverage, source-only CJS/ESM build, examples build, package verification, and real browser/React Native condition resolution all pass.
+- Final local evidence: lint, typecheck, 66 suites / 879 tests under both Jest coverage and Bun 1.3.11, source-only CJS/ESM build, examples build, package verification, and real browser/React Native condition resolution all pass.
 - Branch-wide fallback review found and closed a platform declaration mismatch plus a clean-CI test-order issue; final re-review passed with zero remaining findings.
 - Final PR review fixes hardened NIP-47 initialization under malformed, failed, concurrent, disconnected, and stale attempts. A follow-up Relay timer identity/generation guard removed the post-teardown reconnect log; both received clean independent re-reviews.
+- The hosted Bun lane exposed unsupported Jest async fake timers and a delayed-rejection matcher deadlock in the new NIP-47 lifecycle tests. The tests now coordinate through a private capability-wait seam and portable promise assertions while preserving the production three-second discovery wait.
 
 ## Open Questions
 
