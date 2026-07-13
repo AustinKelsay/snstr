@@ -223,7 +223,7 @@ export interface NIP47ConnectionOptions {
    */
   preferredEncryption?: NIP47EncryptionScheme;
 
-  /** Optional diagnostic logger. INFO/DEBUG output is disabled by default. */
+  /** Optional logger. WARN/ERROR are enabled; INFO/DEBUG/TRACE are suppressed by default. */
   logger?: NIP47Logger;
 }
 

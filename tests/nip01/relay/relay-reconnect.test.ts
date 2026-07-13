@@ -123,6 +123,46 @@ describe("Relay: Reconnection Configuration", () => {
     }).toThrow(/at least 1000ms/);
   });
 
+  test("ignores stale queued callbacks without losing replacement timers", () => {
+    const relay = createRelay("wss://test.relay");
+    const testRelay = asTestRelay(relay);
+    const queuedReconnects: Array<() => void> = [];
+    const timers: NodeJS.Timeout[] = [];
+    const timeoutSpy = jest
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((callback: TimerHandler) => {
+        const timer = {
+          unref: () => timer,
+        } as unknown as NodeJS.Timeout;
+        queuedReconnects.push(callback as () => void);
+        timers.push(timer);
+        return timer;
+      });
+    const clearTimeoutSpy = jest
+      .spyOn(globalThis, "clearTimeout")
+      .mockImplementation(() => {});
+
+    try {
+      testRelay.scheduleReconnect();
+      relay.disconnect();
+      testRelay.scheduleReconnect();
+
+      queuedReconnects[0]();
+      expect(testRelay.reconnectTimer).toBe(timers[1]);
+      expect(testRelay.reconnectAttempts).toBe(0);
+
+      relay.disconnect();
+      queuedReconnects[1]();
+
+      expect(testRelay.reconnectAttempts).toBe(0);
+      expect(testRelay.reconnectTimer).toBeNull();
+      expect(testRelay.connectionPromise).toBeNull();
+    } finally {
+      clearTimeoutSpy.mockRestore();
+      timeoutSpy.mockRestore();
+    }
+  });
+
   // Additional test for ReconnectionStrategy interface
   test("should be configurable with a full ReconnectionStrategy", () => {
     // This test serves as a type-check for future implementation

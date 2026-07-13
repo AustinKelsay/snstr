@@ -229,6 +229,8 @@ export class NostrWalletConnectClient {
     }
   >();
   private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
+  private lifecycleGeneration = 0;
   private subIds: string[] = [];
 
   constructor(options: NIP47ConnectionOptions) {
@@ -261,26 +263,46 @@ export class NostrWalletConnectClient {
   /**
    * Initialize the client, connect to relays and fetch capabilities
    */
-  public async init(): Promise<void> {
-    // Connect to relays
-    await this.client.connectToRelays();
-    this.logger.info(`Client connected to relays: ${this.relays.join(", ")}`);
+  public init(): Promise<void> {
+    if (this.initialized) return Promise.resolve();
+    if (this.initializationPromise) return this.initializationPromise;
 
-    // Set up subscription to receive responses
-    this.setupSubscription();
-    this.logger.info("Client subscribed to service events");
+    const generation = this.lifecycleGeneration;
+    const initialization = this.initialize(generation).finally(() => {
+      if (this.initializationPromise === initialization) {
+        this.initializationPromise = null;
+      }
+    });
+    this.initializationPromise = initialization;
+    return initialization;
+  }
 
-    // Wait for capabilities to be discovered via events
-    this.logger.debug("Waiting for service capabilities...");
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+  /** Perform one initialization attempt. */
+  private async initialize(generation: number): Promise<void> {
+    let attemptSubIds: string[] = [];
+    try {
+      // Connect to relays
+      await this.client.connectToRelays();
+      this.assertInitializationCurrent(generation);
+      this.logger.info(`Client connected to relays: ${this.relays.join(", ")}`);
 
-    if (this.supportedMethods.length === 0) {
-      this.logger.warn(
-        "No methods discovered from service after timeout, will try explicit getInfo call",
-      );
-      try {
-        // Fallback to explicit getInfo call
-        const info = await this.getInfo();
+      // Set up subscription to receive responses
+      attemptSubIds = this.setupSubscription();
+      this.subIds = attemptSubIds;
+      this.logger.info("Client subscribed to service events");
+
+      // Wait for capabilities to be discovered via events
+      this.logger.debug("Waiting for service capabilities...");
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      this.assertInitializationCurrent(generation);
+
+      if (this.supportedMethods.length === 0) {
+        this.logger.warn(
+          "No methods discovered from service after timeout, will try explicit getInfo call",
+        );
+        // Fallback to the one request allowed before initialization completes.
+        const info = await this.fetchInfo(undefined, true, generation);
+        this.assertInitializationCurrent(generation);
         if (info && info.methods) {
           this.supportedMethods = info.methods;
           this.logger.info(
@@ -293,12 +315,28 @@ export class NostrWalletConnectClient {
             `Discovered notifications via getInfo: ${this.supportedNotifications.join(", ")}`,
           );
         }
-      } catch (error) {
-        throw new Error(`Failed to initialize wallet connection: ${error}`);
       }
-    }
 
-    this.initialized = true;
+      this.initialized = true;
+    } catch (error) {
+      if (attemptSubIds.length > 0) {
+        this.client.unsubscribe(attemptSubIds);
+      }
+      if (this.subIds === attemptSubIds) {
+        this.subIds = [];
+      }
+      if (generation === this.lifecycleGeneration) {
+        this.initialized = false;
+      }
+      throw new Error(`Failed to initialize wallet connection: ${error}`);
+    }
+  }
+
+  /** Reject work from an initialization attempt invalidated by disconnect. */
+  private assertInitializationCurrent(generation: number): void {
+    if (generation !== this.lifecycleGeneration) {
+      throw new Error("Client initialization cancelled by disconnect");
+    }
   }
 
   /**
@@ -346,6 +384,8 @@ export class NostrWalletConnectClient {
    * Disconnect from the wallet service
    */
   public disconnect(): Promise<void> {
+    this.lifecycleGeneration += 1;
+    this.initializationPromise = null;
     return new Promise<void>((resolve) => {
       try {
         // Clean up any pending subscriptions
@@ -373,6 +413,9 @@ export class NostrWalletConnectClient {
 
         // Clear notification handlers
         this.notificationHandlers.clear();
+        this.supportedMethods = [];
+        this.supportedNotifications = [];
+        this.supportedEncryption = [];
 
         // Disconnect from relay (don't wait for it)
         try {
@@ -403,7 +446,7 @@ export class NostrWalletConnectClient {
   /**
    * Set up subscription to receive responses from the wallet service
    */
-  private setupSubscription(): void {
+  private setupSubscription(): string[] {
     // Subscribe to events from the wallet service directed to us
     const responseFilter = {
       kinds: [
@@ -423,7 +466,7 @@ export class NostrWalletConnectClient {
 
     this.logger.debug("Setting up client subscriptions");
 
-    this.subIds = this.client.subscribe(
+    const subIds = this.client.subscribe(
       [responseFilter, infoFilter],
       (event: NostrEvent, relay: string) => {
         this.logger.debug(
@@ -433,7 +476,8 @@ export class NostrWalletConnectClient {
         this.handleEvent(event);
       },
     );
-    this.logger.debug(`Subscription IDs: ${this.subIds.join(", ")}`);
+    this.logger.debug(`Subscription IDs: ${subIds.join(", ")}`);
+    return subIds;
   }
 
   /**
@@ -562,6 +606,7 @@ export class NostrWalletConnectClient {
    * Handle response events
    */
   private async handleResponse(event: NostrEvent): Promise<void> {
+    let responseEncryptionScheme: NIP47EncryptionScheme | undefined;
     try {
       // Find the e-tag which references the request event ID first
       const eTags = event.tags.filter(
@@ -599,27 +644,20 @@ export class NostrWalletConnectClient {
       // Use the tracked encryption scheme from the request
       let decrypted: string;
       const { encryptionScheme } = pendingRequest;
+      responseEncryptionScheme = encryptionScheme;
 
-      try {
-        if (encryptionScheme === NIP47EncryptionScheme.NIP44_V2) {
-          decrypted = await decryptNIP44(
-            event.content,
-            this.clientPrivkey,
-            this.pubkey,
-          );
-        } else {
-          decrypted = decryptNIP04(
-            this.clientPrivkey,
-            this.pubkey,
-            event.content,
-          );
-        }
-      } catch (decryptError) {
-        this.logger.error(
-          `Failed to decrypt response with ${encryptionScheme}:`,
-          decryptError instanceof Error ? decryptError : String(decryptError),
+      if (encryptionScheme === NIP47EncryptionScheme.NIP44_V2) {
+        decrypted = await decryptNIP44(
+          event.content,
+          this.clientPrivkey,
+          this.pubkey,
         );
-        throw decryptError;
+      } else {
+        decrypted = decryptNIP04(
+          this.clientPrivkey,
+          this.pubkey,
+          event.content,
+        );
       }
 
       const response = JSON.parse(decrypted);
@@ -644,7 +682,9 @@ export class NostrWalletConnectClient {
         );
       } else {
         this.logger.error(
-          "Error handling response event:",
+          responseEncryptionScheme
+            ? `Error handling ${responseEncryptionScheme} response event:`
+            : "Error handling response event:",
           error instanceof Error ? error : String(error),
         );
       }
@@ -777,8 +817,9 @@ export class NostrWalletConnectClient {
   private async sendRequest(
     request: NIP47Request,
     expiration?: number,
+    allowDuringInitialization = false,
   ): Promise<NIP47Response> {
-    if (!this.initialized) {
+    if (!this.initialized && !allowDuringInitialization) {
       throw new NIP47ClientError(
         "Client not initialized",
         NIP47ErrorCode.NOT_INITIALIZED,
@@ -908,32 +949,78 @@ export class NostrWalletConnectClient {
   public async getInfo(options?: {
     expiration?: number;
   }): Promise<GetInfoResponse["result"]> {
+    return this.fetchInfo(options);
+  }
+
+  /** Fetch capabilities, optionally through the initialization-only request path. */
+  private async fetchInfo(
+    options?: { expiration?: number },
+    allowDuringInitialization = false,
+    initializationGeneration?: number,
+  ): Promise<GetInfoResponse["result"]> {
     try {
       const request: GetInfoRequest = {
         method: NIP47Method.GET_INFO,
         params: {},
       };
 
-      const response = await this.sendRequest(request, options?.expiration);
-
-      // If we got a successful response, update our capabilities
-      if (response.result) {
-        const info = response.result as GetInfoResponseResult;
-        if (info?.methods) {
-          this.supportedMethods = info.methods;
-        }
-        if (info?.notifications) {
-          this.supportedNotifications = info.notifications;
-        }
-        if (info?.encryption) {
-          this.supportedEncryption = info.encryption
-            .map((s) => s as NIP47EncryptionScheme)
-            .filter((s) => Object.values(NIP47EncryptionScheme).includes(s));
-        } else {
-          // If no encryption field, assume only NIP-04 is supported
-          this.supportedEncryption = [NIP47EncryptionScheme.NIP04];
-        }
+      const response = await this.sendRequest(
+        request,
+        options?.expiration,
+        allowDuringInitialization,
+      );
+      if (initializationGeneration !== undefined) {
+        this.assertInitializationCurrent(initializationGeneration);
       }
+
+      // Validate the full method-specific result before changing capabilities.
+      if (response.result_type !== NIP47Method.GET_INFO) {
+        throw new Error("Invalid get_info result type");
+      }
+      if (
+        typeof response.result !== "object" ||
+        response.result === null ||
+        Array.isArray(response.result)
+      ) {
+        throw new Error("Invalid get_info result");
+      }
+      const info = response.result as GetInfoResponseResult;
+      if (
+        !Array.isArray(info.methods) ||
+        !info.methods.every((method) => typeof method === "string")
+      ) {
+        throw new Error("Invalid get_info methods capability");
+      }
+      if (
+        info.notifications !== undefined &&
+        (!Array.isArray(info.notifications) ||
+          !info.notifications.every(
+            (notification) => typeof notification === "string",
+          ))
+      ) {
+        throw new Error("Invalid get_info notifications capability");
+      }
+      if (
+        info.encryption !== undefined &&
+        (!Array.isArray(info.encryption) ||
+          !info.encryption.every((scheme) => typeof scheme === "string"))
+      ) {
+        throw new Error("Invalid get_info encryption capability");
+      }
+
+      const nextMethods = info.methods;
+      const nextNotifications =
+        info.notifications ?? this.supportedNotifications;
+      const nextEncryption = info.encryption
+        ? info.encryption
+          .map((s) => s as NIP47EncryptionScheme)
+          .filter((s) => Object.values(NIP47EncryptionScheme).includes(s))
+        : [NIP47EncryptionScheme.NIP04];
+
+      // Commit the capability snapshot only after every field validates.
+      this.supportedMethods = [...nextMethods];
+      this.supportedNotifications = [...nextNotifications];
+      this.supportedEncryption = nextEncryption;
 
       return response.result as GetInfoResponse["result"];
     } catch (error: unknown) {

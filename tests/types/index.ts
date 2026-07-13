@@ -89,6 +89,7 @@ export interface RelayTestAccess {
   maxReconnectAttempts: number;
   maxReconnectDelay: number;
   reconnectAttempts: number;
+  reconnectTimer: NodeJS.Timeout | null;
   connected: boolean;
 
   // Private internal state
@@ -103,6 +104,7 @@ export interface RelayTestAccess {
   processReplaceableEvent(event: NostrEvent): void;
   processAddressableEvent(event: NostrEvent): void;
   flushSubscriptionBuffer(subscriptionId: string): void;
+  scheduleReconnect(): void;
 }
 
 /**
