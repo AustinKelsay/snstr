@@ -25,10 +25,33 @@ describe("web entry relay metadata exports", () => {
   it("uses the shared web entry for browser and React Native targets", () => {
     const rootExports = packageJson.exports["."] as {
       browser: string;
+      import: string;
       "react-native": string;
+      require: string;
     };
 
     expect(rootExports["react-native"]).toBe(rootExports.browser);
+    const conditionOrder = Object.keys(rootExports);
+    for (const platform of ["browser", "react-native"]) {
+      expect(conditionOrder.indexOf(platform)).toBeLessThan(
+        conditionOrder.indexOf("import"),
+      );
+      expect(conditionOrder.indexOf(platform)).toBeLessThan(
+        conditionOrder.indexOf("require"),
+      );
+    }
+
+    const nip04Exports = packageJson.exports["./nip04"] as typeof rootExports;
+    expect(nip04Exports["react-native"]).toBe(nip04Exports.browser);
+    const nip04ConditionOrder = Object.keys(nip04Exports);
+    for (const platform of ["browser", "react-native"]) {
+      expect(nip04ConditionOrder.indexOf(platform)).toBeLessThan(
+        nip04ConditionOrder.indexOf("import"),
+      );
+      expect(nip04ConditionOrder.indexOf(platform)).toBeLessThan(
+        nip04ConditionOrder.indexOf("require"),
+      );
+    }
   });
 
   it("re-exports NIP-65 helpers and constants", () => {

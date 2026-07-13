@@ -15,10 +15,10 @@
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
-      "import": "./dist/esm/src/index.js",
-      "require": "./dist/src/index.js",
       "react-native": "./dist/esm/src/entries/index.web.js",
       "browser": "./dist/esm/src/entries/index.web.js",
+      "import": "./dist/esm/src/index.js",
+      "require": "./dist/src/index.js",
       "default": "./dist/src/index.js"
     },
     "./nip07-ambient": {
@@ -29,10 +29,10 @@
     },
     "./nip04": {
       "types": "./dist/src/nip04/index.d.ts",
-      "import": "./dist/esm/src/nip04/index.js",
-      "require": "./dist/src/nip04/index.js",
       "react-native": "./dist/esm/src/nip04/web.js",
       "browser": "./dist/esm/src/nip04/web.js",
+      "import": "./dist/esm/src/nip04/index.js",
+      "require": "./dist/src/nip04/index.js",
       "default": "./dist/src/nip04/index.js"
     },
     "./utils/ephemeral-relay": {

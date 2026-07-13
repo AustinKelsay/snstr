@@ -1,3 +1,7 @@
+// Install the Node WebSocket implementation before loading Relay/Nostr modules.
+// The browser/React Native entry intentionally relies on the platform global.
+import "websocket-polyfill";
+
 // Export client classes
 export { Nostr } from "./nip01/nostr";
 export { Relay } from "./nip01/relay";

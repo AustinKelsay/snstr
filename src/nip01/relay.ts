@@ -1,5 +1,7 @@
-import { getWebSocketImplementation } from "../utils/websocket";
-import { createInMemoryWebSocket } from "../utils/inMemoryWebSocket";
+import {
+  getInMemoryWebSocket,
+  getWebSocketImplementation,
+} from "../utils/websocket";
 import {
   NostrEvent,
   Filter,
@@ -168,7 +170,9 @@ export class Relay {
     // Create the connection promise
     const connectionPromise = new Promise<boolean>((resolve, reject) => {
       try {
-        const inMemorySocket = createInMemoryWebSocket(this.url);
+        const inMemorySocket = getInMemoryWebSocket(this.url) as
+          | WebSocketLike
+          | undefined;
         if (inMemorySocket) {
           this.ws = inMemorySocket;
         } else {

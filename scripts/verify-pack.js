@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
+const { builtinModules } = require("module");
 
 const repoRoot = path.resolve(__dirname, "..");
 
@@ -46,8 +47,136 @@ function fail(msg) {
   process.exit(1);
 }
 
+function packageName(specifier) {
+  if (specifier.startsWith("@")) {
+    return specifier.split("/").slice(0, 2).join("/");
+  }
+  return specifier.split("/")[0];
+}
+
+function collectStaticSpecifiers(source) {
+  const specifiers = [];
+  const statementPattern = /(?:^|\n)\s*(?:import|export)\b[\s\S]*?;/g;
+  let statementMatch;
+
+  while ((statementMatch = statementPattern.exec(source)) !== null) {
+    const statement = statementMatch[0];
+    const fromMatch = statement.match(/\bfrom\s*["']([^"']+)["']/);
+    const sideEffectMatch = statement.match(/^\s*import\s*["']([^"']+)["']/);
+    const specifier = fromMatch?.[1] ?? sideEffectMatch?.[1];
+    if (specifier) specifiers.push(specifier);
+  }
+
+  return specifiers;
+}
+
+function verifyPlatformConditionOrder(exportsMap) {
+  for (const [subpath, conditions] of Object.entries(exportsMap || {})) {
+    if (!conditions || typeof conditions !== "object" || Array.isArray(conditions)) {
+      continue;
+    }
+
+    const platforms = ["react-native", "browser"].filter((key) => key in conditions);
+    if (platforms.length === 0) continue;
+
+    if (
+      platforms.length === 2 &&
+      conditions["react-native"] !== conditions.browser
+    ) {
+      fail(`${subpath} resolves browser and React Native to different targets`);
+    }
+
+    const order = Object.keys(conditions);
+    for (const platform of platforms) {
+      for (const competing of ["import", "require", "default"]) {
+        if (
+          competing in conditions &&
+          order.indexOf(platform) > order.indexOf(competing)
+        ) {
+          fail(
+            `${subpath} places ${JSON.stringify(platform)} after ${JSON.stringify(competing)}; conditional exports use first-match order`,
+          );
+        }
+      }
+    }
+  }
+}
+
+function verifyWebEntryGraph(entryTarget) {
+  const entryPath = path.resolve(repoRoot, entryTarget);
+  const sourceRoot = path.resolve(repoRoot, "dist/esm/src");
+  const builtins = new Set(
+    builtinModules.map((name) => name.replace(/^node:/, "")),
+  );
+  const forbiddenPackages = new Set(["ws", "websocket-polyfill"]);
+  const forbiddenModules = [
+    "nip46/bunker.js",
+    "nip46/client.js",
+    "nip46/simple-bunker.js",
+    "nip46/simple-client.js",
+    "nip46/utils/auth.js",
+    "nip47/",
+  ];
+  const visited = new Set();
+  const pending = [entryPath];
+  const violations = [];
+
+  while (pending.length > 0) {
+    const filePath = pending.pop();
+    if (visited.has(filePath)) continue;
+    visited.add(filePath);
+
+    if (!fs.existsSync(filePath)) {
+      violations.push(`missing module ${path.relative(repoRoot, filePath)}`);
+      continue;
+    }
+
+    const source = fs.readFileSync(filePath, "utf8");
+    for (const specifier of collectStaticSpecifiers(source)) {
+      if (specifier.startsWith(".")) {
+        const resolved = path.resolve(path.dirname(filePath), specifier);
+        const relativeModule = path.relative(sourceRoot, resolved).replaceAll(path.sep, "/");
+        if (
+          relativeModule.startsWith("../") ||
+          forbiddenModules.some((forbidden) =>
+            forbidden.endsWith("/")
+              ? relativeModule.startsWith(forbidden)
+              : relativeModule === forbidden,
+          )
+        ) {
+          violations.push(
+            `${path.relative(repoRoot, filePath)} imports forbidden web module ${specifier}`,
+          );
+          continue;
+        }
+        pending.push(resolved);
+        continue;
+      }
+
+      const dependency = packageName(specifier.replace(/^node:/, ""));
+      if (
+        specifier.startsWith("node:") ||
+        builtins.has(dependency) ||
+        forbiddenPackages.has(dependency)
+      ) {
+        violations.push(
+          `${path.relative(repoRoot, filePath)} imports Node-only dependency ${specifier}`,
+        );
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    fail(`Web entry dependency graph is not platform-safe: ${violations.join("; ")}`);
+  }
+
+  return visited.size;
+}
+
 const pkgPath = path.join(repoRoot, "package.json");
 const pkg = readJson(pkgPath);
+
+verifyPlatformConditionOrder(pkg.exports);
 
 const referenced = new Set();
 
@@ -90,6 +219,12 @@ if (presentForbiddenBuildTrees.length) {
   );
 }
 
+const webEntryTarget = toPackPath(pkg.exports?.["."]?.browser);
+if (!webEntryTarget) {
+  fail("Missing browser target for the root package export");
+}
+const verifiedWebModules = verifyWebEntryGraph(webEntryTarget);
+
 // 2) Ensure the referenced targets are included in the packed tarball.
 const cacheDir = path.join(repoRoot, ".npm-cache");
 fs.mkdirSync(cacheDir, { recursive: true });
@@ -125,5 +260,5 @@ if (missingInTarball.length) {
 }
 
 console.log(
-  `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files)`
+  `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${verifiedWebModules} web modules)`
 );
