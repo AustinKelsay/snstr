@@ -28,7 +28,7 @@ Complete all eight cleanup items from the repository scan end to end, optimizing
 - Ticket sessions: `issue-94-session.md` through `issue-98-session.md`
 - Agent briefs: not applicable; full Codex worker sessions are the default implementation owner
 - Review packets: `issue-94-review-packet.md` through `issue-98-review-packet.md`
-- Local CodeRabbit report: pending for the expanded branch diff
+- Local CodeRabbit report: `coderabbit-local-cleanup-1-8.md` — rate-limited; fresh independent fallback review passed after fixes
 - PR URL: https://github.com/AustinKelsay/snstr/pull/92
 
 ## Commands
@@ -68,7 +68,7 @@ Complete all eight cleanup items from the repository scan end to end, optimizing
 | Item 5 (#95) | `2f6a6f4` | orchestrator | `3daf6ad` | pass/pass after wording fix | five targeted scripts; integrated 66/868 |
 | Item 6 (#96) | `e77c49c` | orchestrator | `40f01c9` | pass/pass | lockfiles, 56 focused tests, builds, pack |
 | Item 7 (#97) | `3daf6ad` | Luna-high worker + orchestrator | `1334370`, `29a51d5` | pass/pass after import fix | logger identity, lint, typecheck, builds |
-| Item 8 (#98) | `29a51d5` | orchestrator + OpenCode inspection | `5614605`, `292d90b`, `b622656` | pass/pass after two fixes | 66/868, build, pack, condition resolution |
+| Item 8 (#98) | `29a51d5` | orchestrator + OpenCode inspection | `5614605`, `292d90b`, `b622656`, `70b7eb8` | pass/pass after follow-ups | 66/868, build, pack, runtime/type condition resolution |
 
 ## Alignment Decisions
 
@@ -80,6 +80,7 @@ Complete all eight cleanup items from the repository scan end to end, optimizing
 - OpenCode free-model inspection confirmed the platform-safe omissions and supported an executable parity-policy approach.
 - Two Luna-high implementation workers reached model capacity after producing usable work/evidence; the orchestrator completed their slices and fresh independent reviewers closed every ticket.
 - Final local evidence: lint, typecheck, 66 suites / 868 tests with coverage, source-only CJS/ESM build, examples build, package verification, and real browser/React Native condition resolution all pass.
+- Branch-wide fallback review found and closed a platform declaration mismatch plus a clean-CI test-order issue; final re-review passed with zero remaining findings.
 
 ## Open Questions
 
