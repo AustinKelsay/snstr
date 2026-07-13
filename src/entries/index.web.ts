@@ -33,6 +33,7 @@ export {
   getPublicKey,
   signEvent,
   verifySignature,
+  verifySignatureSync,
 } from "../utils/crypto";
 
 export { getUnixTime } from "../utils/time";
@@ -83,7 +84,10 @@ export {
   relaySupportsNIPs,
   getRelayPaymentInfo,
   relayRequiresPayment,
+  useFetchImplementation,
+  clearRelayInfoCache,
 } from "../nip11";
+export { fetchRelayInformation as getRelayInfo } from "../nip11";
 
 // Export NIP-11 types
 export type {
@@ -153,8 +157,29 @@ export {
   // Enums
   Prefix,
   TLVType,
+
+  // Security helpers
+  filterProfile,
+  filterEvent,
+  filterAddress,
+  filterEntity,
+  isValidRelayUrl,
 } from "../nip19";
-export type { ProfileData, EventData, AddressData } from "../nip19";
+export type {
+  ProfileData,
+  EventData,
+  AddressData,
+  HexString,
+  Bech32String,
+  RelayUrl,
+  TLVEntry,
+  Bech32Result,
+  Bech32BytesResult,
+  SimpleBech32Result,
+  DecodedEntity,
+  Bech32Options,
+  SecurityOptions,
+} from "../nip19";
 
 // Export NIP-21 utilities
 export { encodeNostrURI, decodeNostrURI, NOSTR_URI_PREFIX } from "../nip21";
@@ -181,6 +206,7 @@ export {
   encryptNip44 as encryptNip44WithExtension,
   decryptNip44 as decryptNip44WithExtension,
 } from "../nip07";
+export * from "../nip07/ambient";
 
 // Export NIP-09 utilities
 export {
@@ -253,6 +279,7 @@ export type {
 export {
   LocalKeySigner,
   Nip07Signer,
+  Nip46Signer,
   getSignerCapabilities,
 } from "../signer/web";
 export type {
@@ -379,3 +406,8 @@ export type {
   RelayManagementBlockedIpEntry,
   RelayManagementClientOptions,
 } from "../nip86";
+
+/**
+ * @deprecated Use initializeNIP17Crypto instead. This alias will be removed in the next major version.
+ */
+export { initializeCrypto } from "../nip17";

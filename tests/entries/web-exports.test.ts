@@ -1,6 +1,8 @@
 // Load the web entry at runtime so this test exercises the published platform entry.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const webEntry = require("../../src/entries/index.web") as typeof import("../../src/entries/index.web");
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const nodeEntry = require("../../src/index") as typeof import("../../src/index");
 import packageJson from "../../package.json";
 
 import {
@@ -48,5 +50,32 @@ describe("web entry relay metadata exports", () => {
     expect(webEntry.parseRelayMonitorAnnouncement).toBe(
       parseRelayMonitorAnnouncement,
     );
+  });
+});
+
+describe("platform entry export policy", () => {
+  it("keeps runtime drift limited to reviewed Node-only modules", () => {
+    const nodeKeys = Object.keys(nodeEntry);
+    const webKeys = Object.keys(webEntry);
+
+    expect(webKeys.filter((key) => !nodeKeys.includes(key)).sort()).toEqual([]);
+    expect(nodeKeys.filter((key) => !webKeys.includes(key)).sort()).toEqual([
+      "NIP46Method",
+      "NIP47EncryptionScheme",
+      "NIP47ErrorCode",
+      "NIP47EventKind",
+      "NIP47Method",
+      "NIP47NotificationType",
+      "NostrRemoteSignerBunker",
+      "NostrRemoteSignerClient",
+      "NostrWalletConnectClient",
+      "NostrWalletService",
+      "SimpleNIP46Bunker",
+      "SimpleNIP46Client",
+      "TransactionType",
+      "generateNWCURL",
+      "isValidAuthUrl",
+      "parseNWCURL",
+    ]);
   });
 });
