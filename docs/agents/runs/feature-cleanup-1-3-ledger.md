@@ -65,7 +65,7 @@ Implement cleanup items 1–3 from the repository scan end to end:
 
 ## Open Questions
 
-- None. Quiet-by-default means WARN/ERROR remain visible; INFO/DEBUG require explicit logger configuration.
+- None. Quiet-by-default means WARN/ERROR remain visible; INFO/DEBUG/TRACE require explicit logger configuration.
 
 ## Escalations
 

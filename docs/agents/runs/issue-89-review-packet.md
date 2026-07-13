@@ -24,6 +24,7 @@ NIP-47 client and service diagnostics now use the shared logger. They default to
   - targeted ESLint
   - focused NIP-47 tests
   - `npm run test:nip47 -- --runInBand --coverage=false`
+  - `npm run test:coverage -- --runInBand` — 66 suites, 879 tests passed in the final integrated cleanup run
 
 ## Review Instructions
 
@@ -48,3 +49,5 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - None.
 ```
+
+Final PR review follow-up: initialization is now single-flight, cancellation-safe, subscription-safe, and atomic under malformed capability responses; focused and branch-wide re-reviews passed.

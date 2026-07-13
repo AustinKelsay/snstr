@@ -11,7 +11,7 @@
 - Public interface used: Jest's collected coverage report
 - Behavior covered: nested NIP and signer index implementations are measured while declaration files and the two aggregation-only entry barrels remain excluded
 - Baseline: 65 suites / 865 tests; nested index implementations were absent from `coverage/lcov.info`
-- Green evidence: 66 suites / 868 tests; 23 nested index modules are present in `coverage/lcov.info`; `src/index.ts`, `src/entries/index.web.ts`, and declaration files are absent
+- Green evidence: 66 suites / 879 tests; 23 nested index modules are present in `coverage/lcov.info`; `src/index.ts`, `src/entries/index.web.ts`, and declaration files are absent
 - Commands: `npm run test:coverage -- --runInBand`, coverage inventory checks
 
 ## Review

@@ -5,7 +5,7 @@
 - Issue: #89 — Cleanup NIP-47 diagnostics with configurable logging
 - Fixed point before session: `staging`
 - Worker session: current orchestrator
-- Commit: ticket commit on `feature/cleanup-logging-web-build` — `fix(nip47): quiet and configure diagnostics`
+- Commits: `934a2d5`, `d4fb538`, `2f3126e`, `932a787`
 - Status: implementation complete; ticket verification and review fix passed
 
 ## Inputs
@@ -35,8 +35,9 @@
 - Standards findings: none in the ticket slice
 - Spec findings: none; acceptance criteria are met
 - Worthy fixes applied: migrated notification logging assertions from global console spies to the public logger seam; documented the public logger option and default level
+- Final review fixes: made initialization single-flight and lifecycle-safe; validated capability snapshots atomically; removed duplicate response-decryption logging; replaced the fixed warning delay; prevented queued Relay reconnect callbacks from surviving teardown
 - Findings ignored with reasons: none
 
 ## Risks
 
-- The shared logger argument type was widened to `unknown` so injected diagnostics can preserve arbitrary error values.
+- `NIP47LogArgument` explicitly accepts strings, numbers, booleans, objects, `null`, and `undefined`, covering the structured diagnostic values emitted by the client and service.

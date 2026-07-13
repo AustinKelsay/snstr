@@ -13,7 +13,7 @@
 - Removed static web reachability to Node-only WebSocket modules through injectable in-memory transport registration.
 - Extended package verification across the emitted web dependency graph, including static imports, dynamic imports, and literal requires; only three exact reviewed crypto fallbacks are allowed and stale exceptions fail.
 - Aligned browser/React Native declaration resolution with the runtime entry for both the root and NIP-04 subpath, and verified it post-build through TypeScript's resolver.
-- Verification: entry tests, final coverage run (66 suites / 868 tests), lint, typecheck, build, examples build, package verification, CJS/ESM parity, and real browser/React Native condition resolution.
+- Verification: entry tests, final coverage run (66 suites / 879 tests), lint, typecheck, build, examples build, package verification, CJS/ESM parity, and real browser/React Native condition resolution.
 
 ## Review
 
