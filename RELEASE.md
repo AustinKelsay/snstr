@@ -4,33 +4,24 @@ This document describes how to release new versions of SNSTR.
 
 ## Quick Start
 
-### Option 1: GitHub Actions (Recommended)
-
-1. Go to [Actions](https://github.com/AustinKelsay/snstr/actions) → "Release to NPM"
-2. Click "Run workflow"
-3. Select version type:
-   - **patch**: Bug fixes (0.1.0 → 0.1.1)
-   - **minor**: New features (0.1.0 → 0.2.0)
-   - **major**: Breaking changes (0.1.0 → 1.0.0)
-4. Click "Run workflow"
-
-The workflow will automatically:
-- ✅ Run tests and linting
-- ✅ Bump version in package.json
-- ✅ Create git tag
-- ✅ Publish to npm
-- ✅ Create GitHub release
-
-### Option 2: Manual Tag
+Releases are currently performed manually from `main`; the repository does not
+have an npm publishing workflow. Promote the verified `staging` branch first,
+then run the release from a clean, up-to-date `main` checkout.
 
 ```bash
-# 1. Update version in package.json
-npm version patch  # or minor/major
-
-# 2. Push changes and tag
-git push origin main
-git push origin --tags
+git checkout main
+git pull --ff-only origin main
+npm ci
+npm run release:prepare
+npm publish --dry-run
+npm version minor # or patch/major
+git push origin main --follow-tags
+npm publish --access public
+gh release create "v$(node -p 'require("./package.json").version')" --generate-notes
 ```
+
+The cleanup release is backward-compatible and adds browser/React Native
+exports, so its expected version bump is **minor** (`0.3.4` → `0.4.0`).
 
 ## Pre-release Checklist
 
@@ -44,14 +35,13 @@ Before releasing:
 
 ## Dry Run
 
-To test the release process without publishing:
-
-1. Run workflow with "Dry run" checked
-2. Review the output to ensure everything looks correct
+Run `npm publish --dry-run` from the clean release candidate and inspect the
+package contents before creating the version commit and tag.
 
 ## Requirements
 
-- **NPM_TOKEN**: Must be set in repository secrets for npm publishing
+- **npm authentication**: The releasing maintainer must be logged in with
+  publish access to the `snstr` package.
 - **Branch**: Releases can only be made from the main branch
 - **Node**: The release uses Node.js 20.x
 
@@ -63,18 +53,17 @@ To test the release process without publishing:
 
 ## After Release
 
-The workflow will provide links to:
-- 📦 [npm package](https://www.npmjs.com/package/snstr)
-- 🏷️ GitHub release page
-- 📊 Bundle size info
+- Verify the published version on [npm](https://www.npmjs.com/package/snstr).
+- Verify the tag and GitHub release point to the same commit on `main`.
+- Install the published package in a clean consumer project and exercise both
+  Node and browser conditional exports.
 
 ## Troubleshooting
 
 If the release fails:
 
-1. Check the [Actions log](https://github.com/AustinKelsay/snstr/actions) for errors
-2. Ensure NPM_TOKEN is correctly set in repository secrets
-3. Verify you're on the main branch
-4. Make sure all tests pass locally
-
-For manual releases, ensure you have npm publish permissions for the snstr package.
+1. Verify `npm whoami` and package publish permissions.
+2. Verify you're on the main branch and the working tree is clean.
+3. Re-run `npm run release:prepare` and `npm publish --dry-run`.
+4. If a tag was pushed but publishing failed, fix the publishing issue without
+   reusing or moving an already published version tag.

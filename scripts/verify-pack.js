@@ -170,7 +170,9 @@ function verifyWebEntryGraph(entryTarget) {
     "nip46/simple-bunker.js",
     "nip46/simple-client.js",
     "nip46/utils/auth.js",
-    "nip47/",
+    "nip47/client.js",
+    "nip47/service.js",
+    "nip47/index.js",
   ];
   // These exact Node crypto fallbacks are runtime-guarded and preserve Node 16
   // and pure-ESM compatibility. Any new file, form, or dependency must be

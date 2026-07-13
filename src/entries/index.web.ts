@@ -292,8 +292,8 @@ export type {
 // Export NIP-07 adapter
 export { Nip07Nostr } from "../nip07/adapter";
 
-// NIP-46 utilities are Node-oriented; omit from RN/web entry to reduce bundle size
-// Consumers can import platform-appropriate implementations directly if needed.
+// NIP-46 implementations are Node-oriented; expose only platform-safe protocol enums.
+export { NIP46Method } from "../nip46/types";
 
 // NIP-57: Lightning Zaps
 export {
@@ -334,7 +334,15 @@ export {
   parseBolt11Invoice,
 } from "../nip57/utils";
 
-// NIP-47 is Node-leaning and may pull NIP-04; omit from RN/web entry.
+// NIP-47 wallet implementations are Node-leaning; expose platform-safe protocol enums.
+export {
+  NIP47Method,
+  NIP47EventKind,
+  NIP47NotificationType,
+  NIP47ErrorCode,
+  TransactionType,
+  NIP47EncryptionScheme,
+} from "../nip47/types";
 
 // NIP-50 search utilities
 export { createSearchFilter } from "../nip50";

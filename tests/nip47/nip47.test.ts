@@ -628,9 +628,13 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         await diagnosticService.init();
         expect(messages).toEqual(
           expect.arrayContaining([
-            expect.stringContaining("Service connected to relays"),
+            expect.stringContaining("Service connected to configured relays"),
           ]),
         );
+        const diagnostics = messages.join("\n");
+        expect(diagnostics).not.toContain(relay.url);
+        expect(diagnostics).not.toContain(serviceKeys.publicKey);
+        expect(diagnostics).not.toContain(serviceKeys.privateKey);
       } finally {
         await diagnosticService.disconnect();
       }
@@ -652,11 +656,19 @@ describe("NIP-47: Nostr Wallet Connect", () => {
 
       try {
         await diagnosticClient.init();
+        await diagnosticClient.getInfo();
         expect(messages).toEqual(
           expect.arrayContaining([
-            expect.stringContaining("Client connected to relays"),
+            expect.stringContaining("Client connected to configured relays"),
           ]),
         );
+        const diagnostics = messages.join("\n");
+        expect(diagnostics).not.toContain(relay.url);
+        expect(diagnostics).not.toContain(connectionOptions.pubkey);
+        expect(diagnostics).not.toContain(connectionOptions.secret);
+        expect(diagnostics).not.toContain(diagnosticClient.getPublicKey());
+        expect(diagnostics).not.toMatch(/\b[0-9a-f]{64}\b/i);
+        expect(diagnostics).not.toMatch(/event id|request id|subscription ids?/i);
       } finally {
         await diagnosticClient.disconnect();
       }

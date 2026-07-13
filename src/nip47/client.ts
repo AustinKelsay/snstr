@@ -286,7 +286,7 @@ export class NostrWalletConnectClient {
       // Connect to relays
       await this.client.connectToRelays();
       this.assertInitializationCurrent(generation);
-      this.logger.info(`Client connected to relays: ${this.relays.join(", ")}`);
+      this.logger.info("Client connected to configured relays");
 
       // Set up subscription to receive responses
       attemptSubIds = this.setupSubscription();
@@ -470,15 +470,13 @@ export class NostrWalletConnectClient {
 
     const subIds = this.client.subscribe(
       [responseFilter, infoFilter],
-      (event: NostrEvent, relay: string) => {
-        this.logger.debug(
-          `Received event: ${event.id} of kind ${event.kind} from ${relay}`,
-        );
+      (event: NostrEvent, _relay: string) => {
+        this.logger.debug(`Received event of kind ${event.kind}`);
 
         this.handleEvent(event);
       },
     );
-    this.logger.debug(`Subscription IDs: ${subIds.join(", ")}`);
+    this.logger.debug(`Established ${subIds.length} client subscription(s)`);
     return subIds;
   }
 
@@ -487,7 +485,6 @@ export class NostrWalletConnectClient {
    */
   private async handleEvent(event: NostrEvent): Promise<void> {
     this.logger.debug(`Handling event of kind ${event.kind}`);
-    this.logger.debug(`Event id: ${event.id}`);
 
     if (event.kind === NIP47EventKind.RESPONSE) {
       this.logger.debug(
@@ -671,12 +668,12 @@ export class NostrWalletConnectClient {
         `Validated response of type: ${(response as NIP47Response).result_type}`,
       );
 
-      this.logger.debug(`Found request ID from e-tag: ${requestId}`);
+      this.logger.debug("Correlated response with a pending request");
 
       // Resolve the pending request
       pendingRequest.resolve(response as NIP47Response);
       this.pendingRequests.delete(requestId);
-      this.logger.debug(`Request ${requestId} resolved successfully`);
+      this.logger.debug("Pending request resolved successfully");
     } catch (error) {
       if (error instanceof SecurityValidationError) {
         this.logger.warn(
