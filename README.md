@@ -79,13 +79,18 @@ SNSTR currently implements the following Nostr Implementation Possibilities (NIP
 - **NIP-17**: Gift wrapped direct messages using NIP-44 encryption
 - **NIP-19**: Bech32-encoded entities for human-readable identifiers
 - **NIP-21**: URI scheme for nostr links
+- **NIP-29**: Relay-based groups, membership, roles, and group metadata
+- **NIP-42**: Client authentication to relays
 - **NIP-44**: Improved encryption with ChaCha20 and HMAC-SHA256 authentication
 - **NIP-46**: Remote signing (bunker) support for secure key management
 - **NIP-47**: Nostr Wallet Connect for secure wallet communication
 - **NIP-50**: Search capability via `search` subscription filters
+- **NIP-56**: Reporting Nostr Events, users, and other entities
 - **NIP-57**: Lightning Zaps protocol for Bitcoin payments via Lightning
 - **NIP-65**: Relay List metadata for read/write relay preferences
 - **NIP-66**: Relay discovery and liveness monitoring
+- **NIP-70**: Protected-event tag helpers for authenticated-author publishing
+- **NIP-86**: Relay management requests with authenticated HTTP calls
 
 For detailed information on each implementation, see the corresponding directories in the `src/` directory (e.g., `src/nip01/`, `src/nip04/`, etc.).
 
@@ -525,13 +530,18 @@ npm run test:nip11    # NIP-11 (Relay Information)
 npm run test:nip17    # NIP-17 (Gift Wrapped Messages)
 npm run test:nip19    # NIP-19 (Bech32 Entities)
 npm run test:nip21    # NIP-21 (URI Scheme)
+npm run test:nip29    # NIP-29 (Relay-based Groups)
+npm run test:nip42    # NIP-42 (Relay Authentication)
 npm run test:nip44    # NIP-44 (Versioned Encryption)
 npm run test:nip46    # NIP-46 (Remote Signing)
 npm run test:nip47    # NIP-47 (Wallet Connect)
 npm run test:nip50    # NIP-50 (Search Capability)
+npm run test:nip56    # NIP-56 (Reporting)
 npm run test:nip57    # NIP-57 (Lightning Zaps)
 npm run test:nip65    # NIP-65 (Relay List Metadata)
 npm run test:nip66    # NIP-66 (Relay Discovery)
+npm run test:nip70    # NIP-70 (Protected Events)
+npm run test:nip86    # NIP-86 (Relay Management)
 ```
 
 The test suite is organized by NIP number, with dedicated directories for each implemented NIP (e.g., `tests/nip01/`, `tests/nip04/`, etc.). This structure allows for focused testing of specific implementations while maintaining comprehensive coverage.
@@ -600,13 +610,18 @@ npm run test:nip11         # NIP-11 (Relay Information)
 npm run test:nip17         # NIP-17 (Direct Messages)
 npm run test:nip19         # NIP-19 (Bech32 Entities)
 npm run test:nip21         # NIP-21 (URI Scheme)
+npm run test:nip29         # NIP-29 (Relay-based Groups)
+npm run test:nip42         # NIP-42 (Relay Authentication)
 npm run test:nip44         # NIP-44 (Versioned Encryption)
 npm run test:nip46         # NIP-46 (Remote Signing)
 npm run test:nip47         # NIP-47 (Wallet Connect)
 npm run test:nip50         # NIP-50 (Search Capability)
+npm run test:nip56         # NIP-56 (Reporting)
 npm run test:nip57         # NIP-57 (Lightning Zaps)
 npm run test:nip65         # NIP-65 (Relay List Metadata)
 npm run test:nip66         # NIP-66 (Relay Discovery)
+npm run test:nip70         # NIP-70 (Protected Events)
+npm run test:nip86         # NIP-86 (Relay Management)
 ```
 
 ### Example Scripts

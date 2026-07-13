@@ -1,5 +1,5 @@
 import { NIP46Request, NIP46Method } from "../types";
-import { Logger, LogLevel } from "./logger";
+import { Logger, LogLevel } from "../../utils/logger";
 
 /**
  * Enhanced validation utilities for NIP-46 security

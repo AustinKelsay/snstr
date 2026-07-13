@@ -4,7 +4,7 @@ import {
   generateKeypair,
 } from "../../../src";
 import { NIP46Error } from "../../../src/nip46/types";
-import { LogLevel } from "../../../src/nip46/utils/logger";
+import { LogLevel } from "../../../src/utils/logger";
 import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 
 async function main() {

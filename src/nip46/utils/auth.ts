@@ -2,7 +2,7 @@
  * NIP-46 Auth URL validation utilities
  */
 
-import { Logger } from "./logger";
+import { Logger } from "../../utils/logger";
 
 /**
  * Sanitize URL for safe logging by removing sensitive parts
@@ -28,10 +28,15 @@ export interface AuthUrlValidationOptions {
    * List of allowed domains for auth URLs
    */
   authDomainWhitelist?: string[];
-  /**
-   * Logger instance for debugging
-   */
-  logger?: Logger;
+  /** Structural logger seam for validation diagnostics. */
+  logger?: AuthUrlValidationLogger;
+}
+
+/** Logger methods used by auth URL validation. */
+export interface AuthUrlValidationLogger {
+  warn(message: string, ...args: unknown[]): void;
+  debug(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
 }
 
 /**

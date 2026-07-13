@@ -25,6 +25,7 @@ import {
   SignMessageParams,
   NIP47ResponseResult,
   NIP47EncryptionScheme,
+  NIP47Logger,
 } from "./types";
 import {
   validateArrayAccess,
@@ -32,6 +33,7 @@ import {
   SecurityValidationError,
 } from "../utils/security-validator";
 import { maybeUnref } from "../utils/timers";
+import { Logger, LogLevel } from "../utils/logger";
 
 /**
  * TTL Map implementation with automatic cleanup
@@ -162,6 +164,9 @@ export interface NostrWalletServiceOptions {
    * Supported encryption schemes (optional, defaults to both NIP-04 and NIP-44)
    */
   encryptionSchemes?: NIP47EncryptionScheme[];
+
+  /** Optional logger. WARN/ERROR are enabled; INFO/DEBUG/TRACE are suppressed by default. */
+  logger?: NIP47Logger;
 }
 
 /**
@@ -176,6 +181,7 @@ export class NostrWalletService {
   private relays: string[];
   private name: string;
   private client: Nostr;
+  private logger: NIP47Logger;
   private supportedMethods: NIP47Method[];
   private supportedNotificationTypes: NIP47NotificationType[];
   private supportedEncryption: NIP47EncryptionScheme[];
@@ -216,6 +222,9 @@ export class NostrWalletService {
     ];
     this.walletImpl = walletImpl;
     this.client = new Nostr(this.relays);
+    this.logger =
+      options.logger ??
+      new Logger({ level: LogLevel.WARN, prefix: "nip47-service" });
     this.authorizedClients = options.authorizedClients || [];
     // Initialize TTL map with 5 minute TTL and max 1000 entries
     this.requestEncryption = new TTLMap<string, NIP47EncryptionScheme>(
@@ -230,15 +239,15 @@ export class NostrWalletService {
   public async init(): Promise<void> {
     // Connect to relays
     await this.client.connectToRelays();
-    console.log(`Service connected to relays: ${this.relays.join(", ")}`);
+    this.logger.info(`Service connected to relays: ${this.relays.join(", ")}`);
 
     // Set up subscription to receive requests
     this.setupSubscription();
-    console.log(`Service subscribed to requests`);
+    this.logger.info("Service subscribed to requests");
 
     // Publish info event
     await this.publishInfoEvent();
-    console.log(
+    this.logger.info(
       `Service published info event with methods: ${this.supportedMethods.join(", ")}`,
     );
   }
@@ -261,7 +270,10 @@ export class NostrWalletService {
       try {
         await this.client.disconnectFromRelays();
       } catch (error) {
-        console.error("Error disconnecting service from relays:", error);
+        this.logger.error(
+          "Error disconnecting service from relays:",
+          error instanceof Error ? error : String(error),
+        );
       }
 
       // Short delay to allow any other cleanup to complete
@@ -270,7 +282,10 @@ export class NostrWalletService {
         maybeUnref(t);
       });
     } catch (error) {
-      console.error("Error during service disconnect:", error);
+      this.logger.error(
+        "Error during service disconnect:",
+        error instanceof Error ? error : String(error),
+      );
     }
   }
 
@@ -308,7 +323,9 @@ export class NostrWalletService {
       sig,
     };
 
-    console.log("Publishing INFO event:", JSON.stringify(signedEvent));
+    this.logger.debug(
+      `Publishing INFO event with methods: ${this.supportedMethods.join(", ")}`,
+    );
 
     // Publish the event
     await this.client.publishEvent(signedEvent);
@@ -359,17 +376,15 @@ export class NostrWalletService {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(
-          `NIP-47: Bounds checking error in p-tag parsing: ${error.message}`,
-        );
+        this.logger.warn("NIP-47: Bounds checking error in p-tag parsing");
       }
     }
 
     if (!servicePubkeyTagged || servicePubkeyTagged !== this.pubkey) {
       // If there's no p-tag for us, or it's not for us, ignore.
       // Or, if strict, error back if p-tag is for someone else. For now, ignore.
-      console.warn(
-        `Request ${event.id} not directly addressed to this service based on p-tag. Expected ${this.pubkey}, got ${servicePubkeyTagged}. Ignoring.`,
+      this.logger.warn(
+        "Request not directly addressed to this service based on p-tag. Ignoring.",
       );
       return;
     }
@@ -404,18 +419,14 @@ export class NostrWalletService {
         }
       } catch (error) {
         if (error instanceof SecurityValidationError) {
-          console.warn(
-            `NIP-47: Bounds checking error in expiration parsing: ${error.message}`,
-          );
+          this.logger.warn("NIP-47: Bounds checking error in expiration parsing");
         }
       }
 
       if (expirationTimestamp) {
         const now = getUnixTime();
         if (now > expirationTimestamp) {
-          console.log(
-            `Request ${event.id} has already expired (${expirationTimestamp} < ${now}).`,
-          );
+          this.logger.debug("Request has already expired");
 
           // Determine encryption scheme from the request for the error response
           const encryptionTag = event.tags.find(
@@ -450,9 +461,7 @@ export class NostrWalletService {
         this.authorizedClients.length > 0 &&
         !this.authorizedClients.includes(requesterClientPubkey)
       ) {
-        console.error(
-          `Client ${requesterClientPubkey} not authorized to use the service. Request ID: ${event.id}`,
-        );
+        this.logger.error("Client is not authorized to use the service");
 
         // Determine encryption scheme from the request for the error response
         const encryptionTag = event.tags.find((tag) => tag[0] === "encryption");
@@ -476,10 +485,7 @@ export class NostrWalletService {
         return;
       }
 
-      console.log(
-        `Handling request from ${requesterClientPubkey}. Event ID: ${event.id}`,
-      );
-      console.log(`Event content length: ${event.content.length}`);
+      this.logger.debug("Handling NIP-47 request");
 
       // Extract encryption scheme from request
       let requestEncryption: NIP47EncryptionScheme =
@@ -509,16 +515,16 @@ export class NostrWalletService {
         }
       } catch (error) {
         if (error instanceof SecurityValidationError) {
-          console.warn(
-            `NIP-47: Bounds checking error in encryption tag parsing: ${error.message}`,
+          this.logger.warn(
+            "NIP-47: Bounds checking error in encryption tag parsing",
           );
         }
       }
 
       // Check if we support the requested encryption
       if (!this.supportedEncryption.includes(requestEncryption)) {
-        console.error(
-          `Unsupported encryption scheme ${requestEncryption} for event ${event.id}`,
+        this.logger.error(
+          `Unsupported encryption scheme: ${requestEncryption}`,
         );
         // Since we can't decrypt, we can't send an encrypted error response
         // Following NIP-47 spec, we should not respond
@@ -543,14 +549,13 @@ export class NostrWalletService {
             event.content,
           );
         }
-        console.log(
-          "Successfully decrypted content: ",
-          decryptedContent.substring(0, 50) + "...",
+        this.logger.trace(
+          "Successfully decrypted request content",
         );
       } catch (decryptError) {
-        console.error(
-          `Failed to decrypt message for event ${event.id}:`,
-          decryptError,
+        this.logger.error(
+          "Failed to decrypt message:",
+          decryptError instanceof Error ? decryptError : String(decryptError),
         );
         // Do not send an error response here as per NIP-47 spec (section: "failed to decrypt")
         // "The recipient SHOULD NOT send a response event if it cannot decrypt the content."
@@ -568,8 +573,8 @@ export class NostrWalletService {
 
         if (timeoutDurationMs <= 0) {
           // This case should ideally be caught by the earlier check, but as a safeguard after decryption:
-          console.log(
-            `Request ${event.id} (method: ${nip47Request.method}) expired just before wallet call.`,
+          this.logger.debug(
+            `Request (method: ${nip47Request.method}) expired just before wallet call`,
           );
           const errorRsp = this.createErrorResponse(
             nip47Request.method,
@@ -590,8 +595,8 @@ export class NostrWalletService {
 
         const timeoutPromise = new Promise<NIP47Response>((resolve) => {
           timeoutHandle = setTimeout(() => {
-            console.log(
-              `Request ${event.id} (method: ${nip47Request!.method}) timed out during wallet processing.`,
+            this.logger.debug(
+              `Request (method: ${nip47Request!.method}) timed out during wallet processing`,
             );
             resolve(
               this.createErrorResponse(
@@ -619,7 +624,10 @@ export class NostrWalletService {
     } catch (error) {
       // General error handling for unexpected issues during the try block
       // (e.g., JSON parsing error if content is not valid JSON after decryption, or other unexpected errors)
-      console.error(`Error processing request ${event.id}:`, error);
+      this.logger.error(
+        "Error processing request:",
+        error instanceof Error ? error : String(error),
+      );
 
       // Determine method if possible, otherwise use UNKNOWN
       const methodForError = nip47Request?.method || NIP47Method.UNKNOWN;
@@ -640,8 +648,8 @@ export class NostrWalletService {
       } else {
         // If decryption was not even attempted or failed in a way that decryptedContent is still undefined,
         // and we somehow reached here, log it but don't send NIP-47 error to avoid breaking NIP-47 rule for decryption failure.
-        console.error(
-          `Unhandled error for event ${event.id} where decryption state is unclear. No NIP-47 response sent.`,
+        this.logger.error(
+          "Unhandled error where decryption state is unclear. No response sent.",
         );
       }
     } finally {
@@ -673,9 +681,8 @@ export class NostrWalletService {
     // Create the event
     const unsignedEvent = createEvent(eventTemplate, this.pubkey);
 
-    console.log(`Encrypting response for ${clientPubkey}`);
-    console.log(`Response will reference request ID: ${requestId}`);
-    console.log(`Response tags: ${JSON.stringify(unsignedEvent.tags)}`);
+    this.logger.debug("Encrypting response");
+    this.logger.debug(`Response will reference request ID: ${requestId}`);
 
     // Get the encryption scheme used in the request
     const encryptionScheme =
@@ -705,18 +712,11 @@ export class NostrWalletService {
     // Sign the event
     const signedEvent = await createSignedEvent(unsignedEvent, this.privkey);
 
-    console.log(
-      `Sending response for request ${requestId}:`,
-      JSON.stringify(response).substring(0, 100) + "...",
-    );
-    console.log(`Response event ID: ${signedEvent.id}`);
-
-    // Debug logs to confirm tags
-    console.log("Final response tags:", JSON.stringify(signedEvent.tags));
+    this.logger.debug(`Sending response for request ${requestId}`);
 
     // Publish the event
     await this.client.publishEvent(signedEvent);
-    console.log(`Response published successfully!`);
+    this.logger.debug("Response published successfully");
   }
 
   /**
@@ -1069,12 +1069,10 @@ export class NostrWalletService {
           );
           await this.client.publishEvent(signedEvent);
 
-          console.log(
-            `Successfully sent NIP-04 notification to ${clientPubkey}`,
-          );
+          this.logger.debug("Successfully sent NIP-04 notification");
         } catch (error) {
-          console.error(
-            `Failed to send NIP-04 notification to ${clientPubkey}:`,
+          this.logger.error(
+            "Failed to send NIP-04 notification:",
             error instanceof Error ? error.message : String(error),
           );
           // Don't rethrow - allow other notifications to be sent
@@ -1107,12 +1105,10 @@ export class NostrWalletService {
           );
           await this.client.publishEvent(signedEvent);
 
-          console.log(
-            `Successfully sent NIP-44 notification to ${clientPubkey}`,
-          );
+          this.logger.debug("Successfully sent NIP-44 notification");
         } catch (error) {
-          console.error(
-            `Failed to send NIP-44 notification to ${clientPubkey}:`,
+          this.logger.error(
+            "Failed to send NIP-44 notification:",
             error instanceof Error ? error.message : String(error),
           );
           // Don't rethrow - allow other notifications to be sent

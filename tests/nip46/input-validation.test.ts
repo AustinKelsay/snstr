@@ -752,6 +752,18 @@ describe("NIP-46 Input Validation Security", () => {
       expect(isValidAuthUrl("http://insecure.com/auth")).toBe(false);
     });
 
+    test("accepts a structural logger for validation diagnostics", () => {
+      const warnings: string[] = [];
+      const logger = {
+        warn: (message: string) => warnings.push(message),
+        debug: (_message: string) => {},
+        error: (_message: string) => {},
+      };
+
+      expect(isValidAuthUrl("http://insecure.com/auth", { logger })).toBe(false);
+      expect(warnings).toContain("Auth URL must use HTTPS");
+    });
+
     test("handles case-insensitive domain matching", () => {
       const authDomainWhitelist = ["TrustedDomain.com", "AUTH.example.com"];
 
