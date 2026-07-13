@@ -24,13 +24,13 @@ import {
 describe("web entry relay metadata exports", () => {
   it("uses the shared web entry for browser and React Native targets", () => {
     const rootExports = packageJson.exports["."] as {
-      browser: string;
+      browser: { default: string; types: string };
       import: string;
-      "react-native": string;
+      "react-native": { default: string; types: string };
       require: string;
     };
 
-    expect(rootExports["react-native"]).toBe(rootExports.browser);
+    expect(rootExports["react-native"]).toEqual(rootExports.browser);
     const conditionOrder = Object.keys(rootExports);
     for (const platform of ["browser", "react-native"]) {
       expect(conditionOrder.indexOf(platform)).toBeLessThan(
@@ -42,7 +42,7 @@ describe("web entry relay metadata exports", () => {
     }
 
     const nip04Exports = packageJson.exports["./nip04"] as typeof rootExports;
-    expect(nip04Exports["react-native"]).toBe(nip04Exports.browser);
+    expect(nip04Exports["react-native"]).toEqual(nip04Exports.browser);
     const nip04ConditionOrder = Object.keys(nip04Exports);
     for (const platform of ["browser", "react-native"]) {
       expect(nip04ConditionOrder.indexOf(platform)).toBeLessThan(

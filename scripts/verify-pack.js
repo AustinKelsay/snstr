@@ -13,6 +13,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const { builtinModules } = require("module");
+const ts = require("typescript");
 
 const repoRoot = path.resolve(__dirname, "..");
 
@@ -20,6 +21,12 @@ function toPackPath(p) {
   if (typeof p !== "string" || p.length === 0) return null;
   // NPM pack lists paths without a leading "./".
   return p.startsWith("./") ? p.slice(2) : p;
+}
+
+function runtimeConditionTarget(condition) {
+  if (typeof condition === "string") return condition;
+  if (!condition || typeof condition !== "object") return null;
+  return condition.default ?? condition.import ?? condition.require ?? null;
 }
 
 function collectExportTargets(node, out) {
@@ -99,7 +106,7 @@ function verifyPlatformConditionOrder(exportsMap) {
 
     if (
       platforms.length === 2 &&
-      conditions["react-native"] !== conditions.browser
+      JSON.stringify(conditions["react-native"]) !== JSON.stringify(conditions.browser)
     ) {
       fail(`${subpath} resolves browser and React Native to different targets`);
     }
@@ -115,6 +122,36 @@ function verifyPlatformConditionOrder(exportsMap) {
             `${subpath} places ${JSON.stringify(platform)} after ${JSON.stringify(competing)}; conditional exports use first-match order`,
           );
         }
+      }
+    }
+  }
+}
+
+function verifyPlatformTypeResolution() {
+  const cases = [
+    ["snstr", "dist/esm/src/entries/index.web.d.ts"],
+    ["snstr/nip04", "dist/esm/src/nip04/web.d.ts"],
+  ];
+  const containingFile = path.join(repoRoot, "scripts", "platform-consumer.ts");
+
+  for (const condition of ["browser", "react-native"]) {
+    for (const [moduleName, expectedTarget] of cases) {
+      const resolution = ts.resolveModuleName(
+        moduleName,
+        containingFile,
+        {
+          customConditions: [condition],
+          module: ts.ModuleKind.NodeNext,
+          moduleResolution: ts.ModuleResolutionKind.NodeNext,
+        },
+        ts.sys,
+      );
+      const expectedPath = path.join(repoRoot, expectedTarget);
+
+      if (resolution.resolvedModule?.resolvedFileName !== expectedPath) {
+        fail(
+          `${moduleName} under ${condition} resolves declarations to ${resolution.resolvedModule?.resolvedFileName ?? "nothing"}; expected ${expectedPath}`,
+        );
       }
     }
   }
@@ -220,6 +257,7 @@ const pkgPath = path.join(repoRoot, "package.json");
 const pkg = readJson(pkgPath);
 
 verifyPlatformConditionOrder(pkg.exports);
+verifyPlatformTypeResolution();
 
 const referenced = new Set();
 
@@ -262,7 +300,9 @@ if (presentForbiddenBuildTrees.length) {
   );
 }
 
-const webEntryTarget = toPackPath(pkg.exports?.["."]?.browser);
+const webEntryTarget = toPackPath(
+  runtimeConditionTarget(pkg.exports?.["."]?.browser),
+);
 if (!webEntryTarget) {
   fail("Missing browser target for the root package export");
 }
