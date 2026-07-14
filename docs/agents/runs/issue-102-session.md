@@ -5,8 +5,8 @@
 - Issue: #102 — Quiet and harden the ephemeral Relay lifecycle
 - Fixed point before session: `c3e76df`
 - Worker session: `/root/issue_102_worker`
-- Commit: pending
-- Status: implementation and two-axis review complete
+- Commit: `2b163e0`
+- Status: complete
 
 ## Inputs
 
