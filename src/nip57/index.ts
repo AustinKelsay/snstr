@@ -13,6 +13,7 @@ import { NostrEvent, EventTemplate } from "../types/nostr";
 import { createEvent } from "../nip01/event";
 import { sha256Hex, verifySignatureSync } from "../utils/crypto";
 import { parseBolt11Invoice } from "./utils";
+import type { DiagnosticLogger } from "../utils/logger";
 export type { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 
 // Export values and types from client.ts
@@ -197,11 +198,13 @@ export function createZapReceipt(
  * Validate a zap receipt event
  * @param zapReceipt The zap receipt event
  * @param lnurlPubkey The pubkey of the LNURL server
+ * @param logger Optional canonical diagnostic logger
  * @returns Validation result
  */
 export function validateZapReceipt(
   zapReceipt: NostrEvent,
   lnurlPubkey: string,
+  logger?: DiagnosticLogger,
 ): ZapValidationResult {
   // Check basics
   if (!zapReceipt) {
@@ -319,7 +322,9 @@ export function validateZapReceipt(
     const bolt11 = bolt11Tag[1];
 
     // Parse bolt11 invoice to extract description hash
-    const parsedInvoice = parseBolt11Invoice(bolt11);
+    const parsedInvoice = logger
+      ? parseBolt11Invoice(bolt11, logger)
+      : parseBolt11Invoice(bolt11);
     if (!parsedInvoice) {
       return { valid: false, message: "Failed to parse bolt11 invoice" };
     }

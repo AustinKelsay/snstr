@@ -27,11 +27,9 @@ import {
   supportsNostrZaps,
   buildZapCallbackUrl,
 } from "./utils";
-import {
-  validateArrayAccess,
-  safeArrayAccess,
-  SecurityValidationError,
-} from "../utils/security-validator";
+import { Logger } from "../utils/logger";
+import type { DiagnosticLogger } from "../utils/logger";
+import { reportNIP57Diagnostic } from "./diagnostics";
 
 /**
  * Options for the ZapClient
@@ -42,6 +40,9 @@ export interface ZapClientOptions {
 
   /** Default relay URLs to use when not specified explicitly */
   defaultRelays?: string[];
+
+  /** Receives NIP-57 diagnostics. Quiet by default. */
+  logger?: DiagnosticLogger;
 }
 
 /**
@@ -119,6 +120,7 @@ export interface ZapStats {
 export class NostrZapClient {
   private client: Nostr;
   private defaultRelays: string[];
+  private logger: DiagnosticLogger;
 
   /**
    * Create a new zap client
@@ -130,35 +132,97 @@ export class NostrZapClient {
 
     /** Default relay URLs to use when not specified explicitly */
     defaultRelays?: string[];
+
+    /** Receives NIP-57 diagnostics. Quiet by default. */
+    logger?: DiagnosticLogger;
   }) {
     this.client = options.client;
     this.defaultRelays = options.defaultRelays || [];
+    this.logger = options.logger ?? new Logger({ silent: true });
   }
 
-  /**
-   * Private method to safely unsubscribe from a subscription
-   *
-   * @param subscriptionIds Array of subscription IDs
-   * @param context Context string for error logging
-   */
-  private cleanupSubscription(
-    subscriptionIds: string[],
-    context: string = "cleanup",
-  ): void {
-    try {
-      if (validateArrayAccess(subscriptionIds, 0)) {
-        const subId = safeArrayAccess(subscriptionIds, 0);
-        if (typeof subId === "string") {
-          this.client.unsubscribe([subId]);
+  /** Collect matching zap receipts until the first EOSE or the legacy timeout. */
+  private collectZapReceipts(filter: Filter): Promise<NostrEvent[]> {
+    return new Promise((resolve, reject) => {
+      const events: NostrEvent[] = [];
+      const activeSubscriptionIds = new Set<string>();
+      let isSettled = false;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+      const releaseSubscriptions = () => {
+        const subscriptionIds = Array.from(activeSubscriptionIds);
+        activeSubscriptionIds.clear();
+        for (const subscriptionId of subscriptionIds) {
+          try {
+            this.client.unsubscribe([subscriptionId]);
+          } catch (error) {
+            reportNIP57Diagnostic(
+              this.logger,
+              "warn",
+              "Failed to release NIP-57 Relay subscriptions",
+              {
+                error,
+                subscriptionIds: [subscriptionId],
+              },
+            );
+          }
         }
-      }
-    } catch (error) {
-      if (error instanceof SecurityValidationError) {
-        console.warn(
-          `NIP-57: Bounds checking error in ${context}: ${error.message}`,
+      };
+
+      const settle = () => {
+        if (isSettled) return;
+        isSettled = true;
+
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+
+        releaseSubscriptions();
+        resolve(events);
+      };
+
+      try {
+        const subscriptionIds = this.client.subscribe(
+          [filter],
+          (event) => {
+            if (!isSettled) events.push(event);
+          },
+          settle,
         );
+        if (!Array.isArray(subscriptionIds)) {
+          throw new TypeError(
+            "NIP-57 Relay subscription did not return subscription IDs",
+          );
+        }
+        let hasMalformedSubscriptionId = false;
+        for (const subscriptionId of subscriptionIds) {
+          if (typeof subscriptionId === "string") {
+            activeSubscriptionIds.add(subscriptionId);
+          } else {
+            hasMalformedSubscriptionId = true;
+          }
+        }
+        if (hasMalformedSubscriptionId) {
+          throw new TypeError(
+            "NIP-57 Relay subscription returned a malformed subscription ID",
+          );
+        }
+      } catch (error) {
+        isSettled = true;
+        releaseSubscriptions();
+        reject(error);
+        return;
       }
-    }
+
+      // A Relay adapter may reach EOSE synchronously before subscribe returns.
+      if (isSettled) {
+        releaseSubscriptions();
+        return;
+      }
+
+      timeoutId = setTimeout(settle, 10000);
+    });
   }
 
   /**
@@ -174,6 +238,7 @@ export class NostrZapClient {
     const zapClient = new ZapClient({
       nostrClient: this.client,
       defaultRelays: this.defaultRelays,
+      logger: this.logger,
     });
     return zapClient.canReceiveZaps(pubkey, lnurl);
   }
@@ -228,6 +293,7 @@ export class NostrZapClient {
     const zapClient = new ZapClient({
       nostrClient: this.client,
       defaultRelays: this.defaultRelays,
+      logger: this.logger,
     });
 
     // Get the invoice
@@ -279,29 +345,7 @@ export class NostrZapClient {
       filter.authors = options.authors;
     }
 
-    // Create a promise to collect events
-    return new Promise((resolve) => {
-      const events: NostrEvent[] = [];
-
-      // Subscribe to zap receipts
-      const subscriptionIds = this.client.subscribe(
-        [filter],
-        (event) => {
-          events.push(event);
-        },
-        () => {
-          // On EOSE, resolve with collected events
-          this.cleanupSubscription(subscriptionIds);
-          resolve(events);
-        },
-      );
-
-      // Set a timeout in case EOSE never comes
-      setTimeout(() => {
-        this.cleanupSubscription(subscriptionIds, "timeout");
-        resolve(events);
-      }, 10000);
-    });
+    return this.collectZapReceipts(filter);
   }
 
   /**
@@ -342,12 +386,7 @@ export class NostrZapClient {
 
         // Check if the sender is the specified pubkey
         return zapRequest.pubkey === pubkey;
-      } catch (e) {
-        if (e instanceof SecurityValidationError) {
-          console.warn(
-            `NIP-57: Bounds checking error in zap filtering: ${e.message}`,
-          );
-        }
+      } catch {
         return false;
       }
     });
@@ -382,29 +421,7 @@ export class NostrZapClient {
       filter.authors = options.authors;
     }
 
-    // Create a promise to collect events
-    return new Promise((resolve) => {
-      const events: NostrEvent[] = [];
-
-      // Subscribe to zap receipts
-      const subscriptionIds = this.client.subscribe(
-        [filter],
-        (event) => {
-          events.push(event);
-        },
-        () => {
-          // On EOSE, resolve with collected events
-          this.cleanupSubscription(subscriptionIds);
-          resolve(events);
-        },
-      );
-
-      // Set a timeout in case EOSE never comes
-      setTimeout(() => {
-        this.cleanupSubscription(subscriptionIds, "timeout");
-        resolve(events);
-      }, 10000);
-    });
+    return this.collectZapReceipts(filter);
   }
 
   /**
@@ -437,29 +454,7 @@ export class NostrZapClient {
       filter["#e"] = options.events as string[];
     }
 
-    // Create a promise to collect events
-    return new Promise((resolve) => {
-      const events: NostrEvent[] = [];
-
-      // Subscribe to zap receipts
-      const subscriptionIds = this.client.subscribe(
-        [filter],
-        (event) => {
-          events.push(event);
-        },
-        () => {
-          // On EOSE, resolve with collected events
-          this.cleanupSubscription(subscriptionIds);
-          resolve(events);
-        },
-      );
-
-      // Set a timeout in case EOSE never comes
-      setTimeout(() => {
-        this.cleanupSubscription(subscriptionIds, "timeout");
-        resolve(events);
-      }, 10000);
-    });
+    return this.collectZapReceipts(filter);
   }
 
   /**
@@ -479,7 +474,11 @@ export class NostrZapClient {
     zapReceipt: NostrEvent,
     lnurlPubkey?: string,
   ): ZapValidationResult {
-    return validateZapReceipt(zapReceipt, lnurlPubkey || zapReceipt.pubkey);
+    return validateZapReceipt(
+      zapReceipt,
+      lnurlPubkey || zapReceipt.pubkey,
+      this.logger,
+    );
   }
 
   /**
@@ -661,6 +660,7 @@ export class NostrZapClient {
 export class ZapClient {
   private nostrClient: Nostr;
   private defaultRelays: string[];
+  private logger: DiagnosticLogger;
   private lnurlCache: Map<
     string,
     { pubkey: string; lnurl: string; supportsZaps: boolean }
@@ -673,6 +673,7 @@ export class ZapClient {
   constructor(options: ZapClientOptions) {
     this.nostrClient = options.nostrClient;
     this.defaultRelays = options.defaultRelays || [];
+    this.logger = options.logger ?? new Logger({ silent: true });
   }
 
   /**
@@ -701,7 +702,7 @@ export class ZapClient {
       }
 
       // Fetch and validate LNURL metadata
-      const metadata = await fetchLnurlPayMetadata(lnurl);
+      const metadata = await fetchLnurlPayMetadata(lnurl, this.logger);
       if (!metadata) {
         this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps: false });
         return false;
@@ -715,7 +716,12 @@ export class ZapClient {
 
       return supportsZaps;
     } catch (error) {
-      console.error("Error checking zap support:", error);
+      reportNIP57Diagnostic(
+        this.logger,
+        "error",
+        "Failed to check zap support",
+        { error },
+      );
       return false;
     }
   }
@@ -750,7 +756,7 @@ export class ZapClient {
       }
 
       // Fetch LNURL metadata
-      const metadata = await fetchLnurlPayMetadata(options.lnurl);
+      const metadata = await fetchLnurlPayMetadata(options.lnurl, this.logger);
       if (!metadata) {
         return {
           invoice: "",
@@ -850,7 +856,9 @@ export class ZapClient {
         successAction: invoiceData.successAction,
       };
     } catch (error) {
-      console.error("Error getting zap invoice:", error);
+      reportNIP57Diagnostic(this.logger, "error", "Failed to get zap invoice", {
+        error,
+      });
       return {
         invoice: "",
         zapRequest: {} as NostrEvent,
@@ -869,7 +877,7 @@ export class ZapClient {
     zapReceipt: NostrEvent,
     lnurlPubkey: string,
   ): ZapValidationResult {
-    return validateZapReceipt(zapReceipt, lnurlPubkey);
+    return validateZapReceipt(zapReceipt, lnurlPubkey, this.logger);
   }
 
   /**

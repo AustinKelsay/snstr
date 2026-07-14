@@ -5,6 +5,8 @@
 import { LnurlPayResponse } from "./index";
 import { bech32 } from "@scure/base";
 import { decode } from "light-bolt11-decoder";
+import type { DiagnosticLogger } from "../utils/logger";
+import { reportNIP57Diagnostic } from "./diagnostics";
 
 /**
  * Type definition for bolt11 invoice decoding
@@ -26,10 +28,12 @@ interface DecodedInvoice {
 /**
  * Converts a Lightning Address (user@domain.com) to a well-known LNURL endpoint URL
  * @param lightningAddress Lightning Address in format user@domain.com
+ * @param logger Optional canonical diagnostic logger
  * @returns URL string or null if invalid address format
  */
 export function getLightningAddressUrl(
   lightningAddress: string,
+  logger?: DiagnosticLogger,
 ): string | null {
   try {
     // Check format
@@ -48,7 +52,12 @@ export function getLightningAddressUrl(
     // Build the LNURL endpoint
     return `https://${domain}/.well-known/lnurlp/${username}`;
   } catch (error) {
-    console.error("Error converting Lightning Address:", error);
+    reportNIP57Diagnostic(
+      logger,
+      "error",
+      "Failed to convert Lightning Address",
+      { error },
+    );
     return null;
   }
 }
@@ -56,10 +65,12 @@ export function getLightningAddressUrl(
 /**
  * Fetches and validates LNURL pay metadata from a URL
  * @param lnurlOrUrl LNURL (bech32-encoded) or direct URL
+ * @param logger Optional canonical diagnostic logger
  * @returns LNURL pay response if valid and supports Nostr, null otherwise
  */
 export async function fetchLnurlPayMetadata(
   lnurlOrUrl: string,
+  logger?: DiagnosticLogger,
 ): Promise<LnurlPayResponse | null> {
   try {
     // Convert LNURL to URL if needed
@@ -67,11 +78,11 @@ export async function fetchLnurlPayMetadata(
 
     // Handle Lightning Address (user@domain.com)
     if (lnurlOrUrl.includes("@")) {
-      url = getLightningAddressUrl(lnurlOrUrl) || lnurlOrUrl;
+      url = getLightningAddressUrl(lnurlOrUrl, logger) || lnurlOrUrl;
     }
     // Handle LNURL (bech32-encoded)
     else if (lnurlOrUrl.toLowerCase().startsWith("lnurl")) {
-      url = decodeLnurl(lnurlOrUrl) || lnurlOrUrl;
+      url = decodeLnurl(lnurlOrUrl, logger) || lnurlOrUrl;
     }
 
     if (!url) {
@@ -107,7 +118,9 @@ export async function fetchLnurlPayMetadata(
       nostrPubkey: data.nostrPubkey,
     };
   } catch (error) {
-    console.error("Error fetching LNURL metadata:", error);
+    reportNIP57Diagnostic(logger, "error", "Failed to fetch LNURL metadata", {
+      error,
+    });
     return null;
   }
 }
@@ -124,9 +137,13 @@ export function supportsNostrZaps(metadata: LnurlPayResponse): boolean {
 /**
  * Decodes an LNURL bech32 string to a URL
  * @param lnurl LNURL string (bech32-encoded)
+ * @param logger Optional canonical diagnostic logger
  * @returns Decoded URL or null if invalid
  */
-export function decodeLnurl(lnurl: string): string | null {
+export function decodeLnurl(
+  lnurl: string,
+  logger?: DiagnosticLogger,
+): string | null {
   try {
     if (!lnurl.toLowerCase().startsWith("lnurl")) {
       return null;
@@ -145,7 +162,9 @@ export function decodeLnurl(lnurl: string): string | null {
     // Convert bytes to URL string
     return new TextDecoder().decode(new Uint8Array(bytes));
   } catch (error) {
-    console.error("Error decoding LNURL:", error);
+    reportNIP57Diagnostic(logger, "error", "Failed to decode LNURL", {
+      error,
+    });
     return null;
   }
 }
@@ -164,9 +183,13 @@ export interface ParsedBolt11Invoice {
 /**
  * Parses a bolt11 invoice and extracts relevant data
  * @param bolt11 The bolt11 invoice string
+ * @param logger Optional canonical diagnostic logger
  * @returns Object with parsed data or null if parsing failed
  */
-export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
+export function parseBolt11Invoice(
+  bolt11: string,
+  logger?: DiagnosticLogger,
+): ParsedBolt11Invoice | null {
   try {
     // Cast to our interface that matches the parts we need
     const decoded = decode(bolt11) as DecodedInvoice;
@@ -240,7 +263,9 @@ export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
 
     return result;
   } catch (error) {
-    console.error("Error parsing bolt11 invoice:", error);
+    reportNIP57Diagnostic(logger, "error", "Failed to parse bolt11 invoice", {
+      error,
+    });
     return null;
   }
 }
@@ -275,10 +300,12 @@ export type LnurlMetadataItem = [string, string];
 /**
  * Extract metadata from LNURL JSON metadata string
  * @param metadataString JSON metadata string from LNURL response
+ * @param logger Optional canonical diagnostic logger
  * @returns Object with extracted metadata or null if invalid
  */
 export function extractLnurlMetadata(
   metadataString: string,
+  logger?: DiagnosticLogger,
 ): Record<string, string> | null {
   try {
     const metadata = JSON.parse(metadataString) as LnurlMetadataItem[];
@@ -301,7 +328,9 @@ export function extractLnurlMetadata(
 
     return result;
   } catch (error) {
-    console.error("Error parsing LNURL metadata:", error);
+    reportNIP57Diagnostic(logger, "error", "Failed to parse LNURL metadata", {
+      error,
+    });
     return null;
   }
 }
