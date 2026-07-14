@@ -25,7 +25,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 - Tickets: #101–#107 — published and ready for implementation
 - Ticket sessions: created as each ticket enters implementation
 - Agent briefs: full Codex worker sessions are the default per ticket; OpenCode GLM-5.2 max completed a read-only architecture pass; Grok is unavailable because the required live model is absent
-- Review packets: #101–#103 standards/spec review and re-review complete; remaining tickets pending
+- Review packets: #101–#105 standards/spec review and re-review complete; remaining tickets pending
 - Local CodeRabbit report: pending
 - PR URL: pending; final target is a non-draft PR into `staging`
 
@@ -42,7 +42,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | Issue | Type | Status | Review thread | Fixes needed | Verified |
 | --- | --- | --- | --- | --- | --- |
 | #101 | AFK | closed | standards + spec passed after one fix | exact NIP-02 contextual type restored | yes |
-| #102 | AFK | closed | standards + spec passed after worthy fixes | late-connect race and compatibility/parity coverage gaps resolved | yes |
+| #102 | AFK | closed | follow-up standards + spec passed after worthy fixes | owned-transport gating, synchronous finalization, and fixed-port isolation added | yes |
 | #103 | AFK | closed | standards + spec passed after worthy fixes | non-throwing diagnostics, exported JSDoc, per-ID cleanup, validation routing, `getZapInvoice` coverage | yes |
 | #104 | AFK | closed | standards + spec passed after public-seam fixes | reachable array-helper cases moved to public Event/NIP-10 behavior | yes |
 | #105 | AFK | closed | standards + spec passed | no review findings | yes |
@@ -61,6 +61,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | --- | --- | --- | --- | --- | --- |
 | #101 | `f63d9eb` | `/root/issue_101_worker` | `fbfb2d6`, `3c1b6b4` | passed after review fix | lint, types, build, pack, 66 suites / 881 tests |
 | #102 | `c3e76df` | `/root/issue_102_worker` | `2b163e0` | standards + spec passed after worthy fixes | focused lifecycle 12/12; related Relay 76/76; lint, types, build, pack, CJS/ESM subpath smoke |
+| #102 follow-up | `163a2f0` | `/root/issue_102_loaded_suite_followup` | `e122d90` | standards + spec passed after worthy fixes | public regression 6/6; focused 32/32; native stress 512 + 768 green 5/5 each; loaded plain 71/71 and 974/974; coverage 71/71 and 972/972 before two added ownership tests |
 | #103 | `599e41f` | `/root/issue_103_worker` | `46ab31a` | standards + spec passed after worthy fixes | focused NIP-57 30/30 with no open handles; lint, types, build, examples, pack |
 | #104 | `6d563ec` | `/root/issue_104_worker` | `7fc91af` | standards + spec passed after worthy fixes | security-validator branches 37.14% → 80.00%; focused 57/57; lint, types, build |
 | #105 | `2acb2d4` | `/root/issue_105_worker` | `574c848` | standards + spec passed | focused NIP-86 15/15 with no open handles; lint, types, build |
