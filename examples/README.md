@@ -19,13 +19,13 @@ npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
 npm run example:custom-websocket # Use a custom WebSocket implementation (requires 'ws' package)
 npm run example:crypto         # Cryptography examples (key generation, signing, verification)
-npm run example:dm             # NIP-04 direct message example
+npm run example:nip04          # NIP-04 direct message example
 
 # Aggregated runners
 npm run example:all            # Alias for the base example
 npm run example:basic          # Run base, crypto, and DM examples
 npm run example:nip01          # Curated bundle of NIP-01 demos
-npm run example:messaging      # Messaging demos (DM, NIP-04, NIP-44, NIP-17)
+npm run example:messaging      # Messaging demos (NIP-04, NIP-44, NIP-17)
 npm run example:identity       # Identity demos (NIP-05, NIP-07, NIP-19)
 npm run example:payments       # Wallet/zap demos (NIP-47, NIP-57)
 npm run example:advanced       # Advanced protocol demos (NIP-46 + extras)
@@ -100,7 +100,6 @@ npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
 npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
 npm run example:nip19:security-example # Advanced security scenarios and mitigations
-npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
 
 ### NIP-10: Text Notes and Threads
 
@@ -198,9 +197,9 @@ You can also run example groups:
 
 ```bash
 npm run example:all           # Run basic example
-npm run example:basic         # Run example, crypto, and dm examples
+npm run example:basic         # Run base, crypto, and NIP-04 examples
 npm run example:nip01         # Run a curated bundle of NIP-01 demos
-npm run example:messaging     # Run dm, nip04, nip44 and nip17 examples
+npm run example:messaging     # Run NIP-04, NIP-44, and NIP-17 examples
 npm run example:identity      # Run nip05, nip07, and nip19 examples
 npm run example:payments      # Run nip47 and nip57 examples
 npm run example:advanced      # Run nip46 and nip47:error-handling examples

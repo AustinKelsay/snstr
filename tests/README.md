@@ -109,7 +109,7 @@ npm run test:event          # Run event creation/validation tests
 Tests are also organized into logical categories:
 
 ```bash
-npm run test:core        # Core functionality (all NIP-01 tests)
+npm run test:nip01       # Core functionality (all NIP-01 tests)
 npm run test:crypto      # All crypto (utils/crypto + NIP-04 + NIP-44)
 npm run test:identity    # Identity-related (NIP-05, NIP-07, NIP-19)
 npm run test:protocols   # Protocol implementations (NIP-46, NIP-47, NIP-57)

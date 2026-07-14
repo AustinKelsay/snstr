@@ -35,7 +35,7 @@ npm run format                   # Format code with Prettier
 npm test                         # Run all tests
 npm run test:watch              # Run tests in watch mode
 npm run test:coverage           # Generate coverage report
-npm run test:core               # Test core NIP-01 functionality
+npm run test:nip01              # Test core NIP-01 functionality
 npm run test:nip04              # Test specific NIP (replace 04 with any NIP number)
 npm run test:crypto             # Test all crypto functionality
 npm run test:integration        # Run integration tests

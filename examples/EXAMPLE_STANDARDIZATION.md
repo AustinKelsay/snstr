@@ -202,8 +202,8 @@ The current package.json includes comprehensive scripts for all examples:
     "example:nip66": "ts-node examples/nip66/nip66-demo.ts",
     
     "// Example Groups": "-------------- Example Groups --------------",
-    "example:basic": "npm run example && npm run example:crypto && npm run example:dm",
-    "example:messaging": "npm run example:dm && npm run example:nip04 && npm run example:nip44 && npm run example:nip17",
+    "example:basic": "npm run example && npm run example:crypto && npm run example:nip04",
+    "example:messaging": "npm run example:nip04 && npm run example:nip44 && npm run example:nip17",
     "example:identity": "npm run example:nip05 && npm run example:nip07 && npm run example:nip19",
     "example:payments": "npm run example:nip47 && npm run example:nip57",
     "example:advanced": "npm run example:nip46 && npm run example:nip47:error-handling"
@@ -255,4 +255,4 @@ To maintain consistency:
 4. Ensure all new examples have proper header comments
 5. Keep the main examples README.md updated with new additions
 
-This standardization will make examples more consistent, easier to navigate, and more helpful for new users of the library. 
+This standardization will make examples more consistent, easier to navigate, and more helpful for new users of the library.
