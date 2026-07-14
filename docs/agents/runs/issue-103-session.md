@@ -5,8 +5,8 @@
 - Issue: #103 — Stabilize and test the public NIP-57 clients
 - Fixed point before session: `599e41f`
 - Worker session: `/root/issue_103_worker`
-- Commit: pending
-- Status: implementation and fixed-point review complete; commit pending
+- Commit: `46ab31a`
+- Status: complete; issue closed with verification evidence
 
 ## Inputs
 
