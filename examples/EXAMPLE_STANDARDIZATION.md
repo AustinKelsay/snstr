@@ -63,7 +63,6 @@ examples/
 ├── nip44/                     # Versioned Encryption
 │   ├── README.md
 │   ├── nip44-demo.ts
-│   ├── nip44-demo.js
 │   ├── nip44-version-compatibility.ts
 │   └── nip44-test-vector.ts
 ├── nip46/                     # Remote Signing

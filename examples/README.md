@@ -62,7 +62,6 @@ npm run example:nip10          # NIP-10 threading and reply management
 npm run example:nip11          # NIP-11 (Relay Information Document)
 npm run example:nip17          # NIP-17 gift wrapped messaging
 npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20)
-npm run example:nip44:js       # NIP-44 JavaScript implementation
 npm run example:nip44:version-compat # NIP-44 version compatibility
 npm run example:nip44:test-vector    # NIP-44 test vectors
 npm run example:nip44:compliance     # NIP-44 compliance/regression demo
@@ -252,7 +251,6 @@ npm run example:validation    # Run validation-focused helper flows
   - `security-example.ts` - Advanced security scenarios and mitigations
 - `/nip44` - [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md) (Encrypted Direct Messages with ChaCha20) examples
   - `nip44-demo.ts` - TypeScript implementation of NIP-44 encryption
-  - `nip44-demo.js` - JavaScript implementation of NIP-44 encryption
   - `nip44-version-compatibility.ts` - Demonstrates versioned encryption compatibility
   - `nip44-test-vector.ts` - Test vectors for NIP-44 encryption
   - `nip44-compliance-demo.ts` - Compliance and regression-focused flows

@@ -435,7 +435,6 @@ npm run example:nip19:tlv      # TLV entity examples
 npm run example:nip19:validation # Validation examples
 npm run example:nip19:security # Security features
 npm run example:nip21          # URI scheme
-npm run example:nip44:js       # JavaScript version of NIP-44
 npm run example:nip44:version-compat # Version compatibility
 npm run example:nip44:test-vector    # Test vector validation
 npm run example:nip46:minimal       # Minimal NIP-46 example
@@ -680,7 +679,6 @@ npm run example:nip19:security    # Relay URL limits and security
 npm run example:nip19:security-example # Advanced security scenarios
 npm run example:nip19:demo        # Comprehensive walkthrough
 npm run example:nip44      # Versioned encryption (NIP-44)
-npm run example:nip44:js   # Plain JavaScript NIP-44 demo
 npm run example:nip44:version-compat # Version compatibility showcase
 npm run example:nip44:test-vector   # Official vector validation
 npm run example:nip44:compliance    # Compliance and regression demo

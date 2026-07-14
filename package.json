@@ -160,7 +160,6 @@
     "example:nip19:demo": "ts-node examples/nip19/nip19-demo.ts",
     "example:nip21": "ts-node examples/nip21/nip21-demo.ts",
     "example:nip44": "ts-node examples/nip44/nip44-demo.ts",
-    "example:nip44:js": "node examples/nip44/nip44-demo.js",
     "example:nip44:version-compat": "ts-node examples/nip44/nip44-version-compatibility.ts",
     "example:nip44:test-vector": "ts-node examples/nip44/nip44-test-vector.ts",
     "example:nip44:compliance": "ts-node examples/nip44/nip44-compliance-demo.ts",

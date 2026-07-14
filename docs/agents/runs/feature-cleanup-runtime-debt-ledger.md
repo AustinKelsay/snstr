@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation; #101–#105 complete
+- Current status: implementation; #101–#105 complete, #107 in progress
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -47,7 +47,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #104 | AFK | closed | standards + spec passed after public-seam fixes | reachable array-helper cases moved to public Event/NIP-10 behavior | yes |
 | #105 | AFK | closed | standards + spec passed | no review findings | yes |
 | #106 | AFK | ready | pending | — | no |
-| #107 | AFK | ready | pending | — | no |
+| #107 | AFK | in progress | pending | — | no |
 
 ## Parked HITL Slices
 
@@ -66,7 +66,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #104 | `6d563ec` | `/root/issue_104_worker` | `7fc91af` | standards + spec passed after worthy fixes | security-validator branches 37.14% → 80.00%; focused 57/57; lint, types, build |
 | #105 | `2acb2d4` | `/root/issue_105_worker` | `574c848` | standards + spec passed | focused NIP-86 15/15 with no open handles; lint, types, build |
 | #106 | pending | pending | — | — | — |
-| #107 | pending | pending | — | — | — |
+| #107 | `b541f06` | `/root/issue_107_worker` | — | pending | red JS command fails with `MODULE_NOT_FOUND`; maintained TypeScript example passes |
 
 ## Open Questions
 
