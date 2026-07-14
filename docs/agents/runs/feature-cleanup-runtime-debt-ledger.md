@@ -25,7 +25,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 - Tickets: #101–#107 — published and ready for implementation
 - Ticket sessions: created as each ticket enters implementation
 - Agent briefs: full Codex worker sessions are the default per ticket; OpenCode GLM-5.2 max completed a read-only architecture pass; Grok is unavailable because the required live model is absent
-- Review packets: pending
+- Review packets: #101 standards/spec review and re-review complete; remaining tickets pending
 - Local CodeRabbit report: pending
 - PR URL: pending; final target is a non-draft PR into `staging`
 
@@ -41,8 +41,8 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 
 | Issue | Type | Status | Review thread | Fixes needed | Verified |
 | --- | --- | --- | --- | --- | --- |
-| #101 | AFK | ready | pending | — | no |
-| #102 | AFK | blocked by #101 | pending | — | no |
+| #101 | AFK | closed | standards + spec passed after one fix | exact NIP-02 contextual type restored | yes |
+| #102 | AFK | ready | pending | — | no |
 | #103 | AFK | blocked by #101, #102 | pending | — | no |
 | #104 | AFK | blocked by #102 | pending | — | no |
 | #105 | AFK | ready | pending | — | no |
@@ -59,7 +59,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| #101 | `697689d` | pending | — | — | — |
+| #101 | `f63d9eb` | `/root/issue_101_worker` | `fbfb2d6`, `3c1b6b4` | passed after review fix | lint, types, build, pack, 66 suites / 881 tests |
 | #102 | pending | pending | — | — | — |
 | #103 | pending | pending | — | — | — |
 | #104 | pending | pending | — | — | — |
