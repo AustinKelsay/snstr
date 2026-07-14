@@ -5,7 +5,6 @@ import { getUnixTime } from "../utils/time";
 import { isValidPublicKeyPoint } from "../nip44";
 import { isValidRelayUrl } from "../nip19";
 import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
-import type { DiagnosticLogger } from "../utils/logger";
 import {
   validateArrayAccess,
   safeArrayAccess,
@@ -83,7 +82,9 @@ export interface LogData {
 }
 
 /** Warn-only diagnostic view accepted by NIP-02 contact parsing. */
-export type WarningLogger = Pick<DiagnosticLogger, "warn">;
+export interface WarningLogger {
+  warn(message: string, data?: LogData): void;
+}
 
 /**
  * Optional logger interface for handling warnings externally.

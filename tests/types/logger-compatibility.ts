@@ -40,6 +40,15 @@ const warningLogger: WarningLogger = warnOnly;
 const legacyNIP02Logger: NIP02Logger = warnOnly;
 const webWarningLogger: WebWarningLogger = warnOnly;
 const webLegacyNIP02Logger: WebNIP02Logger = warnOnly;
+const contextualLegacyNIP02Logger: NIP02Logger = {
+  warn: (_message, data) => {
+    const value: string | undefined = data?.value;
+    const tagIndex: number | undefined = data?.context?.tagIndex;
+    void value;
+    void tagIndex;
+  },
+};
+const consoleWarningLogger: WarningLogger = new ConsoleLogger({ silent: true });
 const legacyNIP47Logger: NIP47Logger = diagnostic;
 const canonicalFromLegacyNIP47: DiagnosticLogger = legacyNIP47Logger;
 const webLegacyNIP47Logger: WebNIP47Logger = diagnostic;
@@ -59,6 +68,8 @@ export {
   legacyNIP02Logger,
   webWarningLogger,
   webLegacyNIP02Logger,
+  contextualLegacyNIP02Logger,
+  consoleWarningLogger,
   legacyNIP47Logger,
   canonicalFromLegacyNIP47,
   webLegacyNIP47Logger,

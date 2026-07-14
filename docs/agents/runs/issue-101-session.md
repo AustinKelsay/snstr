@@ -6,7 +6,8 @@
 - Fixed point before session: `f63d9eb`
 - Worker session: Codex fresh worker `/root/issue_101_worker`
 - Commit: this issue-scoped commit (`feat: unify diagnostic logger contracts (#101)`)
-- Status: implementation complete; awaiting fresh review
+- Review fix commit: this follow-up commit (`fix: preserve NIP-02 logger context (#101)`)
+- Status: implementation complete; worthy fresh-review fix applied
 
 ## Inputs
 
@@ -40,14 +41,19 @@
   - `npm run build` — pass (CommonJS and ESM declarations/runtime output).
   - `npm run pack:verify` — pass (16 targets, 304 files, 48 web modules, 3 guarded Node fallbacks).
 - Full suite command: `npm test -- --runInBand` — 66 suites, 881 tests passed.
+- Review-fix verification:
+  - Red: `npx tsc --noEmit -p tsconfig.json` failed with `TS2551`/`TS2339` when a contextually typed legacy `Logger` accessed `data.value` and `data.context`.
+  - Green: `npx tsc --noEmit -p tsconfig.json` — pass, including the contextual legacy fixture and structural `ConsoleLogger` compatibility.
+  - `npx jest tests/utils/logger.test.ts tests/entries/web-exports.test.ts tests/nip02/nip02.test.ts --runInBand` — 3 suites, 27 tests passed.
+  - `npm run lint` — pass.
 
 ## Review
 
-- Review fixed point: `f63d9eb`
-- Standards findings: pending fresh reviewer
-- Spec findings: pending fresh reviewer
-- Worthy fixes applied: pending fresh reviewer
-- Findings ignored with reasons: pending fresh reviewer
+- Review fixed point: `fbfb2d6`
+- Standards findings: `WarningLogger = Pick<DiagnosticLogger, "warn">` widened contextual typing for legacy `Logger` object literals from `LogData` to `DiagnosticLogArgument`, preventing consumers from accessing `value` and `context` without narrowing.
+- Spec findings: none.
+- Worthy fixes applied: restored the exact original `warn(message: string, data?: LogData): void` signature, retained deprecated `Logger = WarningLogger`, and added compile-time coverage for contextual `LogData` access plus structural `ConsoleLogger` compatibility.
+- Findings ignored with reasons: optional root/web export deduplication was not pursued because explicit platform parity is accepted for this ticket and does not affect behavior or compatibility.
 
 ## Risks
 
