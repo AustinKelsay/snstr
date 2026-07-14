@@ -5,8 +5,8 @@
 - Issue: #105 — Clear the NIP-86 request timeout on every exit path
 - Fixed point before session: `2acb2d4`
 - Worker session: `/root/issue_105_worker`
-- Commit: pending
-- Status: implementation and fixed-point review complete; commit pending
+- Commit: `574c848`
+- Status: complete; issue closed with verification evidence
 
 ## Inputs
 
