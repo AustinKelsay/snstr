@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation; #101–#103 and #105 complete; #104 in progress
+- Current status: implementation; #101–#105 complete
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -44,7 +44,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #101 | AFK | closed | standards + spec passed after one fix | exact NIP-02 contextual type restored | yes |
 | #102 | AFK | closed | standards + spec passed after worthy fixes | late-connect race and compatibility/parity coverage gaps resolved | yes |
 | #103 | AFK | closed | standards + spec passed after worthy fixes | non-throwing diagnostics, exported JSDoc, per-ID cleanup, validation routing, `getZapInvoice` coverage | yes |
-| #104 | AFK | in progress | pending | — | no |
+| #104 | AFK | closed | standards + spec passed after public-seam fixes | reachable array-helper cases moved to public Event/NIP-10 behavior | yes |
 | #105 | AFK | closed | standards + spec passed | no review findings | yes |
 | #106 | AFK | ready | pending | — | no |
 | #107 | AFK | ready | pending | — | no |
@@ -62,7 +62,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #101 | `f63d9eb` | `/root/issue_101_worker` | `fbfb2d6`, `3c1b6b4` | passed after review fix | lint, types, build, pack, 66 suites / 881 tests |
 | #102 | `c3e76df` | `/root/issue_102_worker` | `2b163e0` | standards + spec passed after worthy fixes | focused lifecycle 12/12; related Relay 76/76; lint, types, build, pack, CJS/ESM subpath smoke |
 | #103 | `599e41f` | `/root/issue_103_worker` | `46ab31a` | standards + spec passed after worthy fixes | focused NIP-57 30/30 with no open handles; lint, types, build, examples, pack |
-| #104 | `6d563ec` | `/root/issue_104_worker` | — | pending | security-validator branches 37.14% → 80.00%; focused 57/57; lint, types, build |
+| #104 | `6d563ec` | `/root/issue_104_worker` | `7fc91af` | standards + spec passed after worthy fixes | security-validator branches 37.14% → 80.00%; focused 57/57; lint, types, build |
 | #105 | `2acb2d4` | `/root/issue_105_worker` | `574c848` | standards + spec passed | focused NIP-86 15/15 with no open handles; lint, types, build |
 | #106 | pending | pending | — | — | — |
 | #107 | pending | pending | — | — | — |

@@ -5,8 +5,8 @@
 - Issue: #104 — Exercise security limits through public event and Relay behavior
 - Fixed point before session: `6d563ec`
 - Worker session: `/root/issue_104_worker`
-- Commit: pending
-- Status: implementation in progress
+- Commit: `7fc91af`
+- Status: complete; issue closed with verification evidence
 
 ## Inputs
 
@@ -47,10 +47,10 @@
 ## Review
 
 - Review fixed point: `6d563ec`
-- Standards findings: pending
-- Spec findings: pending
+- Standards findings: initial and final exact-staged reviews passed with no repository-standard or actionable Fowler-baseline findings
+- Spec findings: two worthy public-seam findings were resolved; the first moved valid, malformed, short, and bounds behavior out of a blanket direct-helper test, and the second moved the reachable 10,001-element guard through public NIP-10 behavior; final exact-staged re-review passed every acceptance criterion with no findings
 - Worthy fixes applied: moved reachable array-helper behavior, including the 10,001-element guard, from direct tests to public `validateEvent` direct-message and NIP-10 parser behavior; narrowed the direct helper explanation to exact negative-index and guarded non-array branches public consumers structurally cannot supply
-- Findings ignored with reasons: pending
+- Findings ignored with reasons: none; both review axes passed after all actionable findings were applied
 
 ## Risks
 
