@@ -1,6 +1,7 @@
 import {
   getInMemoryWebSocket,
   getWebSocketImplementation,
+  registerRelayDisconnectObserver,
 } from "../utils/websocket";
 import {
   NostrEvent,
@@ -68,6 +69,14 @@ export class Relay {
   private subscriptions: Map<string, Subscription> = new Map();
   private eventHandlers: RelayEventHandler = {};
   private connectionPromise: Promise<boolean> | null = null;
+  private relayDisconnectObserver: {
+    attemptId: number;
+    unregister: () => void;
+  } | null = null;
+  private relayDisconnectFinalizer: {
+    attemptId: number;
+    finalize: (userInitiated?: boolean) => void;
+  } | null = null;
   private connectionTimeout = 10000; // Default timeout of 10 seconds
   private logger: Logger;
   // Event buffers with memory limits
@@ -135,6 +144,8 @@ export class Relay {
   public async connect(): Promise<boolean> {
     if (this.connected) return true;
     if (this.connectionPromise) return this.connectionPromise;
+    this.clearRelayDisconnectObserver();
+    this.clearRelayDisconnectFinalizer();
     const attemptId = ++this.connectionAttempt;
     const disconnectGenAtStart = this.disconnectGeneration;
 
@@ -219,6 +230,8 @@ export class Relay {
             }
             this.ws = null;
             this.connectionPromise = null;
+            this.clearRelayDisconnectObserver(attemptId);
+            this.clearRelayDisconnectFinalizer(attemptId);
             // Invalidate this attempt so any late socket events are ignored.
             // Auto-reconnect is handled in the catch() block below.
             this.connectionAttempt++;
@@ -227,23 +240,18 @@ export class Relay {
         }, this.connectionTimeout);
         maybeUnref(timeoutId);
 
-        socket.onopen = () => {
-          if (attemptId !== this.connectionAttempt) return;
-          clearTimeout(timeoutId);
-          this.connected = true;
-          this.resetReconnectAttempts(); // Reset reconnect counter on successful connection
-          this.setupBufferFlush(); // Set up the event buffer flush interval
-          this.triggerEvent(RelayEvent.Connect, this.url);
-          resolve(true);
-        };
-
-        socket.onclose = () => {
-          if (attemptId !== this.connectionAttempt) return;
+        let closeHandled = false;
+        const finalizeClose = (userInitiated = false) => {
+          if (closeHandled) return;
+          if (!userInitiated && attemptId !== this.connectionAttempt) return;
+          closeHandled = true;
           clearTimeout(timeoutId);
           const wasConnected = this.connected;
           this.connected = false;
           this.clearBufferFlush(); // Clear the event buffer flush interval
           this.triggerEvent(RelayEvent.Disconnect, this.url);
+          this.clearRelayDisconnectObserver(attemptId);
+          this.clearRelayDisconnectFinalizer(attemptId);
 
           // Only reject the promise if we're still waiting to connect
           if (!wasConnected && this.connectionPromise) {
@@ -256,10 +264,34 @@ export class Relay {
           }
 
           // Schedule reconnection if auto-reconnect is enabled
-          if (this.autoReconnect && wasConnected) {
+          if (this.autoReconnect && wasConnected && !userInitiated) {
             this.scheduleReconnect();
           }
         };
+        this.relayDisconnectFinalizer = {
+          attemptId,
+          finalize: finalizeClose,
+        };
+
+        socket.onopen = () => {
+          if (attemptId !== this.connectionAttempt) return;
+          clearTimeout(timeoutId);
+          this.connected = true;
+          this.resetReconnectAttempts(); // Reset reconnect counter on successful connection
+          this.setupBufferFlush(); // Set up the event buffer flush interval
+          this.clearRelayDisconnectObserver();
+          this.relayDisconnectObserver = {
+            attemptId,
+            unregister: registerRelayDisconnectObserver(
+              this.url,
+              () => finalizeClose(),
+            ),
+          };
+          this.triggerEvent(RelayEvent.Connect, this.url);
+          resolve(true);
+        };
+
+        socket.onclose = () => finalizeClose();
 
         socket.onerror = (error) => {
           if (attemptId !== this.connectionAttempt) return;
@@ -270,6 +302,8 @@ export class Relay {
           if (!this.connected && this.connectionPromise) {
             this.detachSocketHandlers(socket);
             this.connectionPromise = null;
+            this.clearRelayDisconnectObserver(attemptId);
+            this.clearRelayDisconnectFinalizer(attemptId);
             // Invalidate this attempt so any late socket events are ignored.
             // Auto-reconnect is handled in the catch() block below.
             this.connectionAttempt++;
@@ -291,6 +325,8 @@ export class Relay {
       } catch (error) {
         // Handle errors during WebSocket creation
         this.connectionPromise = null;
+        this.clearRelayDisconnectObserver(attemptId);
+        this.clearRelayDisconnectFinalizer(attemptId);
         reject(error);
       }
     }).catch((_error) => {
@@ -345,9 +381,11 @@ export class Relay {
   public disconnect(): void {
     // Mark this as a user-initiated teardown so auto-reconnect doesn't keep the process alive.
     this.disconnectGeneration++;
+    const disconnectFinalizer = this.relayDisconnectFinalizer;
     // Invalidate any in-flight connect attempt so its timers/handlers become no-ops.
     this.connectionAttempt++;
     this.connectionPromise = null;
+    this.clearRelayDisconnectObserver();
 
     // Cancel any scheduled reconnection
     this.cancelReconnect();
@@ -421,7 +459,7 @@ export class Relay {
       // Reset all state variables
       this.ws = null;
       this.connected = false;
-      this.triggerEvent(RelayEvent.Disconnect, this.url);
+      disconnectFinalizer?.finalize(true);
     }
   }
 
@@ -440,6 +478,23 @@ export class Relay {
     } catch {
       // Ignore failures (some implementations may not allow reassignment).
     }
+  }
+
+  private clearRelayDisconnectObserver(attemptId?: number): void {
+    const registration = this.relayDisconnectObserver;
+    if (!registration) return;
+    if (attemptId !== undefined && registration.attemptId !== attemptId) return;
+
+    this.relayDisconnectObserver = null;
+    registration.unregister();
+  }
+
+  private clearRelayDisconnectFinalizer(attemptId?: number): void {
+    const finalizer = this.relayDisconnectFinalizer;
+    if (!finalizer) return;
+    if (attemptId !== undefined && finalizer.attemptId !== attemptId) return;
+
+    this.relayDisconnectFinalizer = null;
   }
 
   /**

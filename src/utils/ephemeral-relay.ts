@@ -19,6 +19,7 @@ import {
   unregisterInMemoryServer,
 } from "./inMemoryWebSocket";
 import { maybeUnref } from "./timers";
+import { notifyRelayDisconnectObservers } from "./websocket";
 import {
   DiagnosticLogArgument,
   DiagnosticLogger,
@@ -366,6 +367,7 @@ export class NostrRelay {
     const closedUrl = this.url;
     const inMemoryServer = this._inMemoryServer;
     const wss = inMemoryServer ? null : this._wss;
+    const ownedTransport = inMemoryServer !== null || wss !== null;
     const sessions = [...this._sessions];
     const transportShutdown = wss
       ? this.closeWebSocketTransport(wss)
@@ -404,6 +406,10 @@ export class NostrRelay {
 
       await transportShutdown;
       wss.removeAllListeners();
+    }
+
+    if (ownedTransport) {
+      notifyRelayDisconnectObservers(closedUrl);
     }
 
     this._sessions.clear();
