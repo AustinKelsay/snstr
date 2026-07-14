@@ -29,10 +29,10 @@ import {
   SignMessageResponseResult,
   NIP47EncryptionScheme,
   GetInfoResponseResult,
-  NIP47Logger,
 } from "./types";
 import { SecurityValidationError } from "../utils/security-validator";
 import { Logger, LogLevel } from "../utils/logger";
+import type { DiagnosticLogger } from "../utils/logger";
 
 /**
  * Parse a NWC URL into connection options
@@ -212,7 +212,7 @@ export class NostrWalletConnectClient {
   private clientPubkey: string;
   private relays: string[];
   private client: Nostr;
-  private logger: NIP47Logger;
+  private logger: DiagnosticLogger;
   private supportedMethods: string[] = [];
   private supportedNotifications: string[] = [];
   private supportedEncryption: NIP47EncryptionScheme[] = [];
