@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation; spec #100 and approved ticket graph #101–#107 published
+- Current status: implementation; #101 complete and #102 Relay lifecycle work in progress
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -42,7 +42,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | Issue | Type | Status | Review thread | Fixes needed | Verified |
 | --- | --- | --- | --- | --- | --- |
 | #101 | AFK | closed | standards + spec passed after one fix | exact NIP-02 contextual type restored | yes |
-| #102 | AFK | ready | pending | — | no |
+| #102 | AFK | implementation | pending | — | no |
 | #103 | AFK | blocked by #101, #102 | pending | — | no |
 | #104 | AFK | blocked by #102 | pending | — | no |
 | #105 | AFK | ready | pending | — | no |
@@ -60,7 +60,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
 | #101 | `f63d9eb` | `/root/issue_101_worker` | `fbfb2d6`, `3c1b6b4` | passed after review fix | lint, types, build, pack, 66 suites / 881 tests |
-| #102 | pending | pending | — | — | — |
+| #102 | `c3e76df` | `/root/issue_102_worker` | pending | standards + spec passed after worthy fixes | focused lifecycle 12/12; related Relay 76/76; lint, types, build, pack, CJS/ESM subpath smoke |
 | #103 | pending | pending | — | — | — |
 | #104 | pending | pending | — | — | — |
 | #105 | pending | pending | — | — | — |
