@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation complete; #101–#105 and #107 closed; #106 review passed and closeout pending
+- Current status: implementation complete; all tickets #101–#107 closed; integrated verification pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -25,7 +25,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 - Tickets: #101–#107 — published and ready for implementation
 - Ticket sessions: created as each ticket enters implementation
 - Agent briefs: full Codex worker sessions are the default per ticket; OpenCode GLM-5.2 max completed a read-only architecture pass; Grok is unavailable because the required live model is absent
-- Review packets: #101–#105 and #107 standards/spec review and re-review complete; #106 pending
+- Review packets: #101–#107 standards/spec review and re-review complete
 - Local CodeRabbit report: pending
 - PR URL: pending; final target is a non-draft PR into `staging`
 
@@ -46,7 +46,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #103 | AFK | closed | standards + spec passed after worthy fixes | non-throwing diagnostics, exported JSDoc, per-ID cleanup, validation routing, `getZapInvoice` coverage | yes |
 | #104 | AFK | closed | standards + spec passed after public-seam fixes | reachable array-helper cases moved to public Event/NIP-10 behavior | yes |
 | #105 | AFK | closed | standards + spec passed | no review findings | yes |
-| #106 | AFK | review passed | standards + spec passed after five worthy fixes | lifecycle/CLI/definitions/restart fallback and missing-start detection fixed | verifier, grouped examples, lint, types, builds, and pack green |
+| #106 | AFK | closed | standards + spec passed after five worthy fixes | lifecycle/CLI/definitions/restart fallback and missing-start detection fixed | yes |
 | #107 | AFK | closed | standards + spec passed after evidence fixes | real examples output verified; unrelated EOF diff removed | yes |
 
 ## Parked HITL Slices
@@ -65,7 +65,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #103 | `599e41f` | `/root/issue_103_worker` | `46ab31a` | standards + spec passed after worthy fixes | focused NIP-57 30/30 with no open handles; lint, types, build, examples, pack |
 | #104 | `6d563ec` | `/root/issue_104_worker` | `7fc91af` | standards + spec passed after worthy fixes | security-validator branches 37.14% → 80.00%; focused 57/57; lint, types, build |
 | #105 | `2acb2d4` | `/root/issue_105_worker` | `574c848` | standards + spec passed | focused NIP-86 15/15 with no open handles; lint, types, build |
-| #106 | `fc4e3b5` | `/root/issue_106_worker` | pending | standards + spec passed after five worthy fixes | verifier 10/10; zero duplicate values/leaves/stale refs/definition drift; real groups; lint, types, builds, pack |
+| #106 | `fc4e3b5` | `/root/issue_106_worker` | `b5aaf5a` | standards + spec passed after five worthy fixes | verifier 10/10; zero duplicate values/leaves/stale refs/definition drift; real groups; lint, types, builds, pack |
 | #107 | `b541f06` | `/root/issue_107_worker` | `b6bb3be` | standards + spec passed after worthy evidence fixes | red JS command reproduced; live refs removed; maintained TS example, lint, types, CJS/ESM build, examples build, generated-output search, and pack checks passed |
 
 ## Open Questions

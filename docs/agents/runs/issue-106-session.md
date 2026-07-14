@@ -5,8 +5,8 @@
 - Issue: [#106 — Collapse package-script and README command duplication](https://github.com/AustinKelsay/snstr/issues/106)
 - Fixed point before session: `fc4e3b5`
 - Worker session: `/root/issue_106_worker`
-- Commit: pending
-- Status: standards + spec review passed; commit pending
+- Commit: `b5aaf5a`
+- Status: complete; issue closed
 
 ## Inputs
 
