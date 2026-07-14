@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation; #101–#105 complete, #107 in progress
+- Current status: implementation; #101–#105 and #107 complete; #106 remains
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -25,7 +25,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 - Tickets: #101–#107 — published and ready for implementation
 - Ticket sessions: created as each ticket enters implementation
 - Agent briefs: full Codex worker sessions are the default per ticket; OpenCode GLM-5.2 max completed a read-only architecture pass; Grok is unavailable because the required live model is absent
-- Review packets: #101–#105 standards/spec review and re-review complete; remaining tickets pending
+- Review packets: #101–#105 and #107 standards/spec review and re-review complete; #106 pending
 - Local CodeRabbit report: pending
 - PR URL: pending; final target is a non-draft PR into `staging`
 
@@ -47,7 +47,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #104 | AFK | closed | standards + spec passed after public-seam fixes | reachable array-helper cases moved to public Event/NIP-10 behavior | yes |
 | #105 | AFK | closed | standards + spec passed | no review findings | yes |
 | #106 | AFK | ready | pending | — | no |
-| #107 | AFK | in progress | pending | — | no |
+| #107 | AFK | closed | standards + spec passed after evidence fixes | real examples output verified; unrelated EOF diff removed | yes |
 
 ## Parked HITL Slices
 
@@ -66,7 +66,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #104 | `6d563ec` | `/root/issue_104_worker` | `7fc91af` | standards + spec passed after worthy fixes | security-validator branches 37.14% → 80.00%; focused 57/57; lint, types, build |
 | #105 | `2acb2d4` | `/root/issue_105_worker` | `574c848` | standards + spec passed | focused NIP-86 15/15 with no open handles; lint, types, build |
 | #106 | pending | pending | — | — | — |
-| #107 | `b541f06` | `/root/issue_107_worker` | — | pending | red JS command fails with `MODULE_NOT_FOUND`; maintained TypeScript example passes |
+| #107 | `b541f06` | `/root/issue_107_worker` | `b6bb3be` | standards + spec passed after worthy evidence fixes | red JS command reproduced; live refs removed; maintained TS example, lint, types, CJS/ESM build, examples build, generated-output search, and pack checks passed |
 
 ## Open Questions
 
