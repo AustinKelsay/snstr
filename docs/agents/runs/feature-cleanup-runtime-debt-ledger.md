@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation and integrated verification complete; final branch reviews and staging PR pending
+- Current status: implementation, integrated verification, and local final review complete; staging PR pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -25,9 +25,10 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 - Tickets: #101–#107 — published and ready for implementation
 - Ticket sessions: created as each ticket enters implementation
 - Integration follow-up: `docs/agents/runs/integrated-bun-compat-session.md`
+- Final branch review: `docs/agents/runs/final-cleanup-review-session.md`
 - Agent briefs: full Codex worker sessions are the default per ticket; OpenCode GLM-5.2 max completed a read-only architecture pass; Grok is unavailable because the required live model is absent
 - Review packets: #101–#107 standards/spec review and re-review complete
-- Local CodeRabbit report: pending
+- Local CodeRabbit report: two completed rounds; all nine findings fixed or evidence-rejected, with a third confirmation round blocked by a 32-minute service rate limit
 - PR URL: pending; final target is a non-draft PR into `staging`
 
 ## Commands
@@ -69,6 +70,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 | #106 | `fc4e3b5` | `/root/issue_106_worker` | `b5aaf5a` | standards + spec passed after five worthy fixes | verifier 10/10; zero duplicate values/leaves/stale refs/definition drift; real groups; lint, types, builds, pack |
 | #107 | `b541f06` | `/root/issue_107_worker` | `b6bb3be` | standards + spec passed after worthy evidence fixes | red JS command reproduced; live refs removed; maintained TS example, lint, types, CJS/ESM build, examples build, generated-output search, and pack checks passed |
 | #100 integration | `49ac99f` | current orchestrator | `53090bb` | standards + spec passed after one maintainability fix | affected Jest 98/98; affected Bun 98/98; full Jest 984/984 with handle detection; full Bun 984/984; coverage 984/984; lint, types, builds, examples, command and package verification passed |
+| #100 final review | `d75d7e9` | current orchestrator | `ef82615`, `620aba4` | standards + spec passed; CodeRabbit findings fixed or evidence-rejected; OpenCode branch review passed | focused Jest/Bun 103/103; final Jest 991/991 with handle detection; final Bun 991/991; coverage 991/991; lint, types, builds, command and package verification passed |
 
 ## Open Questions
 
