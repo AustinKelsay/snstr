@@ -115,16 +115,19 @@ describe("utils/websocket", () => {
       secondObserver,
     );
 
-    expect(() =>
-      notifyRelayDisconnectObservers("ws://127.0.0.1:45103"),
-    ).not.toThrow();
-    expect(firstObserver).toHaveBeenCalledTimes(1);
-    expect(secondObserver).toHaveBeenCalledTimes(1);
+    try {
+      expect(() =>
+        notifyRelayDisconnectObservers("ws://127.0.0.1:45103"),
+      ).not.toThrow();
+      expect(firstObserver).toHaveBeenCalledTimes(1);
+      expect(secondObserver).toHaveBeenCalledTimes(1);
 
-    notifyRelayDisconnectObservers("ws://127.0.0.1:45103");
-    expect(firstObserver).toHaveBeenCalledTimes(1);
-    expect(secondObserver).toHaveBeenCalledTimes(1);
-    unregisterFirst();
-    unregisterSecond();
+      notifyRelayDisconnectObservers("ws://127.0.0.1:45103");
+      expect(firstObserver).toHaveBeenCalledTimes(1);
+      expect(secondObserver).toHaveBeenCalledTimes(1);
+    } finally {
+      unregisterFirst();
+      unregisterSecond();
+    }
   });
 });

@@ -416,28 +416,32 @@ describe("NostrRelay lifecycle", () => {
       autoReconnect: false,
       connectionTimeout: 1000,
     });
-    expect(await firstClient.connect()).toBe(true);
-    info.mockClear();
+    let secondClient: Relay | null = null;
 
-    const shutdown = relay.close();
-    const restarted = relay.start();
-    await restarted;
-    await shutdown;
+    try {
+      expect(await firstClient.connect()).toBe(true);
+      info.mockClear();
 
-    expect(info.mock.calls.map(([message]) => message)).toEqual([
-      "Relay closed",
-      "Relay started",
-    ]);
+      const shutdown = relay.close();
+      const restarted = relay.start();
+      await restarted;
+      await shutdown;
 
-    const secondClient = new Relay(relay.url, {
-      autoReconnect: false,
-      connectionTimeout: 1000,
-    });
-    expect(await secondClient.connect()).toBe(true);
+      expect(info.mock.calls.map(([message]) => message)).toEqual([
+        "Relay closed",
+        "Relay started",
+      ]);
 
-    firstClient.disconnect();
-    secondClient.disconnect();
-    await relay.close();
+      secondClient = new Relay(relay.url, {
+        autoReconnect: false,
+        connectionTimeout: 1000,
+      });
+      expect(await secondClient.connect()).toBe(true);
+    } finally {
+      firstClient.disconnect();
+      secondClient?.disconnect();
+      await relay.close();
+    }
   });
 
   test("restart does not expose Nostr Events stored before close", async () => {
