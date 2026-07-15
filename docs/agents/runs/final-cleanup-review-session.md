@@ -7,7 +7,7 @@
 - Base: `staging`
 - Fixed point before final fixes: `d75d7e9`
 - Final fix commits: `ef82615`, `620aba4`
-- Status: local review and verification complete; hosted PR review pending
+- Status: local review and verification complete; hosted review requested on non-draft staging PR #108
 
 ## Findings Resolved
 

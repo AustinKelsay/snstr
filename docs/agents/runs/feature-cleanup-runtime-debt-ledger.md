@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation, integrated verification, and local final review complete; staging PR pending
+- Current status: implementation, integrated verification, and local final review complete; non-draft staging PR #108 open for hosted review
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -29,7 +29,7 @@ Complete cleanup items 1–7 from the post-v0.4.0 repository audit end to end: s
 - Agent briefs: full Codex worker sessions are the default per ticket; OpenCode GLM-5.2 max completed a read-only architecture pass; Grok is unavailable because the required live model is absent
 - Review packets: #101–#107 standards/spec review and re-review complete
 - Local CodeRabbit report: two completed rounds; all nine findings fixed or evidence-rejected, with a third confirmation round blocked by a 32-minute service rate limit
-- PR URL: pending; final target is a non-draft PR into `staging`
+- PR URL: [#108 — Eliminate remaining runtime and maintenance debt](https://github.com/AustinKelsay/snstr/pull/108), non-draft into `staging`
 
 ## Commands
 
