@@ -427,13 +427,32 @@ describe("NIP-57 public clients", () => {
   });
 
   describe("ZapClient", () => {
+    let installedFetchForTest = false;
+
+    const spyOnGlobalFetch = () => {
+      if (typeof globalThis.fetch !== "function") {
+        Object.defineProperty(globalThis, "fetch", {
+          configurable: true,
+          writable: true,
+          value: jest.fn(),
+        });
+        installedFetchForTest = true;
+      }
+
+      return jest.spyOn(globalThis, "fetch");
+    };
+
     afterEach(() => {
       jest.restoreAllMocks();
+      if (installedFetchForTest) {
+        delete (globalThis as { fetch?: typeof fetch }).fetch;
+        installedFetchForTest = false;
+      }
     });
 
     test("is quiet by default and routes LNURL failures to an injected diagnostic logger", async () => {
       const fetchError = new Error("LNURL endpoint unavailable");
-      jest.spyOn(globalThis, "fetch").mockRejectedValue(fetchError);
+      spyOnGlobalFetch().mockRejectedValue(fetchError);
       const consoleError = jest
         .spyOn(console, "error")
         .mockImplementation(() => {});
@@ -460,8 +479,7 @@ describe("NIP-57 public clients", () => {
     });
 
     test("preserves fallback behavior when an injected diagnostic logger throws", async () => {
-      jest
-        .spyOn(globalThis, "fetch")
+      spyOnGlobalFetch()
         .mockRejectedValue(new Error("LNURL endpoint unavailable"));
       const logger = createDiagnosticLogger();
       logger.error.mockImplementation(() => {
@@ -476,8 +494,7 @@ describe("NIP-57 public clients", () => {
 
     test("returns an invoice error and diagnostic when the LNURL callback fails", async () => {
       const callbackError = new Error("invoice callback unavailable");
-      jest
-        .spyOn(globalThis, "fetch")
+      spyOnGlobalFetch()
         .mockResolvedValueOnce({
           json: jest.fn().mockResolvedValue({
             callback: "https://lnurl.test/callback",
