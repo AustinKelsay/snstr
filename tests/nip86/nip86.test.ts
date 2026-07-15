@@ -9,6 +9,16 @@ import {
   useRelayManagementFetchImplementation,
 } from "../../src/nip86";
 
+const isBunRuntime =
+  typeof (globalThis as typeof globalThis & { Bun?: unknown }).Bun !==
+  "undefined";
+
+async function advanceFakeTimersByTime(milliseconds: number): Promise<void> {
+  await Promise.resolve();
+  jest.advanceTimersByTime(milliseconds);
+  await Promise.resolve();
+}
+
 describe("NIP-86 relay management helpers", () => {
   const originalFetch = global.fetch;
   let mockFetch: jest.Mock;
@@ -238,7 +248,7 @@ describe("NIP-86 relay management helpers", () => {
   });
 
   test("RelayManagementClient aborts a stalled fetch once and releases its timeout", async () => {
-    jest.useFakeTimers();
+    if (!isBunRuntime) jest.useFakeTimers();
     let abortCount = 0;
     mockFetch.mockImplementation(
       (_url: string, init?: RequestInit) =>
@@ -265,11 +275,11 @@ describe("NIP-86 relay management helpers", () => {
       message:
         "Relay management request aborted/timed out: The operation was aborted",
     });
-    await jest.advanceTimersByTimeAsync(1);
+    if (!isBunRuntime) await advanceFakeTimersByTime(1);
 
     await request;
     expect(abortCount).toBe(1);
-    expect(jest.getTimerCount()).toBe(0);
+    if (!isBunRuntime) expect(jest.getTimerCount()).toBe(0);
   });
 
   test("RelayManagementClient rejects non-serializable circular params", async () => {
@@ -299,7 +309,7 @@ describe("NIP-86 relay management helpers", () => {
   });
 
   test("RelayManagementClient aborts a stalled response body once and releases its timeout", async () => {
-    jest.useFakeTimers();
+    if (!isBunRuntime) jest.useFakeTimers();
     let capturedSignal: AbortSignal | undefined;
     let abortCount = 0;
     mockFetch.mockImplementation(async (_url: string, init?: RequestInit) => {
@@ -334,14 +344,14 @@ describe("NIP-86 relay management helpers", () => {
         "Relay management request aborted/timed out: The operation was aborted",
       status: 200,
     });
-    await jest.advanceTimersByTimeAsync(1);
+    if (!isBunRuntime) await advanceFakeTimersByTime(1);
 
     await request;
     expect(abortCount).toBe(1);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(capturedSignal).toBeDefined();
     expect(capturedSignal?.aborted).toBe(true);
-    expect(jest.getTimerCount()).toBe(0);
+    if (!isBunRuntime) expect(jest.getTimerCount()).toBe(0);
   });
 
   test("toRelayManagementHttpUrl converts websocket URLs", () => {

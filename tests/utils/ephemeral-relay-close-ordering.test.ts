@@ -1,4 +1,6 @@
 import { once } from "node:events";
+import { createServer, type Server as HttpServer } from "node:http";
+import type { Socket } from "node:net";
 import {
   WebSocket as NativeWebSocket,
   WebSocketServer as NativeWebSocketServer,
@@ -10,6 +12,10 @@ import {
   useWebSocketImplementation,
 } from "../../src";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
+
+const isBunRuntime =
+  typeof (globalThis as typeof globalThis & { Bun?: unknown }).Bun !==
+  "undefined";
 
 /**
  * Models a native transport whose peer close callback is delivered in the
@@ -41,41 +47,93 @@ async function waitForLateNativeClose(): Promise<void> {
 }
 
 async function startNativeWebSocketServer(port = 0): Promise<{
+  httpServer: HttpServer;
   port: number;
   server: NativeWebSocketServer;
+  sockets: Set<Socket>;
   url: string;
 }> {
-  const server = new NativeWebSocketServer({ host: "127.0.0.1", port });
-  await once(server, "listening");
-  const address = server.address();
+  const httpServer = createServer();
+  const sockets = new Set<Socket>();
+  httpServer.on("connection", (socket) => {
+    sockets.add(socket);
+    socket.once("close", () => sockets.delete(socket));
+  });
+  const server = new NativeWebSocketServer({ server: httpServer });
+  httpServer.listen(port, "127.0.0.1");
+  await once(httpServer, "listening");
+  const address = httpServer.address();
   if (!address || typeof address === "string") {
     throw new Error("Native WebSocket test server has no TCP port");
   }
 
   return {
+    httpServer,
     port: address.port,
     server,
+    sockets,
     url: `ws://127.0.0.1:${address.port}`,
   };
 }
 
 async function closeNativeWebSocketServer(
   server: NativeWebSocketServer,
+  httpServer: HttpServer,
+  sockets: Set<Socket>,
 ): Promise<void> {
-  server.clients.forEach((client) => client.terminate());
-  if (server.address() === null) return;
+  await Promise.all(
+    [...server.clients].map(
+      (client) =>
+        new Promise<void>((resolve) => {
+          if (client.readyState === NativeWebSocket.CLOSED) {
+            resolve();
+            return;
+          }
 
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
+          client.once("close", () => resolve());
+          client.terminate();
+        }),
+    ),
+  );
+  if (server.address() !== null) {
+    const closed = once(server, "close");
+    server.close();
+    await closed;
+  }
+
+  if (!httpServer.listening) return;
+  await Promise.all(
+    [...sockets].map(
+      (socket) =>
+        new Promise<void>((resolve) => {
+          if (socket.destroyed) {
+            resolve();
+            return;
+          }
+
+          socket.once("close", () => resolve());
+          socket.destroy();
+        }),
+    ),
+  );
+  httpServer.closeAllConnections();
+  if (isBunRuntime) {
+    httpServer.close();
+    if (httpServer.listening || httpServer.address() !== null) {
+      throw new Error("Native WebSocket test listener did not close");
+    }
+    return;
+  }
+
+  const listenerClosed = once(httpServer, "close");
+  httpServer.close();
+  await listenerClosed;
 }
 
 async function reserveNativeWebSocketPort(): Promise<number> {
-  const { port, server } = await startNativeWebSocketServer();
-  await closeNativeWebSocketServer(server);
+  const { port, server, httpServer, sockets } =
+    await startNativeWebSocketServer();
+  await closeNativeWebSocketServer(server, httpServer, sockets);
   return port;
 }
 
@@ -187,6 +245,9 @@ describe("NostrRelay close ordering", () => {
   });
 
   test("close before start does not notify a foreign Relay at the same URL", async () => {
+    useWebSocketImplementation(
+      NativeWebSocket as unknown as typeof WebSocket,
+    );
     const foreignTransport = await startNativeWebSocketServer();
     const dormantRelay = new NostrRelay(foreignTransport.port);
     const foreignClient = new Relay(foreignTransport.url, {
@@ -207,11 +268,18 @@ describe("NostrRelay close ordering", () => {
     } finally {
       foreignClient.disconnect();
       await dormantRelay.close();
-      await closeNativeWebSocketServer(foreignTransport.server);
+      await closeNativeWebSocketServer(
+        foreignTransport.server,
+        foreignTransport.httpServer,
+        foreignTransport.sockets,
+      );
     }
   });
 
   test("repeated close does not notify a foreign Relay after port reuse", async () => {
+    useWebSocketImplementation(
+      NativeWebSocket as unknown as typeof WebSocket,
+    );
     const port = await reserveNativeWebSocketPort();
     const relay = new NostrRelay(port);
     const firstClient = new Relay(relay.url, { autoReconnect: false });
@@ -249,7 +317,11 @@ describe("NostrRelay close ordering", () => {
       foreignClient?.disconnect();
       await relay.close();
       if (foreignTransport) {
-        await closeNativeWebSocketServer(foreignTransport.server);
+        await closeNativeWebSocketServer(
+          foreignTransport.server,
+          foreignTransport.httpServer,
+          foreignTransport.sockets,
+        );
       }
     }
   });

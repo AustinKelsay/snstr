@@ -52,15 +52,18 @@ function spyOnConsoleDiagnostics() {
 
 async function withInMemoryTransport(run: () => Promise<void>): Promise<void> {
   const globals = globalThis as typeof globalThis & { Bun?: unknown };
+  const isBun = typeof globals.Bun !== "undefined";
   const hadBun = Object.prototype.hasOwnProperty.call(globals, "Bun");
   const previousBun = globals.Bun;
-  globals.Bun = {};
+  if (!isBun) globals.Bun = {};
 
   try {
     await run();
   } finally {
-    if (hadBun) globals.Bun = previousBun;
-    else delete globals.Bun;
+    if (!isBun) {
+      if (hadBun) globals.Bun = previousBun;
+      else delete globals.Bun;
+    }
   }
 }
 
@@ -141,17 +144,12 @@ async function expectRestartClearsTransientState(): Promise<void> {
 }
 
 describe("NostrRelay lifecycle", () => {
-  test("construction is quiet by default", () => {
+  test("construction is quiet by default", async () => {
     const consoleDiagnostics = spyOnConsoleDiagnostics();
 
     try {
-      jest.isolateModules(() => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { NostrRelay } = require("../../src/utils/ephemeral-relay") as
-          typeof import("../../src/utils/ephemeral-relay");
-
-        new NostrRelay(0);
-      });
+      const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+      new NostrRelay(0);
 
       expect(consoleDiagnostics.log).not.toHaveBeenCalled();
       expect(consoleDiagnostics.warn).not.toHaveBeenCalled();
@@ -168,31 +166,24 @@ describe("NostrRelay lifecycle", () => {
 
     try {
       process.env["DEBUG"] = "true";
-      await jest.isolateModulesAsync(async () => {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { NostrRelay } = require("../../src/utils/ephemeral-relay") as
-          typeof import("../../src/utils/ephemeral-relay");
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { Relay: IsolatedRelay } = require("../../src/nip01/relay") as
-          typeof import("../../src/nip01/relay");
-        const relay = new NostrRelay(0);
-        let client: Relay | null = null;
+      const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+      const relay = new NostrRelay(0);
+      let client: Relay | null = null;
 
-        try {
-          await relay.start();
-          client = new IsolatedRelay(relay.url, {
-            autoReconnect: false,
-            connectionTimeout: 1000,
-          });
-          expect(await client.connect()).toBe(true);
-          await expect(
-            client.publish(event, { timeout: 1000 }),
-          ).resolves.toMatchObject({ success: true });
-        } finally {
-          client?.disconnect();
-          await relay.close();
-        }
-      });
+      try {
+        await relay.start();
+        client = new Relay(relay.url, {
+          autoReconnect: false,
+          connectionTimeout: 1000,
+        });
+        expect(await client.connect()).toBe(true);
+        await expect(
+          client.publish(event, { timeout: 1000 }),
+        ).resolves.toMatchObject({ success: true });
+      } finally {
+        client?.disconnect();
+        await relay.close();
+      }
 
       expect(consoleDiagnostics.log).not.toHaveBeenCalled();
       expect(consoleDiagnostics.warn).not.toHaveBeenCalled();

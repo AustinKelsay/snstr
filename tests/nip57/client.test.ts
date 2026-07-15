@@ -88,6 +88,12 @@ const RECEIPT: NostrEvent = {
   sig: "3".repeat(128),
 };
 
+async function advanceFakeTimersByTime(milliseconds: number): Promise<void> {
+  await Promise.resolve();
+  jest.advanceTimersByTime(milliseconds);
+  await Promise.resolve();
+}
+
 describe("NIP-57 public clients", () => {
   describe("NostrZapClient", () => {
     afterEach(() => {
@@ -111,7 +117,7 @@ describe("NIP-57 public clients", () => {
         ),
       ).toEqual([1, 1]);
 
-      await jest.advanceTimersByTimeAsync(10000);
+      await advanceFakeTimersByTime(10000);
 
       await expect(collection).resolves.toEqual([]);
       expect(
@@ -124,9 +130,10 @@ describe("NIP-57 public clients", () => {
 
     test("releases its timeout when a Relay reaches end of stored events", async () => {
       const globals = globalThis as typeof globalThis & { Bun?: unknown };
+      const isBun = typeof globals.Bun !== "undefined";
       const hadBun = Object.prototype.hasOwnProperty.call(globals, "Bun");
       const previousBun = globals.Bun;
-      globals.Bun = {};
+      if (!isBun) globals.Bun = {};
       const relay = new NostrRelay(0);
       await relay.start();
       const nostr = new Nostr([relay.url], {
@@ -139,7 +146,7 @@ describe("NIP-57 public clients", () => {
         const client = new NostrZapClient({ client: nostr });
 
         const collection = client.fetchZapReceipts();
-        await jest.advanceTimersByTimeAsync(0);
+        await advanceFakeTimersByTime(0);
 
         await expect(collection).resolves.toEqual([]);
         expect(nostr.getRelay(relay.url)?.getSubscriptionIds().size).toBe(0);
@@ -148,16 +155,19 @@ describe("NIP-57 public clients", () => {
         jest.useRealTimers();
         nostr.disconnectFromRelays();
         await relay.close();
-        if (hadBun) globals.Bun = previousBun;
-        else delete globals.Bun;
+        if (!isBun) {
+          if (hadBun) globals.Bun = previousBun;
+          else delete globals.Bun;
+        }
       }
     });
 
     test("collects stored receipts through every public receipt query", async () => {
       const globals = globalThis as typeof globalThis & { Bun?: unknown };
+      const isBun = typeof globals.Bun !== "undefined";
       const hadBun = Object.prototype.hasOwnProperty.call(globals, "Bun");
       const previousBun = globals.Bun;
-      globals.Bun = {};
+      if (!isBun) globals.Bun = {};
       const relay = new NostrRelay(0);
       await relay.start();
       const nostr = new Nostr([relay.url], {
@@ -210,8 +220,10 @@ describe("NIP-57 public clients", () => {
       } finally {
         nostr.disconnectFromRelays();
         await relay.close();
-        if (hadBun) globals.Bun = previousBun;
-        else delete globals.Bun;
+        if (!isBun) {
+          if (hadBun) globals.Bun = previousBun;
+          else delete globals.Bun;
+        }
       }
     });
 
@@ -243,7 +255,7 @@ describe("NIP-57 public clients", () => {
       await expect(collection).resolves.toEqual([RECEIPT]);
 
       nostr.emitEvent({ ...RECEIPT, id: "4".repeat(64) });
-      await jest.advanceTimersByTimeAsync(10000);
+      await advanceFakeTimersByTime(10000);
 
       await expect(collection).resolves.toEqual([RECEIPT]);
       expect(nostr.releasedSubscriptionIds).toEqual([

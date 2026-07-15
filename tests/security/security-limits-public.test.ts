@@ -488,12 +488,12 @@ describe("security limits through public behavior", () => {
 
   describe("public Nostr rate limits", () => {
     afterEach(() => {
-      jest.useRealTimers();
+      jest.restoreAllMocks();
     });
 
     it("blocks at the configured boundary and resets exactly when the window expires", () => {
-      jest.useFakeTimers();
-      jest.setSystemTime(new Date("2026-07-14T12:00:00.000Z"));
+      const windowStart = new Date("2026-07-14T12:00:00.000Z").getTime();
+      const now = jest.spyOn(Date, "now").mockReturnValue(windowStart);
       const client = new Nostr([], {
         rateLimits: {
           subscribe: { limit: 1, windowMs: 1000 },
@@ -505,12 +505,12 @@ describe("security limits through public behavior", () => {
         "Subscription rate limit exceeded. Try again in 1 seconds",
       );
 
-      jest.advanceTimersByTime(999);
+      now.mockReturnValue(windowStart + 999);
       expect(() => client.subscribe([], () => {})).toThrow(
         "Subscription rate limit exceeded. Try again in 1 seconds",
       );
 
-      jest.advanceTimersByTime(1);
+      now.mockReturnValue(windowStart + 1000);
       expect(() => client.subscribe([], () => {})).not.toThrow();
     });
   });
