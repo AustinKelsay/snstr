@@ -62,6 +62,30 @@ function toDiagnosticArgument(value: unknown): DiagnosticLogArgument {
   return String(value);
 }
 
+function createNonThrowingDiagnosticLogger(
+  logger: DiagnosticLogger,
+): DiagnosticLogger {
+  const write = (
+    level: keyof DiagnosticLogger,
+    message: string,
+    args: DiagnosticLogArgument[],
+  ) => {
+    try {
+      logger[level](message, ...args);
+    } catch {
+      // Diagnostics are observational and must not alter Relay behavior.
+    }
+  };
+
+  return {
+    error: (message, ...args) => write("error", message, args),
+    warn: (message, ...args) => write("warn", message, args),
+    info: (message, ...args) => write("info", message, args),
+    debug: (message, ...args) => write("debug", message, args),
+    trace: (message, ...args) => write("trace", message, args),
+  };
+}
+
 /* ================ [ Interfaces ] ================ */
 
 // Using NostrFilter from types/nostr.ts
@@ -121,7 +145,9 @@ export class NostrRelay {
     this._port = port;
     this._purge = options.purgeInterval ?? null;
     this._subs = new Map();
-    this._logger = options.logger ?? new Logger({ silent: true });
+    this._logger = createNonThrowingDiagnosticLogger(
+      options.logger ?? new Logger({ silent: true }),
+    );
     this._sessions = new Set();
     this._wss = null;
     this.conn = 0;
@@ -244,6 +270,18 @@ export class NostrRelay {
       );
     };
 
+    const resetFailedWebSocketServer = (wss: WebSocketServer) => {
+      wss.removeAllListeners();
+      try {
+        wss.close();
+      } catch {
+        // A listener that failed to bind may already be fully closed.
+      }
+      if (this._wss === wss) this._wss = null;
+      this._actualPort = null;
+      this._acceptingConnections = false;
+    };
+
     const startInMemory = () => {
       const { server, port } = registerInMemoryServer(
         this._port === 0 ? undefined : this._port,
@@ -298,13 +336,7 @@ export class NostrRelay {
           // If we couldn't determine a usable port (e.g. Bun/compat oddities with port 0),
           // fall back to in-memory transport rather than returning a ws://...:0 URL.
           if (this._port === 0 && !this._actualPort) {
-            try {
-              wss.removeAllListeners();
-              wss.close();
-            } catch (_closeError) {
-              // Ignore close errors during fallback
-            }
-            this._wss = null;
+            resetFailedWebSocketServer(wss);
             startInMemory().then(resolve).catch(reject);
             return;
           }
@@ -317,15 +349,10 @@ export class NostrRelay {
         const onError = (error: unknown) => {
           cleanup();
           if (shouldFallbackToInMemory(error)) {
-            try {
-              wss.removeAllListeners();
-              wss.close();
-            } catch (_closeError) {
-              // Ignore close errors during fallback
-            }
-            this._wss = null;
+            resetFailedWebSocketServer(wss);
             startInMemory().then(resolve).catch(reject);
           } else {
+            resetFailedWebSocketServer(wss);
             reject(error);
           }
         };

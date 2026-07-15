@@ -33,6 +33,7 @@ class ScriptedNostr extends Nostr {
   public subscribeError: Error | null = null;
   public readonly unsubscribeErrors = new Map<string, Error>();
   public reachesEoseSynchronously = false;
+  public eventAfterSynchronousEose: NostrEvent | null = null;
 
   private eventCallback: ((event: NostrEvent, relay: string) => void) | null =
     null;
@@ -55,7 +56,15 @@ class ScriptedNostr extends Nostr {
         }
       }
     }
-    if (this.reachesEoseSynchronously) this.eoseCallback?.();
+    if (this.reachesEoseSynchronously) {
+      this.eoseCallback?.();
+      if (this.eventAfterSynchronousEose) {
+        this.eventCallback?.(
+          this.eventAfterSynchronousEose,
+          "wss://scripted-relay.test",
+        );
+      }
+    }
 
     return this.returnedSubscriptionIds as string[];
   }
@@ -243,6 +252,21 @@ describe("NIP-57 public clients", () => {
       expect(jest.getTimerCount()).toBe(0);
     });
 
+    test("ignores an event emitted after synchronous end-of-stored-events", async () => {
+      jest.useFakeTimers();
+      const nostr = new ScriptedNostr();
+      nostr.reachesEoseSynchronously = true;
+      nostr.eventAfterSynchronousEose = RECEIPT;
+      const client = new NostrZapClient({ client: nostr });
+
+      await expect(client.fetchZapReceipts()).resolves.toEqual([]);
+      expect(nostr.releasedSubscriptionIds).toEqual([
+        ["relay-one"],
+        ["relay-two"],
+      ]);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
     test("ignores late events and duplicate terminal signals after settling once", async () => {
       jest.useFakeTimers();
       const nostr = new ScriptedNostr();
@@ -309,6 +333,22 @@ describe("NIP-57 public clients", () => {
     test("rejects malformed subscription IDs without leaving a timeout", async () => {
       jest.useFakeTimers();
       const nostr = new ScriptedNostr();
+      nostr.returnedSubscriptionIds = ["relay-one", null, "relay-two"];
+      const client = new NostrZapClient({ client: nostr });
+
+      await expect(client.fetchZapReceipts()).rejects.toThrow(TypeError);
+      expect(nostr.activeSubscriptionIds.size).toBe(0);
+      expect(nostr.releasedSubscriptionIds).toEqual([
+        ["relay-one"],
+        ["relay-two"],
+      ]);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    test("validates malformed IDs before honoring synchronous end-of-stored-events", async () => {
+      jest.useFakeTimers();
+      const nostr = new ScriptedNostr();
+      nostr.reachesEoseSynchronously = true;
       nostr.returnedSubscriptionIds = ["relay-one", null, "relay-two"];
       const client = new NostrZapClient({ client: nostr });
 

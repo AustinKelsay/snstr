@@ -149,5 +149,11 @@ export function notifyRelayDisconnectObservers(url: string): void {
   if (!observers) return;
 
   relayDisconnectObservers.delete(normalizedUrl);
-  observers.forEach((observer) => observer());
+  observers.forEach((observer) => {
+    try {
+      observer();
+    } catch {
+      // One consumer's callback must not prevent other clients from finalizing.
+    }
+  });
 }

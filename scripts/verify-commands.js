@@ -15,7 +15,7 @@ const MARKDOWN_TEMPLATE_SCRIPTS = new Set([
   "example:nipXX",
   "test:nipXX",
 ]);
-const NPM_RUN_PATTERN = /\bnpm\s+run\s+([A-Za-z0-9:_-]+)/g;
+const NPM_RUN_PATTERN = /\bnpm\s+(?:run|run-script)\s+([A-Za-z0-9:_-]+)/g;
 const NPM_LIFECYCLE_PATTERN = /\bnpm\s+(test|start|stop|restart)(?=\s|$)/g;
 
 function isRunnableScript(name) {

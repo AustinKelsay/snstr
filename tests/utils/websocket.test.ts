@@ -1,5 +1,7 @@
 import {
   getWebSocketImplementation,
+  notifyRelayDisconnectObservers,
+  registerRelayDisconnectObserver,
   resetWebSocketImplementation,
   useWebSocketImplementation,
 } from "../../src/utils/websocket";
@@ -97,5 +99,32 @@ describe("utils/websocket", () => {
     expect(() => getWebSocketImplementation()).toThrow(
       "WebSocket implementation not available. Make sure websocket-polyfill is properly loaded.",
     );
+  });
+
+  test("notifies every Relay disconnect observer when one observer throws", () => {
+    const firstObserver = jest.fn(() => {
+      throw new Error("observer failed");
+    });
+    const secondObserver = jest.fn();
+    const unregisterFirst = registerRelayDisconnectObserver(
+      "ws://127.0.0.1:45103",
+      firstObserver,
+    );
+    const unregisterSecond = registerRelayDisconnectObserver(
+      "ws://127.0.0.1:45103/",
+      secondObserver,
+    );
+
+    expect(() =>
+      notifyRelayDisconnectObservers("ws://127.0.0.1:45103"),
+    ).not.toThrow();
+    expect(firstObserver).toHaveBeenCalledTimes(1);
+    expect(secondObserver).toHaveBeenCalledTimes(1);
+
+    notifyRelayDisconnectObservers("ws://127.0.0.1:45103");
+    expect(firstObserver).toHaveBeenCalledTimes(1);
+    expect(secondObserver).toHaveBeenCalledTimes(1);
+    unregisterFirst();
+    unregisterSecond();
   });
 });

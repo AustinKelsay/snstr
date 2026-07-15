@@ -112,6 +112,27 @@ describe('command inventory verifier', () => {
     });
   });
 
+  test('models npm run-script aliases in the root command graph', () => {
+    const result = verifier.analyzeScriptGraph({
+      leaf: 'node leaf.js',
+      first: 'npm run-script leaf',
+      duplicate: 'npm run first && npm run-script leaf',
+      missing: 'npm run-script absent',
+      'cycle:a': 'npm run-script cycle:b',
+      'cycle:b': 'npm run-script cycle:a',
+    });
+
+    expect(result.duplicateLeafExecutions).toContainEqual({
+      owner: 'duplicate',
+      leaf: 'leaf',
+      count: 2,
+    });
+    expect(result.missingReferences).toEqual([
+      { owner: 'missing', target: 'absent' },
+    ]);
+    expect(result.cycles).toContainEqual(['cycle:a', 'cycle:b', 'cycle:a']);
+  });
+
   test('does not treat commands delegated to a nested package as root references', () => {
     expect(
       verifier.analyzeScriptGraph({
@@ -165,6 +186,7 @@ describe('command inventory verifier', () => {
       [
         'Run `npm run real`.',
         'Broken: npm run missing',
+        'Broken alias: npm run-script missing-alias',
         'Template: npm run example:nipXX',
         'Template: npm run test:nipXX',
         'Not a template: npm run example:nipXX:extra',
@@ -175,7 +197,8 @@ describe('command inventory verifier', () => {
     expect(verifier.findMissingMarkdownReferences(references, { real: 'node real.js' }))
       .toEqual([
         { file: 'guide.md', line: 2, script: 'missing' },
-        { file: 'guide.md', line: 5, script: 'example:nipXX:extra' },
+        { file: 'guide.md', line: 3, script: 'missing-alias' },
+        { file: 'guide.md', line: 6, script: 'example:nipXX:extra' },
       ]);
   });
 

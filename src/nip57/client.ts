@@ -147,6 +147,8 @@ export class NostrZapClient {
       const events: NostrEvent[] = [];
       const activeSubscriptionIds = new Set<string>();
       let isSettled = false;
+      let subscribeComplete = false;
+      let reachedEoseSynchronously = false;
       let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
       const releaseSubscriptions = () => {
@@ -182,13 +184,21 @@ export class NostrZapClient {
         resolve(events);
       };
 
+      const handleEose = () => {
+        if (!subscribeComplete) {
+          reachedEoseSynchronously = true;
+          return;
+        }
+        settle();
+      };
+
       try {
         const subscriptionIds = this.client.subscribe(
           [filter],
           (event) => {
-            if (!isSettled) events.push(event);
+            if (!isSettled && !reachedEoseSynchronously) events.push(event);
           },
-          settle,
+          handleEose,
         );
         if (!Array.isArray(subscriptionIds)) {
           throw new TypeError(
@@ -208,6 +218,7 @@ export class NostrZapClient {
             "NIP-57 Relay subscription returned a malformed subscription ID",
           );
         }
+        subscribeComplete = true;
       } catch (error) {
         isSettled = true;
         releaseSubscriptions();
@@ -215,9 +226,10 @@ export class NostrZapClient {
         return;
       }
 
-      // A Relay adapter may reach EOSE synchronously before subscribe returns.
-      if (isSettled) {
-        releaseSubscriptions();
+      // A Relay adapter may reach EOSE synchronously before subscribe returns;
+      // validate and record every returned ID before honoring that signal.
+      if (reachedEoseSynchronously) {
+        settle();
         return;
       }
 

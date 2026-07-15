@@ -254,7 +254,7 @@ export class Relay {
           this.clearRelayDisconnectFinalizer(attemptId);
 
           // Only reject the promise if we're still waiting to connect
-          if (!wasConnected && this.connectionPromise) {
+          if (!wasConnected) {
             this.detachSocketHandlers(socket);
             this.connectionPromise = null;
             // Invalidate this attempt so any late socket events are ignored.

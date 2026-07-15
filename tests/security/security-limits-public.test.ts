@@ -20,12 +20,18 @@ describe("security limits through public behavior", () => {
     it("accepts content and tag values exactly at their limits", () => {
       const tags = Array.from(
         { length: SECURITY_LIMITS.MAX_TAG_COUNT },
-        (_, index) => [
-          "t",
+        (_, index) =>
           index === 0
-            ? "x".repeat(SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE)
-            : String(index),
-        ],
+            ? Array.from(
+                { length: SECURITY_LIMITS.MAX_TAG_SIZE },
+                (_, elementIndex) =>
+                  elementIndex === 0
+                    ? "t"
+                    : elementIndex === 1
+                      ? "x".repeat(SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE)
+                      : "x",
+              )
+            : ["t", String(index)],
       );
 
       const event = createTextNote(
@@ -36,6 +42,7 @@ describe("security limits through public behavior", () => {
 
       expect(event.content).toHaveLength(SECURITY_LIMITS.MAX_CONTENT_SIZE);
       expect(event.tags).toHaveLength(SECURITY_LIMITS.MAX_TAG_COUNT);
+      expect(event.tags[0]).toHaveLength(SECURITY_LIMITS.MAX_TAG_SIZE);
       expect(event.tags[0][1]).toHaveLength(
         SECURITY_LIMITS.MAX_TAG_ELEMENT_SIZE,
       );
@@ -242,10 +249,19 @@ describe("security limits through public behavior", () => {
 
     it("accepts each filter collection and field at the documented boundary", () => {
       const boundaryFilter = {
-        ids: Array.from({ length: SECURITY_LIMITS.MAX_FILTER_IDS }, () => "a"),
+        ids: Array.from(
+          { length: SECURITY_LIMITS.MAX_FILTER_IDS },
+          (_, index) =>
+            index === 0
+              ? "a".repeat(SECURITY_LIMITS.MAX_ID_LENGTH)
+              : "a",
+        ),
         authors: Array.from(
           { length: SECURITY_LIMITS.MAX_FILTER_AUTHORS },
-          () => "b",
+          (_, index) =>
+            index === 0
+              ? "b".repeat(SECURITY_LIMITS.MAX_PUBKEY_LENGTH)
+              : "b",
         ),
         kinds: Array.from(
           { length: SECURITY_LIMITS.MAX_FILTER_KINDS },
@@ -269,6 +285,12 @@ describe("security limits through public behavior", () => {
       );
 
       expect(subscribe(filters)).toEqual([]);
+      expect(boundaryFilter.ids[0]).toHaveLength(
+        SECURITY_LIMITS.MAX_ID_LENGTH,
+      );
+      expect(boundaryFilter.authors[0]).toHaveLength(
+        SECURITY_LIMITS.MAX_PUBKEY_LENGTH,
+      );
       expect(subscribe([{ limit: SECURITY_LIMITS.MIN_LIMIT }])).toEqual([]);
     });
 

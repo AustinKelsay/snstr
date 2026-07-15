@@ -208,7 +208,7 @@ npm run example:validation    # Run validation-focused helper flows
 
 ## Directory Structure
 
-- `basic-usage.ts` - Core functionality demo including event creation, signing, and relay publishing
+- `basic-example.ts` - Core functionality demo including event creation, signing, and relay publishing
 - `crypto-demo.ts` - Cryptography examples including key pair generation, signing, and verification
 - `rate-limit-configuration-example.ts` - Configure and monitor built-in rate limits
 - `/nip01` - [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) (Core Protocol) examples
@@ -218,10 +218,10 @@ npm run example:validation    # Run validation-focused helper flows
     - `replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) with update mechanisms
   - `/relay` - Relay-related examples
     - `relay-connection-example.ts` - Connection management with error handling and timeout configuration
-    - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
-    - `relay-pool.ts` - Manage multiple relays with RelayPool
+    - `relay-reconnect-example.ts` - Relay reconnection with exponential backoff strategies
+    - `relay-pool-example.ts` - Manage multiple relays with RelayPool
     - `relay-pool-url-normalization-example.ts` - Normalize relay URLs before connecting
-    - `filter-types.ts` - Filter type examples for event retrieval optimization
+    - `filter-types-example.ts` - Filter type examples for event retrieval optimization
     - `auto-unsubscribe-example.ts` - Demonstrates automatic subscription cleanup
   - `url-preprocessing-example.ts` - Relay URL preprocessing utilities for clients
 - `/client` - Client-related examples

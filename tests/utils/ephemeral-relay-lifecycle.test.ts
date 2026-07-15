@@ -3,6 +3,7 @@ import type { NostrEvent } from "../../src/types/nostr";
 import { Relay } from "../../src/nip01/relay";
 import { RelayEvent } from "../../src/types/nostr";
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import { createEvent, createSignedEvent } from "../../src/nip01/event";
 import { getPublicKey } from "../../src/utils/crypto";
 
@@ -31,6 +32,20 @@ function createDiagnosticLogger() {
   const logger: DiagnosticLogger = { error, warn, info, debug, trace };
 
   return { logger, error, warn, info, debug, trace };
+}
+
+function createThrowingDiagnosticLogger(): DiagnosticLogger {
+  const throwDiagnosticError = () => {
+    throw new Error("diagnostic logger failed");
+  };
+
+  return {
+    error: jest.fn(throwDiagnosticError),
+    warn: jest.fn(throwDiagnosticError),
+    info: jest.fn(throwDiagnosticError),
+    debug: jest.fn(throwDiagnosticError),
+    trace: jest.fn(throwDiagnosticError),
+  };
 }
 
 function spyOnConsoleDiagnostics() {
@@ -210,6 +225,65 @@ describe("NostrRelay lifecycle", () => {
       "Relay started",
       "Relay closed",
     ]);
+  });
+
+  test("a throwing diagnostic logger cannot alter Relay lifecycle behavior", async () => {
+    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const relay = new NostrRelay(0, {
+      logger: createThrowingDiagnosticLogger(),
+    });
+    const event = await createRelayEvent("throwing diagnostics");
+    let client: Relay | null = null;
+
+    try {
+      await expect(relay.start()).resolves.toBe(relay);
+      client = new Relay(relay.url, {
+        autoReconnect: false,
+        connectionTimeout: 1000,
+      });
+      expect(await client.connect()).toBe(true);
+      await expect(
+        client.publish(event, { timeout: 1000 }),
+      ).resolves.toMatchObject({ success: true });
+      await expect(relay.close()).resolves.toBeUndefined();
+    } finally {
+      client?.disconnect();
+      await relay.close();
+    }
+  });
+
+  test("a failed fixed-port start can retry after the port is released", async () => {
+    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const blocker = createServer();
+    await new Promise<void>((resolve, reject) => {
+      blocker.once("error", reject);
+      blocker.listen(0, "127.0.0.1", resolve);
+    });
+    const address = blocker.address();
+    if (!address || typeof address === "string") {
+      throw new Error("Fixed-port blocker has no TCP port");
+    }
+    const relay = new NostrRelay(address.port);
+
+    try {
+      await expect(relay.start()).rejects.toMatchObject({
+        code: "EADDRINUSE",
+      });
+      await new Promise<void>((resolve, reject) => {
+        blocker.close((error) => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+
+      await expect(relay.start()).resolves.toBe(relay);
+      expect(relay.wss.address()).not.toBeNull();
+    } finally {
+      if (blocker.listening) {
+        await new Promise<void>((resolve) => blocker.close(() => resolve()));
+      }
+      await relay.close();
+    }
   });
 
   test("the legacy numeric purge interval remains compatible", async () => {
