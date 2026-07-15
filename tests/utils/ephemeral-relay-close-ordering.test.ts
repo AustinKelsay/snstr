@@ -116,7 +116,7 @@ async function closeNativeWebSocketServer(
         }),
     ),
   );
-  httpServer.closeAllConnections();
+  httpServer.closeAllConnections?.();
   if (isBunRuntime) {
     httpServer.close();
     if (httpServer.listening || httpServer.address() !== null) {
