@@ -142,14 +142,16 @@ describe("NIP-57 public clients", () => {
       const isBun = typeof globals.Bun !== "undefined";
       const hadBun = Object.prototype.hasOwnProperty.call(globals, "Bun");
       const previousBun = globals.Bun;
-      if (!isBun) globals.Bun = {};
-      const relay = new NostrRelay(0);
-      await relay.start();
-      const nostr = new Nostr([relay.url], {
-        relayOptions: { autoReconnect: false },
-      });
+      let relay: NostrRelay | null = null;
+      let nostr: Nostr | null = null;
 
       try {
+        if (!isBun) globals.Bun = {};
+        relay = new NostrRelay(0);
+        await relay.start();
+        nostr = new Nostr([relay.url], {
+          relayOptions: { autoReconnect: false },
+        });
         await nostr.connectToRelays();
         jest.useFakeTimers();
         const client = new NostrZapClient({ client: nostr });
@@ -162,8 +164,8 @@ describe("NIP-57 public clients", () => {
         expect(jest.getTimerCount()).toBe(0);
       } finally {
         jest.useRealTimers();
-        nostr.disconnectFromRelays();
-        await relay.close();
+        nostr?.disconnectFromRelays();
+        await relay?.close();
         if (!isBun) {
           if (hadBun) globals.Bun = previousBun;
           else delete globals.Bun;
@@ -176,34 +178,36 @@ describe("NIP-57 public clients", () => {
       const isBun = typeof globals.Bun !== "undefined";
       const hadBun = Object.prototype.hasOwnProperty.call(globals, "Bun");
       const previousBun = globals.Bun;
-      if (!isBun) globals.Bun = {};
-      const relay = new NostrRelay(0);
-      await relay.start();
-      const nostr = new Nostr([relay.url], {
-        relayOptions: { autoReconnect: false },
-      });
-      const privateKey = "1".repeat(64);
-      const recipient = "5".repeat(64);
-      const zappedEventId = "6".repeat(64);
-      const sender = "7".repeat(64);
-      const receipt = await createSignedEvent(
-        createEvent(
-          {
-            kind: 9735,
-            created_at: Math.floor(Date.now() / 1000),
-            tags: [
-              ["p", recipient],
-              ["e", zappedEventId],
-              ["description", JSON.stringify({ pubkey: sender })],
-            ],
-            content: "",
-          },
-          getPublicKey(privateKey),
-        ),
-        privateKey,
-      );
+      let relay: NostrRelay | null = null;
+      let nostr: Nostr | null = null;
 
       try {
+        if (!isBun) globals.Bun = {};
+        relay = new NostrRelay(0);
+        await relay.start();
+        nostr = new Nostr([relay.url], {
+          relayOptions: { autoReconnect: false },
+        });
+        const privateKey = "1".repeat(64);
+        const recipient = "5".repeat(64);
+        const zappedEventId = "6".repeat(64);
+        const sender = "7".repeat(64);
+        const receipt = await createSignedEvent(
+          createEvent(
+            {
+              kind: 9735,
+              created_at: Math.floor(Date.now() / 1000),
+              tags: [
+                ["p", recipient],
+                ["e", zappedEventId],
+                ["description", JSON.stringify({ pubkey: sender })],
+              ],
+              content: "",
+            },
+            getPublicKey(privateKey),
+          ),
+          privateKey,
+        );
         await nostr.connectToRelays();
         await expect(
           nostr.publishEvent(receipt, { timeout: 1000 }),
@@ -227,8 +231,8 @@ describe("NIP-57 public clients", () => {
         ]);
         expect(nostr.getRelay(relay.url)?.getSubscriptionIds().size).toBe(0);
       } finally {
-        nostr.disconnectFromRelays();
-        await relay.close();
+        nostr?.disconnectFromRelays();
+        await relay?.close();
         if (!isBun) {
           if (hadBun) globals.Bun = previousBun;
           else delete globals.Bun;
