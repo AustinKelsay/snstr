@@ -37,3 +37,4 @@
 | Public direction-specific aliases were missing from the type inventory | fixed | All four EVENT/AUTH direction aliases are documented. |
 
 - Post-hosted-review verification: lint and strict typecheck pass; filter, protocol type, and export-policy suites pass 20/20, including a raw-WebSocket malformed REQ regression test.
+- CI portability follow-up: the first raw socket test bypassed the repository's in-memory transport under Bun. It now sends through the connected Relay test seam; the filter suite passes 13/13 in both Jest and Bun.
