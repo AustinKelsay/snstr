@@ -14,6 +14,7 @@ import { NostrRelay } from "../../../src/utils/ephemeral-relay";
 import { createSignedEvent } from "../../../src/nip01/event";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { testUtils } from "../../types";
+import { WebSocket } from "ws";
 
 // Helper function to wait for events
 const waitForEvents = (
@@ -62,6 +63,25 @@ describe("Enhanced NostrFilter Types", () => {
 
   // Test 1: Type validation for filters with new tag types
   describe("Filter Type Validation", () => {
+    test("rejects malformed REQ filters with a stable NOTICE", async () => {
+      const socket = new WebSocket(ephemeralRelay.url);
+      await new Promise<void>((resolve, reject) => {
+        socket.once("open", resolve);
+        socket.once("error", reject);
+      });
+
+      const response = new Promise<unknown>((resolve) => {
+        socket.once("message", (data) => resolve(JSON.parse(data.toString())));
+      });
+      socket.send(JSON.stringify(["REQ", "invalid-filter", { kinds: "1" }]));
+
+      await expect(response).resolves.toEqual([
+        "NOTICE",
+        "invalid: REQ filters",
+      ]);
+      socket.close();
+    });
+
     test("should accept filters with all defined tag types", () => {
       // This test verifies TypeScript accepts the expanded type definition
       // Create a filter with all the standard tag types

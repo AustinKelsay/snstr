@@ -772,7 +772,15 @@ class ClientSession {
                     "invalid: REQ subscription id must be a string",
                   ]);
                 }
-                const filters = validateFilters(parsed.slice(2));
+                let filters: NostrFilter[];
+                try {
+                  filters = validateFilters(parsed.slice(2));
+                } catch (error) {
+                  if (error instanceof SecurityValidationError) {
+                    return this.send(["NOTICE", "invalid: REQ filters"]);
+                  }
+                  throw error;
+                }
                 return this._onreq(sub_id, filters);
               }
 

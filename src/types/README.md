@@ -36,6 +36,8 @@ Contains the fundamental types for Nostr events and communication:
 Contains types for the Nostr protocol messages and communication:
 
 - **`NostrEventMessage`**: Client EVENT publication or Relay subscription EVENT tuple
+- **`NostrClientToServerEventMessage`**: Client EVENT publication tuple
+- **`NostrServerToClientEventMessage`**: Relay EVENT delivery tuple
 - **`NostrReqMessage`**: ["REQ", subscription_id, ...filters] message format
 - **`NostrCloseMessage`**: ["CLOSE", subscription_id] message format
 - **`NostrOkMessage`**: ["OK", event_id, success, message] message format
@@ -43,6 +45,8 @@ Contains types for the Nostr protocol messages and communication:
 - **`NostrClosedMessage`**: ["CLOSED", subscription_id, message] message format
 - **`NostrNoticeMessage`**: ["NOTICE", message] message format
 - **`NostrAuthMessage`**: Relay challenge or client authentication EVENT tuple (NIP-42)
+- **`NostrRelayAuthMessage`**: Relay AUTH challenge tuple
+- **`NostrClientAuthMessage`**: Client AUTH response EVENT tuple
 - **`NostrClientMessage`**: Union of tuples sent from clients to relays
 - **`NostrRelayMessage`**: Union of tuples sent from relays to clients
 - **`NostrMessage`**: Union type of all message types

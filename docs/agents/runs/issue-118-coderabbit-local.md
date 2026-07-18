@@ -23,3 +23,17 @@
 - Worthy findings fixed: 4
 - Findings skipped with evidence: 1
 - Post-fix verification: lint and strict typecheck pass; focused protocol, Relay, ephemeral Relay, filter, and export-policy suites pass 85/85
+
+## Hosted PR Round
+
+- Scope: PR #121
+- Trigger: `@coderabbit full review`
+- Completed: 2026-07-18
+- Findings: 2
+
+| Finding | Decision | Notes |
+| --- | --- | --- |
+| Invalid REQ filters were reported as generic parse failures | fixed | `SecurityValidationError` now maps to the stable `invalid: REQ filters` NOTICE. |
+| Public direction-specific aliases were missing from the type inventory | fixed | All four EVENT/AUTH direction aliases are documented. |
+
+- Post-hosted-review verification: lint and strict typecheck pass; filter, protocol type, and export-policy suites pass 20/20, including a raw-WebSocket malformed REQ regression test.
