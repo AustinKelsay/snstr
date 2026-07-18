@@ -8,10 +8,14 @@ Releases are currently performed manually from `main`; the repository does not
 have an npm publishing workflow. Promote the verified `staging` branch first,
 then run the release from a clean, up-to-date `main` checkout.
 
+npm 9.8.1 is the canonical release package manager. Bun is tested as a
+compatibility runner, but it is not used to version or publish releases.
+
 ```bash
 git checkout main
 git pull --ff-only origin main
 npm ci
+npm run package-manager:verify
 npm run release:prepare
 npm publish --dry-run
 npm version minor # or patch/major

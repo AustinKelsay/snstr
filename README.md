@@ -420,6 +420,7 @@ The `scripts` object in [package.json](./package.json) is the executable source 
 | `npm run build:cjs` | `tsc -p tsconfig.build.json` |
 | `npm run build:esm` | `tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js` |
 | `npm run pack:verify` | `node scripts/verify-pack.js` |
+| `npm run package-manager:verify` | `node scripts/verify-package-manager.js` |
 | `npm run commands:verify` | `node scripts/verify-commands.js` |
 | `npm run prepack` | `npm run build && npm run pack:verify` |
 | `npm run build:examples` | `tsc -p examples/tsconfig.json` |
@@ -618,7 +619,7 @@ The `scripts` object in [package.json](./package.json) is the executable source 
 
 ## Development
 
-Install dependencies with `npm install`, then use the build, test, quality, and verification workflows in the [Command Reference](#command-reference). Keep source, tests, and examples aligned when changing a NIP.
+Install dependencies reproducibly with `npm ci`, then use the build, test, quality, and verification workflows in the [Command Reference](#command-reference). npm 9.8.1 is the canonical package manager; Bun 1.3.9 is a frozen-lockfile compatibility runner. See [CONTRIBUTING.md](CONTRIBUTING.md#package-manager-policy) for the lockfile policy. Keep source, tests, and examples aligned when changing a NIP.
 
 ### Directory Structure Notes
 

@@ -8,7 +8,8 @@
 - `scripts/` — helper scripts (e.g., `scripts/promote-to-main.sh`).
 
 ## Build, Test, and Development Commands
-- `npm install` — install dependencies.
+- `npm ci` — install the canonical dependency graph from `package-lock.json`.
+- `npm run package-manager:verify` — verify npm/Bun metadata, lockfiles, and CI policy.
 - `npm run build` — clean and compile TypeScript to `dist/`.
 - `npm test` | `npm run test:watch` | `npm run test:coverage` — run Jest, watch mode, or coverage (reports in `coverage/`).
 - `npm run lint` — ESLint (`@typescript-eslint`) over `.ts` sources.
@@ -39,4 +40,3 @@
 
 ## Agent‑Specific Notes
 - This AGENTS.md applies repo‑wide. A deeper `AGENTS.md` overrides within its folder subtree. Follow the structure and style above when adding files and exports.
-

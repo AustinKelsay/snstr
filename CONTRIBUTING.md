@@ -16,7 +16,7 @@ Thank you for your interest in contributing to SNSTR! This document provides gui
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/your-username/snstr.git`
-3. Install dependencies: `npm install`
+3. Install dependencies: `npm ci`
 4. Build the project: `npm run build`
 
 ## Development Workflow
@@ -90,6 +90,19 @@ The project uses the following branch strategy:
 The CI pipeline runs tests for both `main` and `staging` branches, but releases are only created from the `main` branch.
 
 ## Release Process
+
+### Package-manager policy
+
+npm 9.8.1 is the canonical package manager for dependency changes, clean
+installs, scripts, and releases. Use `npm install` when intentionally changing
+dependencies, commit the resulting `package-lock.json`, and use `npm ci` for a
+reproducible clean install. Do not add pnpm, Yarn, or shrinkwrap lockfiles.
+
+Bun 1.3.9 is a supported compatibility runner, pinned in `.bun-version`.
+When dependencies change, refresh and commit `bun.lock`, then confirm
+`bun install --frozen-lockfile` succeeds. Bun does not own releases or the
+canonical dependency graph. Run `npm run package-manager:verify` before
+submitting dependency or CI changes.
 
 SNSTR releases are currently performed manually from `main` after verified
 changes are promoted from `staging`.
