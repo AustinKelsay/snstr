@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, rebased from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: issue #112 implementation and integrated verification complete; local CodeRabbit gate pending
+- Current status: issue #112 merged into `staging`; issue #118 implementation in progress
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -27,7 +27,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 - Agent briefs: Grok 4.5 is the only owner-approved delegated sidecar; `agent` authentication was unavailable at preflight, so no substitute subagent is used and Codex owns local execution/review
 - Review packets: created per ticket
 - Local CodeRabbit report: issue #112 round completed with five worthy fixes in `issue-112-coderabbit-local.md`
-- PR URLs: #120 for issue #112; later tickets pending
+- PR URLs: #120 for issue #112 (merged); later tickets pending
 
 ## Commands
 
@@ -41,8 +41,8 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 | Issue | Type | Status | Branch | Review | Verified |
 | --- | --- | --- | --- | --- | --- |
-| #112 NIP-44 legacy behavior | AFK | local CodeRabbit fixes verified | `feature/nip44-legacy-compat` | standards/spec pass; CodeRabbit 5 fixed | yes |
-| #118 authoritative protocol messages | AFK | ready | `feature/protocol-message-types` | pending | no |
+| #112 NIP-44 legacy behavior | AFK | merged into `staging` | `feature/nip44-legacy-compat` | standards/spec pass; local CodeRabbit 5 fixed; hosted CodeRabbit 3 fixed | yes |
+| #118 authoritative protocol messages | AFK | implementation and local review verified | `feature/protocol-message-types` | standards/spec pass; local CodeRabbit 4 fixed, 1 evidence-based skip | Jest 994/994; Bun full; post-review focused 85/85; commands, lint, types, builds, pack |
 | #113 Relay event-store seam | AFK | blocked by #118 | `feature/relay-event-store` | pending | no |
 | #114 NIP-47 protocol machinery | AFK | blocked by #118 | `feature/nip47-protocol-codecs` | pending | no |
 | #115 Nostr relay registry | AFK | blocked by #113 | `feature/nostr-relay-registry` | pending | no |
@@ -60,7 +60,8 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 | Issue | Fixed point | Implementation owner | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | `ab22d13`, `fa85df2`, `03e4eb5` | standards/spec pass after one fix; CodeRabbit 5/5 fixed | NIP-44 107/107; Jest 991/991; Bun 991/991; lint, types, builds, commands, pack |
+| #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | PR #120, merge `c7cb99f` | standards/spec pass after one fix; local CodeRabbit 5/5 and hosted CodeRabbit 3/3 fixed | NIP-44 107/107; Jest 991/991; Bun 991/991; hosted Node 16/18/20 + Bun; lint, types, builds, commands, pack |
+| #118 | `c7cb99f` | current Codex orchestrator; Grok unavailable at auth preflight | pending | standards/spec pass; local CodeRabbit 4 fixed, 1 skipped with type evidence | targeted 60/60; Jest 994/994; Bun full; post-review focused 85/85; commands, lint, types, builds, pack |
 
 ## Alignment Decisions
 

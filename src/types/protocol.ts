@@ -1,5 +1,4 @@
 import { NostrEvent, NostrFilter } from "./nostr";
-// RelayEvent is now imported in relay.ts directly from nostr.ts
 
 /**
  * Message types for Nostr protocol communications as defined in NIP-01
@@ -32,20 +31,38 @@ export type NostrEoseMessage = ["EOSE", string];
 /** NOTICE message: A human-readable message from a relay to a client */
 export type NostrNoticeMessage = ["NOTICE", string];
 
-/** AUTH message: A relay requesting client authentication (NIP-42) */
-export type NostrAuthMessage =
-  | ["AUTH", string] // relay ➜ client (challenge)
-  | ["AUTH", NostrEvent]; // client ➜ relay   (response)
+/** CLOSED message: A relay indicating that a subscription ended */
+export type NostrClosedMessage = ["CLOSED", string, string];
 
-/** Union type of all possible message types */
-export type NostrMessage =
-  | NostrEventMessage
+/** AUTH message: A relay requesting client authentication (NIP-42) */
+export type NostrRelayAuthMessage = ["AUTH", string];
+
+/** AUTH message: A client responding to a relay challenge (NIP-42) */
+export type NostrClientAuthMessage = ["AUTH", NostrEvent];
+
+/** Union type for AUTH messages in either direction */
+export type NostrAuthMessage =
+  | NostrRelayAuthMessage
+  | NostrClientAuthMessage;
+
+/** Messages sent from a Nostr client to a relay */
+export type NostrClientMessage =
+  | NostrClientToServerEventMessage
   | NostrReqMessage
   | NostrCloseMessage
+  | NostrClientAuthMessage;
+
+/** Messages sent from a Nostr relay to a client */
+export type NostrRelayMessage =
+  | NostrServerToClientEventMessage
   | NostrOkMessage
   | NostrEoseMessage
+  | NostrClosedMessage
   | NostrNoticeMessage
-  | NostrAuthMessage;
+  | NostrRelayAuthMessage;
+
+/** Union type of all possible message types */
+export type NostrMessage = NostrClientMessage | NostrRelayMessage;
 
 /**
  * Error type for Nostr protocol message parsing errors
@@ -60,8 +77,6 @@ export class NostrMessageParseError extends Error {
     this.data = data;
   }
 }
-
-// Export RelayEvent from nostr.ts instead of redefining it here
 
 /**
  * Interface for relay connection options
