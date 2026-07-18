@@ -26,6 +26,7 @@ import { NostrValidationError, validateRelayIngressEvent } from "./validation";
 import { Logger, LogLevel } from "../utils/logger";
 import { getSecureRandom, secureRandomHex } from "../utils/security-validator";
 import { maybeUnref } from "../utils/timers";
+import { isLowercaseHexOfLength } from "../utils/wire-validation";
 import {
   BivariantHandler,
   OpenEventLike,
@@ -1288,10 +1289,6 @@ export class Relay {
 
   // New private helper method for validating NIP-01 filter identifiers
   private _isValidNip01FilterIdentifier(value: unknown): value is string {
-    if (typeof value !== "string") {
-      return false;
-    }
-    // Must be 64 characters, lowercase hex
-    return /^[0-9a-f]{64}$/.test(value);
+    return isLowercaseHexOfLength(value, 64);
   }
 }

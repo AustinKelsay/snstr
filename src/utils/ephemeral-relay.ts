@@ -7,7 +7,8 @@ import {
   NostrEoseMessage,
 } from "../types/protocol";
 import { validateEvent } from "../nip01/event";
-import { isValidPublicKeyPoint } from "../nip44";
+import { isValidPublicKeyPoint } from "./key-validation";
+import { isHexOfLength } from "./wire-validation";
 import {
   validateArrayAccess,
   validateFilters,
@@ -32,7 +33,7 @@ import {
  * Unlike isValidPublicKeyPoint, this accepts both uppercase and lowercase hex.
  */
 function isValid32ByteHex(hex: string): boolean {
-  return /^[0-9a-fA-F]{64}$/.test(hex);
+  return isHexOfLength(hex, 64);
 }
 
 /**
@@ -40,7 +41,7 @@ function isValid32ByteHex(hex: string): boolean {
  * Unlike isValidPublicKeyPoint, this accepts both uppercase and lowercase hex.
  */
 function isValid64ByteHex(hex: string): boolean {
-  return /^[0-9a-fA-F]{128}$/.test(hex);
+  return isHexOfLength(hex, 128);
 }
 
 /* ================ [ Configuration ] ================ */

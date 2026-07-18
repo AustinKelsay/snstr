@@ -6,53 +6,10 @@
  */
 
 import { Filter } from "../types/nostr";
+import { isHexOfLength } from "./wire-validation";
+import { SECURITY_LIMITS } from "./security-limits";
 
-// Security Constants
-export const SECURITY_LIMITS = {
-  // Content size limits (prevent DoS via large payloads)
-  MAX_CONTENT_SIZE: 100000, // 100KB
-  MAX_TAG_SIZE: 1000,
-  MAX_TAG_COUNT: 100,
-  MAX_TAG_ELEMENT_SIZE: 512,
-
-  // Filter limits (prevent DoS via complex filters)
-  MAX_FILTER_COUNT: 20,
-  MAX_FILTER_IDS: 1000,
-  MAX_FILTER_AUTHORS: 1000,
-  MAX_FILTER_KINDS: 100,
-  MAX_FILTER_TAG_VALUES: 1000,
-  MAX_SEARCH_LENGTH: 500,
-
-  // Array access safety
-  MAX_ARRAY_SIZE: 10000,
-  MAX_OBJECT_DEPTH: 10,
-
-  // String limits
-  MAX_STRING_LENGTH: 100000,
-  MAX_URL_LENGTH: 2048,
-  MAX_PUBKEY_LENGTH: 64,
-  MAX_SIGNATURE_LENGTH: 128,
-  MAX_ID_LENGTH: 64,
-
-  // Numeric limits
-  MIN_KIND: 0,
-  MAX_KIND: 65535,
-  MIN_CREATED_AT: 946684800, // Jan 1, 2000
-  MAX_CREATED_AT: 4102444800, // Jan 1, 2100
-  MIN_LIMIT: 0,
-  MAX_LIMIT: 5000,
-  MIN_SINCE: 946684800, // Jan 1, 2000
-  MAX_SINCE: 4102444800, // Jan 1, 2100
-  MIN_UNTIL: 946684800, // Jan 1, 2000
-  MAX_UNTIL: 4102444800, // Jan 1, 2100
-
-  // Memory limits for relay buffers (prevent memory exhaustion)
-  MAX_RELAY_EVENT_BUFFERS: 1000, // Maximum number of event buffers per relay
-  MAX_EVENTS_PER_BUFFER: 100, // Maximum events per buffer
-  MAX_REPLACEABLE_EVENT_PUBKEYS: 10000, // Maximum pubkeys to track replaceable events
-  MAX_REPLACEABLE_EVENTS_PER_PUBKEY: 50, // Maximum replaceable events per pubkey
-  MAX_ADDRESSABLE_EVENTS: 50000, // Maximum addressable events to store
-} as const;
+export { SECURITY_LIMITS } from "./security-limits";
 
 // Security error types
 export class SecurityValidationError extends Error {
@@ -651,7 +608,7 @@ export function validatePrivateKey(
     );
   }
 
-  if (!/^[0-9a-f]{64}$/i.test(keyStr)) {
+  if (!isHexOfLength(keyStr, 64)) {
     throw new SecurityValidationError(
       "Private key must be valid hex (64 characters)",
       "INVALID_PRIVATE_KEY_FORMAT",

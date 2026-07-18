@@ -11,7 +11,10 @@ import {
 import { getPublicKey, signEvent as signEventCrypto } from "../utils/crypto";
 import { getUnixTime } from "../utils/time";
 import { isValidRelayUrl } from "../nip19";
-import { isValidPrivateKey, isValidPublicKeyPoint } from "../nip44";
+import {
+  isValidPrivateKey,
+  isValidPublicKeyPoint,
+} from "../utils/key-validation";
 import { getRegisteredNIP04 } from "../nip04/registry";
 import { calculateEventHash } from "./serialization";
 import {
@@ -24,11 +27,12 @@ import {
 import {
   validateEventContent,
   validateTags,
-  SECURITY_LIMITS,
   SecurityValidationError,
   validateArrayAccess,
   safeArrayAccess,
 } from "../utils/security-validator";
+import { SECURITY_LIMITS } from "../utils/security-limits";
+import { utf8ByteLength } from "../utils/wire-validation";
 
 export { NostrValidationError } from "./validation";
 
@@ -146,7 +150,7 @@ export function createTextNote(
     const validatedTags = validateTags(tags);
 
     // Calculate actual UTF-8 byte length for proper size validation
-    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    const contentByteLength = utf8ByteLength(validatedContent);
     if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
         `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
@@ -218,7 +222,7 @@ export async function createDirectMessage(
     const validatedTags = validateTags(tags);
 
     // Calculate actual UTF-8 byte length for proper size validation
-    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    const contentByteLength = utf8ByteLength(validatedContent);
     if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
         `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
@@ -343,7 +347,7 @@ export function createAddressableEvent(
     const validatedTags = validateTags(additionalTags);
 
     // Calculate actual UTF-8 byte length for proper size validation
-    const contentByteLength = new TextEncoder().encode(validatedContent).length;
+    const contentByteLength = utf8ByteLength(validatedContent);
     if (contentByteLength > SECURITY_LIMITS.MAX_CONTENT_SIZE) {
       throw new SecurityValidationError(
         `Content too large: ${contentByteLength} bytes (max ${SECURITY_LIMITS.MAX_CONTENT_SIZE})`,
