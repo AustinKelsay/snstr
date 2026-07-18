@@ -4,25 +4,15 @@
  * 1. By created_at timestamp (newest first)
  * 2. By event ID (lexically) when timestamps are the same
  *
- * Note: The integration test for the relay's buffer mechanism is in
- * event-ordering-integration.test.ts but requires additional work to properly
- * mock the WebSocket connections.
+ * The integration test for Relay buffer delivery lives in
+ * event-ordering-integration.test.ts.
  */
 
 import { NostrEvent } from "../../../src/types/nostr";
+import { RelayEventStore } from "../../../src/nip01/relayEventStore";
 
 describe("Event ordering", () => {
-  // Simple implementation of the sorting function based on NIP-01 spec
-  function sortEvents(events: NostrEvent[]): NostrEvent[] {
-    return [...events].sort((a, b) => {
-      // Sort by created_at (descending - newer events first)
-      if (a.created_at !== b.created_at) {
-        return b.created_at - a.created_at;
-      }
-      // If created_at is the same, sort by id (ascending lexical order)
-      return a.id.localeCompare(b.id);
-    });
-  }
+  const sortEvents = RelayEventStore.sortEvents;
 
   test("should order events by created_at (newest first)", () => {
     // Create test events with different timestamps

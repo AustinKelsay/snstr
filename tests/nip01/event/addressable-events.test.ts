@@ -71,8 +71,8 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Different d-tag values create separate addressable events", async () => {
     // Process events with same pubkey and kind but different d-tag values
-    testRelay.processValidatedEvent(testEvents.event1, "sub1");
-    testRelay.processValidatedEvent(testEvents.event2, "sub1");
+    testRelay.eventStore.storeAddressable(testEvents.event1);
+    testRelay.eventStore.storeAddressable(testEvents.event2);
 
     // Get latest events for each d-tag value
     const latest1 = relay.getLatestAddressableEvent(
@@ -96,10 +96,10 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Newer event with same d-tag replaces older one", async () => {
     // Process original event
-    testRelay.processValidatedEvent(testEvents.event1, "sub1");
+    testRelay.eventStore.storeAddressable(testEvents.event1);
 
     // Process newer event with same d-tag
-    testRelay.processValidatedEvent(testEvents.event3, "sub1");
+    testRelay.eventStore.storeAddressable(testEvents.event3);
 
     // Get latest event
     const latest = relay.getLatestAddressableEvent(
@@ -115,8 +115,8 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Different kinds with same d-tag are stored separately", async () => {
     // Process events with same pubkey and d-tag but different kinds
-    testRelay.processValidatedEvent(testEvents.event1, "sub1");
-    testRelay.processValidatedEvent(testEvents.event4, "sub1");
+    testRelay.eventStore.storeAddressable(testEvents.event1);
+    testRelay.eventStore.storeAddressable(testEvents.event4);
 
     // Get latest events for each kind
     const latest1 = relay.getLatestAddressableEvent(
