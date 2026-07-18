@@ -16,7 +16,12 @@ import {
   ParsedOkReason,
   SubscriptionOptions,
 } from "../types/nostr";
-import { RelayConnectionOptions } from "../types/protocol";
+import {
+  NostrClientMessage,
+  NostrCloseMessage,
+  NostrReqMessage,
+  RelayConnectionOptions,
+} from "../types/protocol";
 import { NostrValidationError, validateRelayIngressEvent } from "./validation";
 import { Logger, LogLevel } from "../utils/logger";
 import {
@@ -43,12 +48,6 @@ type WebSocketLike = {
   close(code?: number, reason?: string): void;
   terminate?: () => void;
 };
-
-type ClientMessage =
-  | ["EVENT", NostrEvent]
-  | ["AUTH", NostrEvent]
-  | ["REQ", string, ...Filter[]]
-  | ["CLOSE", string];
 
 const WS_READY_STATE = {
   CONNECTING: 0,
@@ -683,7 +682,7 @@ export class Relay {
   }
 
   private async sendClientMessage(
-    message: ClientMessage,
+    message: NostrClientMessage,
     options: PublishOptions = {},
     ackEventId?: string,
   ): Promise<PublishResponse> {
@@ -873,8 +872,8 @@ export class Relay {
     this.eventBuffers.set(id, []); // Initialize an empty event buffer for this subscription
 
     if (this.connected && this.ws) {
-      const message = JSON.stringify(["REQ", id, ...filters]);
-      this.ws.send(message);
+      const message: NostrReqMessage = ["REQ", id, ...filters];
+      this.ws.send(JSON.stringify(message));
     }
 
     return id;
@@ -893,8 +892,8 @@ export class Relay {
     this.pendingValidationCounts.delete(id);
 
     if (this.connected && this.ws) {
-      const message = JSON.stringify(["CLOSE", id]);
-      this.ws.send(message);
+      const message: NostrCloseMessage = ["CLOSE", id];
+      this.ws.send(JSON.stringify(message));
     }
   }
 

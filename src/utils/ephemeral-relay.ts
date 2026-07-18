@@ -2,7 +2,7 @@ import EventEmitter from "events";
 import { WebSocket, WebSocketServer } from "ws";
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import {
-  NostrMessage,
+  NostrRelayMessage,
   NostrOkMessage,
   NostrEoseMessage,
 } from "../types/protocol";
@@ -10,6 +10,7 @@ import { validateEvent } from "../nip01/event";
 import { isValidPublicKeyPoint } from "../nip44";
 import {
   validateArrayAccess,
+  validateFilters,
   safeArrayAccess,
   SecurityValidationError,
 } from "./security-validator";
@@ -88,15 +89,6 @@ function createNonThrowingDiagnosticLogger(
 
 /* ================ [ Interfaces ] ================ */
 
-// Using NostrFilter from types/nostr.ts
-type EventFilter = NostrFilter;
-
-// Using NostrEvent from types/nostr.ts
-type SignedEvent = NostrEvent;
-
-// Extended type for relay events that adds a subscription id in the middle
-type NostrRelayEventMessage = ["EVENT", string, NostrEvent];
-
 /** Optional lifecycle settings for the public ephemeral Relay. */
 export interface NostrRelayOptions {
   /** Seconds between cache purges. */
@@ -106,7 +98,7 @@ export interface NostrRelayOptions {
 }
 
 interface Subscription {
-  filters: EventFilter[];
+  filters: NostrFilter[];
   instance: ClientSession;
   sub_id: string;
 }
@@ -123,7 +115,7 @@ export class NostrRelay {
 
   private _wss: WebSocketServer | null;
   private _inMemoryServer: InMemoryWebSocketServer | null = null;
-  private _cache: SignedEvent[];
+  private _cache: NostrEvent[];
   private _closePromise: Promise<void> | null = null;
   private _purgeTimer: NodeJS.Timeout | null = null;
   private _actualPort: number | null = null;
@@ -475,7 +467,7 @@ export class NostrRelay {
     });
   }
 
-  store(event: SignedEvent) {
+  store(event: NostrEvent) {
     const isSimpleReplaceable =
       event.kind === 0 ||
       event.kind === 3 ||
@@ -762,7 +754,7 @@ class ClientSession {
                   "invalid: EVENT message missing params",
                 ]);
               }
-              return this._onevent(parsed[1] as SignedEvent);
+              return this._onevent(parsed[1] as NostrEvent);
 
             case "REQ":
               if (parsed.length < 2) {
@@ -773,8 +765,14 @@ class ClientSession {
                 ]);
               }
               {
-                const sub_id = parsed[1] as string;
-                const filters = parsed.slice(2) as EventFilter[];
+                const sub_id = parsed[1];
+                if (typeof sub_id !== "string") {
+                  return this.send([
+                    "NOTICE",
+                    "invalid: REQ subscription id must be a string",
+                  ]);
+                }
+                const filters = validateFilters(parsed.slice(2));
                 return this._onreq(sub_id, filters);
               }
 
@@ -824,7 +822,7 @@ class ClientSession {
     this.log.info("socket encountered an error:\n\n", err);
   }
 
-  async _onevent(event: SignedEvent) {
+  async _onevent(event: NostrEvent) {
     try {
       // Special handling for NIP-46 events (kind 24133)
       if (event.kind === 24133) {
@@ -881,11 +879,14 @@ class ClientSession {
                 const uidParts = uid.split("/");
                 if (validateArrayAccess(uidParts, 1)) {
                   const subId = safeArrayAccess(uidParts, 1);
+                  if (typeof subId !== "string") {
+                    continue;
+                  }
                   sub.instance.send([
                     "EVENT",
                     subId,
                     event,
-                  ] as NostrRelayEventMessage);
+                  ]);
                   break;
                 }
               } catch (error) {
@@ -947,7 +948,7 @@ class ClientSession {
         for (const filter of filters) {
           if (match_filter(event, filter)) {
             instance.log.client(`event matched subscription: ${sub_id}`);
-            instance.send(["EVENT", sub_id, event] as NostrRelayEventMessage);
+            instance.send(["EVENT", sub_id, event]);
           }
         }
       }
@@ -956,7 +957,7 @@ class ClientSession {
     }
   }
 
-  _onreq(sub_id: string, filters: EventFilter[]): void {
+  _onreq(sub_id: string, filters: NostrFilter[]): void {
     if (filters.length === 0) {
       this.log.client("request has no filters");
       return;
@@ -980,7 +981,7 @@ class ClientSession {
 
         // Check if event matches filter
         if (match_filter(event, filter)) {
-          this.send(["EVENT", sub_id, event] as NostrRelayEventMessage);
+          this.send(["EVENT", sub_id, event]);
           count++;
           this.log.client(`event matched in cache: ${event.id}`);
           this.log.client(`event matched subscription: ${sub_id}`);
@@ -1017,7 +1018,7 @@ class ClientSession {
     };
   }
 
-  addSub(sub_id: string, ...filters: EventFilter[]) {
+  addSub(sub_id: string, ...filters: NostrFilter[]) {
     const uid = `${this.sid}/${sub_id}`;
     this.relay.subs.set(uid, { filters, instance: this, sub_id });
     this._subs.add(sub_id);
@@ -1033,7 +1034,7 @@ class ClientSession {
     }
   }
 
-  send(message: NostrMessage | NostrRelayEventMessage) {
+  send(message: NostrRelayMessage) {
     try {
       if (this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(JSON.stringify(message));
@@ -1044,7 +1045,7 @@ class ClientSession {
   }
 
   // Method to validate NIP-46 events
-  async validateNIP46Event(event: SignedEvent): Promise<boolean> {
+  async validateNIP46Event(event: NostrEvent): Promise<boolean> {
     // Check required fields exist with proper types
     if (!isValidPublicKeyPoint(event.pubkey)) {
       this.log.debug("NIP-46 validation failed: invalid pubkey");
@@ -1135,7 +1136,7 @@ class ClientSession {
 
 /* ================ [ Methods ] ================ */
 
-function match_filter(event: SignedEvent, filter: EventFilter = {}): boolean {
+function match_filter(event: NostrEvent, filter: NostrFilter = {}): boolean {
   const { authors, ids, kinds, since, until, search, ...rest } = filter;
 
   // Extract all tag filters from rest
