@@ -2,7 +2,7 @@
 
 import { NostrEvent, ContactsEvent } from "../types/nostr";
 import { getUnixTime } from "../utils/time";
-import { isValidPublicKeyPoint } from "../nip44";
+import { isValidPublicKeyPoint } from "../utils/key-validation";
 import { isValidRelayUrl } from "../nip19";
 import { normalizeRelayUrl as canonicalizeRelayUrl } from "../utils/relayUrl";
 import {

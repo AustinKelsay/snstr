@@ -1,5 +1,5 @@
 import { NostrEvent } from "../types/nostr";
-import { SECURITY_LIMITS } from "../utils/security-validator";
+import { SECURITY_LIMITS } from "../utils/security-limits";
 
 export interface RelayEventStoreOptions {
   maxEventBuffers?: number;

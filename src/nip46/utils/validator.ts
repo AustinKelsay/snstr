@@ -1,5 +1,6 @@
 import { NIP46Request, NIP46Method } from "../types";
 import { Logger, LogLevel } from "../../utils/logger";
+import { isHexOfLength, utf8ByteLength } from "../../utils/wire-validation";
 
 /**
  * Enhanced validation utilities for NIP-46 security
@@ -22,7 +23,7 @@ export function validateEventContent(content: string): boolean {
   }
 
   // Check content size limits using UTF-8 byte length
-  const contentByteLength = new TextEncoder().encode(content).length;
+  const contentByteLength = utf8ByteLength(content);
   if (contentByteLength > MAX_CONTENT_SIZE) {
     return false;
   }
@@ -135,48 +136,28 @@ function validateTags(tags: unknown): boolean {
  * Validate public key format (strict hex validation)
  */
 export function validatePubkey(pubkey: string): boolean {
-  if (!pubkey || typeof pubkey !== "string") {
-    return false;
-  }
-
-  // Must be exactly 64 characters of hex (case-insensitive)
-  return /^[0-9a-f]{64}$/i.test(pubkey);
+  return isHexOfLength(pubkey, 64);
 }
 
 /**
  * Validate event ID format
  */
 export function validateEventId(eventId: string): boolean {
-  if (!eventId || typeof eventId !== "string") {
-    return false;
-  }
-
-  // Must be exactly 64 characters of hex (case-insensitive)
-  return /^[0-9a-f]{64}$/i.test(eventId);
+  return isHexOfLength(eventId, 64);
 }
 
 /**
  * Validate signature format
  */
 export function validateSignature(signature: string): boolean {
-  if (!signature || typeof signature !== "string") {
-    return false;
-  }
-
-  // Must be exactly 128 characters of hex (case-insensitive)
-  return /^[0-9a-f]{128}$/i.test(signature);
+  return isHexOfLength(signature, 128);
 }
 
 /**
  * Validate private key format (for internal use)
  */
 export function validatePrivateKey(privateKey: string): boolean {
-  if (!privateKey || typeof privateKey !== "string") {
-    return false;
-  }
-
-  // Must be exactly 64 characters of hex (case-insensitive)
-  return /^[0-9a-f]{64}$/i.test(privateKey);
+  return isHexOfLength(privateKey, 64);
 }
 
 /**
