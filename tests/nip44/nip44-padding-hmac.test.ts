@@ -182,6 +182,21 @@ describe("NIP-44 Padding Implementation", () => {
 });
 
 describe("NIP-44 HMAC Implementation", () => {
+  test("should reject message-key and AAD nonces that are not exactly 32 bytes", () => {
+    const conversationKey = new Uint8Array(32);
+    const hmacKey = new Uint8Array(32);
+    const message = new Uint8Array([1]);
+
+    for (const invalidLength of [31, 33]) {
+      expect(() =>
+        getMessageKeys(conversationKey, new Uint8Array(invalidLength)),
+      ).toThrow(`Nonce must be 32 bytes for key derivation, got: ${invalidLength}`);
+      expect(() =>
+        hmacWithAAD(hmacKey, message, new Uint8Array(invalidLength)),
+      ).toThrow(`AAD (nonce) must be 32 bytes, got: ${invalidLength}`);
+    }
+  });
+
   test("should derive correct message keys from conversation key and nonce", () => {
     // Test vector from NIP-44 official vectors for message key derivation
     const vectors = testVectors.v2.valid.get_message_keys.keys;
