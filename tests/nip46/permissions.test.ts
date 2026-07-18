@@ -6,7 +6,7 @@ import {
   verifySignature,
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 describe("NIP-46 Permission Handling", () => {
   let relay: NostrRelay;

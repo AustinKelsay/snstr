@@ -4,7 +4,7 @@ import {
   NostrRemoteSignerBunker,
   generateKeypair,
 } from "../../src";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { generateRequestId } from "../../src/nip46/utils/request-response";
 import { NIP46RateLimiter } from "../../src/nip46/utils/rate-limiter";
 

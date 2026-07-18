@@ -18,7 +18,7 @@ import {
   ContactsEvent,
 } from "../../src/types/nostr";
 import { parseContactsFromEvent, Contact } from "../../src/nip02";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 const USER_PUBKEY =
   "6260f29fa75c91aaa292f082e5e87b438d2ab4fdf96af398567b01802ee2fcd4";

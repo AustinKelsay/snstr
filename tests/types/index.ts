@@ -9,7 +9,7 @@ import {
   Subscription,
 } from "../../src";
 import type { RelayConnectionOptions } from "../../src/types/protocol";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/relayUrl";
 import { RelayEventStore } from "../../src/nip01/relayEventStore";
 

@@ -1,10 +1,7 @@
 import { Nostr } from "../src/nip01/nostr";
 import { NostrEvent, RelayEvent } from "../src/types/nostr";
 import { generateKeypair } from "../src/utils/crypto";
-import {
-  startEphemeralRelay,
-  stopEphemeralRelay,
-} from "../src/utils/test-helpers";
+import { startEphemeralRelay, stopEphemeralRelay } from "./utils/test-helpers";
 import { getNostrInternals } from "./types";
 
 describe("Nostr Client Integration", () => {

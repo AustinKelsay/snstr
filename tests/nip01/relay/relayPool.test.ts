@@ -1,6 +1,6 @@
 import { RelayPool, NostrEvent } from "../../../src";
 import { testUtils } from "../../types";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { createTextNote, createSignedEvent } from "../../../src/nip01/event";
 

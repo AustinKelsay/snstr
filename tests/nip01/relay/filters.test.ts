@@ -11,7 +11,7 @@ import {
   RelayEvent,
 } from "../../../src/types/nostr";
 import { Relay } from "../../../src/nip01/relay";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import { createSignedEvent } from "../../../src/nip01/event";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { asTestRelay, testUtils } from "../../types";

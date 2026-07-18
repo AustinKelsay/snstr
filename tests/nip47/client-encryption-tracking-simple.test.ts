@@ -19,7 +19,7 @@ import {
   NIP47Request,
 } from "../../src/nip47/types";
 import { NostrEvent } from "../../src/types/nostr";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 // Type-safe interface for accessing private client methods in tests
 interface ClientWithPrivateMethods {

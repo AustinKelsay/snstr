@@ -7,7 +7,7 @@ import {
   verifySignature,
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { NIP46ConnectionError } from "../../src/nip46/types";
 import { validateSecureInitialization } from "../../src/nip46/utils/security";
 

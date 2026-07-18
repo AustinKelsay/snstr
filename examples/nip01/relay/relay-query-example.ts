@@ -1,5 +1,5 @@
 import { Nostr } from "../../../src/nip01/nostr";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 
 /**
  * Relay Query Example
