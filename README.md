@@ -8,13 +8,13 @@
 
 SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
 
-*SNSTR is fierce. Fierce in its speed, in its flexibility, and most of all its security.*
+_SNSTR is fierce. Fierce in its speed, in its flexibility, and most of all its security._
 
-*SNSTR is steadfast, ever persistent, watching, waiting.*
+_SNSTR is steadfast, ever persistent, watching, waiting._
 
-*SNSTR has vengeance on its mind.*
+_SNSTR has vengeance on its mind._
 
-*SNSTR is a Nostr Development Kit for people that go swimming in jeans*
+_SNSTR is a Nostr Development Kit for people that go swimming in jeans_
 
 **⚠️ Important**: This library is in beta testing. While mostly stable, some features may still undergo changes. We encourage users to test thoroughly and report any issues or unexpected behavior.
 
@@ -108,12 +108,12 @@ npm run build
 - Works out of the box — no Node polyfills are required.
 - Add secure RNG once at app startup (required by various features):
   ```ts
-  import 'react-native-get-random-values';
+  import "react-native-get-random-values";
   ```
 - NIP-04 now works on Web and React Native with the exact same API as Node:
   ```ts
-  import { encryptNIP04, decryptNIP04 } from 'snstr';
-  const c = encryptNIP04(alicePriv, bobPub, 'hello');
+  import { encryptNIP04, decryptNIP04 } from "snstr";
+  const c = encryptNIP04(alicePriv, bobPub, "hello");
   const p = decryptNIP04(bobPriv, alicePub, c);
   ```
 - Prefer NIP-44 for new apps; keep NIP-04 for legacy compatibility.
@@ -194,14 +194,14 @@ async function main() {
   // Query events from all relays
   const manyEvents = await client.fetchMany(
     [{ kinds: [1], authors: ["pubkey"], limit: 10 }],
-    { maxWait: 5000 }
+    { maxWait: 5000 },
   );
   console.log(`Found ${manyEvents.length} events`);
 
   // Get the most recent event from all relays
   const latestEvent = await client.fetchOne(
     [{ kinds: [1], authors: ["pubkey"] }],
-    { maxWait: 3000 }
+    { maxWait: 3000 },
   );
   if (latestEvent) {
     console.log("Latest event:", latestEvent.content);
@@ -227,9 +227,9 @@ import { Nostr } from "snstr";
 const client = new Nostr(["wss://relay.nostr.band"], {
   rateLimits: {
     subscribe: { limit: 100, windowMs: 60000 }, // 100 per minute (default: 50)
-    publish: { limit: 200, windowMs: 60000 },   // 200 per minute (default: 100)
-    fetch: { limit: 500, windowMs: 60000 }      // 500 per minute (default: 200)
-  }
+    publish: { limit: 200, windowMs: 60000 }, // 200 per minute (default: 100)
+    fetch: { limit: 500, windowMs: 60000 }, // 500 per minute (default: 200)
+  },
 });
 
 // Update limits dynamically
@@ -247,8 +247,8 @@ async function relayPoolExample() {
   // Initialize RelayPool with multiple relays
   const pool = new RelayPool([
     "wss://relay.nostr.band",
-    "wss://nos.lol", 
-    "wss://relay.damus.io"
+    "wss://nos.lol",
+    "wss://relay.damus.io",
   ]);
 
   // Generate keypair
@@ -259,12 +259,12 @@ async function relayPoolExample() {
     kind: 1,
     content: "Hello from RelayPool!",
     tags: [],
-    privateKey: keys.privateKey
+    privateKey: keys.privateKey,
   });
 
   const publishPromises = pool.publish(
-    ["wss://relay.nostr.band", "wss://nos.lol"], 
-    event
+    ["wss://relay.nostr.band", "wss://nos.lol"],
+    event,
   );
   const results = await Promise.all(publishPromises);
 
@@ -277,14 +277,14 @@ async function relayPoolExample() {
     },
     () => {
       console.log("All relays finished sending stored events");
-    }
+    },
   );
 
   // Query events synchronously from multiple relays
   const events = await pool.querySync(
     ["wss://relay.nostr.band", "wss://nos.lol"],
     { kinds: [1], limit: 5 },
-    { timeout: 10000 }
+    { timeout: 10000 },
   );
   console.log(`Retrieved ${events.length} events`);
 
@@ -309,19 +309,19 @@ async function queryExample() {
   const events = await client.fetchMany(
     [
       { kinds: [1], authors: ["pubkey1", "pubkey2"], limit: 20 },
-      { kinds: [0], authors: ["pubkey1"] } // Profile metadata
+      { kinds: [0], authors: ["pubkey1"] }, // Profile metadata
     ],
-    { maxWait: 5000 } // Wait up to 5 seconds
+    { maxWait: 5000 }, // Wait up to 5 seconds
   );
-  
+
   console.log(`Retrieved ${events.length} events from all relays`);
-  
+
   // Fetch the most recent single event
   const latestNote = await client.fetchOne(
     [{ kinds: [1], authors: ["pubkey1"] }],
-    { maxWait: 3000 }
+    { maxWait: 3000 },
   );
-  
+
   if (latestNote) {
     console.log("Latest note:", latestNote.content);
   }
@@ -414,62 +414,63 @@ The `scripts` object in [package.json](./package.json) is the executable source 
 
 ### Build
 
-| Command | Definition |
-| --- | --- |
-| `npm run build` | `npx rimraf dist && npm run build:cjs && npm run build:esm` |
-| `npm run build:cjs` | `tsc -p tsconfig.build.json` |
-| `npm run build:esm` | `tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js` |
-| `npm run pack:verify` | `node scripts/verify-pack.js` |
-| `npm run commands:verify` | `node scripts/verify-commands.js` |
-| `npm run prepack` | `npm run build && npm run pack:verify` |
-| `npm run build:examples` | `tsc -p examples/tsconfig.json` |
+| Command                          | Definition                                                  |
+| -------------------------------- | ----------------------------------------------------------- |
+| `npm run build`                  | `npx rimraf dist && npm run build:cjs && npm run build:esm` |
+| `npm run build:cjs`              | `tsc -p tsconfig.build.json`                                |
+| `npm run build:esm`              | `tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js` |
+| `npm run pack:verify`            | `node scripts/verify-pack.js`                               |
+| `npm run package-manager:verify` | `node scripts/verify-package-manager.js`                    |
+| `npm run commands:verify`        | `node scripts/verify-commands.js`                           |
+| `npm run prepack`                | `npm run build && npm run pack:verify`                      |
+| `npm run build:examples`         | `tsc -p examples/tsconfig.json`                             |
 
 ### Code Quality
 
-| Command | Definition |
-| --- | --- |
-| `npm run lint` | `eslint . --ext .ts` |
+| Command          | Definition                                                          |
+| ---------------- | ------------------------------------------------------------------- |
+| `npm run lint`   | `eslint . --ext .ts`                                                |
 | `npm run format` | `prettier --write "src/**/*.ts" "tests/**/*.ts" "examples/**/*.ts"` |
 
 ### Primary Tests
 
-| Command | Definition |
-| --- | --- |
-| `npm run test` | `jest` |
-| `npm run test:watch` | `jest --watch` |
-| `npm run test:coverage` | `jest --coverage` |
+| Command                    | Definition                       |
+| -------------------------- | -------------------------------- |
+| `npm run test`             | `jest`                           |
+| `npm run test:watch`       | `jest --watch`                   |
+| `npm run test:coverage`    | `jest --coverage`                |
 | `npm run test:integration` | `jest tests/integration.test.ts` |
 
 ### Bun Tests
 
-| Command | Definition |
-| --- | --- |
-| `npm run test:bun` | `bun test ./tests --max-concurrency 1 --timeout 30000` |
+| Command                  | Definition                                                     |
+| ------------------------ | -------------------------------------------------------------- |
+| `npm run test:bun`       | `bun test ./tests --max-concurrency 1 --timeout 30000`         |
 | `npm run test:bun:watch` | `bun test ./tests --watch --max-concurrency 1 --timeout 30000` |
 
 ### NIP-01 and Core Tests
 
-| Command | Definition |
-| --- | --- |
-| `npm run test:nip01` | `jest tests/nip01` |
-| `npm run test:nip01:event` | `jest tests/nip01/event` |
-| `npm run test:nip01:relay` | `jest tests/nip01/relay` |
-| `npm run test:event` | `jest tests/nip01/event/event.test.ts` |
-| `npm run test:event:ordering` | `jest tests/nip01/event/event-ordering.test.ts` |
-| `npm run test:event:addressable` | `jest tests/nip01/event/addressable-events.test.ts` |
-| `npm run test:nostr` | `jest tests/nip01/nostr.test.ts` |
-| `npm run test:nip01:relay:connection` | `jest tests/nip01/relay/relay.test.ts` |
-| `npm run test:nip01:relay:filter` | `jest tests/nip01/relay/filters.test.ts` |
-| `npm run test:nip01:relay:reconnect` | `jest tests/nip01/relay/relay-reconnect.test.ts` |
-| `npm run test:nip01:relay:pool` | `jest tests/nip01/relay/relayPool.test.ts` |
-| `npm run test:nip01:relay:websocket` | `jest tests/nip01/relay/websocket-implementation.test.ts` |
-| `npm run test:crypto:core` | `jest tests/utils/crypto.test.ts` |
-| `npm run test:utils:relayUrl` | `jest tests/utils/relayUrl.test.ts` |
+| Command                               | Definition                                                |
+| ------------------------------------- | --------------------------------------------------------- |
+| `npm run test:nip01`                  | `jest tests/nip01`                                        |
+| `npm run test:nip01:event`            | `jest tests/nip01/event`                                  |
+| `npm run test:nip01:relay`            | `jest tests/nip01/relay`                                  |
+| `npm run test:event`                  | `jest tests/nip01/event/event.test.ts`                    |
+| `npm run test:event:ordering`         | `jest tests/nip01/event/event-ordering.test.ts`           |
+| `npm run test:event:addressable`      | `jest tests/nip01/event/addressable-events.test.ts`       |
+| `npm run test:nostr`                  | `jest tests/nip01/nostr.test.ts`                          |
+| `npm run test:nip01:relay:connection` | `jest tests/nip01/relay/relay.test.ts`                    |
+| `npm run test:nip01:relay:filter`     | `jest tests/nip01/relay/filters.test.ts`                  |
+| `npm run test:nip01:relay:reconnect`  | `jest tests/nip01/relay/relay-reconnect.test.ts`          |
+| `npm run test:nip01:relay:pool`       | `jest tests/nip01/relay/relayPool.test.ts`                |
+| `npm run test:nip01:relay:websocket`  | `jest tests/nip01/relay/websocket-implementation.test.ts` |
+| `npm run test:crypto:core`            | `jest tests/utils/crypto.test.ts`                         |
+| `npm run test:utils:relayUrl`         | `jest tests/utils/relayUrl.test.ts`                       |
 
 ### NIP-Specific Tests
 
-| Command | Definition |
-| --- | --- |
+| Command              | Definition         |
+| -------------------- | ------------------ |
 | `npm run test:nip02` | `jest tests/nip02` |
 | `npm run test:nip04` | `jest tests/nip04` |
 | `npm run test:nip05` | `jest tests/nip05` |
@@ -495,130 +496,130 @@ The `scripts` object in [package.json](./package.json) is the executable source 
 
 ### Test Groups
 
-| Command | Definition |
-| --- | --- |
-| `npm run test:all` | `npm test` |
-| `npm run test:crypto` | `jest tests/utils/crypto.test.ts tests/nip04 tests/nip44` |
-| `npm run test:identity` | `jest tests/nip05 tests/nip07 tests/nip19` |
-| `npm run test:protocols` | `jest tests/nip46 tests/nip47 tests/nip57` |
+| Command                  | Definition                                                |
+| ------------------------ | --------------------------------------------------------- |
+| `npm run test:all`       | `npm test`                                                |
+| `npm run test:crypto`    | `jest tests/utils/crypto.test.ts tests/nip04 tests/nip44` |
+| `npm run test:identity`  | `jest tests/nip05 tests/nip07 tests/nip19`                |
+| `npm run test:protocols` | `jest tests/nip46 tests/nip47 tests/nip57`                |
 
 ### Core Examples
 
-| Command | Definition |
-| --- | --- |
-| `npm run example` | `ts-node examples/basic-example.ts` |
-| `npm run example:verbose` | `VERBOSE=true ts-node examples/basic-example.ts` |
-| `npm run example:debug` | `DEBUG=true ts-node examples/basic-example.ts` |
-| `npm run example:custom-websocket` | `ts-node examples/custom-websocket-example.ts` |
-| `npm run example:crypto` | `ts-node examples/crypto-demo.ts` |
-| `npm run example:rate-limits` | `ts-node examples/rate-limit-configuration-example.ts` |
+| Command                            | Definition                                             |
+| ---------------------------------- | ------------------------------------------------------ |
+| `npm run example`                  | `ts-node examples/basic-example.ts`                    |
+| `npm run example:verbose`          | `VERBOSE=true ts-node examples/basic-example.ts`       |
+| `npm run example:debug`            | `DEBUG=true ts-node examples/basic-example.ts`         |
+| `npm run example:custom-websocket` | `ts-node examples/custom-websocket-example.ts`         |
+| `npm run example:crypto`           | `ts-node examples/crypto-demo.ts`                      |
+| `npm run example:rate-limits`      | `ts-node examples/rate-limit-configuration-example.ts` |
 
 ### NIP-01 Examples
 
-| Command | Definition |
-| --- | --- |
-| `npm run example:nip01:event:ordering` | `ts-node examples/nip01/event/event-ordering-demo.ts` |
-| `npm run example:nip01:event:addressable` | `ts-node examples/nip01/event/addressable-events.ts` |
-| `npm run example:nip01:event:replaceable` | `ts-node examples/nip01/event/replaceable-events.ts` |
-| `npm run example:nip01:relay:connection` | `ts-node examples/nip01/relay/relay-connection-example.ts` |
-| `npm run example:nip01:relay:filters` | `ts-node examples/nip01/relay/filter-types-example.ts` |
-| `npm run example:nip01:relay:auto-close` | `ts-node examples/nip01/relay/auto-unsubscribe-example.ts` |
-| `npm run example:nip01:relay:query` | `ts-node examples/nip01/relay/relay-query-example.ts` |
-| `npm run example:nip01:relay:reconnect` | `ts-node examples/nip01/relay/relay-reconnect-example.ts` |
-| `npm run example:nip01:relay:pool` | `ts-node examples/nip01/relay/relay-pool-example.ts` |
-| `npm run example:nip01:url-preprocessing` | `ts-node examples/nip01/url-preprocessing-example.ts` |
+| Command                                              | Definition                                                       |
+| ---------------------------------------------------- | ---------------------------------------------------------------- |
+| `npm run example:nip01:event:ordering`               | `ts-node examples/nip01/event/event-ordering-demo.ts`            |
+| `npm run example:nip01:event:addressable`            | `ts-node examples/nip01/event/addressable-events.ts`             |
+| `npm run example:nip01:event:replaceable`            | `ts-node examples/nip01/event/replaceable-events.ts`             |
+| `npm run example:nip01:relay:connection`             | `ts-node examples/nip01/relay/relay-connection-example.ts`       |
+| `npm run example:nip01:relay:filters`                | `ts-node examples/nip01/relay/filter-types-example.ts`           |
+| `npm run example:nip01:relay:auto-close`             | `ts-node examples/nip01/relay/auto-unsubscribe-example.ts`       |
+| `npm run example:nip01:relay:query`                  | `ts-node examples/nip01/relay/relay-query-example.ts`            |
+| `npm run example:nip01:relay:reconnect`              | `ts-node examples/nip01/relay/relay-reconnect-example.ts`        |
+| `npm run example:nip01:relay:pool`                   | `ts-node examples/nip01/relay/relay-pool-example.ts`             |
+| `npm run example:nip01:url-preprocessing`            | `ts-node examples/nip01/url-preprocessing-example.ts`            |
 | `npm run example:nip01:relay:pool-url-normalization` | `ts-node examples/nip01/relay-pool-url-normalization-example.ts` |
-| `npm run example:nip01:validation` | `ts-node examples/client/validation-flow.ts` |
+| `npm run example:nip01:validation`                   | `ts-node examples/client/validation-flow.ts`                     |
 
 ### NIP-Specific Examples
 
-| Command | Definition |
-| --- | --- |
-| `npm run example:nip02` | `ts-node examples/nip02/nip02-demo.ts` |
-| `npm run example:nip02:pubkey-normalization` | `ts-node examples/nip02/pubkey-normalization-example.ts` |
-| `npm run example:nip04` | `ts-node examples/nip04/direct-message.ts` |
-| `npm run example:nip05` | `ts-node examples/nip05/nip05-demo.ts` |
-| `npm run example:nip09` | `ts-node examples/nip09/deletion-request.ts` |
-| `npm run example:nip10` | `ts-node examples/nip10/nip10-demo.ts` |
-| `npm run example:nip07` | `cd examples/nip07 && npm install && npm run build && npm start` |
-| `npm run example:nip07:build` | `cd examples/nip07 && npm install && npm run build` |
-| `npm run example:nip07:dm` | `ts-node examples/nip07/direct-message.ts` |
-| `npm run example:nip11` | `ts-node examples/nip11/relay-info-example.ts` |
-| `npm run example:nip19` | `ts-node examples/nip19/nip19-demo.ts` |
-| `npm run example:nip19:bech32` | `ts-node examples/nip19/bech32-example.ts` |
-| `npm run example:nip19:tlv` | `ts-node examples/nip19/tlv-example.ts` |
-| `npm run example:nip19:validation` | `ts-node examples/nip19/validation-example.ts` |
-| `npm run example:nip19:security` | `ts-node examples/nip19/nip19-security.ts` |
-| `npm run example:nip19:security-example` | `ts-node examples/nip19/security-example.ts` |
-| `npm run example:nip21` | `ts-node examples/nip21/nip21-demo.ts` |
-| `npm run example:nip44` | `ts-node examples/nip44/nip44-demo.ts` |
-| `npm run example:nip44:version-compat` | `ts-node examples/nip44/nip44-version-compatibility.ts` |
-| `npm run example:nip44:test-vector` | `ts-node examples/nip44/nip44-test-vector.ts` |
-| `npm run example:nip44:compliance` | `ts-node examples/nip44/nip44-compliance-demo.ts` |
-| `npm run example:nip17` | `ts-node examples/nip17/nip17-demo.ts` |
-| `npm run example:nip46` | `ts-node examples/nip46/unified-example.ts` |
-| `npm run example:nip46:minimal` | `ts-node examples/nip46/minimal.ts` |
-| `npm run example:nip46:basic` | `ts-node examples/nip46/basic-example.ts` |
-| `npm run example:nip46:advanced` | `ts-node examples/nip46/advanced/remote-signing-demo.ts` |
-| `npm run example:nip46:from-scratch` | `ts-node examples/nip46/from-scratch/implementation-from-scratch.ts` |
-| `npm run example:nip46:simple` | `ts-node examples/nip46/simple/simple-example.ts` |
-| `npm run example:nip46:simple-client` | `ts-node examples/nip46/simple/simple-client-test.ts` |
-| `npm run example:nip46:test-all` | `ts-node examples/nip46/test-all-examples.ts` |
-| `npm run example:nip46:connection-string-validation` | `ts-node examples/nip46/connection-string-validation-example.ts` |
-| `npm run example:nip47` | `ts-node examples/nip47/basic-example.ts` |
-| `npm run example:nip47:verbose` | `VERBOSE=true ts-node examples/nip47/basic-example.ts` |
-| `npm run example:nip47:client-service` | `ts-node examples/nip47/basic-client-service.ts` |
-| `npm run example:nip47:error-handling` | `ts-node examples/nip47/error-handling-example.ts` |
-| `npm run example:nip47:expiration` | `ts-node examples/nip47/request-expiration-example.ts` |
-| `npm run example:nip47:nip44` | `ts-node examples/nip47/nip44-encryption.ts` |
-| `npm run example:nip47:encryption-negotiation` | `ts-node examples/nip47/encryption-negotiation.ts` |
-| `npm run example:nip50` | `ts-node examples/nip50/search-demo.ts` |
-| `npm run example:nip57` | `ts-node examples/nip57/basic-example.ts` |
-| `npm run example:nip57:client` | `ts-node examples/nip57/zap-client-example.ts` |
-| `npm run example:nip57:lnurl` | `ts-node examples/nip57/lnurl-server-simulation.ts` |
-| `npm run example:nip57:validation` | `ts-node examples/nip57/invoice-validation-example.ts` |
-| `npm run example:nip65` | `ts-node examples/nip65/nip65-demo.ts` |
-| `npm run example:nip66` | `ts-node examples/nip66/nip66-demo.ts` |
+| Command                                              | Definition                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------- |
+| `npm run example:nip02`                              | `ts-node examples/nip02/nip02-demo.ts`                               |
+| `npm run example:nip02:pubkey-normalization`         | `ts-node examples/nip02/pubkey-normalization-example.ts`             |
+| `npm run example:nip04`                              | `ts-node examples/nip04/direct-message.ts`                           |
+| `npm run example:nip05`                              | `ts-node examples/nip05/nip05-demo.ts`                               |
+| `npm run example:nip09`                              | `ts-node examples/nip09/deletion-request.ts`                         |
+| `npm run example:nip10`                              | `ts-node examples/nip10/nip10-demo.ts`                               |
+| `npm run example:nip07`                              | `cd examples/nip07 && npm install && npm run build && npm start`     |
+| `npm run example:nip07:build`                        | `cd examples/nip07 && npm install && npm run build`                  |
+| `npm run example:nip07:dm`                           | `ts-node examples/nip07/direct-message.ts`                           |
+| `npm run example:nip11`                              | `ts-node examples/nip11/relay-info-example.ts`                       |
+| `npm run example:nip19`                              | `ts-node examples/nip19/nip19-demo.ts`                               |
+| `npm run example:nip19:bech32`                       | `ts-node examples/nip19/bech32-example.ts`                           |
+| `npm run example:nip19:tlv`                          | `ts-node examples/nip19/tlv-example.ts`                              |
+| `npm run example:nip19:validation`                   | `ts-node examples/nip19/validation-example.ts`                       |
+| `npm run example:nip19:security`                     | `ts-node examples/nip19/nip19-security.ts`                           |
+| `npm run example:nip19:security-example`             | `ts-node examples/nip19/security-example.ts`                         |
+| `npm run example:nip21`                              | `ts-node examples/nip21/nip21-demo.ts`                               |
+| `npm run example:nip44`                              | `ts-node examples/nip44/nip44-demo.ts`                               |
+| `npm run example:nip44:version-compat`               | `ts-node examples/nip44/nip44-version-compatibility.ts`              |
+| `npm run example:nip44:test-vector`                  | `ts-node examples/nip44/nip44-test-vector.ts`                        |
+| `npm run example:nip44:compliance`                   | `ts-node examples/nip44/nip44-compliance-demo.ts`                    |
+| `npm run example:nip17`                              | `ts-node examples/nip17/nip17-demo.ts`                               |
+| `npm run example:nip46`                              | `ts-node examples/nip46/unified-example.ts`                          |
+| `npm run example:nip46:minimal`                      | `ts-node examples/nip46/minimal.ts`                                  |
+| `npm run example:nip46:basic`                        | `ts-node examples/nip46/basic-example.ts`                            |
+| `npm run example:nip46:advanced`                     | `ts-node examples/nip46/advanced/remote-signing-demo.ts`             |
+| `npm run example:nip46:from-scratch`                 | `ts-node examples/nip46/from-scratch/implementation-from-scratch.ts` |
+| `npm run example:nip46:simple`                       | `ts-node examples/nip46/simple/simple-example.ts`                    |
+| `npm run example:nip46:simple-client`                | `ts-node examples/nip46/simple/simple-client-test.ts`                |
+| `npm run example:nip46:test-all`                     | `ts-node examples/nip46/test-all-examples.ts`                        |
+| `npm run example:nip46:connection-string-validation` | `ts-node examples/nip46/connection-string-validation-example.ts`     |
+| `npm run example:nip47`                              | `ts-node examples/nip47/basic-example.ts`                            |
+| `npm run example:nip47:verbose`                      | `VERBOSE=true ts-node examples/nip47/basic-example.ts`               |
+| `npm run example:nip47:client-service`               | `ts-node examples/nip47/basic-client-service.ts`                     |
+| `npm run example:nip47:error-handling`               | `ts-node examples/nip47/error-handling-example.ts`                   |
+| `npm run example:nip47:expiration`                   | `ts-node examples/nip47/request-expiration-example.ts`               |
+| `npm run example:nip47:nip44`                        | `ts-node examples/nip47/nip44-encryption.ts`                         |
+| `npm run example:nip47:encryption-negotiation`       | `ts-node examples/nip47/encryption-negotiation.ts`                   |
+| `npm run example:nip50`                              | `ts-node examples/nip50/search-demo.ts`                              |
+| `npm run example:nip57`                              | `ts-node examples/nip57/basic-example.ts`                            |
+| `npm run example:nip57:client`                       | `ts-node examples/nip57/zap-client-example.ts`                       |
+| `npm run example:nip57:lnurl`                        | `ts-node examples/nip57/lnurl-server-simulation.ts`                  |
+| `npm run example:nip57:validation`                   | `ts-node examples/nip57/invoice-validation-example.ts`               |
+| `npm run example:nip65`                              | `ts-node examples/nip65/nip65-demo.ts`                               |
+| `npm run example:nip66`                              | `ts-node examples/nip66/nip66-demo.ts`                               |
 
 ### Example Groups
 
-| Command | Definition |
-| --- | --- |
-| `npm run example:all` | `npm run example` |
-| `npm run example:basic` | `npm run example && npm run example:crypto && npm run example:nip04` |
-| `npm run example:nip01` | `npm run example:nip01:event:ordering && npm run example:nip01:relay:connection && npm run example:nip01:relay:query && npm run example:nip01:validation` |
-| `npm run example:messaging` | `npm run example:nip04 && npm run example:nip44 && npm run example:nip17` |
-| `npm run example:identity` | `npm run example:nip05 && npm run example:nip07 && npm run example:nip19` |
-| `npm run example:payments` | `npm run example:nip47 && npm run example:nip57` |
-| `npm run example:advanced` | `npm run example:nip46 && npm run example:nip47:error-handling` |
-| `npm run example:validation` | `npm run example:nip01:validation` |
+| Command                      | Definition                                                                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run example:all`        | `npm run example`                                                                                                                                         |
+| `npm run example:basic`      | `npm run example && npm run example:crypto && npm run example:nip04`                                                                                      |
+| `npm run example:nip01`      | `npm run example:nip01:event:ordering && npm run example:nip01:relay:connection && npm run example:nip01:relay:query && npm run example:nip01:validation` |
+| `npm run example:messaging`  | `npm run example:nip04 && npm run example:nip44 && npm run example:nip17`                                                                                 |
+| `npm run example:identity`   | `npm run example:nip05 && npm run example:nip07 && npm run example:nip19`                                                                                 |
+| `npm run example:payments`   | `npm run example:nip47 && npm run example:nip57`                                                                                                          |
+| `npm run example:advanced`   | `npm run example:nip46 && npm run example:nip47:error-handling`                                                                                           |
+| `npm run example:validation` | `npm run example:nip01:validation`                                                                                                                        |
 
 ### Release
 
-| Command | Definition |
-| --- | --- |
+| Command                   | Definition                                                         |
+| ------------------------- | ------------------------------------------------------------------ |
 | `npm run release:prepare` | `npm run lint && npm test && npm run build && npm run pack:verify` |
-| `npm run release:patch` | `npm run release:prepare && npm version patch` |
-| `npm run release:minor` | `npm run release:prepare && npm version minor` |
-| `npm run release:major` | `npm run release:prepare && npm version major` |
-| `npm run release:push` | `git push && git push --tags` |
-| `npm run release` | `npm run release:patch && npm run release:push` |
+| `npm run release:patch`   | `npm run release:prepare && npm version patch`                     |
+| `npm run release:minor`   | `npm run release:prepare && npm version minor`                     |
+| `npm run release:major`   | `npm run release:prepare && npm version major`                     |
+| `npm run release:push`    | `git push && git push --tags`                                      |
+| `npm run release`         | `npm run release:patch && npm run release:push`                    |
 
 ### Branch Management
 
-| Command | Definition |
-| --- | --- |
+| Command           | Definition                   |
+| ----------------- | ---------------------------- |
 | `npm run promote` | `scripts/promote-to-main.sh` |
 
 ### Application Shortcuts
 
-| Command | Definition |
-| --- | --- |
+| Command         | Definition              |
+| --------------- | ----------------------- |
 | `npm run start` | `npm run example:nip07` |
 
 ## Development
 
-Install dependencies with `npm install`, then use the build, test, quality, and verification workflows in the [Command Reference](#command-reference). Keep source, tests, and examples aligned when changing a NIP.
+Activate the canonical toolchain with `corepack prepare npm@9.8.1 --activate` and install dependencies reproducibly with `npm ci`, then use the build, test, quality, and verification workflows in the [Command Reference](#command-reference). npm 9.8.1 is the canonical package manager; Bun 1.3.9 is a frozen-lockfile compatibility runner. See [CONTRIBUTING.md](CONTRIBUTING.md#package-manager-policy) for the lockfile policy. Keep source, tests, and examples aligned when changing a NIP.
 
 ### Directory Structure Notes
 

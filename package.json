@@ -1,6 +1,7 @@
 {
   "name": "snstr",
   "version": "0.4.0",
+  "packageManager": "npm@9.8.1",
   "description": "Secure Nostr Software Toolkit for Renegades - A comprehensive TypeScript library for Nostr protocol implementation",
   "files": [
     "dist/src/**",
@@ -66,6 +67,7 @@
     "build:cjs": "tsc -p tsconfig.build.json",
     "build:esm": "tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js",
     "pack:verify": "node scripts/verify-pack.js",
+    "package-manager:verify": "node scripts/verify-package-manager.js",
     "commands:verify": "node scripts/verify-commands.js",
     "prepack": "npm run build && npm run pack:verify",
     "build:examples": "tsc -p examples/tsconfig.json",
