@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, rebased from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: umbrella spec and tickets published; issue #112 implementation starting
+- Current status: issue #112 implementation and integrated verification complete; local CodeRabbit gate pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -41,7 +41,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 | Issue | Type | Status | Branch | Review | Verified |
 | --- | --- | --- | --- | --- | --- |
-| #112 NIP-44 legacy behavior | AFK | in progress | `feature/nip44-legacy-compat` | pending | no |
+| #112 NIP-44 legacy behavior | AFK | local review passed | `feature/nip44-legacy-compat` | standards/spec pass after one fix | yes |
 | #118 authoritative protocol messages | AFK | ready | `feature/protocol-message-types` | pending | no |
 | #113 Relay event-store seam | AFK | blocked by #118 | `feature/relay-event-store` | pending | no |
 | #114 NIP-47 protocol machinery | AFK | blocked by #118 | `feature/nip47-protocol-codecs` | pending | no |
@@ -60,7 +60,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 | Issue | Fixed point | Implementation owner | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | pending | pending | pending |
+| #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | `ab22d13` + review fix pending | standards/spec pass after one fix | NIP-44 107/107; Jest 991/991; Bun 991/991; lint, types, builds, commands, pack |
 
 ## Alignment Decisions
 

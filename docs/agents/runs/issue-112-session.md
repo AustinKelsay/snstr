@@ -5,8 +5,8 @@
 - Issue: #112 — Make NIP-44 legacy-version behavior explicit and vector-tested
 - Fixed point before session: `df13432`
 - Implementation owner: current Codex orchestrator; Grok unavailable at authentication preflight
-- Commit: pending
-- Status: implementation and integrated verification complete; review pending
+- Commit: `ab22d13` plus review fix pending
+- Status: implementation, integrated verification, and local review complete
 
 ## Inputs
 
@@ -27,10 +27,10 @@
 ## Review
 
 - Review fixed point: `df13432`
-- Standards findings: pending
-- Spec findings: pending
-- Worthy fixes applied: pending
-- Findings ignored with reasons: pending
+- Standards findings: pass; no documented-standard violations or unresolved Fowler smells
+- Spec findings: one partial acceptance-criterion gap: reserved/undefined versions were asserted through `decodePayload`, but not through public `decrypt`
+- Worthy fixes applied: added public `decrypt` rejection assertions for tampered v0/v1 payloads
+- Findings ignored with reasons: none
 
 ## Risks
 

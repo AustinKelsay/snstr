@@ -221,6 +221,8 @@ describe("NIP-44 implementation against official test vectors", () => {
   describe("decodePayload version handling", () => {
     const testVectorBase = testVectors.v2.valid.encrypt_decrypt[0];
     const sec1 = testVectorBase.sec1;
+    const sec2 = testVectorBase.sec2;
+    const pub1 = getPublicKeyHex(sec1);
     const pub2 = getPublicKeyHex(testVectorBase.sec2); // Derive pub2 correctly
     const plaintext = testVectorBase.plaintext;
 
@@ -241,6 +243,9 @@ describe("NIP-44 implementation against official test vectors", () => {
         v2Buffer[0] = 0; // Set version to 0
         const tamperedV0Payload = v2Buffer.toString("base64");
         expect(() => decodePayload(tamperedV0Payload)).toThrow(
+          "NIP-44: Unsupported version: 0. This implementation supports version 2.",
+        );
+        expect(() => decrypt(tamperedV0Payload, sec2, pub1)).toThrow(
           "NIP-44: Unsupported version: 0. This implementation supports version 2.",
         );
       } else {
@@ -265,6 +270,9 @@ describe("NIP-44 implementation against official test vectors", () => {
         v2Buffer[0] = 1; // Set version to 1
         const tamperedV1Payload = v2Buffer.toString("base64");
         expect(() => decodePayload(tamperedV1Payload)).toThrow(
+          "NIP-44: Unsupported version: 1. This implementation supports version 2.",
+        );
+        expect(() => decrypt(tamperedV1Payload, sec2, pub1)).toThrow(
           "NIP-44: Unsupported version: 1. This implementation supports version 2.",
         );
       } else {

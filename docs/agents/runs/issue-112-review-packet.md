@@ -36,11 +36,11 @@ Check:
 ## Reviewer Output
 
 ```text
-STANDARDS_STATUS: pending
+STANDARDS_STATUS: pass
 STANDARDS_FINDINGS:
-- pending
+- None. The change removes speculative legacy branches and contradictory comments, keeps the public package-root NIP-44 interface stable, and follows repository TypeScript/test conventions.
 
-SPEC_STATUS: pending
+SPEC_STATUS: pass
 SPEC_FINDINGS:
-- pending
+- One partial gap was found and fixed: reserved/undefined version rejection is now asserted through public `decrypt` as well as `decodePayload`.
 ```
