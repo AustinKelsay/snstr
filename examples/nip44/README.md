@@ -9,7 +9,7 @@ This directory contains examples demonstrating how to use NIP-44 encrypted direc
 **Implementation Details**:
 - Uses ChaCha20 for encryption and HMAC-SHA256 for authentication
 - Includes a version byte to support future algorithm upgrades and backward compatibility
-- Accepts defined version 2 payloads and rejects reserved or undefined versions
+- Accepts defined version 2 payloads and rejects reserved, undefined, or unknown versions
 - Provides proper key derivation using HKDF
 - Implements message length hiding with a custom padding scheme
 - Uses secure 32-byte nonces

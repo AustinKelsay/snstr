@@ -203,7 +203,7 @@ async function main() {
     "- This library encrypts all new messages using NIP-44 Version 2.",
   );
   console.log(
-    "- It can successfully decrypt messages created with NIP-44 Version 0, 1, or 2.",
+    "- It decrypts Version 2 payloads and rejects reserved, undefined, and unknown versions.",
   );
   console.log(
     "- NIP-44 Specification: Clients MUST NOT encrypt new messages with Version 0 (Reserved) or Version 1 (Deprecated).",

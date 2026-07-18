@@ -66,12 +66,18 @@ async function main() {
         bobKeypair.privateKey,
         aliceKeypair.publicKey,
       );
-      console.log(
-        `❌ Error: Version ${unsupportedVersion} decryption unexpectedly succeeded`,
+      throw new Error(
+        `Version ${unsupportedVersion} decryption unexpectedly succeeded`,
       );
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const expectedError = `NIP-44: Unsupported version: ${unsupportedVersion}. This implementation supports version 2.`;
+      if (errorMessage !== expectedError) {
+        throw error;
+      }
       console.log(
-        `✅ Version ${unsupportedVersion} rejected: ${error instanceof Error ? error.message : String(error)}`,
+        `✅ Version ${unsupportedVersion} rejected: ${errorMessage}`,
       );
     }
   }

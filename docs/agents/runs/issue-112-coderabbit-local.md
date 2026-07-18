@@ -31,3 +31,16 @@
 - Continue: yes
 - Escalate: no
 - Notes: Focused NIP-44 tests 25/25, lint, root typecheck, examples build, and the real version-compatibility example passed after fixes. The pre-review integrated matrix was Jest 991/991 and Bun 991/991.
+
+## Hosted PR Round
+
+- Scope: PR #120
+- Trigger: `@coderabbitai review`
+- Completed: 2026-07-18
+- Findings: 3
+
+| Finding | Severity | Decision | Notes |
+| --- | --- | --- | --- |
+| Main demo retained a contradictory v0/v1/v2 decryption claim | minor | fixed | The versioning summary now states the v2-only acceptance contract. |
+| Compatibility demo accepted any thrown error and did not fail on unexpected success | minor | fixed | The runnable example now requires the exact stable rejection message and throws on unrelated behavior. |
+| Example overview omitted unknown versions | minor | fixed | The overview now matches the reserved, undefined, and unknown rejection contract. |
