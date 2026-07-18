@@ -54,7 +54,7 @@ function fail(msg) {
   process.exit(1);
 }
 
-function verifyNodeSubpathResolution() {
+function verifyNodeSubpathResolution(packageRoot) {
   const checks = [
     {
       label: "CommonJS snstr/testing",
@@ -68,16 +68,60 @@ function verifyNodeSubpathResolution() {
       label: "legacy CommonJS ephemeral relay alias",
       args: ["-e", 'const api = require("snstr/utils/ephemeral-relay"); if (typeof api.NostrRelay !== "function") process.exit(1);'],
     },
+    {
+      label: "legacy ESM ephemeral relay alias",
+      args: ["--input-type=module", "-e", 'const api = await import("snstr/utils/ephemeral-relay"); if (typeof api.NostrRelay !== "function") process.exit(1);'],
+    },
   ];
 
   for (const { label, args } of checks) {
     try {
-      execFileSync(process.execPath, args, { cwd: repoRoot, stdio: "pipe" });
+      execFileSync(process.execPath, args, { cwd: packageRoot, stdio: "pipe" });
     } catch (err) {
-      fail(
+      throw new Error(
         `${label} did not resolve through package exports. ${err?.message ?? String(err)}`,
       );
     }
+  }
+}
+
+function verifyPackedNodeSubpathResolution(cacheDir) {
+  const tempDir = fs.mkdtempSync(path.join(repoRoot, ".pack-verify-"));
+  let failure;
+
+  try {
+    const packOutput = execFileSync(
+      "npm",
+      [
+        "pack",
+        "--ignore-scripts",
+        "--json",
+        "--cache",
+        cacheDir,
+        "--pack-destination",
+        tempDir,
+      ],
+      { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }
+    );
+    const parsed = JSON.parse(packOutput);
+    const packInfo = Array.isArray(parsed) ? parsed[0] : parsed;
+    const tarballPath = path.join(tempDir, packInfo.filename);
+
+    execFileSync("tar", ["-xzf", tarballPath, "-C", tempDir], {
+      cwd: repoRoot,
+      stdio: "pipe",
+    });
+    verifyNodeSubpathResolution(path.join(tempDir, "package"));
+  } catch (err) {
+    failure = err;
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  if (failure) {
+    fail(
+      `Packed package subpath verification failed. ${failure?.message ?? String(failure)}`,
+    );
   }
 }
 
@@ -390,7 +434,12 @@ if (missingInTarball.length) {
   );
 }
 
-verifyNodeSubpathResolution();
+try {
+  verifyNodeSubpathResolution(repoRoot);
+} catch (err) {
+  fail(`Checkout subpath verification failed. ${err?.message ?? String(err)}`);
+}
+verifyPackedNodeSubpathResolution(cacheDir);
 
 console.log(
   `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${webGraph.modules} web modules, ${webGraph.guardedNodeReferences} guarded Node fallbacks)`

@@ -21,6 +21,7 @@
 - Full Bun: 1026/1026
 - Commands, lint, root/examples typechecks, CJS/ESM build, examples build, and pack verification: pass
 - Local CodeRabbit: zero findings
+- Hosted CodeRabbit: 2 package-verification findings fixed; 2 unrelated pre-existing NIP-02 example findings skipped as outside this branch's behavior
 
 ## Known Tooling Limitation
 
