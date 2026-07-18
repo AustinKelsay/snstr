@@ -55,6 +55,28 @@ async function main() {
   console.log(`Decrypted: "${decryptedV2}"`);
   console.log(`Successful decryption: ${message === decryptedV2}\n`);
 
+  console.log("Reserved, Undefined, and Unknown Decryption:");
+  console.log("------------------------------------------------");
+  for (const unsupportedVersion of [0, 1, 3]) {
+    const bytes = Buffer.from(encryptedV2, "base64");
+    bytes[0] = unsupportedVersion;
+    try {
+      decryptNIP44(
+        bytes.toString("base64"),
+        bobKeypair.privateKey,
+        aliceKeypair.publicKey,
+      );
+      console.log(
+        `❌ Error: Version ${unsupportedVersion} decryption unexpectedly succeeded`,
+      );
+    } catch (error) {
+      console.log(
+        `✅ Version ${unsupportedVersion} rejected: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  console.log("\n");
+
   // Demonstrate explicit v1 encryption
   console.log("Attempting Version 1 Encryption (should fail):");
   console.log("-----------------------------------------------");
@@ -162,7 +184,9 @@ async function main() {
   console.log("\nSummary:");
   console.log("--------");
   console.log("- Default encryption uses NIP-44 v2 (most secure)");
-  console.log("- Decryption accepts version 2 and rejects undefined versions");
+  console.log(
+    "- Decryption accepts version 2 and rejects reserved, undefined, and unknown versions",
+  );
   console.log(
     "- NIP-44 compliant clients MUST NOT encrypt new messages with versions 0 or 1.",
   );

@@ -189,7 +189,9 @@ console.log("-".repeat(30));
 console.log("✅ # Prefix Detection: Implemented (NIP-44 Decryption Step 1)");
 console.log("✅ Base64 Length Validation: 132 to 87,472 characters");
 console.log("✅ Decoded Length Validation: 99 to 65,603 bytes");
-console.log("✅ Version Support: v2; reserved and undefined versions rejected");
+console.log(
+  "✅ Version Support: v2; reserved, undefined, and unknown versions rejected",
+);
 console.log("✅ Error Messages: Clear and informative");
 
 console.log("\n🎉 All NIP-44 compliance checks passed!");

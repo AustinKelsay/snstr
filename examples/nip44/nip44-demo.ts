@@ -172,7 +172,7 @@ async function main() {
     "NIP-44 includes a version byte. This implementation encrypts with version 2 (current standard).",
   );
   console.log(
-    "Decryption accepts defined version 2 payloads and rejects reserved or undefined versions.",
+    "Decryption accepts defined version 2 payloads and rejects reserved, undefined, or unknown versions.",
   );
 
   const versionCompatMessage =

@@ -26,7 +26,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 - Ticket sessions: created as each ticket starts
 - Agent briefs: Grok 4.5 is the only owner-approved delegated sidecar; `agent` authentication was unavailable at preflight, so no substitute subagent is used and Codex owns local execution/review
 - Review packets: created per ticket
-- Local CodeRabbit report: created per branch
+- Local CodeRabbit report: issue #112 round completed with five worthy fixes in `issue-112-coderabbit-local.md`
 - PR URLs: recorded per ticket after push
 
 ## Commands
@@ -41,7 +41,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 | Issue | Type | Status | Branch | Review | Verified |
 | --- | --- | --- | --- | --- | --- |
-| #112 NIP-44 legacy behavior | AFK | local review passed | `feature/nip44-legacy-compat` | standards/spec pass after one fix | yes |
+| #112 NIP-44 legacy behavior | AFK | local CodeRabbit fixes verified | `feature/nip44-legacy-compat` | standards/spec pass; CodeRabbit 5 fixed | yes |
 | #118 authoritative protocol messages | AFK | ready | `feature/protocol-message-types` | pending | no |
 | #113 Relay event-store seam | AFK | blocked by #118 | `feature/relay-event-store` | pending | no |
 | #114 NIP-47 protocol machinery | AFK | blocked by #118 | `feature/nip47-protocol-codecs` | pending | no |

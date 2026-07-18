@@ -487,9 +487,9 @@ export function getMessageKeys(
     );
   }
 
-  if (nonce.length < NONCE_SIZE_V2) {
+  if (nonce.length !== NONCE_SIZE_V2) {
     throw new Error(
-      `NIP-44: Nonce too short for key derivation. Min expected: ${NONCE_SIZE_V2}, got: ${nonce.length}`,
+      `NIP-44: Nonce must be ${NONCE_SIZE_V2} bytes for key derivation, got: ${nonce.length}`,
     );
   }
 
@@ -540,9 +540,9 @@ export function hmacWithAAD(
   message: Uint8Array,
   aad: Uint8Array, // aad is the NIP-44 nonce (e.g. 32 bytes for v2)
 ): Uint8Array {
-  if (aad.length < NONCE_SIZE_V2) {
+  if (aad.length !== NONCE_SIZE_V2) {
     throw new Error(
-      `NIP-44: AAD (nonce) too short. Min expected: ${NONCE_SIZE_V2} bytes, got: ${aad.length}`,
+      `NIP-44: AAD (nonce) must be ${NONCE_SIZE_V2} bytes, got: ${aad.length}`,
     );
   }
 

@@ -38,7 +38,7 @@ The [`nip44-version-compatibility.ts`](./nip44-version-compatibility.ts) example
 
 - Attempting to encrypt with NIP-44 versions 0 and 1 (which correctly results in errors as per NIP-44 spec).
 - Successful encryption with NIP-44 version 2 (the current standard).
-- Rejection of reserved version 0, undefined version 1, and unknown versions.
+- Public decryption rejection for reserved version 0, undefined version 1, and unknown versions.
 - Error handling for unsupported versions for encryption.
 
 ### Test Vector Verification
