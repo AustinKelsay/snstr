@@ -93,14 +93,22 @@ function verifyRepository(repoRoot) {
 
   const workflow = readText(".github/workflows/build-test.yml");
   if (workflow === undefined) return errors.sort();
-  const runCommands = extractRunCommands(workflow);
-  for (const command of [
-    `corepack prepare ${CANONICAL_PACKAGE_MANAGER} --activate`,
-    "npm ci",
-    "bun install --frozen-lockfile",
-  ]) {
-    if (!runCommands.has(command)) {
-      errors.push(`build-test workflow must run ${JSON.stringify(command)}`);
+  const commandsByJob = extractRunCommands(workflow);
+  const requiredCommands = {
+    "build-and-test-node": [
+      `corepack prepare ${CANONICAL_PACKAGE_MANAGER} --activate`,
+      "npm ci",
+    ],
+    "build-and-test-bun": ["bun install --frozen-lockfile"],
+  };
+  for (const [job, commands] of Object.entries(requiredCommands)) {
+    const jobCommands = commandsByJob.get(job) ?? new Set();
+    for (const command of commands) {
+      if (!jobCommands.has(command)) {
+        errors.push(
+          `build-test workflow job ${job} must run ${JSON.stringify(command)}`,
+        );
+      }
     }
   }
 
@@ -108,19 +116,29 @@ function verifyRepository(repoRoot) {
 }
 
 function extractRunCommands(workflow) {
-  const commands = new Set();
+  const commandsByJob = new Map();
   const lines = workflow.split(/\r?\n/);
+  let job;
   for (let index = 0; index < lines.length; index += 1) {
-    const match = lines[index].match(/^(\s*)run:\s*(.*?)\s*$/);
+    const jobMatch = lines[index].match(/^  ([A-Za-z0-9_-]+):\s*$/);
+    if (jobMatch) {
+      job = jobMatch[1];
+      commandsByJob.set(job, new Set());
+      continue;
+    }
+    if (!job) continue;
+    const match = lines[index].match(/^(\s*)(?:-\s+)?run:\s*(.*?)\s*$/);
     if (!match) continue;
     const [, indentation, value] = match;
     if (value && value !== "|" && value !== ">") {
       const quote = value[0];
-      commands.add(
-        (quote === '"' || quote === "'") && value.at(-1) === quote
-          ? value.slice(1, -1)
-          : value,
-      );
+      commandsByJob
+        .get(job)
+        .add(
+          (quote === '"' || quote === "'") && value.at(-1) === quote
+            ? value.slice(1, -1)
+            : value,
+        );
       continue;
     }
     for (index += 1; index < lines.length; index += 1) {
@@ -132,10 +150,10 @@ function extractRunCommands(workflow) {
         break;
       }
       const command = commandLine.trim();
-      if (!command.startsWith("#")) commands.add(command);
+      if (!command.startsWith("#")) commandsByJob.get(job).add(command);
     }
   }
-  return commands;
+  return commandsByJob;
 }
 
 function runCli(repoRoot = path.resolve(__dirname, "..")) {

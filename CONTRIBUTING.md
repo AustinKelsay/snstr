@@ -16,8 +16,9 @@ Thank you for your interest in contributing to SNSTR! This document provides gui
 
 1. Fork the repository
 2. Clone your fork: `git clone https://github.com/your-username/snstr.git`
-3. Install dependencies: `npm ci`
-4. Build the project: `npm run build`
+3. Activate the canonical npm version: `corepack prepare npm@9.8.1 --activate`
+4. Install dependencies: `npm ci`
+5. Build the project: `npm run build`
 
 ## Development Workflow
 
@@ -97,6 +98,8 @@ npm 9.8.1 is the canonical package manager for dependency changes, clean
 installs, scripts, and releases. Use `npm install` when intentionally changing
 dependencies, commit the resulting `package-lock.json`, and use `npm ci` for a
 reproducible clean install. Do not add pnpm, Yarn, or shrinkwrap lockfiles.
+Activate it with `corepack prepare npm@9.8.1 --activate`, then confirm
+`npm --version` prints `9.8.1` before running canonical workflows.
 
 Bun 1.3.9 is a supported compatibility runner, pinned in `.bun-version`.
 When dependencies change, refresh and commit `bun.lock`, then confirm

@@ -16,8 +16,9 @@
 ## Verification
 
 - Clean installs: npm 9.8.1 `ci`; Bun frozen lockfile
-- Focused verifier tests after review: 2 suites, 19/19
+- Focused verifier tests after hosted review: 2 suites, 28/28
 - Local CodeRabbit: 7 findings; 5 fixed, 2 evidence-based skips
+- Hosted CodeRabbit: 4/4 findings fixed
 - Full Jest: 79 suites, 1033/1033
 - Coverage: 79 suites, 1033/1033; 77.38% statements / 64.43% branches
 - Full Bun: 1033/1033

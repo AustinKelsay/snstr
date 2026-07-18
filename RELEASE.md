@@ -14,6 +14,7 @@ compatibility runner, but it is not used to version or publish releases.
 ```bash
 git checkout main
 git pull --ff-only origin main
+corepack prepare npm@9.8.1 --activate
 npm ci
 npm run package-manager:verify
 npm run release:prepare

@@ -5,7 +5,7 @@ import { tmpdir } from "os";
 import path from "path";
 
 interface PackageManagerVerifier {
-  extractRunCommands(workflow: string): Set<string>;
+  extractRunCommands(workflow: string): Map<string, Set<string>>;
   verifyRepository(repoRoot: string): string[];
 }
 
@@ -36,9 +36,14 @@ function writeFixture(root: string): void {
   writeFileSync(
     path.join(root, ".github/workflows/build-test.yml"),
     [
-      "run: corepack prepare npm@9.8.1 --activate",
-      "run: npm ci",
-      "run: bun install --frozen-lockfile",
+      "jobs:",
+      "  build-and-test-node:",
+      "    steps:",
+      "      - run: corepack prepare npm@9.8.1 --activate",
+      "      - run: npm ci",
+      "  build-and-test-bun:",
+      "    steps:",
+      "      - run: bun install --frozen-lockfile",
     ].join("\n"),
   );
 }
@@ -62,6 +67,8 @@ describe("package-manager policy verifier", () => {
     expect(
       verifier.extractRunCommands(
         [
+          "jobs:",
+          "  example:",
           "# run: npm ci",
           "name: echo example",
           'run: echo "npm ci"',
@@ -70,7 +77,7 @@ describe("package-manager policy verifier", () => {
           "  npm ci",
         ].join("\n"),
       ),
-    ).toEqual(new Set(['echo "npm ci"', "npm ci"]));
+    ).toEqual(new Map([["example", new Set(['echo "npm ci"', "npm ci"])]]));
   });
 
   test("reports malformed required files without throwing", () => {
@@ -125,12 +132,124 @@ describe("package-manager policy verifier", () => {
           'package.json packageManager must be npm@9.8.1; found "pnpm@9.0.0"',
           "package-lock.json root version must match package.json",
           "pnpm-lock.yaml is not allowed at the repository root",
-          'build-test workflow must run "npm ci"',
-          'build-test workflow must run "bun install --frozen-lockfile"',
+          'build-test workflow job build-and-test-node must run "npm ci"',
+          'build-test workflow job build-and-test-bun must run "bun install --frozen-lockfile"',
         ]),
       );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test("rejects install commands placed in the wrong CI jobs", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "snstr-package-manager-"));
+    try {
+      writeFixture(root);
+      writeFileSync(
+        path.join(root, ".github/workflows/build-test.yml"),
+        [
+          "jobs:",
+          "  build-and-test-node:",
+          "    steps:",
+          "      - run: bun install --frozen-lockfile",
+          "  build-and-test-bun:",
+          "    steps:",
+          "      - run: corepack prepare npm@9.8.1 --activate",
+          "      - run: npm ci",
+        ].join("\n"),
+      );
+      expect(verifier.verifyRepository(root)).toEqual(
+        expect.arrayContaining([
+          'build-test workflow job build-and-test-node must run "npm ci"',
+          'build-test workflow job build-and-test-bun must run "bun install --frozen-lockfile"',
+        ]),
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test.each([
+    [
+      "missing Bun lock",
+      (root: string) => rmSync(path.join(root, "bun.lock")),
+      "bun.lock is required",
+    ],
+    [
+      "missing Bun pin",
+      (root: string) => rmSync(path.join(root, ".bun-version")),
+      ".bun-version is required",
+    ],
+    [
+      "wrong Bun pin",
+      (root: string) =>
+        writeFileSync(path.join(root, ".bun-version"), "1.0.0\n"),
+      ".bun-version must pin Bun 1.3.9",
+    ],
+    [
+      "old npm lock",
+      (root: string) => {
+        const lock = JSON.parse(
+          require("fs").readFileSync(
+            path.join(root, "package-lock.json"),
+            "utf8",
+          ),
+        );
+        lock.lockfileVersion = 2;
+        writeFileSync(
+          path.join(root, "package-lock.json"),
+          JSON.stringify(lock),
+        );
+      },
+      "package-lock.json must use lockfileVersion 3",
+    ],
+    [
+      "root-name drift",
+      (root: string) => {
+        const lock = JSON.parse(
+          require("fs").readFileSync(
+            path.join(root, "package-lock.json"),
+            "utf8",
+          ),
+        );
+        lock.packages[""].name = "other";
+        writeFileSync(
+          path.join(root, "package-lock.json"),
+          JSON.stringify(lock),
+        );
+      },
+      "package-lock.json root name must match package.json",
+    ],
+    [
+      "Yarn lock",
+      (root: string) => writeFileSync(path.join(root, "yarn.lock"), ""),
+      "yarn.lock is not allowed",
+    ],
+    [
+      "shrinkwrap",
+      (root: string) =>
+        writeFileSync(path.join(root, "npm-shrinkwrap.json"), "{}"),
+      "npm-shrinkwrap.json is not allowed",
+    ],
+    [
+      "missing workflow",
+      (root: string) =>
+        rmSync(path.join(root, ".github/workflows/build-test.yml")),
+      ".github/workflows/build-test.yml could not be read",
+    ],
+  ] as Array<[string, (root: string) => void, string]>)(
+    "reports %s",
+    (_name, mutate, diagnostic) => {
+      const root = mkdtempSync(path.join(tmpdir(), "snstr-package-manager-"));
+      try {
+        writeFixture(root);
+        mutate(root);
+        expect(verifier.verifyRepository(root).join("\n")).toContain(
+          diagnostic,
+        );
+      } finally {
+        rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
 });
