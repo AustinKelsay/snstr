@@ -31,7 +31,8 @@ import {
   validateKeypairForCrypto,
   securePermissionCheck,
 } from "./utils/security";
-import { Logger, LogLevel } from "../utils/logger";
+import { LogLevel } from "../utils/logger";
+import { NIP46DiagnosticLogger } from "./utils/diagnostics";
 
 export class NostrRemoteSignerBunker {
   private nostr: Nostr;
@@ -41,7 +42,7 @@ export class NostrRemoteSignerBunker {
   private connectedClients: Map<string, NIP46ClientSession>;
   private pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
   private subId: string | null;
-  private logger: Logger;
+  private logger: NIP46DiagnosticLogger;
   private rateLimiter: NIP46RateLimiter;
   private permissionHandler:
     | ((
@@ -61,7 +62,7 @@ export class NostrRemoteSignerBunker {
     this.subId = null;
 
     // Initialize logger
-    this.logger = new Logger({
+    this.logger = NIP46DiagnosticLogger.create(options.logger, {
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-BUNKER",
       includeTimestamp: true,

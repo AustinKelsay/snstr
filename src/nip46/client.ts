@@ -5,7 +5,8 @@ import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { NostrEvent, NostrFilter } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { parseConnectionString } from "./utils/connection";
-import { Logger, LogLevel } from "../utils/logger";
+import { LogLevel } from "../utils/logger";
+import { NIP46DiagnosticLogger } from "./utils/diagnostics";
 import { generateRequestId } from "./utils/request-response";
 import { isValidAuthUrl } from "./utils/auth";
 import {
@@ -43,7 +44,7 @@ export class NostrRemoteSignerClient {
   private authWindow: Window | null;
   private connected = false;
   private subId: string | null = null;
-  private logger: Logger;
+  private logger: NIP46DiagnosticLogger;
   private debug: boolean;
   private pendingAuthChallenges = new Map<
     string,
@@ -71,7 +72,7 @@ export class NostrRemoteSignerClient {
     this.debug = options.debug || false;
 
     // Initialize logger
-    this.logger = new Logger({
+    this.logger = NIP46DiagnosticLogger.create(options.logger, {
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-CLIENT",
       includeTimestamp: true,

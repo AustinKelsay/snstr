@@ -14,7 +14,8 @@ import {
   NIP46ConnectionError,
   NIP46Method,
 } from "./types";
-import { Logger, LogLevel } from "../utils/logger";
+import { LogLevel } from "../utils/logger";
+import { NIP46DiagnosticLogger } from "./utils/diagnostics";
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -43,7 +44,7 @@ export class SimpleNIP46Bunker {
   private defaultPermissions: Set<string>;
   private subId: string | null;
   private secret?: string;
-  private logger: Logger;
+  private logger: NIP46DiagnosticLogger;
   private debug: boolean;
 
   /**
@@ -74,7 +75,7 @@ export class SimpleNIP46Bunker {
     const logLevel =
       options.logLevel || (this.debug ? LogLevel.DEBUG : LogLevel.INFO);
 
-    this.logger = new Logger({
+    this.logger = NIP46DiagnosticLogger.create(options.logger, {
       prefix: "Bunker",
       level: logLevel,
       silent: process.env.NODE_ENV === "test", // Silent in test environment
