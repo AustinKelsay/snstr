@@ -19,6 +19,7 @@
 - Focused public/security behavior: 9 suites, 273/273
 - Focused coverage after review fix: 7 suites, 231/231; 81.19% aggregate branches; key validation 100% branches; wire/limits 100%
 - Local CodeRabbit: 1/1 finding fixed
+- Hosted CodeRabbit: 2/2 findings fixed
 - Full Jest: 78 suites, 1030/1030
 - Full Bun: 1030/1030
 - Commands, lint, root/examples typechecks, CJS/ESM build, examples build, and pack verification: pass

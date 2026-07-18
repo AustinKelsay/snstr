@@ -18,3 +18,8 @@
 - Worthy findings fixed: 1
 - Findings skipped: 0
 - Post-fix focused coverage: 231/231; 81.19% aggregate branches; key validation 100% branches; wire/limits 100%
+
+## Hosted Follow-up
+
+- Clarified that the issue-session commit cell represents an open but fully verified branch, not incomplete verification.
+- Added explicit uppercase public-key format compatibility coverage.

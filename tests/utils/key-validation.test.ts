@@ -52,5 +52,6 @@ describe("canonical key validation", () => {
     expect(isValidPrivateKey("g".repeat(64))).toBe(false);
     expect(isValidPublicKeyFormat("1".repeat(65))).toBe(false);
     expect(isValidPublicKeyFormat("z".repeat(64))).toBe(false);
+    expect(isValidPublicKeyFormat("A".repeat(64))).toBe(true);
   });
 });
