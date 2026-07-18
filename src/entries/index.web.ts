@@ -38,6 +38,14 @@ export {
 
 export { getUnixTime } from "../utils/time";
 
+// Export the platform-safe shared diagnostic implementation.
+export { Logger as ConsoleLogger, LogLevel } from "../utils/logger";
+export type {
+  DiagnosticLogArgument,
+  DiagnosticLogger,
+  LoggerOptions,
+} from "../utils/logger";
+
 export {
   createEvent,
   createAddressableEvent,
@@ -67,6 +75,7 @@ export type {
   ParseContactsResult,
   ParseWarning,
   Logger,
+  WarningLogger,
 } from "../nip02";
 
 // Export NIP-04 web/RN implementation (crypto-js AES-CBC)
@@ -343,6 +352,7 @@ export {
   TransactionType,
   NIP47EncryptionScheme,
 } from "../nip47/types";
+export type { NIP47Logger, NIP47LogArgument } from "../nip47/types";
 
 // NIP-50 search utilities
 export { createSearchFilter } from "../nip50";

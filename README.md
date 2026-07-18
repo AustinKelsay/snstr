@@ -28,11 +28,7 @@ SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr
 - [Documentation](#documentation)
 - [Examples](#examples)
 - [Testing](#testing)
-- [Scripts](#scripts)
-  - [Build Scripts](#build-scripts)
-  - [Testing Scripts](#testing-scripts)
-  - [Example Scripts](#example-scripts)
-  - [Code Quality Scripts](#code-quality-scripts)
+- [Command Reference](#command-reference)
 - [Development](#development)
 - [Security](#security)
 - [Next.js / Turbopack Guidance](#nextjs--turbopack-guidance)
@@ -383,364 +379,223 @@ The project is organized with detailed documentation for different components:
 
 ## Examples
 
-SNSTR includes comprehensive examples for all supported features and NIPs:
-
-```bash
-# Run the basic example
-npm run example
-
-# Run the direct messaging example
-npm run example:dm  # Uses NIP-04 implementation
-
-# Run additional basic examples
-npm run example:verbose         # Verbose logging
-npm run example:debug           # Debug logging
-npm run example:custom-websocket # Custom WebSocket implementation
-npm run example:crypto          # Cryptographic functions
-npm run example:rate-limits     # Rate limit configuration demo
-
-# Run NIP-01 examples
-npm run example:nip01:event:ordering      # Event ordering demonstration
-npm run example:nip01:event:addressable   # Addressable events
-npm run example:nip01:event:replaceable   # Replaceable events
-npm run example:nip01:relay:connection    # Relay connection management
-npm run example:nip01:relay:pool          # RelayPool multi-relay demo
-npm run example:nip01:relay:filters       # Filter types
-npm run example:nip01:relay:auto-close    # Auto-unsubscribe example
-npm run example:nip01:relay:query         # Pooled event queries
-npm run example:nip01:relay:reconnect     # Relay reconnection
-npm run example:nip01:validation          # NIP-01 validation flow
-
-# Run other NIP-specific examples
-npm run example:nip04  # Encrypted direct messages
-npm run example:nip05  # DNS identifiers
-npm run example:nip09  # Deletion requests
-npm run example:nip19  # Bech32-encoded entities
-npm run example:nip44  # Versioned encryption
-npm run example:nip17  # Gift wrapped direct messages
-npm run example:nip46  # Remote signing protocol
-npm run example:nip50  # Search capability
-npm run example:nip57  # Lightning Zaps
-npm run example:nip65  # Relay list metadata
-npm run example:nip66  # Relay discovery and monitoring
-
-# Additional NIP-specific example variants
-npm run example:nip07          # Browser extension (runs local server)
-npm run example:nip07:build    # Build browser extension examples
-npm run example:nip07:dm       # Browser extension direct message
-npm run example:nip10          # Text Notes and Threads (see README)
-npm run example:nip11          # Relay information
-npm run example:nip19:bech32   # Basic Bech32 examples
-npm run example:nip19:tlv      # TLV entity examples
-npm run example:nip19:validation # Validation examples
-npm run example:nip19:security # Security features
-npm run example:nip21          # URI scheme
-npm run example:nip44:js       # JavaScript version of NIP-44
-npm run example:nip44:version-compat # Version compatibility
-npm run example:nip44:test-vector    # Test vector validation
-npm run example:nip46:minimal       # Minimal NIP-46 example
-npm run example:nip46:basic         # Basic NIP-46 example
-npm run example:nip46:advanced      # Advanced features
-npm run example:nip46:from-scratch  # Implementation from scratch
-npm run example:nip46:simple        # Simple client/server
-npm run example:nip47:verbose       # Verbose wallet connect
-npm run example:nip47:client-service # Client service example
-npm run example:nip47:error-handling # Error handling
-npm run example:nip47:expiration    # Request expiration
-npm run example:nip57:client        # Zap client
-npm run example:nip57:lnurl         # LNURL server simulation
-npm run example:nip57:validation    # Invoice validation
-```
-
-For a full list of examples and detailed descriptions, see the [examples README](./examples/README.md).
+Runnable examples cover core usage, NIP-specific flows, and curated groups. See the [examples guide](./examples/README.md) for walkthroughs and the [Command Reference](#command-reference) for the canonical root command inventory.
 
 ## Testing
 
-SNSTR includes a comprehensive test suite that uses an ephemeral relay to avoid external dependencies:
+The Jest suite uses an ephemeral relay where possible so normal test runs avoid external services. See the [testing guide](./tests/README.md) for organization and methodology, and use the [Command Reference](#command-reference) for every supported test command.
 
-### Main Test Commands
+## Command Reference
 
-```bash
-# Run all tests
-npm test
+The `scripts` object in [package.json](./package.json) is the executable source of truth. This section is its single authoritative human-facing inventory; run these commands from the repository root. `npm run commands:verify` guards exact command duplication, recursively duplicated grouped work, missing group targets, cycles, stale literal Markdown references, and command-definition drift in this table.
 
-# Run tests with watch mode for development
-npm run test:watch
+### Build
 
-# Generate code coverage report
-npm run test:coverage
+| Command | Definition |
+| --- | --- |
+| `npm run build` | `npx rimraf dist && npm run build:cjs && npm run build:esm` |
+| `npm run build:cjs` | `tsc -p tsconfig.build.json` |
+| `npm run build:esm` | `tsc -p tsconfig.esm.json && node scripts/postbuild-esm.js` |
+| `npm run pack:verify` | `node scripts/verify-pack.js` |
+| `npm run commands:verify` | `node scripts/verify-commands.js` |
+| `npm run prepack` | `npm run build && npm run pack:verify` |
+| `npm run build:examples` | `tsc -p examples/tsconfig.json` |
 
-# Run integration tests
-npm run test:integration
-```
+### Code Quality
 
-### Test Categories
+| Command | Definition |
+| --- | --- |
+| `npm run lint` | `eslint . --ext .ts` |
+| `npm run format` | `prettier --write "src/**/*.ts" "tests/**/*.ts" "examples/**/*.ts"` |
 
-Tests are organized into logical categories for focused testing:
+### Primary Tests
 
-```bash
-npm run test:core       # Core functionality tests (all NIP-01)
-npm run test:crypto     # All crypto tests (utils/crypto + NIP-04 + NIP-44)
-npm run test:identity   # Identity-related tests (NIP-05, NIP-07, NIP-19)
-npm run test:protocols  # Protocol implementations (NIP-46, NIP-47, NIP-57)
-```
+| Command | Definition |
+| --- | --- |
+| `npm run test` | `jest` |
+| `npm run test:watch` | `jest --watch` |
+| `npm run test:coverage` | `jest --coverage` |
+| `npm run test:integration` | `jest tests/integration.test.ts` |
 
-### NIP-01 Core Protocol Tests
+### Bun Tests
 
-NIP-01 tests are further organized by component:
+| Command | Definition |
+| --- | --- |
+| `npm run test:bun` | `bun test ./tests --max-concurrency 1 --timeout 30000` |
+| `npm run test:bun:watch` | `bun test ./tests --watch --max-concurrency 1 --timeout 30000` |
 
-```bash
-# Main NIP-01 tests
-npm run test:nip01                      # All NIP-01 tests
-npm run test:nip01:event                # All event-related tests
-npm run test:nip01:relay                # All relay-related tests
+### NIP-01 and Core Tests
 
-# Event-specific tests
-npm run test:event                      # Core event creation/validation
-npm run test:event:ordering             # Event ordering tests
-npm run test:event:addressable          # Addressable events (kinds 30000-39999)
-npm run test:event:all                  # All event tests combined
-
-# Relay-specific tests
-npm run test:relay                      # All relay functionality
-npm run test:nip01:relay:connection     # Relay connection management
-npm run test:nip01:relay:filter         # Subscription filter tests
-npm run test:nip01:relay:reconnect      # Relay reconnection logic
-npm run test:nip01:relay:pool           # RelayPool multi-relay tests
-npm run test:nip01:relay:websocket      # WebSocket implementation tests
-
-# Client and utilities
-npm run test:nostr                      # Nostr client tests
-npm run test:crypto:core                # Core cryptographic utilities
-npm run test:utils:relayUrl             # Relay URL normalization
-```
+| Command | Definition |
+| --- | --- |
+| `npm run test:nip01` | `jest tests/nip01` |
+| `npm run test:nip01:event` | `jest tests/nip01/event` |
+| `npm run test:nip01:relay` | `jest tests/nip01/relay` |
+| `npm run test:event` | `jest tests/nip01/event/event.test.ts` |
+| `npm run test:event:ordering` | `jest tests/nip01/event/event-ordering.test.ts` |
+| `npm run test:event:addressable` | `jest tests/nip01/event/addressable-events.test.ts` |
+| `npm run test:nostr` | `jest tests/nip01/nostr.test.ts` |
+| `npm run test:nip01:relay:connection` | `jest tests/nip01/relay/relay.test.ts` |
+| `npm run test:nip01:relay:filter` | `jest tests/nip01/relay/filters.test.ts` |
+| `npm run test:nip01:relay:reconnect` | `jest tests/nip01/relay/relay-reconnect.test.ts` |
+| `npm run test:nip01:relay:pool` | `jest tests/nip01/relay/relayPool.test.ts` |
+| `npm run test:nip01:relay:websocket` | `jest tests/nip01/relay/websocket-implementation.test.ts` |
+| `npm run test:crypto:core` | `jest tests/utils/crypto.test.ts` |
+| `npm run test:utils:relayUrl` | `jest tests/utils/relayUrl.test.ts` |
 
 ### NIP-Specific Tests
 
-Run tests for individual NIP implementations:
+| Command | Definition |
+| --- | --- |
+| `npm run test:nip02` | `jest tests/nip02` |
+| `npm run test:nip04` | `jest tests/nip04` |
+| `npm run test:nip05` | `jest tests/nip05` |
+| `npm run test:nip07` | `jest tests/nip07` |
+| `npm run test:nip09` | `jest tests/nip09` |
+| `npm run test:nip10` | `jest tests/nip10` |
+| `npm run test:nip11` | `jest tests/nip11` |
+| `npm run test:nip17` | `jest tests/nip17` |
+| `npm run test:nip19` | `jest tests/nip19` |
+| `npm run test:nip21` | `jest tests/nip21` |
+| `npm run test:nip29` | `jest tests/nip29` |
+| `npm run test:nip42` | `jest tests/nip42` |
+| `npm run test:nip44` | `jest tests/nip44` |
+| `npm run test:nip46` | `jest tests/nip46` |
+| `npm run test:nip47` | `jest tests/nip47` |
+| `npm run test:nip50` | `jest tests/nip50` |
+| `npm run test:nip56` | `jest tests/nip56` |
+| `npm run test:nip57` | `jest tests/nip57` |
+| `npm run test:nip65` | `jest tests/nip65` |
+| `npm run test:nip66` | `jest tests/nip66` |
+| `npm run test:nip70` | `jest tests/nip70` |
+| `npm run test:nip86` | `jest tests/nip86` |
 
-```bash
-npm run test:nip02    # NIP-02 (Contact Lists)
-npm run test:nip04    # NIP-04 (Encrypted Direct Messages)
-npm run test:nip05    # NIP-05 (DNS Identifiers)
-npm run test:nip07    # NIP-07 (Browser Extensions)
-npm run test:nip09    # NIP-09 (Event Deletion)
-npm run test:nip10    # NIP-10 (Text Notes and Threads)
-npm run test:nip11    # NIP-11 (Relay Information)
-npm run test:nip17    # NIP-17 (Gift Wrapped Messages)
-npm run test:nip19    # NIP-19 (Bech32 Entities)
-npm run test:nip21    # NIP-21 (URI Scheme)
-npm run test:nip29    # NIP-29 (Relay-based Groups)
-npm run test:nip42    # NIP-42 (Relay Authentication)
-npm run test:nip44    # NIP-44 (Versioned Encryption)
-npm run test:nip46    # NIP-46 (Remote Signing)
-npm run test:nip47    # NIP-47 (Wallet Connect)
-npm run test:nip50    # NIP-50 (Search Capability)
-npm run test:nip56    # NIP-56 (Reporting)
-npm run test:nip57    # NIP-57 (Lightning Zaps)
-npm run test:nip65    # NIP-65 (Relay List Metadata)
-npm run test:nip66    # NIP-66 (Relay Discovery)
-npm run test:nip70    # NIP-70 (Protected Events)
-npm run test:nip86    # NIP-86 (Relay Management)
-```
+### Test Groups
 
-The test suite is organized by NIP number, with dedicated directories for each implemented NIP (e.g., `tests/nip01/`, `tests/nip04/`, etc.). This structure allows for focused testing of specific implementations while maintaining comprehensive coverage.
+| Command | Definition |
+| --- | --- |
+| `npm run test:all` | `npm test` |
+| `npm run test:crypto` | `jest tests/utils/crypto.test.ts tests/nip04 tests/nip44` |
+| `npm run test:identity` | `jest tests/nip05 tests/nip07 tests/nip19` |
+| `npm run test:protocols` | `jest tests/nip46 tests/nip47 tests/nip57` |
 
-For more information about the test structure and methodology, see the [tests README](./tests/README.md).
+### Core Examples
 
-## Scripts
+| Command | Definition |
+| --- | --- |
+| `npm run example` | `ts-node examples/basic-example.ts` |
+| `npm run example:verbose` | `VERBOSE=true ts-node examples/basic-example.ts` |
+| `npm run example:debug` | `DEBUG=true ts-node examples/basic-example.ts` |
+| `npm run example:custom-websocket` | `ts-node examples/custom-websocket-example.ts` |
+| `npm run example:crypto` | `ts-node examples/crypto-demo.ts` |
+| `npm run example:rate-limits` | `ts-node examples/rate-limit-configuration-example.ts` |
 
-SNSTR provides numerous npm scripts to help with development, testing, and running examples:
+### NIP-01 Examples
 
-### Build Scripts
+| Command | Definition |
+| --- | --- |
+| `npm run example:nip01:event:ordering` | `ts-node examples/nip01/event/event-ordering-demo.ts` |
+| `npm run example:nip01:event:addressable` | `ts-node examples/nip01/event/addressable-events.ts` |
+| `npm run example:nip01:event:replaceable` | `ts-node examples/nip01/event/replaceable-events.ts` |
+| `npm run example:nip01:relay:connection` | `ts-node examples/nip01/relay/relay-connection-example.ts` |
+| `npm run example:nip01:relay:filters` | `ts-node examples/nip01/relay/filter-types-example.ts` |
+| `npm run example:nip01:relay:auto-close` | `ts-node examples/nip01/relay/auto-unsubscribe-example.ts` |
+| `npm run example:nip01:relay:query` | `ts-node examples/nip01/relay/relay-query-example.ts` |
+| `npm run example:nip01:relay:reconnect` | `ts-node examples/nip01/relay/relay-reconnect-example.ts` |
+| `npm run example:nip01:relay:pool` | `ts-node examples/nip01/relay/relay-pool-example.ts` |
+| `npm run example:nip01:url-preprocessing` | `ts-node examples/nip01/url-preprocessing-example.ts` |
+| `npm run example:nip01:relay:pool-url-normalization` | `ts-node examples/nip01/relay-pool-url-normalization-example.ts` |
+| `npm run example:nip01:validation` | `ts-node examples/client/validation-flow.ts` |
 
-```bash
-# Build the library
-npm run build
+### NIP-Specific Examples
 
-# Build example files
-npm run build:examples
-```
+| Command | Definition |
+| --- | --- |
+| `npm run example:nip02` | `ts-node examples/nip02/nip02-demo.ts` |
+| `npm run example:nip02:pubkey-normalization` | `ts-node examples/nip02/pubkey-normalization-example.ts` |
+| `npm run example:nip04` | `ts-node examples/nip04/direct-message.ts` |
+| `npm run example:nip05` | `ts-node examples/nip05/nip05-demo.ts` |
+| `npm run example:nip09` | `ts-node examples/nip09/deletion-request.ts` |
+| `npm run example:nip10` | `ts-node examples/nip10/nip10-demo.ts` |
+| `npm run example:nip07` | `cd examples/nip07 && npm install && npm run build && npm start` |
+| `npm run example:nip07:build` | `cd examples/nip07 && npm install && npm run build` |
+| `npm run example:nip07:dm` | `ts-node examples/nip07/direct-message.ts` |
+| `npm run example:nip11` | `ts-node examples/nip11/relay-info-example.ts` |
+| `npm run example:nip19` | `ts-node examples/nip19/nip19-demo.ts` |
+| `npm run example:nip19:bech32` | `ts-node examples/nip19/bech32-example.ts` |
+| `npm run example:nip19:tlv` | `ts-node examples/nip19/tlv-example.ts` |
+| `npm run example:nip19:validation` | `ts-node examples/nip19/validation-example.ts` |
+| `npm run example:nip19:security` | `ts-node examples/nip19/nip19-security.ts` |
+| `npm run example:nip19:security-example` | `ts-node examples/nip19/security-example.ts` |
+| `npm run example:nip21` | `ts-node examples/nip21/nip21-demo.ts` |
+| `npm run example:nip44` | `ts-node examples/nip44/nip44-demo.ts` |
+| `npm run example:nip44:version-compat` | `ts-node examples/nip44/nip44-version-compatibility.ts` |
+| `npm run example:nip44:test-vector` | `ts-node examples/nip44/nip44-test-vector.ts` |
+| `npm run example:nip44:compliance` | `ts-node examples/nip44/nip44-compliance-demo.ts` |
+| `npm run example:nip17` | `ts-node examples/nip17/nip17-demo.ts` |
+| `npm run example:nip46` | `ts-node examples/nip46/unified-example.ts` |
+| `npm run example:nip46:minimal` | `ts-node examples/nip46/minimal.ts` |
+| `npm run example:nip46:basic` | `ts-node examples/nip46/basic-example.ts` |
+| `npm run example:nip46:advanced` | `ts-node examples/nip46/advanced/remote-signing-demo.ts` |
+| `npm run example:nip46:from-scratch` | `ts-node examples/nip46/from-scratch/implementation-from-scratch.ts` |
+| `npm run example:nip46:simple` | `ts-node examples/nip46/simple/simple-example.ts` |
+| `npm run example:nip46:simple-client` | `ts-node examples/nip46/simple/simple-client-test.ts` |
+| `npm run example:nip46:test-all` | `ts-node examples/nip46/test-all-examples.ts` |
+| `npm run example:nip46:connection-string-validation` | `ts-node examples/nip46/connection-string-validation-example.ts` |
+| `npm run example:nip47` | `ts-node examples/nip47/basic-example.ts` |
+| `npm run example:nip47:verbose` | `VERBOSE=true ts-node examples/nip47/basic-example.ts` |
+| `npm run example:nip47:client-service` | `ts-node examples/nip47/basic-client-service.ts` |
+| `npm run example:nip47:error-handling` | `ts-node examples/nip47/error-handling-example.ts` |
+| `npm run example:nip47:expiration` | `ts-node examples/nip47/request-expiration-example.ts` |
+| `npm run example:nip47:nip44` | `ts-node examples/nip47/nip44-encryption.ts` |
+| `npm run example:nip47:encryption-negotiation` | `ts-node examples/nip47/encryption-negotiation.ts` |
+| `npm run example:nip50` | `ts-node examples/nip50/search-demo.ts` |
+| `npm run example:nip57` | `ts-node examples/nip57/basic-example.ts` |
+| `npm run example:nip57:client` | `ts-node examples/nip57/zap-client-example.ts` |
+| `npm run example:nip57:lnurl` | `ts-node examples/nip57/lnurl-server-simulation.ts` |
+| `npm run example:nip57:validation` | `ts-node examples/nip57/invoice-validation-example.ts` |
+| `npm run example:nip65` | `ts-node examples/nip65/nip65-demo.ts` |
+| `npm run example:nip66` | `ts-node examples/nip66/nip66-demo.ts` |
 
-### Testing Scripts
+### Example Groups
 
-```bash
-# Run all tests
-npm test
+| Command | Definition |
+| --- | --- |
+| `npm run example:all` | `npm run example` |
+| `npm run example:basic` | `npm run example && npm run example:crypto && npm run example:nip04` |
+| `npm run example:nip01` | `npm run example:nip01:event:ordering && npm run example:nip01:relay:connection && npm run example:nip01:relay:query && npm run example:nip01:validation` |
+| `npm run example:messaging` | `npm run example:nip04 && npm run example:nip44 && npm run example:nip17` |
+| `npm run example:identity` | `npm run example:nip05 && npm run example:nip07 && npm run example:nip19` |
+| `npm run example:payments` | `npm run example:nip47 && npm run example:nip57` |
+| `npm run example:advanced` | `npm run example:nip46 && npm run example:nip47:error-handling` |
+| `npm run example:validation` | `npm run example:nip01:validation` |
 
-# Run tests with watch mode
-npm run test:watch
+### Release
 
-# Generate code coverage report
-npm run test:coverage
+| Command | Definition |
+| --- | --- |
+| `npm run release:prepare` | `npm run lint && npm test && npm run build && npm run pack:verify` |
+| `npm run release:patch` | `npm run release:prepare && npm version patch` |
+| `npm run release:minor` | `npm run release:prepare && npm version minor` |
+| `npm run release:major` | `npm run release:prepare && npm version major` |
+| `npm run release:push` | `git push && git push --tags` |
+| `npm run release` | `npm run release:patch && npm run release:push` |
 
-# Test by category
-npm run test:core          # Core functionality (NIP-01)
-npm run test:crypto        # All crypto (utils/crypto + NIP-04 + NIP-44)
-npm run test:identity      # Identity-related features (NIP-05, NIP-07, NIP-19)
-npm run test:protocols     # Protocol implementations (NIP-46, NIP-47, NIP-57)
-npm run test:integration   # Integration tests
+### Branch Management
 
-# Test specific NIP-01 components
-npm run test:nip01         # All NIP-01 tests
-npm run test:nip01:event   # Event-related tests
-npm run test:nip01:relay   # Relay-related tests
-npm run test:nip01:relay:connection      # Relay connection tests
-npm run test:nip01:relay:filter      # Relay filter tests
-npm run test:nip01:relay:reconnect   # Relay reconnection tests
-npm run test:nip01:relay:pool        # RelayPool tests
-npm run test:nip01:relay:websocket   # Custom WebSocket implementation tests
-npm run test:nostr         # Nostr client
-npm run test:event         # Event creation and validation
-npm run test:event:ordering          # Event ordering tests
-npm run test:event:addressable       # Addressable events tests
-npm run test:event:all               # All event tests
-npm run test:relay         # Relay functionality
-npm run test:crypto:core   # Core crypto utilities
-npm run test:utils:relayUrl # Relay URL normalization helpers
+| Command | Definition |
+| --- | --- |
+| `npm run promote` | `scripts/promote-to-main.sh` |
 
-# Test specific NIPs
-npm run test:nip02         # NIP-02 (Contact Lists)
-npm run test:nip04         # NIP-04 (Encrypted Direct Messages)
-npm run test:nip05         # NIP-05 (DNS Identifiers)
-npm run test:nip07         # NIP-07 (Browser Extensions)
-npm run test:nip09         # NIP-09 (Event Deletion Requests)
-npm run test:nip10         # NIP-10 (Text Notes and Threads)
-npm run test:nip11         # NIP-11 (Relay Information)
-npm run test:nip17         # NIP-17 (Direct Messages)
-npm run test:nip19         # NIP-19 (Bech32 Entities)
-npm run test:nip21         # NIP-21 (URI Scheme)
-npm run test:nip29         # NIP-29 (Relay-based Groups)
-npm run test:nip42         # NIP-42 (Relay Authentication)
-npm run test:nip44         # NIP-44 (Versioned Encryption)
-npm run test:nip46         # NIP-46 (Remote Signing)
-npm run test:nip47         # NIP-47 (Wallet Connect)
-npm run test:nip50         # NIP-50 (Search Capability)
-npm run test:nip56         # NIP-56 (Reporting)
-npm run test:nip57         # NIP-57 (Lightning Zaps)
-npm run test:nip65         # NIP-65 (Relay List Metadata)
-npm run test:nip66         # NIP-66 (Relay Discovery)
-npm run test:nip70         # NIP-70 (Protected Events)
-npm run test:nip86         # NIP-86 (Relay Management)
-```
+### Application Shortcuts
 
-### Example Scripts
-
-```bash
-# Run the basic example
-npm run example
-
-npm run example:rate-limits # Rate limit configuration walkthrough
-npm run example:verbose    # Verbose logging
-npm run example:debug      # Debug logging
-
-# NIP-01 examples
-npm run example:nip01:event:ordering     # Event ordering demonstration
-npm run example:nip01:event:addressable  # Addressable events
-npm run example:nip01:event:replaceable  # Replaceable events
-npm run example:nip01:relay:connection   # Relay connection management
-npm run example:nip01:relay:filters      # Filter types
-npm run example:nip01:relay:auto-close   # Auto-unsubscribe demo
-npm run example:nip01:relay:query        # Pooled event queries
-npm run example:nip01:relay:reconnect    # Relay reconnection
-npm run example:nip01:relay:pool        # RelayPool multi-relay demo
-npm run example:nip01:relay:pool-url-normalization # RelayPool URL normalization helpers
-npm run example:nip01:validation         # NIP-01 validation flow
-npm run example:nip01:url-preprocessing  # Relay URL preprocessing utilities
-
-# Example categories
-npm run example:basic      # Basic functionality (core, crypto, direct messages)
-npm run example:messaging  # Messaging examples (DM, NIP-04, NIP-44)
-npm run example:identity   # Identity examples (NIP-05, NIP-07, NIP-19)
-npm run example:payments   # Payment examples (NIP-47, NIP-57)
-npm run example:advanced   # Advanced protocol examples (NIP-46, error handling)
-
-# Feature-specific examples
-npm run example:crypto     # Cryptographic functions
-npm run example:dm         # Direct messaging (NIP-04)
-
-# NIP-specific examples
-npm run example:nip02      # Contact Lists (NIP-02)
-npm run example:nip02:pubkey-normalization # Pubkey normalization helpers
-npm run example:nip04      # Encrypted direct messages (NIP-04)
-npm run example:nip05      # DNS identifiers (NIP-05)
-npm run example:nip07      # Browser extensions (NIP-07)
-npm run example:nip07:build # Build browser bundles without running server
-npm run example:nip07:dm   # Browser-hosted DM example
-npm run example:nip09      # Deletion requests (NIP-09)
-npm run example:nip10      # Text notes and threads (NIP-10)
-npm run example:nip11      # Relay information (NIP-11)
-npm run example:nip21      # URI scheme (NIP-21)
-npm run example:nip17      # Gift wrapped direct messages (NIP-17)
-npm run example:nip19      # Bech32-encoded entities (NIP-19)
-npm run example:nip19:bech32      # npub/nsec/note focus
-npm run example:nip19:tlv         # nprofile/nevent/naddr TLV usage
-npm run example:nip19:validation  # Validation and error handling
-npm run example:nip19:security    # Relay URL limits and security
-npm run example:nip19:security-example # Advanced security scenarios
-npm run example:nip19:demo        # Comprehensive walkthrough
-npm run example:nip44      # Versioned encryption (NIP-44)
-npm run example:nip44:js   # Plain JavaScript NIP-44 demo
-npm run example:nip44:version-compat # Version compatibility showcase
-npm run example:nip44:test-vector   # Official vector validation
-npm run example:nip44:compliance    # Compliance and regression demo
-npm run example:nip46      # Remote signing protocol (NIP-46)
-npm run example:nip46:minimal      # Minimal implementation
-npm run example:nip46:basic        # Basic implementation with error handling
-npm run example:nip46:advanced     # Advanced remote signing demo
-npm run example:nip46:from-scratch # Implementation without library helpers
-npm run example:nip46:simple       # Simple bunker/client pair
-npm run example:nip46:simple-client # Simple client-only runner
-npm run example:nip46:test-all     # Run every NIP-46 example sequentially
-npm run example:nip46:connection-string-validation # Validate connection URIs
-npm run example:nip47      # Wallet connect (NIP-47)
-npm run example:nip47:verbose      # Verbose logging for wallet connect
-npm run example:nip47:client-service # Client/service pair demo
-npm run example:nip47:error-handling # Failure scenarios
-npm run example:nip47:expiration    # Request expiration handling
-npm run example:nip47:nip44        # NIP-44 encrypted payload flow
-npm run example:nip47:encryption-negotiation # Custom encryption negotiation
-npm run example:nip50      # Search capability (NIP-50)
-npm run example:nip57      # Lightning zaps (NIP-57)
-npm run example:nip57:client       # Zap client example
-npm run example:nip57:lnurl        # LNURL server simulation
-npm run example:nip57:validation   # Invoice validation
-npm run example:nip65      # Relay list metadata (NIP-65)
-npm run example:nip66      # Relay discovery and monitoring (NIP-66)
-
-# Example bundles
-npm run example:all        # Run the base example
-npm run example:nip01      # Run a curated set of NIP-01 demos
-npm run example:validation # End-to-end validation helpers
-```
-
-### Code Quality Scripts
-
-```bash
-# Run linting
-npm run lint
-
-# Format code with Prettier
-npm run format
-```
-
-For a complete list of available scripts, see the `scripts` section in `package.json`.
+| Command | Definition |
+| --- | --- |
+| `npm run start` | `npm run example:nip07` |
 
 ## Development
 
-```bash
-# Build the project
-npm run build
-
-# Build examples
-npm run build:examples
-
-# Run linting
-npm run lint
-
-# Format code
-npm run format
-```
+Install dependencies with `npm install`, then use the build, test, quality, and verification workflows in the [Command Reference](#command-reference). Keep source, tests, and examples aligned when changing a NIP.
 
 ### Directory Structure Notes
 

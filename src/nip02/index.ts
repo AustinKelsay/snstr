@@ -81,12 +81,18 @@ export interface LogData {
   context?: WarningContext;
 }
 
-/**
- * Optional logger interface for handling warnings externally.
- */
-export interface Logger {
+/** Warn-only diagnostic view accepted by NIP-02 contact parsing. */
+export interface WarningLogger {
   warn(message: string, data?: LogData): void;
 }
+
+/**
+ * Optional logger interface for handling warnings externally.
+ *
+ * @deprecated Use {@link WarningLogger}. This compatibility alias remains
+ * available throughout the 0.x release line.
+ */
+export type Logger = WarningLogger;
 
 /**
  * Represents a NIP-02 contact list event (kind 3).
@@ -150,15 +156,15 @@ export function createContactListEvent(
  */
 export function parseContactsFromEvent(
   event: ContactsEvent,
-  options?: { logger?: Logger; returnWarnings?: false },
+  options?: { logger?: WarningLogger; returnWarnings?: false },
 ): Contact[];
 export function parseContactsFromEvent(
   event: ContactsEvent,
-  options: { logger?: Logger; returnWarnings: true },
+  options: { logger?: WarningLogger; returnWarnings: true },
 ): ParseContactsResult;
 export function parseContactsFromEvent(
   event: ContactsEvent,
-  options: { logger?: Logger; returnWarnings?: boolean } = {},
+  options: { logger?: WarningLogger; returnWarnings?: boolean } = {},
 ): Contact[] | ParseContactsResult {
   // Assuming ContactsEvent is suitable
   if (event.kind !== 3) {
@@ -320,7 +326,7 @@ export function parseContactsFromEvent(
  */
 export function parseContactsFromEventWithWarnings(
   event: ContactsEvent,
-  logger?: Logger,
+  logger?: WarningLogger,
 ): ParseContactsResult {
   return parseContactsFromEvent(event, { logger, returnWarnings: true });
 }

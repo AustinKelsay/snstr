@@ -1,3 +1,5 @@
+import type { DiagnosticLogArgument, DiagnosticLogger } from "../utils/logger";
+
 // Event kinds defined in NIP-47
 export enum NIP47EventKind {
   INFO = 13194,
@@ -13,23 +15,21 @@ export enum NIP47EncryptionScheme {
   NIP44_V2 = "nip44_v2",
 }
 
-/** Arguments accepted by the shared NIP-47 diagnostic logger. */
-export type NIP47LogArgument =
-  | string
-  | number
-  | boolean
-  | object
-  | null
-  | undefined;
+/**
+ * Arguments accepted by NIP-47 diagnostics.
+ *
+ * @deprecated Use `DiagnosticLogArgument` from the package root. This alias
+ * remains available throughout the 0.x release line.
+ */
+export type NIP47LogArgument = DiagnosticLogArgument;
 
-/** Logger seam used by NIP-47 client and service diagnostics. */
-export interface NIP47Logger {
-  error(message: string, ...args: NIP47LogArgument[]): void;
-  warn(message: string, ...args: NIP47LogArgument[]): void;
-  info(message: string, ...args: NIP47LogArgument[]): void;
-  debug(message: string, ...args: NIP47LogArgument[]): void;
-  trace(message: string, ...args: NIP47LogArgument[]): void;
-}
+/**
+ * Logger seam used by NIP-47 client and service diagnostics.
+ *
+ * @deprecated Use `DiagnosticLogger` from the package root. This alias remains
+ * available throughout the 0.x release line.
+ */
+export type NIP47Logger = DiagnosticLogger;
 
 // Methods defined in NIP-47
 export enum NIP47Method {
@@ -224,7 +224,7 @@ export interface NIP47ConnectionOptions {
   preferredEncryption?: NIP47EncryptionScheme;
 
   /** Optional logger. WARN/ERROR are enabled; INFO/DEBUG/TRACE are suppressed by default. */
-  logger?: NIP47Logger;
+  logger?: DiagnosticLogger;
 }
 
 // Base request interface

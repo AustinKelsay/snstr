@@ -19,13 +19,13 @@ npm run example:verbose        # Basic usage with verbose logging
 npm run example:debug          # Basic usage with debug logging
 npm run example:custom-websocket # Use a custom WebSocket implementation (requires 'ws' package)
 npm run example:crypto         # Cryptography examples (key generation, signing, verification)
-npm run example:dm             # NIP-04 direct message example
+npm run example:nip04          # NIP-04 direct message example
 
 # Aggregated runners
 npm run example:all            # Alias for the base example
 npm run example:basic          # Run base, crypto, and DM examples
 npm run example:nip01          # Curated bundle of NIP-01 demos
-npm run example:messaging      # Messaging demos (DM, NIP-04, NIP-44, NIP-17)
+npm run example:messaging      # Messaging demos (NIP-04, NIP-44, NIP-17)
 npm run example:identity       # Identity demos (NIP-05, NIP-07, NIP-19)
 npm run example:payments       # Wallet/zap demos (NIP-47, NIP-57)
 npm run example:advanced       # Advanced protocol demos (NIP-46 + extras)
@@ -62,7 +62,6 @@ npm run example:nip10          # NIP-10 threading and reply management
 npm run example:nip11          # NIP-11 (Relay Information Document)
 npm run example:nip17          # NIP-17 gift wrapped messaging
 npm run example:nip44          # NIP-44 (Encrypted Direct Messages with ChaCha20)
-npm run example:nip44:js       # NIP-44 JavaScript implementation
 npm run example:nip44:version-compat # NIP-44 version compatibility
 npm run example:nip44:test-vector    # NIP-44 test vectors
 npm run example:nip44:compliance     # NIP-44 compliance/regression demo
@@ -101,7 +100,6 @@ npm run example:nip19:tlv      # TLV entities (nprofile, nevent, naddr)
 npm run example:nip19:validation # Validation and error handling
 npm run example:nip19:security # Security features like relay URL validation and TLV entry limits
 npm run example:nip19:security-example # Advanced security scenarios and mitigations
-npm run example:nip19:demo     # Interactive demo with various encoding/decoding operations
 
 ### NIP-10: Text Notes and Threads
 
@@ -199,9 +197,9 @@ You can also run example groups:
 
 ```bash
 npm run example:all           # Run basic example
-npm run example:basic         # Run example, crypto, and dm examples
+npm run example:basic         # Run base, crypto, and NIP-04 examples
 npm run example:nip01         # Run a curated bundle of NIP-01 demos
-npm run example:messaging     # Run dm, nip04, nip44 and nip17 examples
+npm run example:messaging     # Run NIP-04, NIP-44, and NIP-17 examples
 npm run example:identity      # Run nip05, nip07, and nip19 examples
 npm run example:payments      # Run nip47 and nip57 examples
 npm run example:advanced      # Run nip46 and nip47:error-handling examples
@@ -210,7 +208,7 @@ npm run example:validation    # Run validation-focused helper flows
 
 ## Directory Structure
 
-- `basic-usage.ts` - Core functionality demo including event creation, signing, and relay publishing
+- `basic-example.ts` - Core functionality demo including event creation, signing, and relay publishing
 - `crypto-demo.ts` - Cryptography examples including key pair generation, signing, and verification
 - `rate-limit-configuration-example.ts` - Configure and monitor built-in rate limits
 - `/nip01` - [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) (Core Protocol) examples
@@ -220,10 +218,10 @@ npm run example:validation    # Run validation-focused helper flows
     - `replaceable-events.ts` - Replaceable events (kinds 0, 3, 10000-19999) with update mechanisms
   - `/relay` - Relay-related examples
     - `relay-connection-example.ts` - Connection management with error handling and timeout configuration
-    - `relay-reconnect.ts` - Relay reconnection with exponential backoff strategies
-    - `relay-pool.ts` - Manage multiple relays with RelayPool
+    - `relay-reconnect-example.ts` - Relay reconnection with exponential backoff strategies
+    - `relay-pool-example.ts` - Manage multiple relays with RelayPool
     - `relay-pool-url-normalization-example.ts` - Normalize relay URLs before connecting
-    - `filter-types.ts` - Filter type examples for event retrieval optimization
+    - `filter-types-example.ts` - Filter type examples for event retrieval optimization
     - `auto-unsubscribe-example.ts` - Demonstrates automatic subscription cleanup
   - `url-preprocessing-example.ts` - Relay URL preprocessing utilities for clients
 - `/client` - Client-related examples
@@ -252,7 +250,6 @@ npm run example:validation    # Run validation-focused helper flows
   - `security-example.ts` - Advanced security scenarios and mitigations
 - `/nip44` - [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md) (Encrypted Direct Messages with ChaCha20) examples
   - `nip44-demo.ts` - TypeScript implementation of NIP-44 encryption
-  - `nip44-demo.js` - JavaScript implementation of NIP-44 encryption
   - `nip44-version-compatibility.ts` - Demonstrates versioned encryption compatibility
   - `nip44-test-vector.ts` - Test vectors for NIP-44 encryption
   - `nip44-compliance-demo.ts` - Compliance and regression-focused flows

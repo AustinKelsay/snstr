@@ -167,9 +167,7 @@ The following scripts should be maintained for running tests:
     "test:event": "jest tests/nip01/event/event.test.ts",
     "test:event:ordering": "jest tests/nip01/event/event-ordering.test.ts",
     "test:event:addressable": "jest tests/nip01/event/addressable-events.test.ts",
-    "test:event:all": "jest tests/nip01/event",
     "test:nostr": "jest tests/nip01/nostr.test.ts",
-    "test:relay": "jest tests/nip01/relay",
     "test:nip01:relay:connection": "jest tests/nip01/relay/relay.test.ts",
     "test:nip01:relay:filter": "jest tests/nip01/relay/filters.test.ts",
     "test:nip01:relay:reconnect": "jest tests/nip01/relay/relay-reconnect.test.ts",
@@ -197,7 +195,6 @@ The following scripts should be maintained for running tests:
     
     // Test Groups
     "test:all": "npm test",
-    "test:core": "jest tests/nip01",
     "test:crypto": "jest tests/utils/crypto.test.ts tests/nip04 tests/nip44",
     "test:identity": "jest tests/nip05 tests/nip07 tests/nip19",
     "test:protocols": "jest tests/nip46 tests/nip47 tests/nip57"
@@ -264,4 +261,4 @@ For existing tests:
 4. Ensure all tests use the ephemeral relay (no external connections)
 5. Standardize test naming and structure
 
-This standardization will make the test suite more maintainable, easier to navigate, and more effective at catching regressions. 
+This standardization will make the test suite more maintainable, easier to navigate, and more effective at catching regressions.

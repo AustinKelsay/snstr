@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-18
+
+### Added
+- Shared `DiagnosticLogger`, `DiagnosticLogArgument`, `LoggerOptions`, `ConsoleLogger`, and `LogLevel` exports are now available from both Node and browser/React Native entry points.
+- NIP-02 warning diagnostics and NIP-47 logger contracts now have explicit public compatibility types.
+- Repository command verification now detects stale README commands, redundant aliases, and references to removed example surfaces.
+
+### Changed
+- NIP-47, NIP-57, NIP-02, and relay diagnostics now use compatible injected logger contracts with consistent structured arguments.
+- Relay and ephemeral-relay shutdown now coordinate disconnect observers, connection settlement, socket cleanup, and idempotent close behavior across Node and Bun.
+- Command documentation and example inventories now have a single maintained source of truth.
+
+### Fixed
+- NIP-57 receipt queries now settle subscriptions deterministically and clean up relays even when setup or collection fails.
+- NIP-86 requests now clear timeout handles on every completion path.
+- Relay teardown now prevents stale close callbacks and disconnect observers from interfering with replacement connections.
+- Public security-limit behavior is covered directly, including malformed filters, oversized inputs, and rate-limit boundaries.
+
+### Removed
+- Stale NIP-04 shim and duplicate generated JavaScript examples for NIP-44 that were not part of the supported package contract.
+
 ## [0.4.0] - 2026-07-13
 
 ### Added
@@ -259,7 +280,8 @@ Note: Internal/in-between version; not published to npm. Superseded by v0.1.8.
 - URL validation and filtering
 - Authenticated encryption support
 
-[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/AustinKelsay/snstr/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/AustinKelsay/snstr/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/AustinKelsay/snstr/compare/v0.3.4...v0.4.0
 [0.3.4]: https://github.com/AustinKelsay/snstr/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/AustinKelsay/snstr/compare/v0.3.2...v0.3.3

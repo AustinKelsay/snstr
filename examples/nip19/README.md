@@ -18,12 +18,11 @@ npm run example:nip19:tlv             # TLV entities
 npm run example:nip19:validation      # Validation and error handling
 npm run example:nip19:security        # Relay URL validation and TLV entry limits
 npm run example:nip19:security-example # Advanced security scenarios and mitigations
-npm run example:nip19:demo            # Interactive demo flow (same as example:nip19)
 ```
 
 ## Example Files
 
-- `nip19-demo.ts` - Comprehensive demo of all NIP-19 functionality (exposed via `npm run example:nip19` and `npm run example:nip19:demo`)
+- `nip19-demo.ts` - Comprehensive demo of all NIP-19 functionality (run with `npm run example:nip19`)
 - `bech32-example.ts` - Examples focusing on basic Bech32 entities (npub, nsec, note)
 - `tlv-example.ts` - Examples focusing on TLV entities (nprofile, nevent, naddr)
 - `validation-example.ts` - Examples of validation, security features, and error handling

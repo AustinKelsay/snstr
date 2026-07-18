@@ -162,17 +162,17 @@ try {
 ## Diagnostics
 
 The client and service accept an optional `logger` in their options. The
-logger must implement the exported `NIP47Logger` interface (`error`, `warn`,
-`info`, `debug`, and `trace`). By default, NIP-47 uses the shared logger at
-WARN level: warnings and errors remain visible, while routine INFO/DEBUG/TRACE
-diagnostics stay quiet and event/tag payloads are not emitted. Pass a logger
-with the desired behavior when troubleshooting or integrating with application
-logging:
+logger must implement the exported `DiagnosticLogger` interface (`error`,
+`warn`, `info`, `debug`, and `trace`). By default, NIP-47 uses the shared
+logger at WARN level: warnings and errors remain visible, while routine
+INFO/DEBUG/TRACE diagnostics stay quiet and event/tag payloads are not emitted.
+Pass a logger with the desired behavior when troubleshooting or integrating
+with application logging:
 
 ```typescript
-import type { NIP47Logger } from 'snstr';
+import type { DiagnosticLogger } from 'snstr';
 
-const logger: NIP47Logger = {
+const logger: DiagnosticLogger = {
   error: (message, ...args) => appLogger.error(message, ...args),
   warn: (message, ...args) => appLogger.warn(message, ...args),
   info: (message, ...args) => appLogger.info(message, ...args),
@@ -185,6 +185,10 @@ const client = new NostrWalletConnectClient({
   logger,
 });
 ```
+
+`NIP47Logger` and `NIP47LogArgument` remain as deprecated, source-compatible
+aliases throughout the 0.x release line. Removing those NIP-specific names is
+next-major work.
 
 ## Service Implementation
 

@@ -39,6 +39,14 @@ export {
 
 export { getUnixTime } from "./utils/time";
 
+// Export the shared diagnostic implementation under an unambiguous public name.
+export { Logger as ConsoleLogger, LogLevel } from "./utils/logger";
+export type {
+  DiagnosticLogArgument,
+  DiagnosticLogger,
+  LoggerOptions,
+} from "./utils/logger";
+
 export {
   createEvent,
   createAddressableEvent,
@@ -68,6 +76,7 @@ export type {
   ParseContactsResult,
   ParseWarning,
   Logger,
+  WarningLogger,
 } from "./nip02";
 
 // Export NIP-04 utilities

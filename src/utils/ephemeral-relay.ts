@@ -19,6 +19,12 @@ import {
   unregisterInMemoryServer,
 } from "./inMemoryWebSocket";
 import { maybeUnref } from "./timers";
+import { notifyRelayDisconnectObservers } from "./websocket";
+import {
+  DiagnosticLogArgument,
+  DiagnosticLogger,
+  Logger,
+} from "./logger";
 
 /**
  * Validates if a string is a valid 32-byte hex string (case-insensitive).
@@ -40,10 +46,45 @@ function isValid64ByteHex(hex: string): boolean {
 
 // Prefer 127.0.0.1 over localhost to avoid IPv6 resolution issues in CI.
 const HOST = "ws://127.0.0.1";
-const DEBUG = process.env["DEBUG"] === "true";
-const VERBOSE = process.env["VERBOSE"] === "true" || DEBUG;
 
-console.log("output mode:", DEBUG ? "debug" : VERBOSE ? "verbose" : "silent");
+function toDiagnosticArgument(value: unknown): DiagnosticLogArgument {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "object"
+  ) {
+    return value;
+  }
+
+  return String(value);
+}
+
+function createNonThrowingDiagnosticLogger(
+  logger: DiagnosticLogger,
+): DiagnosticLogger {
+  const write = (
+    level: keyof DiagnosticLogger,
+    message: string,
+    args: DiagnosticLogArgument[],
+  ) => {
+    try {
+      logger[level](message, ...args);
+    } catch {
+      // Diagnostics are observational and must not alter Relay behavior.
+    }
+  };
+
+  return {
+    error: (message, ...args) => write("error", message, args),
+    warn: (message, ...args) => write("warn", message, args),
+    info: (message, ...args) => write("info", message, args),
+    debug: (message, ...args) => write("debug", message, args),
+    trace: (message, ...args) => write("trace", message, args),
+  };
+}
 
 /* ================ [ Interfaces ] ================ */
 
@@ -55,6 +96,14 @@ type SignedEvent = NostrEvent;
 
 // Extended type for relay events that adds a subscription id in the middle
 type NostrRelayEventMessage = ["EVENT", string, NostrEvent];
+
+/** Optional lifecycle settings for the public ephemeral Relay. */
+export interface NostrRelayOptions {
+  /** Seconds between cache purges. */
+  purgeInterval?: number;
+  /** Receives Relay lifecycle and protocol diagnostics. Quiet by default. */
+  logger?: DiagnosticLogger;
+}
 
 interface Subscription {
   filters: EventFilter[];
@@ -69,23 +118,37 @@ export class NostrRelay {
   private readonly _port: number;
   private readonly _purge: number | null;
   private readonly _subs: Map<string, Subscription>;
+  private readonly _logger: DiagnosticLogger;
+  private readonly _sessions: Set<ClientSession>;
 
   private _wss: WebSocketServer | null;
   private _inMemoryServer: InMemoryWebSocketServer | null = null;
-  private _usingInMemory = false;
   private _cache: SignedEvent[];
-  private _isClosing: boolean = false;
+  private _closePromise: Promise<void> | null = null;
   private _purgeTimer: NodeJS.Timeout | null = null;
   private _actualPort: number | null = null;
+  private _acceptingConnections = false;
 
   public conn: number;
 
-  constructor(port: number, purge_ival?: number) {
+  constructor(
+    port: number,
+    purgeIntervalOrOptions?: number | NostrRelayOptions,
+  ) {
+    const options =
+      typeof purgeIntervalOrOptions === "number"
+        ? { purgeInterval: purgeIntervalOrOptions }
+        : (purgeIntervalOrOptions ?? {});
+
     this._cache = [];
     this._emitter = new EventEmitter();
     this._port = port;
-    this._purge = purge_ival ?? null;
+    this._purge = options.purgeInterval ?? null;
     this._subs = new Map();
+    this._logger = createNonThrowingDiagnosticLogger(
+      options.logger ?? new Logger({ silent: true }),
+    );
+    this._sessions = new Set();
     this._wss = null;
     this.conn = 0;
     this._actualPort = null;
@@ -112,12 +175,36 @@ export class NostrRelay {
   }
 
   async start() {
+    if (this._closePromise) {
+      await this._closePromise;
+    }
+
     if (this._wss || this._inMemoryServer) {
       return this;
     }
 
     const handleConnection = (socket: WebSocket | EventEmitter) => {
-      const instance = new ClientSession(this, socket as WebSocket);
+      if (!this._acceptingConnections) {
+        const closingSocket = socket as WebSocket;
+        try {
+          closingSocket.terminate();
+        } catch {
+          try {
+            closingSocket.close(1001, "Relay shutting down");
+          } catch {
+            // The Relay is already closing; there is no session state to retain.
+          }
+        }
+        return;
+      }
+
+      const instance = new ClientSession(
+        this,
+        socket as WebSocket,
+        this._logger,
+      );
+      this._sessions.add(instance);
+      void instance.closed.then(() => this._sessions.delete(instance));
 
       socket.on("message", (msg: unknown) =>
         instance._handler(
@@ -141,7 +228,7 @@ export class NostrRelay {
     };
 
     const initialiseAfterStart = () => {
-      this._isClosing = false;
+      this._acceptingConnections = true;
       if (this._purge !== null) {
         if (this._purgeTimer) {
           clearInterval(this._purgeTimer);
@@ -149,7 +236,9 @@ export class NostrRelay {
         this._purgeTimer = setInterval(() => {
           this._cache = [];
         }, this._purge * 1000);
+        maybeUnref(this._purgeTimer);
       }
+      this._logger.info("Relay started", { url: this.url });
     };
 
     const shouldFallbackToInMemory = (error: unknown) => {
@@ -181,12 +270,23 @@ export class NostrRelay {
       );
     };
 
+    const resetFailedWebSocketServer = (wss: WebSocketServer) => {
+      wss.removeAllListeners();
+      try {
+        wss.close();
+      } catch {
+        // A listener that failed to bind may already be fully closed.
+      }
+      if (this._wss === wss) this._wss = null;
+      this._actualPort = null;
+      this._acceptingConnections = false;
+    };
+
     const startInMemory = () => {
       const { server, port } = registerInMemoryServer(
         this._port === 0 ? undefined : this._port,
       );
 
-      this._usingInMemory = true;
       this._inMemoryServer = server;
       this._wss = server as unknown as WebSocketServer;
       this._actualPort = port;
@@ -216,7 +316,6 @@ export class NostrRelay {
       try {
         const wss = new WebSocketServer({ port: this._port, host: "127.0.0.1" });
         this._wss = wss;
-        this._usingInMemory = false;
         wss.on("connection", handleConnection);
 
         const cleanup = () => {
@@ -237,22 +336,10 @@ export class NostrRelay {
           // If we couldn't determine a usable port (e.g. Bun/compat oddities with port 0),
           // fall back to in-memory transport rather than returning a ws://...:0 URL.
           if (this._port === 0 && !this._actualPort) {
-            try {
-              wss.removeAllListeners();
-              wss.close();
-            } catch (_closeError) {
-              // Ignore close errors during fallback
-            }
-            this._wss = null;
+            resetFailedWebSocketServer(wss);
             startInMemory().then(resolve).catch(reject);
             return;
           }
-
-          DEBUG &&
-            console.log(
-              "[ relay ] running on port:",
-              this._actualPort || this._port,
-            );
 
           initialiseAfterStart();
           this._emitter.emit("connected");
@@ -262,15 +349,10 @@ export class NostrRelay {
         const onError = (error: unknown) => {
           cleanup();
           if (shouldFallbackToInMemory(error)) {
-            try {
-              wss.removeAllListeners();
-              wss.close();
-            } catch (_closeError) {
-              // Ignore close errors during fallback
-            }
-            this._wss = null;
+            resetFailedWebSocketServer(wss);
             startInMemory().then(resolve).catch(reject);
           } else {
+            resetFailedWebSocketServer(wss);
             reject(error);
           }
         };
@@ -291,108 +373,104 @@ export class NostrRelay {
     this._emitter.on("connected", cb);
   }
 
-  close() {
-    return new Promise<void>((resolve) => {
-      if (this._isClosing) {
-        DEBUG &&
-          console.log(
-            "[ relay ] already closing, skipping duplicate close call",
-          );
-        resolve();
-        return;
+  close(): Promise<void> {
+    if (this._closePromise) {
+      return this._closePromise;
+    }
+
+    const closePromise = this.performClose();
+
+    this._closePromise = closePromise;
+    const clearClosePromise = () => {
+      if (this._closePromise === closePromise) this._closePromise = null;
+    };
+    void closePromise.then(clearClosePromise, clearClosePromise);
+
+    return closePromise;
+  }
+
+  private async performClose(): Promise<void> {
+    this._acceptingConnections = false;
+    const closedUrl = this.url;
+    const inMemoryServer = this._inMemoryServer;
+    const wss = inMemoryServer ? null : this._wss;
+    const ownedTransport = inMemoryServer !== null || wss !== null;
+    const sessions = [...this._sessions];
+    const transportShutdown = wss
+      ? this.closeWebSocketTransport(wss)
+      : Promise.resolve();
+
+    this._emitter.removeAllListeners();
+    if (this._purgeTimer) clearInterval(this._purgeTimer);
+    this._purgeTimer = null;
+    this._inMemoryServer = null;
+    this._wss = null;
+    this._subs.clear();
+    this._cache = [];
+
+    const sessionShutdown = Promise.all(
+      sessions.map((session) => session.close()),
+    );
+
+    if (inMemoryServer) {
+      unregisterInMemoryServer(this._actualPort || this._port);
+      await sessionShutdown;
+      inMemoryServer.removeAllListeners();
+    } else if (wss) {
+      let sessionTimeout: NodeJS.Timeout | null = null;
+      const timedOut = new Promise<boolean>((resolve) => {
+        sessionTimeout = setTimeout(() => resolve(true), 1000);
+        maybeUnref(sessionTimeout);
+      });
+      const sessionsClosed = sessionShutdown.then(() => false);
+
+      if (await Promise.race([sessionsClosed, timedOut])) {
+        this._logger.warn("Relay client close timed out; forcing cleanup");
+        sessions.forEach((session) => session.forceClose());
+        await sessionShutdown;
       }
+      if (sessionTimeout) clearTimeout(sessionTimeout);
 
-      this._isClosing = true;
+      await transportShutdown;
+      wss.removeAllListeners();
+    }
 
-      // Clear any listeners on the emitter
-      this._emitter.removeAllListeners();
+    if (ownedTransport) {
+      notifyRelayDisconnectObservers(closedUrl);
+    }
 
-      if (this._purgeTimer) {
-        clearInterval(this._purgeTimer);
-        this._purgeTimer = null;
-      }
+    this._sessions.clear();
+    this.conn = 0;
+    this._actualPort = null;
+    this._logger.info("Relay closed", { url: closedUrl });
+  }
 
-      if (this._inMemoryServer) {
-        const server = this._inMemoryServer;
-        server.removeAllListeners();
-        unregisterInMemoryServer(this._actualPort || this._port);
-        this._inMemoryServer = null;
-        this._wss = null;
-        this._usingInMemory = false;
-        this._subs.clear();
-        this._cache = [];
-        this._actualPort = null;
-        this._purgeTimer && clearInterval(this._purgeTimer);
-        this._purgeTimer = null;
-        this._isClosing = false;
+  private closeWebSocketTransport(wss: WebSocketServer): Promise<void> {
+    return new Promise((resolve) => {
+      let timeout: NodeJS.Timeout | null = null;
+      const finish = () => {
+        if (timeout) clearTimeout(timeout);
+        timeout = null;
         resolve();
-        return;
-      } else if (this._wss) {
-        // Clean up clients first
-        if (this._wss.clients && this._wss.clients.size > 0) {
-          // Keep track of clients to make sure they all close
-          const clientsToClose = this._wss.clients.size;
-          let closedClients = 0;
+      };
 
-          this._wss.clients.forEach((client) => {
-            try {
-              // Add close handler to track when clients are closed
-              client.once("close", () => {
-                closedClients++;
-                DEBUG &&
-                  console.log(
-                    `[ relay ] client closed (${closedClients}/${clientsToClose})`,
-                  );
-              });
+      timeout = setTimeout(() => {
+        this._logger.warn(
+          "Relay transport close timed out; forcing cleanup",
+        );
+        finish();
+      }, 1000);
+      maybeUnref(timeout);
 
-              client.close(1000, "Server shutting down");
-            } catch (e) {
-              // Count error closures as closed
-              closedClients++;
-              DEBUG && console.log(`[ relay ] error closing client: ${e}`);
-            }
-          });
-        }
-
-        // Clear state
-        this._subs.clear();
-        this._cache = [];
-
-        // Close server with timeout that self-cancels (unref)
-        const timeout = setTimeout(() => {
-          DEBUG &&
-            console.log("[ relay ] server close timed out, forcing cleanup");
-          this._wss = null;
-          resolve();
-        }, 1000);
-        maybeUnref(timeout); // Avoid keeping the process alive when supported
-
-        const wss = this._wss;
-        this._wss = null;
-
-        try {
-          wss.close(() => {
-            clearTimeout(timeout);
-
-            // Final cleanup
-            process.nextTick(() => {
-              // Ensure everything is fully cleaned up before resolving
-              try {
-                wss.removeAllListeners();
-              } catch (e) {
-                // Ignore errors during cleanup
-              }
-              resolve();
-            });
-          });
-        } catch (e) {
-          // Handle errors during close
-          DEBUG && console.log(`[ relay ] error during server close: ${e}`);
-          clearTimeout(timeout);
-          resolve();
-        }
-      } else {
-        resolve();
+      try {
+        // Calling close immediately stops the transport accepting new sockets;
+        // its callback still waits for the tracked sessions to drain below.
+        wss.close(finish);
+      } catch (error) {
+        this._logger.warn("Relay transport close failed", {
+          error: toDiagnosticArgument(error),
+        });
+        finish();
       }
     });
   }
@@ -437,10 +515,11 @@ export class NostrRelay {
               cachedEvent.kind === event.kind
             ),
         );
-        DEBUG &&
-          console.log(
-            `[ relay ] replacing existing events for kind ${event.kind}, pubkey ${event.pubkey} with new event ${event.id}.`,
-          );
+        this._logger.debug("Replacing cached replaceable Nostr Events", {
+          kind: event.kind,
+          pubkey: event.pubkey,
+          eventId: event.id,
+        });
       }
     } else if (isParameterizedReplaceable) {
       const dTagValue = event.tags.find((tag) => tag[0] === "d")?.[1] || "";
@@ -479,10 +558,12 @@ export class NostrRelay {
                 dTagValue
             ),
         );
-        DEBUG &&
-          console.log(
-            `[ relay ] replacing existing events for kind ${event.kind}, pubkey ${event.pubkey}, dTag ${dTagValue} with new event ${event.id}.`,
-          );
+        this._logger.debug("Replacing cached addressable Nostr Events", {
+          kind: event.kind,
+          pubkey: event.pubkey,
+          dTag: dTagValue,
+          eventId: event.id,
+        });
       }
     }
 
@@ -498,15 +579,14 @@ export class NostrRelay {
         // If created_at is the same, sort by id (lexicographically larger id is newer)
         return b.id.localeCompare(a.id);
       });
-      VERBOSE &&
-        console.log(
-          `[ relay ] Stored event ${event.id}. Cache size: ${this._cache.length}`,
-        );
+      this._logger.trace("Stored Nostr Event", {
+        eventId: event.id,
+        cacheSize: this._cache.length,
+      });
     } else {
-      DEBUG &&
-        console.log(
-          `[ relay ] Discarding event ${event.id} as a newer version already exists or it's older.`,
-        );
+      this._logger.debug("Discarded stale Nostr Event", {
+        eventId: event.id,
+      });
     }
   }
 }
@@ -518,9 +598,21 @@ class ClientSession {
   private readonly _relay: NostrRelay;
   private readonly _socket: WebSocket;
   private readonly _subs: Set<string>;
+  private readonly _logger: DiagnosticLogger;
+  private readonly _closed: Promise<void>;
+  private _resolveClosed!: () => void;
+  private _cleaned = false;
 
-  constructor(relay: NostrRelay, socket: WebSocket) {
+  constructor(
+    relay: NostrRelay,
+    socket: WebSocket,
+    logger: DiagnosticLogger,
+  ) {
     this._relay = relay;
+    this._logger = logger;
+    this._closed = new Promise((resolve) => {
+      this._resolveClosed = resolve;
+    });
     // Generate cryptographically secure session ID
     if (typeof crypto !== "undefined" && crypto.getRandomValues) {
       const array = new Uint8Array(3);
@@ -551,8 +643,8 @@ class ClientSession {
         ).join("");
 
         // Log warning but keep the generated ID immutable
-        console.warn(
-          "Using Math.random for session ID generation. For production use, ensure crypto module is available.",
+        this._logger.warn(
+          "Using Math.random for session ID generation; provide crypto for stronger identifiers",
         );
       }
     } else {
@@ -582,7 +674,46 @@ class ClientSession {
     return this._socket;
   }
 
+  get closed(): Promise<void> {
+    return this._closed;
+  }
+
+  close(): Promise<void> {
+    if (this._cleaned) return this._closed;
+
+    try {
+      if (
+        this.socket.readyState === WebSocket.OPEN ||
+        this.socket.readyState === WebSocket.CONNECTING
+      ) {
+        this.socket.close(1000, "Relay shutting down");
+      } else if (this.socket.readyState === WebSocket.CLOSED) {
+        this._cleanup(1000);
+      }
+    } catch (error) {
+      this._logger.warn("Relay client close failed", {
+        sessionId: this._sid,
+        error: toDiagnosticArgument(error),
+      });
+      this._cleanup(1006);
+    }
+
+    return this._closed;
+  }
+
+  forceClose(): void {
+    try {
+      this.socket.terminate();
+    } catch {
+      // Cleanup below is authoritative even when the transport cannot terminate.
+    }
+    this._cleanup(1006);
+  }
+
   _cleanup(code: number) {
+    if (this._cleaned) return;
+    this._cleaned = true;
+
     try {
       // First remove all subscriptions associated with this client
       for (const subId of this._subs) {
@@ -595,15 +726,19 @@ class ClientSession {
         this.socket.close();
       }
 
-      this.relay.conn -= 1;
+      this.relay.conn = Math.max(0, this.relay.conn - 1);
       this.log.client(
         `[ ${this._sid} ]`,
         "client disconnected with code:",
         code,
       );
     } catch (e) {
-      DEBUG &&
-        console.error(`[ client ][ ${this._sid} ]`, "error during cleanup:", e);
+      this._logger.error("Relay client cleanup failed", {
+        sessionId: this._sid,
+        error: toDiagnosticArgument(e),
+      });
+    } finally {
+      this._resolveClosed();
     }
   }
 
@@ -621,12 +756,7 @@ class ClientSession {
           switch (verb) {
             case "EVENT":
               if (parsed.length !== 2) {
-                DEBUG &&
-                  console.log(
-                    `[ ${this._sid} ]`,
-                    "EVENT message missing params:",
-                    parsed,
-                  );
+                this.log.debug("EVENT message missing params:", parsed);
                 return this.send([
                   "NOTICE",
                   "invalid: EVENT message missing params",
@@ -636,12 +766,7 @@ class ClientSession {
 
             case "REQ":
               if (parsed.length < 2) {
-                DEBUG &&
-                  console.log(
-                    `[ ${this._sid} ]`,
-                    "REQ message missing params:",
-                    parsed,
-                  );
+                this.log.debug("REQ message missing params:", parsed);
                 return this.send([
                   "NOTICE",
                   "invalid: REQ message missing params",
@@ -655,12 +780,7 @@ class ClientSession {
 
             case "CLOSE":
               if (parsed.length !== 2) {
-                DEBUG &&
-                  console.log(
-                    `[ ${this._sid} ]`,
-                    "CLOSE message missing params:",
-                    parsed,
-                  );
+                this.log.debug("CLOSE message missing params:", parsed);
                 return this.send([
                   "NOTICE",
                   "invalid: CLOSE message missing params",
@@ -681,7 +801,7 @@ class ClientSession {
             });
             return;
           } catch (e) {
-            DEBUG && console.error("Error broadcasting message:", e);
+            this.log.error("Error broadcasting message:", e);
             return;
           }
         }
@@ -832,7 +952,7 @@ class ClientSession {
         }
       }
     } catch (e) {
-      DEBUG && console.error("Error processing event:", e);
+      this.log.error("Error processing event:", e);
     }
   }
 
@@ -871,20 +991,29 @@ class ClientSession {
       }
     }
 
-    DEBUG && this.log.debug(`sent ${count} matching events from cache`);
+    this.log.debug(`sent ${count} matching events from cache`);
 
     // Send EOSE
     this.send(["EOSE", sub_id] as NostrEoseMessage);
   }
 
   get log() {
+    const write = (
+      level: "error" | "info" | "debug" | "trace",
+      messages: unknown[],
+    ) => {
+      const [message = "", ...args] = messages;
+      this._logger[level](
+        `[Relay client ${this._sid}] ${String(message)}`,
+        ...args.map(toDiagnosticArgument),
+      );
+    };
+
     return {
-      client: (...msg: unknown[]) =>
-        VERBOSE && console.log(`[ client ][ ${this._sid} ]`, ...msg),
-      debug: (...msg: unknown[]) =>
-        DEBUG && console.log(`[ debug  ][ ${this._sid} ]`, ...msg),
-      info: (...msg: unknown[]) =>
-        VERBOSE && console.log(`[ info   ][ ${this._sid} ]`, ...msg),
+      client: (...msg: unknown[]) => write("trace", msg),
+      debug: (...msg: unknown[]) => write("debug", msg),
+      info: (...msg: unknown[]) => write("info", msg),
+      error: (...msg: unknown[]) => write("error", msg),
     };
   }
 
@@ -910,8 +1039,7 @@ class ClientSession {
         this.socket.send(JSON.stringify(message));
       }
     } catch (e) {
-      DEBUG &&
-        console.error(`Failed to send message to client ${this._sid}:`, e);
+      this.log.error("Failed to send message:", e);
     }
   }
 

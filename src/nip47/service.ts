@@ -25,7 +25,6 @@ import {
   SignMessageParams,
   NIP47ResponseResult,
   NIP47EncryptionScheme,
-  NIP47Logger,
 } from "./types";
 import {
   validateArrayAccess,
@@ -34,6 +33,7 @@ import {
 } from "../utils/security-validator";
 import { maybeUnref } from "../utils/timers";
 import { Logger, LogLevel } from "../utils/logger";
+import type { DiagnosticLogger } from "../utils/logger";
 
 /**
  * TTL Map implementation with automatic cleanup
@@ -166,7 +166,7 @@ export interface NostrWalletServiceOptions {
   encryptionSchemes?: NIP47EncryptionScheme[];
 
   /** Optional logger. WARN/ERROR are enabled; INFO/DEBUG/TRACE are suppressed by default. */
-  logger?: NIP47Logger;
+  logger?: DiagnosticLogger;
 }
 
 /**
@@ -181,7 +181,7 @@ export class NostrWalletService {
   private relays: string[];
   private name: string;
   private client: Nostr;
-  private logger: NIP47Logger;
+  private logger: DiagnosticLogger;
   private supportedMethods: NIP47Method[];
   private supportedNotificationTypes: NIP47NotificationType[];
   private supportedEncryption: NIP47EncryptionScheme[];

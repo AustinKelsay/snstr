@@ -9,6 +9,16 @@ import {
   useRelayManagementFetchImplementation,
 } from "../../src/nip86";
 
+const isBunRuntime =
+  typeof (globalThis as typeof globalThis & { Bun?: unknown }).Bun !==
+  "undefined";
+
+async function advanceFakeTimersByTime(milliseconds: number): Promise<void> {
+  await Promise.resolve();
+  jest.advanceTimersByTime(milliseconds);
+  await Promise.resolve();
+}
+
 describe("NIP-86 relay management helpers", () => {
   const originalFetch = global.fetch;
   let mockFetch: jest.Mock;
@@ -32,6 +42,7 @@ describe("NIP-86 relay management helpers", () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     useRelayManagementFetchImplementation(originalFetch);
   });
 
@@ -151,6 +162,126 @@ describe("NIP-86 relay management helpers", () => {
     );
   });
 
+  test("RelayManagementClient releases its timeout after fetch rejects", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockRejectedValue(new Error("network"));
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.listBannedPubkeys()).rejects.toMatchObject({
+      name: "RelayManagementError",
+      message: "Relay management request failed: network",
+    });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("RelayManagementClient releases its timeout after a successful response", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ result: [{ pubkey: "allowed" }] }),
+    });
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.listAllowedPubkeys()).resolves.toEqual([
+      { pubkey: "allowed" },
+    ]);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("RelayManagementClient releases its timeout after a non-OK response", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({}),
+    });
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.supportedMethods()).rejects.toMatchObject({
+      name: "RelayManagementError",
+      message: "Relay management request failed with 503",
+      status: 503,
+    });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("RelayManagementClient releases its timeout after a protocol error", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ error: "unsupported method" }),
+    });
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.supportedMethods()).rejects.toMatchObject({
+      name: "RelayManagementError",
+      message: "unsupported method",
+      status: 200,
+    });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("RelayManagementClient releases its timeout after invalid JSON", async () => {
+    jest.useFakeTimers();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token");
+      },
+    });
+
+    const client = new RelayManagementClient("wss://relay.example.com");
+
+    await expect(client.supportedMethods()).rejects.toMatchObject({
+      name: "RelayManagementError",
+      message: "Relay management endpoint returned invalid JSON",
+      status: 200,
+    });
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
+  test("RelayManagementClient aborts a stalled fetch once and releases its timeout", async () => {
+    if (!isBunRuntime) jest.useFakeTimers();
+    let abortCount = 0;
+    mockFetch.mockImplementation(
+      (_url: string, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => {
+              abortCount += 1;
+              const abortError = new Error("The operation was aborted");
+              abortError.name = "AbortError";
+              reject(abortError);
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    const client = new RelayManagementClient("wss://relay.example.com", {
+      timeoutMs: 1,
+    });
+
+    const request = expect(client.supportedMethods()).rejects.toMatchObject({
+      name: "RelayManagementError",
+      message:
+        "Relay management request aborted/timed out: The operation was aborted",
+    });
+    if (!isBunRuntime) await advanceFakeTimersByTime(1);
+
+    await request;
+    expect(abortCount).toBe(1);
+    if (!isBunRuntime) expect(jest.getTimerCount()).toBe(0);
+  });
+
   test("RelayManagementClient rejects non-serializable circular params", async () => {
     const client = new RelayManagementClient("wss://relay.example.com");
     const circular: Record<string, unknown> = {};
@@ -177,49 +308,50 @@ describe("NIP-86 relay management helpers", () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  test("RelayManagementClient keeps the timeout active while parsing stalled bodies", async () => {
+  test("RelayManagementClient aborts a stalled response body once and releases its timeout", async () => {
+    if (!isBunRuntime) jest.useFakeTimers();
     let capturedSignal: AbortSignal | undefined;
-    mockFetch.mockImplementation(
-      async (_url: string, init?: RequestInit) => {
-        capturedSignal = init?.signal ?? undefined;
+    let abortCount = 0;
+    mockFetch.mockImplementation(async (_url: string, init?: RequestInit) => {
+      capturedSignal = init?.signal ?? undefined;
 
-        return {
-          ok: true,
-          status: 200,
-          json: async () =>
-            new Promise((_, reject) => {
-              capturedSignal?.addEventListener("abort", () => {
+      return {
+        ok: true,
+        status: 200,
+        json: async () =>
+          new Promise((_, reject) => {
+            capturedSignal?.addEventListener(
+              "abort",
+              () => {
+                abortCount += 1;
                 const abortError = new Error("The operation was aborted");
                 abortError.name = "AbortError";
                 reject(abortError);
-              });
-            }),
-        };
-      },
-    );
+              },
+              { once: true },
+            );
+          }),
+      };
+    });
 
     const client = new RelayManagementClient("wss://relay.example.com", {
       timeoutMs: 1,
     });
 
-    let caughtError: unknown;
-    try {
-      await client.listBannedPubkeys();
-    } catch (error) {
-      caughtError = error;
-    }
-
-    expect(caughtError).toBeInstanceOf(RelayManagementError);
-    expect(caughtError).toMatchObject({
+    const request = expect(client.listBannedPubkeys()).rejects.toMatchObject({
       name: "RelayManagementError",
+      message:
+        "Relay management request aborted/timed out: The operation was aborted",
       status: 200,
     });
-    expect((caughtError as RelayManagementError).message).toBe(
-      "Relay management request aborted/timed out: The operation was aborted",
-    );
+    if (!isBunRuntime) await advanceFakeTimersByTime(1);
+
+    await request;
+    expect(abortCount).toBe(1);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(capturedSignal).toBeDefined();
     expect(capturedSignal?.aborted).toBe(true);
+    if (!isBunRuntime) expect(jest.getTimerCount()).toBe(0);
   });
 
   test("toRelayManagementHttpUrl converts websocket URLs", () => {
