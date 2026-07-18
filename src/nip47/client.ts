@@ -33,73 +33,14 @@ import {
 import { SecurityValidationError } from "../utils/security-validator";
 import { Logger, LogLevel } from "../utils/logger";
 import type { DiagnosticLogger } from "../utils/logger";
+import {
+  generateNWCURL,
+  parseNIP47Response,
+  parseNWCURL,
+  validateNIP47Response,
+} from "./protocol";
 
-/**
- * Parse a NWC URL into connection options
- *
- * Handles URLs like: nostr+walletconnect://pubkey?relay=wss://relay.example.com&secret=xxx
- * Uses the URL class for robust parsing of relay URLs that contain "://"
- */
-export function parseNWCURL(url: string): NIP47ConnectionOptions {
-  if (!url.startsWith("nostr+walletconnect://")) {
-    throw new Error("Invalid NWC URL format");
-  }
-
-  // Use URL class for robust parsing - replace custom protocol with https temporarily
-  // This handles relay URLs containing "://" correctly (e.g., wss://relay.example.com)
-  const tempUrl = url.replace("nostr+walletconnect://", "https://nwc.temp/");
-  let parsed: URL;
-
-  try {
-    parsed = new URL(tempUrl);
-  } catch {
-    throw new Error("Invalid NWC URL format: malformed URL structure");
-  }
-
-  // Extract pubkey from pathname (remove leading slash)
-  const pubkey = parsed.pathname.slice(1);
-  if (!pubkey) {
-    throw new Error("Missing pubkey in NWC URL");
-  }
-
-  // Parse query parameters using the URL's searchParams
-  const relays: string[] = [];
-  parsed.searchParams.getAll("relay").forEach((relay) => relays.push(relay));
-
-  const secret = parsed.searchParams.get("secret");
-  if (!secret) {
-    throw new Error("Missing secret in NWC URL");
-  }
-
-  return {
-    pubkey,
-    secret,
-    relays,
-  };
-}
-
-/**
- * Generate a NWC URL from connection options
- */
-export function generateNWCURL(options: NIP47ConnectionOptions): string {
-  if (!options.pubkey) {
-    throw new Error("Missing pubkey in connection options");
-  }
-
-  if (!options.secret) {
-    throw new Error("Missing secret in connection options");
-  }
-
-  if (!options.relays || options.relays.length === 0) {
-    throw new Error("At least one relay must be specified");
-  }
-
-  const params = new URLSearchParams();
-  options.relays.forEach((relay) => params.append("relay", relay));
-  params.append("secret", options.secret);
-
-  return `nostr+walletconnect://${options.pubkey}?${params.toString()}`;
-}
+export { generateNWCURL, parseNWCURL };
 
 /**
  * Retry configuration
@@ -511,94 +452,11 @@ export class NostrWalletConnectClient {
    * Validate that a response follows the NIP-47 specification structure
    */
   private validateResponse(response: unknown): NIP47Response {
-    // First check if response is an object
-    if (!response || typeof response !== "object") {
-      throw new NIP47ClientError(
-        "Invalid response: not an object",
-        NIP47ErrorCode.INVALID_REQUEST,
-      );
-    }
-
-    // Cast to a more specific type for property access
-    const resp = response as Record<string, unknown>;
-
-    // Check if result_type exists and is a string
-    if (!resp.result_type || typeof resp.result_type !== "string") {
-      throw new NIP47ClientError(
-        "Invalid response: missing or invalid result_type",
-        NIP47ErrorCode.INVALID_REQUEST,
-      );
-    }
-
-    // Verify result_type is a known NIP47Method
-    if (!Object.values(NIP47Method).includes(resp.result_type as NIP47Method)) {
-      throw new NIP47ClientError(
-        `Invalid response: unknown result_type '${resp.result_type}'`,
-        NIP47ErrorCode.INVALID_REQUEST,
-      );
-    }
-
-    // Check error field - per NIP-47 spec it should be null on success, but some
-    // wallet implementations omit it entirely. Default to null if not present.
-    const hasErrorField = "error" in resp;
-    const errorValue = hasErrorField ? resp.error : null;
-
-    // If error is not null, validate its structure
-    if (errorValue !== null) {
-      if (typeof errorValue !== "object") {
-        throw new NIP47ClientError(
-          "Invalid response: error field must be an object or null",
-          NIP47ErrorCode.INVALID_REQUEST,
-        );
-      }
-
-      const error = errorValue as Record<string, unknown>;
-
-      // Check error has code and message
-      if (!error.code || typeof error.code !== "string") {
-        throw new NIP47ClientError(
-          "Invalid response: error must have a code field",
-          NIP47ErrorCode.INVALID_REQUEST,
-        );
-      }
-
-      if (!error.message || typeof error.message !== "string") {
-        throw new NIP47ClientError(
-          "Invalid response: error must have a message field",
-          NIP47ErrorCode.INVALID_REQUEST,
-        );
-      }
-
-      // When there's an error, result should be null
-      if (resp.result !== null) {
-        throw new NIP47ClientError(
-          "Invalid response: when error is present, result must be null",
-          NIP47ErrorCode.INVALID_REQUEST,
-        );
-      }
-    }
-
-    // If no error, result should be defined and not null
-    if (
-      errorValue === null &&
-      (resp.result === null || resp.result === undefined)
-    ) {
-      throw new NIP47ClientError(
-        "Invalid response: when error is null, result must be defined and not null",
-        NIP47ErrorCode.INVALID_REQUEST,
-      );
-    }
-
-    // Normalize missing error field to null to keep runtime data aligned with
-    // the NIP47Response type contract and spec semantics.
-    if (!hasErrorField) {
-      return {
-        ...(response as Omit<NIP47Response, "error">),
-        error: null,
-      };
-    }
-
-    return response as NIP47Response;
+    return validateNIP47Response(
+      response,
+      (message) =>
+        new NIP47ClientError(message, NIP47ErrorCode.INVALID_REQUEST),
+    );
   }
 
   /**
@@ -659,19 +517,18 @@ export class NostrWalletConnectClient {
         );
       }
 
-      const response = JSON.parse(decrypted);
-
-      // Validate response structure
-      this.validateResponse(response);
-
-      this.logger.debug(
-        `Validated response of type: ${(response as NIP47Response).result_type}`,
+      const response = parseNIP47Response(
+        decrypted,
+        (message) =>
+          new NIP47ClientError(message, NIP47ErrorCode.INVALID_REQUEST),
       );
+
+      this.logger.debug(`Validated response of type: ${response.result_type}`);
 
       this.logger.debug("Correlated response with a pending request");
 
       // Resolve the pending request
-      pendingRequest.resolve(response as NIP47Response);
+      pendingRequest.resolve(response);
       this.pendingRequests.delete(requestId);
       this.logger.debug("Pending request resolved successfully");
     } catch (error) {
