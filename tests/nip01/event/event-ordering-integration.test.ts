@@ -5,6 +5,7 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
+import { RelayEventStore } from "../../../src/nip01/relayEventStore";
 import {
   useWebSocketImplementation,
   resetWebSocketImplementation,
@@ -40,9 +41,8 @@ describe("Relay Event Ordering Integration", () => {
   // Type assertion function to access private members for testing
   const asTestable = (r: Relay) =>
     r as unknown as {
-      sortEvents: (events: NostrEvent[]) => NostrEvent[];
       flushSubscriptionBuffer: (subscriptionId: string) => void;
-      eventBuffers: Map<string, NostrEvent[]>;
+      eventStore: RelayEventStore;
     };
 
   beforeEach(() => {
@@ -74,7 +74,6 @@ describe("Relay Event Ordering Integration", () => {
 
     // Expose private methods for testing
     const testable = asTestable(relay);
-    testable.sortEvents = testable.sortEvents.bind(relay);
     testable.flushSubscriptionBuffer =
       testable.flushSubscriptionBuffer.bind(relay);
   });
@@ -147,12 +146,10 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Manually add events to the buffer
-    asTestable(relay).eventBuffers.set(subscriptionId, [
-      event1,
-      event3,
-      event4,
-      event2,
-    ]);
+    const store = asTestable(relay).eventStore;
+    for (const event of [event1, event3, event4, event2]) {
+      store.addToBuffer(subscriptionId, event);
+    }
 
     // Directly call flushSubscriptionBuffer
     asTestable(relay).flushSubscriptionBuffer(subscriptionId);
@@ -216,7 +213,9 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Manually add events to the buffer
-    asTestable(relay).eventBuffers.set(subscriptionId, [event1, event2]);
+    const store = asTestable(relay).eventStore;
+    store.addToBuffer(subscriptionId, event1);
+    store.addToBuffer(subscriptionId, event2);
 
     // Simulate receiving EOSE
     mockSocketInstance.onmessage?.({
@@ -262,7 +261,7 @@ describe("Relay Event Ordering Integration", () => {
     };
 
     // Manually add events to the buffer
-    asTestable(relay).eventBuffers.set(subscriptionId, [event]);
+    asTestable(relay).eventStore.addToBuffer(subscriptionId, event);
 
     // Directly call flushSubscriptionBuffer
     asTestable(relay).flushSubscriptionBuffer(subscriptionId);

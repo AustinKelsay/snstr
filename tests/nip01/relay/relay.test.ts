@@ -119,6 +119,26 @@ describe("Relay", () => {
   });
 
   describe("Connection Management", () => {
+    test("disconnect clears retained state even without an active socket", () => {
+      const relay = new Relay("wss://example.com");
+      const internals = asTestRelay(relay);
+      const subscriptionId = relay.subscribe([{}], jest.fn());
+      internals.eventStore.addToBuffer(subscriptionId, {
+        id: "buffered",
+        pubkey: "pubkey",
+        created_at: 1,
+        kind: 1,
+        tags: [],
+        content: "",
+        sig: "sig",
+      });
+
+      relay.disconnect();
+
+      expect(internals.subscriptions.size).toBe(0);
+      expect([...internals.eventStore.bufferIds()]).toEqual([]);
+    });
+
     test("should connect to ephemeral relay", async () => {
       const relay = new Relay(ephemeralRelay.url);
 
@@ -1059,6 +1079,32 @@ describe("Relay", () => {
 
       expect(onEvent).toHaveBeenCalledTimes(1);
       expect(onEvent).toHaveBeenCalledWith(event);
+    });
+
+    test("should discard validation results after the subscription is removed", async () => {
+      const onEvent = jest.fn();
+      const subscriptionId = relay.subscribe([{ kinds: [30001] }], onEvent);
+      const event = await createSignedRelayEvent({
+        kind: 30001,
+        tags: [["d", "late"]],
+      });
+      let resolveValidation!: (validated: NostrEvent) => void;
+      const validation = new Promise<NostrEvent>((resolve) => {
+        resolveValidation = resolve;
+      });
+      const internals = asTestRelay(relay);
+      internals.validateInboundEvent = jest.fn(() => validation);
+
+      internals.handleMessage(["EVENT", subscriptionId, event]);
+      relay.unsubscribe(subscriptionId);
+      resolveValidation(event);
+      await validation;
+      await Promise.resolve();
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expect(
+        relay.getLatestAddressableEvent(30001, event.pubkey, "late"),
+      ).toBeUndefined();
     });
 
     test("should reject malformed inbound EVENT messages", async () => {

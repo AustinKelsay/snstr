@@ -11,6 +11,7 @@ import {
 import type { RelayConnectionOptions } from "../../src/types/protocol";
 import { NostrRelay } from "../../src/utils/ephemeral-relay";
 import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/relayUrl";
+import { RelayEventStore } from "../../src/nip01/relayEventStore";
 
 /**
  * Interface for mocking a Relay in tests
@@ -94,13 +95,13 @@ export interface RelayTestAccess {
 
   // Private internal state
   subscriptions: Map<string, Subscription>;
-  eventBuffers: Map<string, NostrEvent[]>;
+  eventStore: RelayEventStore;
   pendingValidationCounts: Map<string, number>;
   status: string;
 
   // Private internal methods
   handleMessage(message: string[] | unknown[]): void;
-  processValidatedEvent(event: NostrEvent, subscriptionId: string): void;
+  validateInboundEvent(event: unknown): Promise<NostrEvent>;
   processReplaceableEvent(event: NostrEvent): void;
   processAddressableEvent(event: NostrEvent): void;
   flushSubscriptionBuffer(subscriptionId: string): void;
