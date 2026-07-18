@@ -54,6 +54,33 @@ function fail(msg) {
   process.exit(1);
 }
 
+function verifyNodeSubpathResolution() {
+  const checks = [
+    {
+      label: "CommonJS snstr/testing",
+      args: ["-e", 'const api = require("snstr/testing"); if (typeof api.NostrRelay !== "function") process.exit(1);'],
+    },
+    {
+      label: "ESM snstr/testing",
+      args: ["--input-type=module", "-e", 'const api = await import("snstr/testing"); if (typeof api.NostrRelay !== "function") process.exit(1);'],
+    },
+    {
+      label: "legacy CommonJS ephemeral relay alias",
+      args: ["-e", 'const api = require("snstr/utils/ephemeral-relay"); if (typeof api.NostrRelay !== "function") process.exit(1);'],
+    },
+  ];
+
+  for (const { label, args } of checks) {
+    try {
+      execFileSync(process.execPath, args, { cwd: repoRoot, stdio: "pipe" });
+    } catch (err) {
+      fail(
+        `${label} did not resolve through package exports. ${err?.message ?? String(err)}`,
+      );
+    }
+  }
+}
+
 function packageName(specifier) {
   if (specifier.startsWith("@")) {
     return specifier.split("/").slice(0, 2).join("/");
@@ -334,6 +361,25 @@ try {
 }
 
 const packedPaths = new Set((packInfo.files || []).map((f) => f.path));
+const forbiddenTestSupportPaths = [
+  "dist/src/utils/test-helpers.js",
+  "dist/src/utils/test-helpers.d.ts",
+  "dist/esm/src/utils/test-helpers.js",
+  "dist/esm/src/utils/test-helpers.d.ts",
+  "dist/src/types/globals.d.ts",
+  "dist/esm/src/types/globals.d.ts",
+];
+const accidentallyPacked = forbiddenTestSupportPaths.filter((p) =>
+  packedPaths.has(p),
+);
+if (accidentallyPacked.length) {
+  fail(
+    `Private test helpers are included in the npm tarball: ${accidentallyPacked
+      .sort()
+      .map((p) => JSON.stringify(p))
+      .join(", ")}`,
+  );
+}
 const missingInTarball = referencedFiles.filter((p) => !packedPaths.has(p));
 if (missingInTarball.length) {
   fail(
@@ -343,6 +389,8 @@ if (missingInTarball.length) {
       .join(", ")}`
   );
 }
+
+verifyNodeSubpathResolution();
 
 console.log(
   `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${webGraph.modules} web modules, ${webGraph.guardedNodeReferences} guarded Node fallbacks)`

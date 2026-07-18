@@ -4,7 +4,7 @@ import {
   generateKeypair,
 } from "../../src";
 import { LogLevel } from "../../src/utils/logger";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 /**
  * This minimal example demonstrates NIP-46 remote signing functionality.

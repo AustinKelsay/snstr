@@ -134,7 +134,30 @@ Resolution summary:
 
 This dual build removes getter-based CJS re-exports from browser bundles and avoids interop issues observed with Turbopack.
 
-## Basic Usage
+## Testing utilities
+
+`NostrRelay` is a Node-only, in-memory relay for integration tests and runnable
+examples. Import it from the supported testing subpath:
+
+```typescript
+import { NostrRelay } from "snstr/testing";
+
+const relay = new NostrRelay(0);
+await relay.start();
+try {
+  // Exercise a client against relay.url.
+} finally {
+  await relay.close();
+}
+```
+
+The testing subpath is supported during the 0.x release line, but it is not a
+production relay server and may evolve between minor 0.x releases. The legacy
+`snstr/utils/ephemeral-relay` subpath remains available for 0.x compatibility.
+`close()` resolves only after owned transports and observable client disconnect
+coordination complete; callers should not add fixed teardown delays.
+
+## Basic client usage
 
 ```typescript
 import { Nostr, RelayEvent } from "snstr";

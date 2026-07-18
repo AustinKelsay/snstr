@@ -47,6 +47,12 @@
       "require": "./dist/src/nip04/index.js",
       "default": "./dist/src/nip04/index.js"
     },
+    "./testing": {
+      "types": "./dist/src/testing/index.d.ts",
+      "import": "./dist/esm/src/testing/index.js",
+      "require": "./dist/src/testing/index.js",
+      "default": "./dist/src/testing/index.js"
+    },
     "./utils/ephemeral-relay": {
       "types": "./dist/src/utils/ephemeral-relay.d.ts",
       "import": "./dist/esm/src/utils/ephemeral-relay.js",

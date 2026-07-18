@@ -11,7 +11,7 @@ import {
   getPublicKey,
   signEvent,
 } from "../../../src";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import { testUtils } from "../../types";
 import {
   asTestRelay,

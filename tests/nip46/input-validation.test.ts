@@ -3,7 +3,7 @@ import {
   SimpleNIP46Bunker,
   generateKeypair,
 } from "../../src";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { NIP46SecurityError } from "../../src/nip46/types";
 import { parseConnectionString } from "../../src/nip46/utils/connection";
 import { isValidAuthUrl } from "../../src/nip46/utils/auth";

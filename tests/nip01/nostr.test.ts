@@ -6,7 +6,7 @@ import {
   Relay,
   RelayReceivedEvent,
 } from "../../src";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { createMetadataEvent } from "../../src/nip01/event";
