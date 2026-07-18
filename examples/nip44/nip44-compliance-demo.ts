@@ -12,8 +12,6 @@
 
 import {
   decodePayload,
-  NONCE_SIZE_V0,
-  MAC_SIZE_V0,
   NONCE_SIZE_V2,
   MAC_SIZE_V2,
 } from "../../src/nip44";
@@ -28,9 +26,8 @@ function createMinimalValidPayload(
 ): string {
   const versionByte = new Uint8Array([version]);
 
-  // Use version-specific constants for nonce and MAC sizes
-  const nonceSize = version === 2 ? NONCE_SIZE_V2 : NONCE_SIZE_V0;
-  const macSize = version === 2 ? MAC_SIZE_V2 : MAC_SIZE_V0;
+  const nonceSize = NONCE_SIZE_V2;
+  const macSize = MAC_SIZE_V2;
 
   // Create non-zero nonce with version-specific size
   const nonce = new Uint8Array(nonceSize);
@@ -150,7 +147,7 @@ console.log("-".repeat(30));
 try {
   // Create a minimal valid payload: version(1) + nonce(32) + ciphertext(33) + mac(32) = 98 bytes
   // But we need 99 bytes minimum, so use 34 bytes ciphertext = 99 bytes total
-  const minLengthPayload = createMinimalValidPayload(0, 34); // Creates exactly 99 bytes when decoded
+  const minLengthPayload = createMinimalValidPayload(2, 34); // Creates exactly 99 bytes when decoded
   const result = decodePayload(minLengthPayload);
   console.log("✅ Accepted minimum length valid payload");
   console.log(
@@ -192,7 +189,7 @@ console.log("-".repeat(30));
 console.log("✅ # Prefix Detection: Implemented (NIP-44 Decryption Step 1)");
 console.log("✅ Base64 Length Validation: 132 to 87,472 characters");
 console.log("✅ Decoded Length Validation: 99 to 65,603 bytes");
-console.log("✅ Version Support: 0, 1, 2 (decryption only for 0 & 1)");
+console.log("✅ Version Support: v2; reserved and undefined versions rejected");
 console.log("✅ Error Messages: Clear and informative");
 
 console.log("\n🎉 All NIP-44 compliance checks passed!");

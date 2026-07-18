@@ -1,10 +1,11 @@
 /**
  * NIP-44 Version Compatibility Demo
  *
- * This example demonstrates how to use the NIP-44 version compatibility features:
- * - Encrypting with different versions (0, 1, 2)
- * - Automatic decryption of messages from any supported version
- * - Using version options for compatibility with older clients
+ * This example demonstrates NIP-44's version registry:
+ * - Version 2 is the only defined encryption algorithm
+ * - Version 0 is reserved
+ * - Version 1 is deprecated and undefined
+ * - Unknown versions are rejected before decryption
  */
 
 import { generateKeypair, encryptNIP44, decryptNIP44 } from "../../src";
@@ -114,15 +115,9 @@ async function main() {
   }
   console.log("\n");
 
-  // Cross-version compatibility test
-  console.log("Cross-Version Compatibility:");
+  console.log("Version 2 Interoperability:");
   console.log("---------------------------");
-  console.log(
-    "Testing if Alice and Bob can communicate with different versions",
-  );
-
-  // Alice uses v2, Bob uses v0
-  console.log("\nScenario 1: Alice (v2) → Bob");
+  console.log("\nAlice (v2) → Bob (v2)");
   const aliceMessage = "Hello Bob, I'm using NIP-44 v2!";
   const aliceToBob = encryptNIP44(
     aliceMessage,
@@ -139,14 +134,6 @@ async function main() {
   console.log(`Alice's message: "${aliceMessage}"`);
   console.log(`Bob decrypts: "${bobDecrypts}"`);
   console.log(`Successful: ${aliceMessage === bobDecrypts}`);
-
-  // Bob uses v0, Alice uses v2
-  console.log(
-    "\nScenario 2: Bob receiving a V0/V1 message (e.g., from an older client) and Alice (V2) decrypting it.",
-  );
-  console.log(
-    "  (Decryption of V0/V1 is supported, but sending V0/V1 is not. This scenario is covered by general decryption tests.)",
-  );
 
   // Demonstrate invalid version handling
   console.log("\nInvalid Version Handling:");
@@ -175,7 +162,7 @@ async function main() {
   console.log("\nSummary:");
   console.log("--------");
   console.log("- Default encryption uses NIP-44 v2 (most secure)");
-  console.log("- Decryption automatically works with versions 0, 1, and 2");
+  console.log("- Decryption accepts version 2 and rejects undefined versions");
   console.log(
     "- NIP-44 compliant clients MUST NOT encrypt new messages with versions 0 or 1.",
   );
@@ -186,7 +173,7 @@ async function main() {
     "- This implementation complies with NIP-44 requirement that clients:",
   );
   console.log("  * MUST include a version byte in encrypted payloads");
-  console.log("  * MUST be able to decrypt versions 0 and 1");
+  console.log("  * MUST report reserved or undefined versions as unsupported");
   console.log("  * MUST NOT encrypt with version 0 (Reserved)");
   console.log("  * MUST NOT encrypt with version 1 (Deprecated and undefined)");
 }

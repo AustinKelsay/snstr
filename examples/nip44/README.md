@@ -9,7 +9,7 @@ This directory contains examples demonstrating how to use NIP-44 encrypted direc
 **Implementation Details**:
 - Uses ChaCha20 for encryption and HMAC-SHA256 for authentication
 - Includes a version byte to support future algorithm upgrades and backward compatibility
-- Supports decryption of messages encrypted with versions 0, 1, and 2
+- Accepts defined version 2 payloads and rejects reserved or undefined versions
 - Provides proper key derivation using HKDF
 - Implements message length hiding with a custom padding scheme
 - Uses secure 32-byte nonces
@@ -38,7 +38,7 @@ The [`nip44-version-compatibility.ts`](./nip44-version-compatibility.ts) example
 
 - Attempting to encrypt with NIP-44 versions 0 and 1 (which correctly results in errors as per NIP-44 spec).
 - Successful encryption with NIP-44 version 2 (the current standard).
-- Automatic decryption of messages from any supported version (0, 1, and 2).
+- Rejection of reserved version 0, undefined version 1, and unknown versions.
 - Error handling for unsupported versions for encryption.
 
 ### Test Vector Verification
@@ -84,7 +84,7 @@ npm run example:nip44:compliance
 ## Key Concepts
 
 - **Versioned Encryption**: NIP-44 includes a version byte in the payload for future protocol upgrades
-- **Backward Compatibility**: Support for decrypting messages encrypted with older versions (0, 1)
+- **Version Safety**: Reserved, undefined, and unknown versions are rejected before decryption
 - **Authenticated Encryption**: Uses HMAC-SHA256 to prevent message tampering
 - **Message Length Hiding**: Custom padding scheme to conceal the exact length of messages
 - **Proper Key Derivation**: Uses HKDF instead of raw ECDH output for better security
@@ -104,11 +104,11 @@ npm run example:nip44:compliance
 ## API Functions Used
 
 - `encrypt()`: Encrypt a message using NIP-44 with optional version specification
-- `decrypt()`: Decrypt a message using NIP-44 (automatically handles any supported version)
+- `decrypt()`: Decrypt a defined NIP-44 v2 message
 - `getSharedSecret()`: Get the shared secret between two keys
 - `generateKeypair()`: Generate a new Nostr keypair
 
 ## Related NIPs
 
 - [NIP-04](https://github.com/nostr-protocol/nips/blob/master/04.md): Encrypted Direct Message (older, less secure method)
-- [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md): Basic Protocol (events and structure) 
+- [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md): Basic Protocol (events and structure)

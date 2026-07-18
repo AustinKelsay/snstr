@@ -3,8 +3,8 @@ import {
   isValidPublicKeyPoint,
   isValidPrivateKey,
   decodePayload,
-  NONCE_SIZE_V0,
-  MAC_SIZE_V0,
+  NONCE_SIZE_V2,
+  MAC_SIZE_V2,
 } from "../../src/nip44";
 
 describe("NIP-44 Format Validation", () => {
@@ -299,11 +299,13 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // Generate a valid base64 string that's exactly 132 characters
       const minLengthPayload = "A".repeat(132);
 
-      // This should pass length validation and successfully decode (version 0 is supported for decryption)
-      const result = decodePayload(minLengthPayload);
-      expect(result.version).toBe(0);
-      expect(result.nonce).toHaveLength(NONCE_SIZE_V0);
-      expect(result.mac).toHaveLength(MAC_SIZE_V0);
+      // Use the only defined version so this test isolates the length boundary.
+      const bytes = Buffer.from(minLengthPayload, "base64");
+      bytes[0] = 2;
+      const result = decodePayload(bytes.toString("base64"));
+      expect(result.version).toBe(2);
+      expect(result.nonce).toHaveLength(NONCE_SIZE_V2);
+      expect(result.mac).toHaveLength(MAC_SIZE_V2);
       expect(result.ciphertext.length).toBeGreaterThan(0);
     });
 
@@ -345,11 +347,12 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // Create a valid base64 that decodes to exactly 99 bytes
       const minDecodedPayload = Buffer.alloc(99).toString("base64");
 
-      // This should pass length validation and successfully decode (version 0 is supported for decryption)
-      const result = decodePayload(minDecodedPayload);
-      expect(result.version).toBe(0);
-      expect(result.nonce).toHaveLength(NONCE_SIZE_V0);
-      expect(result.mac).toHaveLength(MAC_SIZE_V0);
+      const bytes = Buffer.from(minDecodedPayload, "base64");
+      bytes[0] = 2;
+      const result = decodePayload(bytes.toString("base64"));
+      expect(result.version).toBe(2);
+      expect(result.nonce).toHaveLength(NONCE_SIZE_V2);
+      expect(result.mac).toHaveLength(MAC_SIZE_V2);
       expect(result.ciphertext.length).toBeGreaterThan(0);
     });
 
@@ -357,11 +360,12 @@ describe("NIP-44 decodePayload compliance tests", () => {
       // Create a valid base64 that decodes to exactly 65,603 bytes
       const maxDecodedPayload = Buffer.alloc(65603).toString("base64");
 
-      // This should pass length validation and successfully decode (version 0 is supported for decryption)
-      const result = decodePayload(maxDecodedPayload);
-      expect(result.version).toBe(0);
-      expect(result.nonce).toHaveLength(NONCE_SIZE_V0);
-      expect(result.mac).toHaveLength(MAC_SIZE_V0);
+      const bytes = Buffer.from(maxDecodedPayload, "base64");
+      bytes[0] = 2;
+      const result = decodePayload(bytes.toString("base64"));
+      expect(result.version).toBe(2);
+      expect(result.nonce).toHaveLength(NONCE_SIZE_V2);
+      expect(result.mac).toHaveLength(MAC_SIZE_V2);
       expect(result.ciphertext.length).toBeGreaterThan(0);
     });
   });

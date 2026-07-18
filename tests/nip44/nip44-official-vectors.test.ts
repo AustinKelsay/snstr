@@ -105,14 +105,14 @@ describe("NIP-44 implementation against official test vectors", () => {
         expect(() => {
           encrypt(plaintext, sec1, pub2, undefined, { version: 0 });
         }).toThrowError(
-          "NIP-44: Encryption with version 0 is not permitted by the NIP-44 specification. Only decryption is supported for v0.",
+          "NIP-44: Encryption with version 0 is not permitted because the version is reserved.",
         );
 
         // Test V1 encryption (should fail)
         expect(() => {
           encrypt(plaintext, sec1, pub2, undefined, { version: 1 });
         }).toThrowError(
-          "NIP-44: Encryption with version 1 is not permitted by the NIP-44 specification. Only decryption is supported for v1.",
+          "NIP-44: Encryption with version 1 is not permitted because the version is deprecated and undefined.",
         );
 
         // Test V2 encryption (should succeed)
@@ -160,18 +160,8 @@ describe("NIP-44 implementation against official test vectors", () => {
         // Calculate public key
         const pub1 = getPublicKeyHex(sec1);
 
-        try {
-          // Try to decrypt the test vector payload
-          const decrypted = decrypt(payload, sec2, pub1);
-          expect(decrypted).toBe(plaintext);
-        } catch (error) {
-          // Log the error but don't fail the test, as there may be subtle
-          // differences in how MACs were generated in reference implementation
-          console.warn(
-            `⚠️ Failed to decrypt payload for plaintext: "${plaintext}"`,
-            error,
-          );
-        }
+        const decrypted = decrypt(payload, sec2, pub1);
+        expect(decrypted).toBe(plaintext);
       }
     });
   });
@@ -234,7 +224,7 @@ describe("NIP-44 implementation against official test vectors", () => {
     const pub2 = getPublicKeyHex(testVectorBase.sec2); // Derive pub2 correctly
     const plaintext = testVectorBase.plaintext;
 
-    test("should correctly decode payloads with version 0, 1, 2", () => {
+    test("should decode v2 and reject reserved or undefined versions", () => {
       // Test V2 payload decoding (original logic)
       const encryptedV2ForDecode = encrypt(plaintext, sec1, pub2, undefined, {
         version: 2,
@@ -245,16 +235,14 @@ describe("NIP-44 implementation against official test vectors", () => {
       expect(decodedV2.mac.length).toBe(32); // MAC_SIZE_V2
       expect(decodedV2.ciphertext.length).toBeGreaterThan(0);
 
-      // Test V0 payload decoding by tampering a V2 payload's version byte
+      // NIP-44 reserves v0 and leaves v1 deprecated and undefined.
       let v2Buffer = Buffer.from(encryptedV2ForDecode, "base64");
       if (v2Buffer.length > 0) {
         v2Buffer[0] = 0; // Set version to 0
         const tamperedV0Payload = v2Buffer.toString("base64");
-        const decodedV0 = decodePayload(tamperedV0Payload);
-        expect(decodedV0.version).toBe(0);
-        expect(decodedV0.nonce.length).toBe(32); // NONCE_SIZE_V0 (assuming 32)
-        expect(decodedV0.mac.length).toBe(32); // MAC_SIZE_V0 (assuming 32)
-        expect(decodedV0.ciphertext.length).toBeGreaterThan(0);
+        expect(() => decodePayload(tamperedV0Payload)).toThrow(
+          "NIP-44: Unsupported version: 0. This implementation supports version 2.",
+        );
       } else {
         throw new Error(
           "Failed to create a V2 payload for V0 tampering in decode test",
@@ -276,11 +264,9 @@ describe("NIP-44 implementation against official test vectors", () => {
       if (v2Buffer.length > 0) {
         v2Buffer[0] = 1; // Set version to 1
         const tamperedV1Payload = v2Buffer.toString("base64");
-        const decodedV1 = decodePayload(tamperedV1Payload);
-        expect(decodedV1.version).toBe(1);
-        expect(decodedV1.nonce.length).toBe(32); // NONCE_SIZE_V1 (assuming 32)
-        expect(decodedV1.mac.length).toBe(32); // MAC_SIZE_V1 (assuming 32)
-        expect(decodedV1.ciphertext.length).toBeGreaterThan(0);
+        expect(() => decodePayload(tamperedV1Payload)).toThrow(
+          "NIP-44: Unsupported version: 1. This implementation supports version 2.",
+        );
       } else {
         throw new Error(
           "Failed to create a V2 payload for V1 tampering in decode test",
