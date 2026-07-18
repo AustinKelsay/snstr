@@ -27,7 +27,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 - Agent briefs: Grok 4.5 is the only owner-approved delegated sidecar; `agent` authentication was unavailable at preflight, so no substitute subagent is used and Codex owns local execution/review
 - Review packets: created per ticket
 - Local CodeRabbit report: issue #112 round completed with five worthy fixes in `issue-112-coderabbit-local.md`
-- PR URLs: #120 for issue #112, #121 for issue #118, #122 for issue #113, #123 for issue #114, #124 for issue #115, #125 for issue #116, #126 for issue #117, and #127 for issue #119; all merged into `staging`
+- Delivery PRs: #120 for issue #112, #121 for issue #118, #122 for issue #113, #123 for issue #114, #124 for issue #115, #125 for issue #116, #126 for issue #117, and #127 for issue #119; all merged into `staging`
 
 ## Commands
 
