@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Public security-limit behavior is covered directly, including malformed filters, oversized inputs, and rate-limit boundaries.
 
 ### Removed
-- Stale NIP-04 shim and duplicate generated NIP-44 JavaScript example surfaces that were not part of the supported package contract.
+- Stale NIP-04 shim and duplicate generated JavaScript examples for NIP-44 that were not part of the supported package contract.
 
 ## [0.4.0] - 2026-07-13
 
