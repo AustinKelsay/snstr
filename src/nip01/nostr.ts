@@ -11,7 +11,6 @@ import {
 } from "../types/nostr";
 import type { RelayConnectionOptions } from "../types/protocol";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
-import { isValidRelayUrl } from "../nip19";
 import { createSignedAuthEvent } from "../nip42";
 import {
   createSignedEvent,
@@ -19,11 +18,6 @@ import {
   createDirectMessage,
   createMetadataEvent,
 } from "./event";
-import {
-  preprocessRelayUrl as preprocessRelayUrlUtil,
-  normalizeRelayUrl as normalizeRelayUrlUtil,
-  RelayUrlValidationError,
-} from "../utils/relayUrl";
 import { Logger, LogLevel } from "../utils/logger";
 import {
   validateFilters,
@@ -33,6 +27,7 @@ import {
   RateLimitState,
 } from "../utils/security-validator";
 import { getRegisteredNIP04 } from "../nip04/registry";
+import { RelayRegistry } from "./relayRegistry";
 
 /**
  * Rate limit configuration for different operation types
@@ -119,7 +114,7 @@ function formatRetryAfterSeconds(retryAfter?: number): number {
 }
 
 export class Nostr {
-  private relays: Map<string, Relay> = new Map();
+  private relays: RelayRegistry;
   private privateKey?: string;
   private publicKey?: string;
   private relayOptions?: RelayConnectionOptions;
@@ -161,6 +156,7 @@ export class Nostr {
    */
   constructor(relayUrls: string[] = [], options?: NostrOptions) {
     this.relayOptions = options?.relayOptions;
+    this.relays = new RelayRegistry(this.relayOptions);
 
     // Initialize rate limits with defaults or user-provided values
     this.RATE_LIMITS = {
@@ -179,30 +175,6 @@ export class Nostr {
       silent: process.env.NODE_ENV === "test",
     });
     relayUrls.forEach((url) => this.addRelay(url));
-  }
-
-  /**
-   * Normalize a relay URL by lowercasing only the scheme and host,
-   * while preserving the case of path, query, and fragment parts.
-   * This is the correct behavior per URL standards.
-   */
-  private normalizeRelayUrl(url: string): string {
-    // Delegate to shared utility for consistent canonicalization
-    return normalizeRelayUrlUtil(url);
-  }
-
-  /**
-   * Preprocesses a relay URL before normalization and validation.
-   * Adds wss:// prefix only to URLs without any scheme.
-   * Throws an error for URLs with incompatible schemes.
-   *
-   * @param url - The input URL string to preprocess
-   * @returns The preprocessed URL with appropriate scheme
-   * @throws Error if URL has an incompatible scheme
-   */
-  private preprocessRelayUrl(url: string): string {
-    // Delegate to shared utility for consistent preprocessing
-    return preprocessRelayUrlUtil(url);
   }
 
   // Helper function to create the event handler wrapper
@@ -258,18 +230,10 @@ export class Nostr {
   }
 
   public addRelay(url: string): Relay {
-    url = this.preprocessRelayUrl(url);
-    url = this.normalizeRelayUrl(url);
-    if (!isValidRelayUrl(url)) {
-      throw new Error(`Invalid relay URL: ${url}`);
-    }
-
-    if (this.relays.has(url)) {
-      return this.relays.get(url)!;
-    }
-
-    const relay = new Relay(url, this.relayOptions);
-    this.relays.set(url, relay);
+    const registration = this.relays.register(url);
+    if (!registration.created) return registration.relay;
+    const { relay } = registration;
+    url = registration.url;
 
     // Attach stored callbacks to the new relay
     this.eventCallbacks.forEach((callbacksSet, eventType) => {
@@ -308,46 +272,11 @@ export class Nostr {
   }
 
   public getRelay(url: string): Relay | undefined {
-    // Re-use the same normalisation logic as addRelay()
-    try {
-      url = this.preprocessRelayUrl(url);
-      url = this.normalizeRelayUrl(url);
-      if (!isValidRelayUrl(url)) {
-        return undefined;
-      }
-      return this.relays.get(url);
-    } catch (error) {
-      // Handle RelayUrlValidationError and other URL processing errors gracefully
-      if (error instanceof RelayUrlValidationError) {
-        return undefined;
-      }
-      // For other unexpected errors, also return undefined for graceful handling
-      return undefined;
-    }
+    return this.relays.lookup(url);
   }
 
   public removeRelay(url: string): void {
-    // Re-use the same normalisation logic as addRelay() and getRelay()
-    try {
-      url = this.preprocessRelayUrl(url);
-      url = this.normalizeRelayUrl(url);
-      if (!isValidRelayUrl(url)) {
-        return;
-      }
-
-      const relay = this.relays.get(url);
-      if (relay) {
-        relay.disconnect();
-        this.relays.delete(url);
-      }
-    } catch (error) {
-      // Handle RelayUrlValidationError and other URL processing errors gracefully
-      if (error instanceof RelayUrlValidationError) {
-        return; // Silently ignore invalid URLs as intended
-      }
-      // For other unexpected errors, also return void for graceful handling
-      return;
-    }
+    this.relays.remove(url);
   }
 
   public async connectToRelays(): Promise<void> {
@@ -1203,9 +1132,7 @@ export class Nostr {
   ): Promise<PublishResponse> {
     this.enforcePublishRateLimit();
 
-    const normalizedRelayUrl = this.normalizeRelayUrl(
-      this.preprocessRelayUrl(relayUrl),
-    );
+    const normalizedRelayUrl = this.relays.canonicalUrl(relayUrl);
     const relay = this.getRelayByUrl(normalizedRelayUrl);
     const { createdAt, ...publishOptions } = options;
 
@@ -1239,15 +1166,7 @@ export class Nostr {
   }
 
   private getRelayByUrl(relayUrl: string): Relay {
-    const preprocessedUrl = this.preprocessRelayUrl(relayUrl);
-    const normalizedUrl = this.normalizeRelayUrl(preprocessedUrl);
-    const relay = this.relays.get(normalizedUrl);
-
-    if (!relay) {
-      throw new Error(`Relay not found: ${normalizedUrl}`);
-    }
-
-    return relay;
+    return this.relays.require(relayUrl);
   }
 
   private enforcePublishRateLimit(): void {

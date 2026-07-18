@@ -77,6 +77,27 @@ describe("Nostr Client", () => {
       expect(relays.has(normalizedRelay)).toBe(true);
     });
 
+    test("should use one Relay identity across normalized public operations", () => {
+      const parsed = new URL(ephemeralRelay.url);
+      const equivalentUrl = `${parsed.protocol}//${parsed.hostname.toUpperCase()}:${parsed.port}/`;
+
+      const existing = client.getRelay(ephemeralRelay.url);
+      expect(client.addRelay(equivalentUrl)).toBe(existing);
+      expect(client.getRelay(equivalentUrl)).toBe(existing);
+      expect(getNostrInternals(client).relays.size).toBe(1);
+
+      client.removeRelay(equivalentUrl);
+      expect(client.getRelay(ephemeralRelay.url)).toBeUndefined();
+    });
+
+    test("should keep invalid public lookup and removal operations graceful", () => {
+      expect(client.getRelay("https://not-a-relay.example")).toBeUndefined();
+      expect(() =>
+        client.removeRelay("https://not-a-relay.example"),
+      ).not.toThrow();
+      expect(getNostrInternals(client).relays.size).toBe(1);
+    });
+
     test("should connect to relays", async () => {
       let connectCount = 0;
       client.on(RelayEvent.Connect, () => {
