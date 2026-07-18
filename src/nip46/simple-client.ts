@@ -153,9 +153,9 @@ export class SimpleNIP46Client {
 
       if (connectResponse.result !== "ack") {
         // If not "ack", it should be a required secret value
-        this.logger.debug(
-          `Connect response requires secret: ${connectResponse.result}`,
-        );
+        this.logger.debug("Connect response requires secret", {
+          hasSecret: true,
+        });
         if (!info.secret || info.secret !== connectResponse.result) {
           throw new NIP46ConnectionError("Invalid or missing required secret");
         }

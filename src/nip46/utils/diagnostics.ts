@@ -23,7 +23,7 @@ const SENSITIVE_FIELD_NAMES = new Set([
   "secret",
 ]);
 const LEGACY_PAYLOAD_MESSAGE = /^(.*(?:decrypted content|json payload):).*/i;
-const LEGACY_PAYLOAD_ARGUMENT_MESSAGE = /sending response for request/i;
+const LEGACY_RESPONSE_ENVELOPE_MESSAGE = /sending response for request/i;
 const CONNECTION_URI = /\b(bunker|nostrconnect):\/\/[^\s"']+/gi;
 
 function normalizedFieldName(fieldName: string): string {
@@ -59,33 +59,37 @@ function redactDiagnosticValue(
   }
   seen.add(value);
 
-  if (value instanceof Error) {
-    return {
-      name: value.name,
-      message: redactDiagnosticText(value.message),
-    };
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      redactDiagnosticValue(item as DiagnosticLogArgument, seen),
-    );
-  }
-
-  const sanitized: Record<string, DiagnosticLogArgument> = {};
-  for (const [key, nestedValue] of Object.entries(value)) {
-    if (SENSITIVE_FIELD_NAMES.has(normalizedFieldName(key))) {
-      sanitized[key] = REDACTED;
-      continue;
+  try {
+    if (value instanceof Error) {
+      return {
+        name: value.name,
+        message: redactDiagnosticText(value.message),
+      };
     }
 
-    sanitized[key] = redactDiagnosticValue(
-      nestedValue as DiagnosticLogArgument,
-      seen,
-    );
-  }
+    if (Array.isArray(value)) {
+      return value.map((item) =>
+        redactDiagnosticValue(item as DiagnosticLogArgument, seen),
+      );
+    }
 
-  return sanitized;
+    const sanitized: Record<string, DiagnosticLogArgument> = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (SENSITIVE_FIELD_NAMES.has(normalizedFieldName(key))) {
+        sanitized[key] = REDACTED;
+        continue;
+      }
+
+      sanitized[key] = redactDiagnosticValue(
+        nestedValue as DiagnosticLogArgument,
+        seen,
+      );
+    }
+
+    return sanitized;
+  } finally {
+    seen.delete(value);
+  }
 }
 
 /**
@@ -111,11 +115,19 @@ export class NIP46DiagnosticLogger implements DiagnosticLogger {
     message: string,
     args: DiagnosticLogArgument[],
   ): void {
-    const seen = new WeakSet<object>();
-    const sanitizedArguments = LEGACY_PAYLOAD_ARGUMENT_MESSAGE.test(message)
-      ? args.map(() => REDACTED)
-      : args.map((argument) => redactDiagnosticValue(argument, seen));
-    this.delegate[level](redactDiagnosticText(message), ...sanitizedArguments);
+    try {
+      const sanitizedArguments = LEGACY_RESPONSE_ENVELOPE_MESSAGE.test(message)
+        ? args.map(() => REDACTED)
+        : args.map((argument) =>
+            redactDiagnosticValue(argument, new WeakSet<object>()),
+          );
+      this.delegate[level](
+        redactDiagnosticText(message),
+        ...sanitizedArguments,
+      );
+    } catch {
+      // Diagnostics are observational and must not alter NIP-46 behavior.
+    }
   }
 
   error(message: string, ...args: DiagnosticLogArgument[]): void {
@@ -139,8 +151,13 @@ export class NIP46DiagnosticLogger implements DiagnosticLogger {
   }
 
   setLevel(level: LogLevel): void {
-    if (this.delegate instanceof Logger) {
-      this.delegate.setLevel(level);
+    try {
+      const levelAwareLogger = this.delegate as DiagnosticLogger & {
+        setLevel?: (nextLevel: LogLevel) => void;
+      };
+      levelAwareLogger.setLevel?.(level);
+    } catch {
+      // A custom logger controls its own filtering and cannot alter behavior.
     }
   }
 }

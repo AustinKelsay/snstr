@@ -3,6 +3,7 @@ import {
   type DiagnosticLogger,
   NostrRemoteSignerBunker,
   NostrRemoteSignerClient,
+  LogLevel,
   SimpleNIP46Bunker,
   SimpleNIP46Client,
   generateKeypair,
@@ -42,7 +43,7 @@ function renderDiagnostics(diagnostics: CapturedDiagnostic[]): string {
   return JSON.stringify(diagnostics);
 }
 
-function expectSafeDiagnostics(
+function expectNoSensitiveDiagnostics(
   diagnostics: CapturedDiagnostic[],
   sensitiveValues: string[],
 ): void {
@@ -52,8 +53,16 @@ function expectSafeDiagnostics(
     expect(rendered).not.toContain(sensitiveValue);
   }
 
-  expect(rendered).toContain("sign_event");
   expect(diagnostics.length).toBeGreaterThan(0);
+
+  for (const level of ["info", "debug", "trace"] as const) {
+    const atLevel = renderDiagnostics(
+      diagnostics.filter((diagnostic) => diagnostic.level === level),
+    );
+    for (const sensitiveValue of sensitiveValues) {
+      expect(atLevel).not.toContain(sensitiveValue);
+    }
+  }
 }
 
 describe("NIP-46 diagnostic redaction", () => {
@@ -75,6 +84,8 @@ describe("NIP-46 diagnostic redaction", () => {
     const signerKeys = await generateKeypair();
     const connectionSecret = "connection-secret-advanced-client";
     const eventPlaintext = "private-event-advanced-client";
+    const encryptionPlaintext = "private-encryption-advanced-client";
+    const recipientKeys = await generateKeypair();
     const clientDiagnostics = createCapturingLogger();
     const bunkerDiagnostics = createCapturingLogger();
     const bunker = new SimpleNIP46Bunker(
@@ -83,7 +94,12 @@ describe("NIP-46 diagnostic redaction", () => {
       signerKeys.publicKey,
       {
         secret: connectionSecret,
-        defaultPermissions: ["get_public_key", "ping", "sign_event"],
+        defaultPermissions: [
+          "get_public_key",
+          "ping",
+          "sign_event",
+          "nip44_encrypt",
+        ],
         logger: bunkerDiagnostics.logger,
       },
     );
@@ -105,15 +121,24 @@ describe("NIP-46 diagnostic redaction", () => {
         created_at: 1_700_000_000,
         tags: [],
       });
+      await client.nip44Encrypt(recipientKeys.publicKey, encryptionPlaintext);
 
-      expectSafeDiagnostics(clientDiagnostics.diagnostics, [
+      expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
         connectionSecret,
         eventPlaintext,
+        encryptionPlaintext,
       ]);
-      expectSafeDiagnostics(bunkerDiagnostics.diagnostics, [
+      expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         connectionSecret,
         eventPlaintext,
+        encryptionPlaintext,
       ]);
+      expect(renderDiagnostics(clientDiagnostics.diagnostics)).toContain(
+        "sign_event",
+      );
+      expect(renderDiagnostics(bunkerDiagnostics.diagnostics)).toContain(
+        "sign_event",
+      );
     } finally {
       await client.disconnect().catch(() => undefined);
       await bunker.stop().catch(() => undefined);
@@ -125,6 +150,8 @@ describe("NIP-46 diagnostic redaction", () => {
     const signerKeys = await generateKeypair();
     const connectionSecret = "connection-secret-simple-client";
     const eventPlaintext = "private-event-simple-client";
+    const encryptionPlaintext = "private-encryption-simple-client";
+    const recipientKeys = await generateKeypair();
     const clientDiagnostics = createCapturingLogger();
     const bunkerDiagnostics = createCapturingLogger();
     const bunker = new NostrRemoteSignerBunker({
@@ -132,7 +159,12 @@ describe("NIP-46 diagnostic redaction", () => {
       signerPubkey: signerKeys.publicKey,
       relays: [relayUrl],
       secret: connectionSecret,
-      defaultPermissions: ["get_public_key", "ping", "sign_event"],
+      defaultPermissions: [
+        "get_public_key",
+        "ping",
+        "sign_event",
+        "nip44_encrypt",
+      ],
       logger: bunkerDiagnostics.logger,
     });
     const client = new SimpleNIP46Client([relayUrl], {
@@ -152,18 +184,154 @@ describe("NIP-46 diagnostic redaction", () => {
         created_at: 1_700_000_001,
         tags: [],
       });
+      await client.nip44Encrypt(recipientKeys.publicKey, encryptionPlaintext);
 
-      expectSafeDiagnostics(clientDiagnostics.diagnostics, [
+      expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
         connectionSecret,
         eventPlaintext,
+        encryptionPlaintext,
       ]);
-      expectSafeDiagnostics(bunkerDiagnostics.diagnostics, [
+      expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         connectionSecret,
         eventPlaintext,
+        encryptionPlaintext,
       ]);
+      expect(renderDiagnostics(clientDiagnostics.diagnostics)).toContain(
+        "sign_event",
+      );
+      expect(renderDiagnostics(bunkerDiagnostics.diagnostics)).toContain(
+        "sign_event",
+      );
     } finally {
       await client.disconnect().catch(() => undefined);
       await bunker.stop().catch(() => undefined);
     }
+  });
+
+  test("legacy simple facades redact secret connect responses", async () => {
+    const userKeys = await generateKeypair();
+    const signerKeys = await generateKeypair();
+    const connectionSecret = "legacy-connect-response-secret";
+    const clientDiagnostics = createCapturingLogger();
+    const bunkerDiagnostics = createCapturingLogger();
+    const bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeys.publicKey,
+      signerKeys.publicKey,
+      {
+        secret: connectionSecret,
+        defaultPermissions: ["get_public_key"],
+        logger: bunkerDiagnostics.logger,
+      },
+    );
+    const client = new SimpleNIP46Client([relayUrl], {
+      timeout: 3000,
+      logger: clientDiagnostics.logger,
+    });
+
+    bunker.setUserPrivateKey(userKeys.privateKey);
+    bunker.setSignerPrivateKey(signerKeys.privateKey);
+
+    try {
+      await bunker.start();
+      await client.connect(bunker.getConnectionString());
+
+      expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
+        connectionSecret,
+      ]);
+      expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
+        connectionSecret,
+      ]);
+      expect(renderDiagnostics(clientDiagnostics.diagnostics)).toContain(
+        "Connect response requires secret",
+      );
+    } finally {
+      await client.disconnect().catch(() => undefined);
+      await bunker.stop().catch(() => undefined);
+    }
+  });
+
+  test("invalid secrets retain safe failure metadata", async () => {
+    const userKeys = await generateKeypair();
+    const signerKeys = await generateKeypair();
+    const expectedSecret = "expected-connect-secret";
+    const rejectedSecret = "rejected-connect-secret";
+    const clientDiagnostics = createCapturingLogger();
+    const bunkerDiagnostics = createCapturingLogger();
+    const bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeys.publicKey,
+      signerKeys.publicKey,
+      {
+        secret: expectedSecret,
+        logger: bunkerDiagnostics.logger,
+      },
+    );
+    const client = new NostrRemoteSignerClient({
+      relays: [relayUrl],
+      timeout: 3000,
+      logger: clientDiagnostics.logger,
+    });
+
+    bunker.setUserPrivateKey(userKeys.privateKey);
+    bunker.setSignerPrivateKey(signerKeys.privateKey);
+
+    try {
+      await bunker.start();
+      const rejectedConnectionString = bunker
+        .getConnectionString()
+        .replace(expectedSecret, rejectedSecret);
+
+      await expect(client.connect(rejectedConnectionString)).rejects.toThrow(
+        /invalid secret/i,
+      );
+
+      expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
+        expectedSecret,
+        rejectedSecret,
+      ]);
+      expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
+        expectedSecret,
+        rejectedSecret,
+      ]);
+      const failureDiagnostics = renderDiagnostics(
+        bunkerDiagnostics.diagnostics,
+      );
+      expect(failureDiagnostics).toMatch(/invalid secret/i);
+      expect(failureDiagnostics).toContain("connect");
+    } finally {
+      await client.disconnect().catch(() => undefined);
+      await bunker.stop().catch(() => undefined);
+    }
+  });
+
+  test("throwing diagnostics cannot alter public behavior", async () => {
+    const userKeys = await generateKeypair();
+    const setLevel = jest.fn(() => {
+      throw new Error("set level failed");
+    });
+    const throwDiagnostic = (): never => {
+      throw new Error("diagnostic failed");
+    };
+    const logger = {
+      error: throwDiagnostic,
+      warn: throwDiagnostic,
+      info: throwDiagnostic,
+      debug: throwDiagnostic,
+      trace: throwDiagnostic,
+      setLevel,
+    };
+
+    expect(
+      () =>
+        new NostrRemoteSignerBunker({
+          userPubkey: userKeys.publicKey,
+          logger,
+        }),
+    ).not.toThrow();
+
+    const client = new SimpleNIP46Client([], { logger });
+    expect(() => client.setLogLevel(LogLevel.TRACE)).not.toThrow();
+    expect(setLevel).toHaveBeenCalledWith(LogLevel.TRACE);
   });
 });
