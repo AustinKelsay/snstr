@@ -5,7 +5,7 @@
 - Issue: #112 — Make NIP-44 legacy-version behavior explicit and vector-tested
 - Fixed point before session: `df13432`
 - Implementation owner: current Codex orchestrator; Grok unavailable at authentication preflight
-- Commit: `ab22d13`, `fa85df2`, plus CodeRabbit fix pending
+- Commits: `ab22d13`, `fa85df2`, `03e4eb5`
 - Status: implementation, integrated verification, and local review complete
 
 ## Inputs

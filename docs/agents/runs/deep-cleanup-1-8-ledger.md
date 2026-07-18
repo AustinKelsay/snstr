@@ -27,7 +27,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 - Agent briefs: Grok 4.5 is the only owner-approved delegated sidecar; `agent` authentication was unavailable at preflight, so no substitute subagent is used and Codex owns local execution/review
 - Review packets: created per ticket
 - Local CodeRabbit report: issue #112 round completed with five worthy fixes in `issue-112-coderabbit-local.md`
-- PR URLs: recorded per ticket after push
+- PR URLs: #120 for issue #112; later tickets pending
 
 ## Commands
 
@@ -60,7 +60,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 | Issue | Fixed point | Implementation owner | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | `ab22d13` + review fix pending | standards/spec pass after one fix | NIP-44 107/107; Jest 991/991; Bun 991/991; lint, types, builds, commands, pack |
+| #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | `ab22d13`, `fa85df2`, `03e4eb5` | standards/spec pass after one fix; CodeRabbit 5/5 fixed | NIP-44 107/107; Jest 991/991; Bun 991/991; lint, types, builds, commands, pack |
 
 ## Alignment Decisions
 
