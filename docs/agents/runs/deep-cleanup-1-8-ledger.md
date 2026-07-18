@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, rebased from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: issues #112, #118, #113, #114, #115, and #116 merged into `staging`; issue #117 implementation and local review verified
+- Current status: issues #112–#119 completed; delivery PRs #120–#127 merged into `staging`; final integration audit green at `8a04c9a`
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal
@@ -27,7 +27,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 - Agent briefs: Grok 4.5 is the only owner-approved delegated sidecar; `agent` authentication was unavailable at preflight, so no substitute subagent is used and Codex owns local execution/review
 - Review packets: created per ticket
 - Local CodeRabbit report: issue #112 round completed with five worthy fixes in `issue-112-coderabbit-local.md`
-- PR URLs: #120 for issue #112, #121 for issue #118, #122 for issue #113, #123 for issue #114, #124 for issue #115, #125 for issue #116 (all merged); later tickets pending
+- PR URLs: #120 for issue #112, #121 for issue #118, #122 for issue #113, #123 for issue #114, #124 for issue #115, #125 for issue #116, #126 for issue #117, and #127 for issue #119; all merged into `staging`
 
 ## Commands
 
@@ -39,16 +39,16 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 
 ## Ticket Ledger
 
-| Issue                                | Type | Status                                                 | Branch                                  | Review                                                                                                   | Verified                                                                                                            |
-| ------------------------------------ | ---- | ------------------------------------------------------ | --------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| #112 NIP-44 legacy behavior          | AFK  | merged into `staging`                                  | `feature/nip44-legacy-compat`           | standards/spec pass; local CodeRabbit 5 fixed; hosted CodeRabbit 3 fixed                                 | yes                                                                                                                 |
-| #118 authoritative protocol messages | AFK  | merged into `staging`                                  | `feature/protocol-message-types`        | standards/spec pass; local CodeRabbit 4 fixed, 1 evidence-based skip; hosted 2 fixed                     | Jest 994/994; Bun full; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack                             |
-| #113 Relay event-store seam          | AFK  | merged into `staging`                                  | `feature/relay-event-store`             | standards/spec pass; local CodeRabbit 4 fixed; hosted clean                                              | focused Jest/Bun 80/80; full Jest/Bun 1013/1013; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack    |
-| #114 NIP-47 protocol machinery       | AFK  | merged into `staging`                                  | `feature/nip47-protocol-codecs`         | standards/spec pass; local CodeRabbit 2 fixed, 7 compatibility skips; hosted 3 fixed; final hosted clean | focused 71/71; full Jest/Bun 1021/1021; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack             |
-| #115 Nostr relay registry            | AFK  | merged into `staging`                                  | `feature/nostr-relay-registry`          | standards/spec pass; local CodeRabbit 1 fixed; hosted clean                                              | focused 61/61; full Jest/Bun 1026/1026; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack             |
-| #116 ephemeral Relay ownership       | AFK  | merged into `staging`                                  | `feature/ephemeral-relay-ownership`     | standards/spec pass; local CodeRabbit clean; hosted 2 fixed, 2 unrelated skips; final hosted clean       | focused 25/25; full Jest/Bun 1026/1026; hosted Node 16/18/20 + Bun; commands, lint, types, builds, examples, pack   |
-| #117 security validation ownership   | AFK  | merged into `staging`                                  | `feature/security-validation-ownership` | standards/spec pass; local CodeRabbit 1 fixed; hosted 2 fixed                                            | focused 273/273; coverage 231/231 and 81.19% branches; full Jest/Bun 1030/1030; commands, lint, types, builds, pack |
-| #119 package-manager policy          | AFK  | implementation, local review, and full matrix verified | `feature/package-manager-policy`        | standards/spec pass; local CodeRabbit 5 fixed, 2 evidence-based skips                                    | clean npm/Bun installs; focused 19/19; full Jest/Bun 1033/1033; coverage, commands, lint, builds, examples, pack    |
+| Issue                                | Type | Status                | Branch                                  | Review                                                                                                   | Verified                                                                                                            |
+| ------------------------------------ | ---- | --------------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| #112 NIP-44 legacy behavior          | AFK  | merged into `staging` | `feature/nip44-legacy-compat`           | standards/spec pass; local CodeRabbit 5 fixed; hosted CodeRabbit 3 fixed                                 | yes                                                                                                                 |
+| #118 authoritative protocol messages | AFK  | merged into `staging` | `feature/protocol-message-types`        | standards/spec pass; local CodeRabbit 4 fixed, 1 evidence-based skip; hosted 2 fixed                     | Jest 994/994; Bun full; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack                             |
+| #113 Relay event-store seam          | AFK  | merged into `staging` | `feature/relay-event-store`             | standards/spec pass; local CodeRabbit 4 fixed; hosted clean                                              | focused Jest/Bun 80/80; full Jest/Bun 1013/1013; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack    |
+| #114 NIP-47 protocol machinery       | AFK  | merged into `staging` | `feature/nip47-protocol-codecs`         | standards/spec pass; local CodeRabbit 2 fixed, 7 compatibility skips; hosted 3 fixed; final hosted clean | focused 71/71; full Jest/Bun 1021/1021; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack             |
+| #115 Nostr relay registry            | AFK  | merged into `staging` | `feature/nostr-relay-registry`          | standards/spec pass; local CodeRabbit 1 fixed; hosted clean                                              | focused 61/61; full Jest/Bun 1026/1026; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack             |
+| #116 ephemeral Relay ownership       | AFK  | merged into `staging` | `feature/ephemeral-relay-ownership`     | standards/spec pass; local CodeRabbit clean; hosted 2 fixed, 2 unrelated skips; final hosted clean       | focused 25/25; full Jest/Bun 1026/1026; hosted Node 16/18/20 + Bun; commands, lint, types, builds, examples, pack   |
+| #117 security validation ownership   | AFK  | merged into `staging` | `feature/security-validation-ownership` | standards/spec pass; local CodeRabbit 1 fixed; hosted 2 fixed                                            | focused 273/273; coverage 231/231 and 81.19% branches; full Jest/Bun 1030/1030; commands, lint, types, builds, pack |
+| #119 package-manager policy          | AFK  | merged into `staging` | `feature/package-manager-policy`        | standards/spec pass; local 5 fixed/2 skipped; hosted 4 fixed; final hosted clean                         | clean npm/Bun installs; focused 28/28; full Jest/Bun 1033/1033; hosted Node 16/18/20 + Bun; all gates               |
 
 ## Parked HITL Slices
 
@@ -67,6 +67,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 | #115  | `4e40b63`   | current Codex orchestrator; Grok unavailable at auth preflight | PR #124, merge `9e3aca8` | standards/spec pass; local CodeRabbit 1/1 fixed; hosted clean                                                                    | focused Nostr/registry/integration 61/61; full Jest/Bun 1026/1026; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack |
 | #116  | `9e3aca8`   | current Codex orchestrator; Grok unavailable at auth preflight | PR #125, merge `94eed4a` | standards/spec pass; local CodeRabbit clean; hosted 2/2 package findings fixed, 2 unrelated NIP-02 findings skipped; final clean | focused 25/25; full Jest/Bun 1026/1026; hosted Node 16/18/20 + Bun; commands, lint, types, builds, examples, pack                  |
 | #117  | `94eed4a`   | current Codex orchestrator; Grok unavailable at auth preflight | PR #126, merge `1838789` | standards/spec pass; local CodeRabbit 1/1 fixed; hosted 2/2 fixed; final hosted clean                                            | focused 273/273; coverage 231/231 with 81.19% aggregate branches; full Jest/Bun 1030/1030; hosted Node 16/18/20 + Bun; all gates   |
+| #119  | `1838789`   | current Codex orchestrator; Grok unavailable at auth preflight | PR #127, merge `8a04c9a` | standards/spec pass; local CodeRabbit 5 fixed/2 skipped with evidence; hosted 4/4 fixed; final hosted clean                      | clean installs; verifier 28/28; Jest/coverage/Bun 1033/1033; coverage 77.38% statements/64.43% branches; hosted all lanes          |
 
 ## Alignment Decisions
 
