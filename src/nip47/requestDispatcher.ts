@@ -111,14 +111,18 @@ export async function dispatchNIP47Request(
         const params = request.params as LookupInvoiceParams;
         if (
           !isObject(params) ||
+          (params.payment_hash !== undefined &&
+            typeof params.payment_hash !== "string") ||
+          (params.invoice !== undefined &&
+            typeof params.invoice !== "string") ||
           (typeof params.payment_hash !== "string" &&
             typeof params.invoice !== "string")
         )
           return invalid("Invalid parameters for lookup_invoice method");
         try {
           result = await wallet.lookupInvoice({
-            payment_hash: params.payment_hash as string | undefined,
-            invoice: params.invoice as string | undefined,
+            payment_hash: params.payment_hash,
+            invoice: params.invoice,
           });
         } catch (error) {
           const known = error as { code?: NIP47ErrorCode; message?: string };

@@ -29,7 +29,7 @@ import { maybeUnref } from "../utils/timers";
 import { Logger, LogLevel } from "../utils/logger";
 import type { DiagnosticLogger } from "../utils/logger";
 import { dispatchNIP47Request } from "./requestDispatcher";
-import { parseNIP47Request } from "./protocol";
+import { NIP47RequestParseError, parseNIP47Request } from "./protocol";
 
 /**
  * TTL Map implementation with automatic cleanup
@@ -415,7 +415,9 @@ export class NostrWalletService {
         }
       } catch (error) {
         if (error instanceof SecurityValidationError) {
-          this.logger.warn("NIP-47: Bounds checking error in expiration parsing");
+          this.logger.warn(
+            "NIP-47: Bounds checking error in expiration parsing",
+          );
         }
       }
 
@@ -545,9 +547,7 @@ export class NostrWalletService {
             event.content,
           );
         }
-        this.logger.trace(
-          "Successfully decrypted request content",
-        );
+        this.logger.trace("Successfully decrypted request content");
       } catch (decryptError) {
         this.logger.error(
           "Failed to decrypt message:",
@@ -636,7 +636,9 @@ export class NostrWalletService {
         await this.sendErrorResponse(
           requesterClientPubkey,
           this.pubkey,
-          NIP47ErrorCode.INTERNAL_ERROR,
+          error instanceof NIP47RequestParseError
+            ? NIP47ErrorCode.INVALID_REQUEST
+            : NIP47ErrorCode.INTERNAL_ERROR,
           error instanceof Error ? error.message : "Internal server error",
           event.id,
           methodForError,

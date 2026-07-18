@@ -15,6 +15,9 @@ describe("NIP-47 protocol codecs", () => {
     };
 
     expect(parseNWCURL(generateNWCURL(options))).toEqual(options);
+    expect(() =>
+      parseNWCURL("nostr+walletconnect://wallet?secret=secret"),
+    ).toThrow("At least one relay must be specified");
   });
 
   test("keeps the caller's protocol error type", () => {
@@ -48,5 +51,8 @@ describe("NIP-47 protocol codecs", () => {
     expect(() =>
       parseNIP47Request('{"method":"get_balance","params":[]}'),
     ).toThrow("Invalid request: missing or invalid params");
+    expect(() => parseNIP47Request("{")).toThrow(
+      "Invalid request: malformed JSON",
+    );
   });
 });

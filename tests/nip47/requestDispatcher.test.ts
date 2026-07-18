@@ -91,4 +91,22 @@ describe("NIP-47 request dispatcher", () => {
     expect(response.error?.code).toBe(NIP47ErrorCode.NOT_FOUND);
     expect(response.error?.message).toContain("payment_hash: missing");
   });
+
+  test("rejects an invalid secondary lookup identifier", async () => {
+    const implementation = wallet();
+    const response = await dispatchNIP47Request(
+      {
+        method: NIP47Method.LOOKUP_INVOICE,
+        params: { payment_hash: "valid", invoice: 1 } as never,
+      },
+      {
+        wallet: implementation,
+        supportedMethods: [NIP47Method.LOOKUP_INVOICE],
+        supportedEncryption,
+      },
+    );
+
+    expect(implementation.lookupInvoice).not.toHaveBeenCalled();
+    expect(response.error?.code).toBe(NIP47ErrorCode.INVALID_REQUEST);
+  });
 });

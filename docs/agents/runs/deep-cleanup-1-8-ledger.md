@@ -44,7 +44,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 | #112 NIP-44 legacy behavior | AFK | merged into `staging` | `feature/nip44-legacy-compat` | standards/spec pass; local CodeRabbit 5 fixed; hosted CodeRabbit 3 fixed | yes |
 | #118 authoritative protocol messages | AFK | merged into `staging` | `feature/protocol-message-types` | standards/spec pass; local CodeRabbit 4 fixed, 1 evidence-based skip; hosted 2 fixed | Jest 994/994; Bun full; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack |
 | #113 Relay event-store seam | AFK | merged into `staging` | `feature/relay-event-store` | standards/spec pass; local CodeRabbit 4 fixed; hosted clean | focused Jest/Bun 80/80; full Jest/Bun 1013/1013; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack |
-| #114 NIP-47 protocol machinery | AFK | implementation, local review, and full matrix verified | `feature/nip47-protocol-codecs` | standards/spec pass; local CodeRabbit 2 fixed, 7 compatibility skips | focused 70/70; full Jest/Bun 1021/1021; commands, lint, types, builds, pack |
+| #114 NIP-47 protocol machinery | AFK | hosted review fixes verified; hosted matrix rerunning | `feature/nip47-protocol-codecs` | standards/spec pass; local CodeRabbit 2 fixed, 7 compatibility skips; hosted 3 fixed | focused 71/71; pre-hosted-fix full Jest/Bun 1021/1021; commands, lint, types, builds, pack |
 | #115 Nostr relay registry | AFK | blocked by #113 | `feature/nostr-relay-registry` | pending | no |
 | #116 ephemeral Relay ownership | AFK | blocked by #113 | `feature/ephemeral-relay-ownership` | pending | no |
 | #117 security validation ownership | AFK | blocked by #113 and #115 | `feature/security-validation-ownership` | pending | no |
@@ -63,7 +63,7 @@ Complete cleanup items 1–8 from the post-v0.5.0 repository audit end to end, b
 | #112 | `df13432` | current Codex orchestrator; Grok unavailable at auth preflight | PR #120, merge `c7cb99f` | standards/spec pass after one fix; local CodeRabbit 5/5 and hosted CodeRabbit 3/3 fixed | NIP-44 107/107; Jest 991/991; Bun 991/991; hosted Node 16/18/20 + Bun; lint, types, builds, commands, pack |
 | #118 | `c7cb99f` | current Codex orchestrator; Grok unavailable at auth preflight | PR #121, merge `8c36233` | standards/spec pass; local CodeRabbit 4 fixed, 1 skipped with type evidence; hosted 2/2 fixed | Jest 994/994; Bun full; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack |
 | #113 | `8c36233` | current Codex orchestrator; Grok unavailable at auth preflight | PR #122, merge `da7361e` | standards/spec pass; local CodeRabbit 4/4 fixed; hosted clean | focused Relay/store Jest and Bun 80/80; full Jest/Bun 1013/1013; hosted Node 16/18/20 + Bun; commands, lint, types, builds, pack |
-| #114 | `da7361e` | current Codex orchestrator; Grok unavailable at auth preflight | pending | standards/spec pass; local CodeRabbit 2 fixed, 7 skipped to preserve public compatibility | focused NIP-47 70/70; full Jest/Bun 1021/1021; commands, lint, types, builds, pack |
+| #114 | `da7361e` | current Codex orchestrator; Grok unavailable at auth preflight | PR #123 pending | standards/spec pass; local CodeRabbit 2 fixed, 7 skipped to preserve public compatibility; hosted 3 fixed | focused NIP-47 71/71; pre-hosted-fix full Jest/Bun 1021/1021; commands, lint, types, builds, pack; hosted rerun pending |
 
 ## Alignment Decisions
 

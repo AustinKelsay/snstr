@@ -164,6 +164,14 @@ interface ServiceWithPrivates {
   handleEvent: (
     event: import("../../src/types/nostr").NostrEvent,
   ) => Promise<void>;
+  sendErrorResponse: (
+    clientPubkey: string,
+    serviceContextPubkey: string,
+    errorCode: NIP47ErrorCode,
+    errorMessage: string,
+    requestId: string,
+    method: NIP47Method,
+  ) => Promise<void>;
 }
 
 interface ClientInitializationState {
@@ -347,8 +355,7 @@ describe("NIP-47 client initialization fallback", () => {
   );
 
   it("invalidates an in-flight initialization when disconnected", async () => {
-    const { fallbackClient, internals, subscriptions } =
-      createFallbackClient();
+    const { fallbackClient, internals, subscriptions } = createFallbackClient();
     let releaseCapabilityWait!: () => void;
     const capabilityWaitGate = new Promise<void>((resolve) => {
       releaseCapabilityWait = resolve;
@@ -668,7 +675,9 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         expect(diagnostics).not.toContain(connectionOptions.secret);
         expect(diagnostics).not.toContain(diagnosticClient.getPublicKey());
         expect(diagnostics).not.toMatch(/\b[0-9a-f]{64}\b/i);
-        expect(diagnostics).not.toMatch(/event id|request id|subscription ids?/i);
+        expect(diagnostics).not.toMatch(
+          /event id|request id|subscription ids?/i,
+        );
       } finally {
         await diagnosticClient.disconnect();
       }
@@ -1032,16 +1041,13 @@ describe("NIP-47: Nostr Wallet Connect", () => {
 
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining(
-            "Failed to decrypt message:",
-          ),
+          expect.stringContaining("Failed to decrypt message:"),
           expect.any(Error),
         );
 
         // Verify the map was cleaned up
         expect(requestEncryptionMap.size).toBe(initialSize);
         expect(requestEncryptionMap.has(event.id)).toBe(false);
-
         consoleErrorSpy.mockRestore();
       });
 
@@ -1100,6 +1106,10 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         const serviceWithPrivates = service as unknown as ServiceWithPrivates;
         const requestEncryptionMap = serviceWithPrivates.requestEncryption;
         const initialSize = requestEncryptionMap.size;
+        const sendErrorResponseSpy = jest.spyOn(
+          serviceWithPrivates,
+          "sendErrorResponse",
+        );
 
         // Spy on console.error to verify the error is logged
         const consoleErrorSpy = jest
@@ -1121,6 +1131,14 @@ describe("NIP-47: Nostr Wallet Connect", () => {
         // Verify the map was cleaned up
         expect(requestEncryptionMap.size).toBe(initialSize);
         expect(requestEncryptionMap.has(event.id)).toBe(false);
+        expect(sendErrorResponseSpy).toHaveBeenCalledWith(
+          clientKeypair.publicKey,
+          serviceKeypair.publicKey,
+          NIP47ErrorCode.INVALID_REQUEST,
+          "Invalid request: malformed JSON",
+          event.id,
+          NIP47Method.UNKNOWN,
+        );
 
         consoleErrorSpy.mockRestore();
       });

@@ -23,8 +23,12 @@ export function parseNWCURL(url: string): NIP47ConnectionOptions {
   if (!pubkey) throw new Error("Missing pubkey in NWC URL");
   const secret = parsed.searchParams.get("secret");
   if (!secret) throw new Error("Missing secret in NWC URL");
+  const relays = parsed.searchParams.getAll("relay");
+  if (relays.length === 0) {
+    throw new Error("At least one relay must be specified");
+  }
 
-  return { pubkey, secret, relays: parsed.searchParams.getAll("relay") };
+  return { pubkey, secret, relays };
 }
 
 export function generateNWCURL(options: NIP47ConnectionOptions): string {
@@ -89,21 +93,37 @@ export function validateNIP47Response(
       } as NIP47Response);
 }
 
+export class NIP47RequestParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NIP47RequestParseError";
+  }
+}
+
 export function parseNIP47Request(content: string): NIP47Request {
-  const request: unknown = JSON.parse(content);
+  let request: unknown;
+  try {
+    request = JSON.parse(content);
+  } catch {
+    throw new NIP47RequestParseError("Invalid request: malformed JSON");
+  }
   if (!request || typeof request !== "object") {
-    throw new Error("Invalid request: not an object");
+    throw new NIP47RequestParseError("Invalid request: not an object");
   }
   const value = request as Record<string, unknown>;
   if (typeof value.method !== "string" || !value.method) {
-    throw new Error("Invalid request: missing or invalid method");
+    throw new NIP47RequestParseError(
+      "Invalid request: missing or invalid method",
+    );
   }
   if (
     !value.params ||
     typeof value.params !== "object" ||
     Array.isArray(value.params)
   ) {
-    throw new Error("Invalid request: missing or invalid params");
+    throw new NIP47RequestParseError(
+      "Invalid request: missing or invalid params",
+    );
   }
   return request as NIP47Request;
 }
