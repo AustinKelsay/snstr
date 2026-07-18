@@ -26,7 +26,7 @@ import {
   parseContactsFromEvent,
   parseContactsFromEventWithWarnings,
   Contact,
-  Logger,
+  WarningLogger,
 } from './index';
 import { NostrEvent /*, signEvent */ } from 'snstr'; // Assuming signEvent and NostrEvent types
 
@@ -77,9 +77,9 @@ if (receivedEvent.kind === 3) {
   console.log('Parsed Contacts:', contacts);
   
   // Parsing with custom logger
-  const customLogger: Logger = {
-    warn: (message: string, ...args: any[]) => {
-      console.warn(`[Custom Logger] ${message}`, ...args);
+  const customLogger: WarningLogger = {
+    warn: (message, data) => {
+      console.warn(`[Custom Logger] ${message}`, data);
     }
   };
   
@@ -103,6 +103,10 @@ if (receivedEvent.kind === 3) {
 }
 ```
 
+`WarningLogger` is the explicit warn-only view used by NIP-02. The previous
+`Logger` type name remains as a deprecated, source-compatible alias throughout
+the 0.x release line; removing that ambiguous name is next-major work.
+
 ## Implementation Details
 
 - The `ContactListEvent` interface (kind 3) extends the base `NostrEvent`.
@@ -121,4 +125,4 @@ if (receivedEvent.kind === 3) {
 ## Security Considerations
 
 - Input sanitization for petnames is recommended if they are to be displayed directly in HTML to prevent XSS attacks.
-- When processing relay URLs from events, validate them to ensure they are well-formed and potentially check against a whitelist if connecting automatically. 
+- When processing relay URLs from events, validate them to ensure they are well-formed and potentially check against a whitelist if connecting automatically.

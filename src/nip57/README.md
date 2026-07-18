@@ -160,6 +160,23 @@ console.log(`User received ${stats.total / 1000} sats across ${stats.count} zaps
 const eventZaps = await zapClient.fetchEventZaps('event_id');
 ```
 
+NIP-57 clients are quiet by default. To receive LNURL and Relay cleanup
+diagnostics, pass the shared `DiagnosticLogger` contract:
+
+```typescript
+import type { DiagnosticLogger } from 'snstr';
+
+const logger: DiagnosticLogger = {
+  error: (message, ...context) => console.error(message, ...context),
+  warn: (message, ...context) => console.warn(message, ...context),
+  info: () => {},
+  debug: () => {},
+  trace: () => {},
+};
+
+const diagnosticZapClient = new NostrZapClient({ client: nostr, logger });
+```
+
 ### Creating a Zap Request
 
 ```typescript

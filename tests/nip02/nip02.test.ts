@@ -363,6 +363,31 @@ describe("NIP-02: Contact Lists", () => {
       expect(contact4?.relayUrl).toBe("ws://valid.but.different.com");
     });
 
+    it("routes warnings through an unchanged warn-only logger", () => {
+      const warnings: Array<{ message: string; value?: string }> = [];
+      const logger = {
+        warn: (message: string, data?: { value: string }): void => {
+          warnings.push({ message, value: data?.value });
+        },
+      };
+      const event: ContactsEvent = {
+        ...baseEvent,
+        tags: [["p", userBPubKey, "https://relay.invalid"]],
+        content: "",
+      };
+
+      const contacts = parseContactsFromEvent(event, { logger });
+
+      expect(contacts).toEqual([{ pubkey: userBPubKey }]);
+      expect(warnings).toEqual([
+        {
+          message:
+            "Invalid relay URL (missing ws/wss scheme): https://relay.invalid",
+          value: "https://relay.invalid",
+        },
+      ]);
+    });
+
     it("should still parse petnames even if relayUrl is invalid or absent", () => {
       const event: ContactsEvent = {
         ...baseEvent,

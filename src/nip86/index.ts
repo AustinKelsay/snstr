@@ -290,56 +290,56 @@ export class RelayManagementClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    let response: Response;
     try {
-      response = await fetchImplementation(this.relayUrl, {
-        method: "POST",
-        headers,
-        body,
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (isAbortLikeError(error)) {
-        const detail =
-          error instanceof Error && error.message ? `: ${error.message}` : "";
+      let response: Response;
+      try {
+        response = await fetchImplementation(this.relayUrl, {
+          method: "POST",
+          headers,
+          body,
+          signal: controller.signal,
+        });
+      } catch (error) {
+        if (isAbortLikeError(error)) {
+          const detail =
+            error instanceof Error && error.message ? `: ${error.message}` : "";
+          throw new RelayManagementError(
+            `Relay management request aborted/timed out${detail}`,
+          );
+        }
+
         throw new RelayManagementError(
-          `Relay management request aborted/timed out${detail}`,
+          `Relay management request failed: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
 
-      throw new RelayManagementError(
-        `Relay management request failed: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
+      const payload = await parseManagementResponse<T>(response);
 
-    let payload: RelayManagementResponse<T>;
-    try {
-      payload = await parseManagementResponse<T>(response);
+      if (!response.ok) {
+        throw new RelayManagementError(
+          payload.error ||
+            `Relay management request failed with ${response.status}`,
+          response.status,
+          payload,
+        );
+      }
+
+      if (payload.error) {
+        throw new RelayManagementError(payload.error, response.status, payload);
+      }
+
+      if (payload.result === undefined || payload.result === null) {
+        throw new RelayManagementError(
+          "Relay management response missing result",
+          response.status,
+          payload,
+        );
+      }
+
+      return payload.result;
     } finally {
       clearTimeout(timeoutId);
     }
-
-    if (!response.ok) {
-      throw new RelayManagementError(
-        payload.error || `Relay management request failed with ${response.status}`,
-        response.status,
-        payload,
-      );
-    }
-
-    if (payload.error) {
-      throw new RelayManagementError(payload.error, response.status, payload);
-    }
-
-    if (payload.result === undefined || payload.result === null) {
-      throw new RelayManagementError(
-        "Relay management response missing result",
-        response.status,
-        payload,
-      );
-    }
-
-    return payload.result;
   }
 
   supportedMethods(): Promise<string[]> {

@@ -20,6 +20,7 @@ import {
   parseRelayDiscoveryEvent,
   parseRelayMonitorAnnouncement,
 } from "../../src/nip66";
+import { Logger as CoreLogger, LogLevel } from "../../src/utils/logger";
 
 describe("web entry relay metadata exports", () => {
   it("uses the shared web entry for browser and React Native targets", () => {
@@ -77,6 +78,13 @@ describe("web entry relay metadata exports", () => {
 });
 
 describe("platform entry export policy", () => {
+  it("exposes the canonical diagnostic implementation on every platform entry", () => {
+    expect(nodeEntry.ConsoleLogger).toBe(CoreLogger);
+    expect(webEntry.ConsoleLogger).toBe(CoreLogger);
+    expect(nodeEntry.LogLevel).toBe(LogLevel);
+    expect(webEntry.LogLevel).toBe(LogLevel);
+  });
+
   it("keeps runtime drift limited to reviewed Node-only modules", () => {
     const nodeKeys = Object.keys(nodeEntry);
     const webKeys = Object.keys(webEntry);

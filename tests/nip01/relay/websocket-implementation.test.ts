@@ -46,21 +46,22 @@ class StrictDispatchWebSocket {
 
   constructor(public url: string) {
     StrictDispatchWebSocket.instances.push(this);
+    const lifecycle = StrictDispatchWebSocket.lifecycle;
+    StrictDispatchWebSocket.lifecycle = "open";
     setTimeout(() => {
-      if (StrictDispatchWebSocket.lifecycle === "open") {
+      if (lifecycle === "open") {
         this.readyState = StrictDispatchWebSocket.OPEN;
         this._onopen?.();
-      } else if (StrictDispatchWebSocket.lifecycle === "close") {
+      } else if (lifecycle === "close") {
         this.readyState = StrictDispatchWebSocket.CLOSED;
         this._onclose?.({
           type: "close",
           code: 1006,
           reason: "Strict pre-connect close",
         });
-      } else if (StrictDispatchWebSocket.lifecycle === "error") {
+      } else if (lifecycle === "error") {
         this._onerror?.(new Error("Strict pre-connect error"));
       }
-      StrictDispatchWebSocket.lifecycle = "open";
     }, 0);
   }
 
@@ -218,6 +219,28 @@ describe("useWebSocketImplementation", () => {
       process.removeListener("uncaughtException", handleUncaught);
       relay.disconnect();
     }
+  });
+
+  test("Relay.disconnect settles an in-flight connection attempt", async () => {
+    StrictDispatchWebSocket.lifecycle = "hang";
+    useWebSocketImplementation(
+      StrictDispatchWebSocket as unknown as typeof WebSocket,
+    );
+    const relay = new Relay("wss://example.com", {
+      autoReconnect: false,
+      connectionTimeout: 1000,
+    });
+
+    const connection = relay.connect();
+    relay.disconnect();
+
+    const result = await Promise.race([
+      connection,
+      new Promise<"pending">((resolve) =>
+        setTimeout(() => resolve("pending"), 50),
+      ),
+    ]);
+    expect(result).toBe(false);
   });
 
   test.each(["close", "error", "timeout"] as const)(

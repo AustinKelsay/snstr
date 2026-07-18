@@ -20,11 +20,26 @@ export interface LoggerOptions {
   silent?: boolean; // For testing - suppress all output
 }
 
-// Type for log arguments that covers most common use cases
-type LogArg = string | number | boolean | object | null | undefined;
+/** Values accepted as structured context by the shared diagnostic contract. */
+export type DiagnosticLogArgument =
+  | string
+  | number
+  | boolean
+  | object
+  | null
+  | undefined;
+
+/** Platform-safe five-level diagnostic seam used throughout SNSTR. */
+export interface DiagnosticLogger {
+  error(message: string, ...args: DiagnosticLogArgument[]): void;
+  warn(message: string, ...args: DiagnosticLogArgument[]): void;
+  info(message: string, ...args: DiagnosticLogArgument[]): void;
+  debug(message: string, ...args: DiagnosticLogArgument[]): void;
+  trace(message: string, ...args: DiagnosticLogArgument[]): void;
+}
 
 /** Lightweight console-backed logger with level filtering and optional prefixes. */
-export class Logger {
+export class Logger implements DiagnosticLogger {
   private level: LogLevel;
   private prefix: string;
   private includeTimestamp: boolean;
@@ -51,31 +66,31 @@ export class Logger {
     return formattedMessage + message;
   }
 
-  error(message: string, ...args: LogArg[]): void {
+  error(message: string, ...args: DiagnosticLogArgument[]): void {
     if (!this.silent && this.level >= LogLevel.ERROR) {
       console.error(this.formatMessage(message), ...args);
     }
   }
 
-  warn(message: string, ...args: LogArg[]): void {
+  warn(message: string, ...args: DiagnosticLogArgument[]): void {
     if (!this.silent && this.level >= LogLevel.WARN) {
       console.warn(this.formatMessage(message), ...args);
     }
   }
 
-  info(message: string, ...args: LogArg[]): void {
+  info(message: string, ...args: DiagnosticLogArgument[]): void {
     if (!this.silent && this.level >= LogLevel.INFO) {
       console.log(this.formatMessage(message), ...args);
     }
   }
 
-  debug(message: string, ...args: LogArg[]): void {
+  debug(message: string, ...args: DiagnosticLogArgument[]): void {
     if (!this.silent && this.level >= LogLevel.DEBUG) {
       console.log(this.formatMessage(message), ...args);
     }
   }
 
-  trace(message: string, ...args: LogArg[]): void {
+  trace(message: string, ...args: DiagnosticLogArgument[]): void {
     if (!this.silent && this.level >= LogLevel.TRACE) {
       console.log(this.formatMessage(message), ...args);
     }
