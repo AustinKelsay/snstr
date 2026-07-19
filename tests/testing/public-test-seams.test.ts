@@ -13,6 +13,8 @@ describe("public behavior test seams", () => {
     const behaviorTests = [
       "tests/integration.test.ts",
       "tests/nip01/event/addressable-events.test.ts",
+      "tests/nip01/event/event-ordering-integration.test.ts",
+      "tests/nip01/event/nostr-publish.test.ts",
       "tests/nip01/nostr.test.ts",
       "tests/nip01/relay/filters.test.ts",
       "tests/nip01/relay/relay-reconnect.test.ts",
@@ -26,6 +28,8 @@ describe("public behavior test seams", () => {
       "getNostrInternals",
       "RelayTestAccess",
       "asTestRelay",
+      "NostrPrivateMembers",
+      "asTestable",
     ]) {
       expect(testSupport).not.toContain(legacyAdapter);
       expect(behaviorTests).not.toContain(legacyAdapter);
