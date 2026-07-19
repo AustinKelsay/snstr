@@ -6,7 +6,7 @@
 - Fixed point before session: `3c1e905` (`staging` merge of PR #147)
 - Worker session: current Codex orchestrator; Grok 4.5 High is the exclusive delegated read-only reviewer
 - Commits: `d6504f6`, `7a48586`, `f8e9aac`, `96dd79f` plus review artifacts
-- Status: PR #148 open into `staging`; hosted rerun pending after one loaded Node 20 NIP-46 timeout
+- Status: complete; PR #148 merged into `staging` as `9c9e14c`; issue #139 and parent spec #130 closed
 
 ## Inputs
 
@@ -53,5 +53,8 @@
 - Routine Jest/Bun: 1,074/1,074 each.
 - Slow Jest/Bun: 35/35 each.
 - Complete Jest coverage inventory: 1,109/1,109.
+- Hosted verification: Bun and Node 16/18/20 all green on the final head. An earlier Node 20 run had one isolated loaded-suite NIP-46 timeout while the same inventory passed on Node 16/18 and locally; the clean rerun passed unchanged production code.
+- Hosted CodeRabbit: remained pending for the full 20-minute Feature Dev window without posting findings. The documented fallback was applied after two full local passes, one zero-finding incremental pass, final Grok approval, and four green hosted CI jobs.
+- Integrated: PR #148 merged into `staging` at `9c9e14c` on 2026-07-19.
 - Policy, lint, strict types, CJS/ESM and examples builds, web exports, and pack verification: green.
 - Pack verification: 19 referenced targets, 376 packed files, 55 web modules, 3 guarded Node fallbacks.

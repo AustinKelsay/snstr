@@ -30,6 +30,8 @@
 - Routine lanes: Jest/Bun 1,074 tests each.
 - Slow lanes: Jest/Bun 35 tests each.
 - Complete Jest coverage inventory: 1,109 tests.
+- Hosted CI: Bun and Node 16/18/20 all passed on final head `d5b7cf5`.
+- Integration: PR #148 merged into `staging` as `9c9e14c`; issue #139 closed.
 - Green: command policy, package-manager policy, ESLint, strict TypeScript, CJS/ESM build, web entry checks, examples, and packed-consumer verification.
 - Pack result: 19 referenced targets, 376 packed files, 55 web modules, 3 guarded Node fallbacks.
 - CodeRabbit: all actionable in-scope findings fixed; final incremental review clean.
