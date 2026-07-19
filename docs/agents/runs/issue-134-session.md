@@ -6,7 +6,7 @@
 - Fixed point before session: `2a3556d`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commit: `569b266`; verification artifacts: `644b52f`
-- Status: PR #143 open into `staging`; hosted CodeRabbit and CI pending
+- Status: merged through PR #143 into `staging` at `25e055d`; issue closed
 
 ## Inputs
 
@@ -31,14 +31,14 @@
 - Standards findings: initial review found that a second disconnect cancelled a queued initialization without attaching a rejection observer for fire-and-forget callers; re-review found the same observer was attached too late on the primary disconnect path; both paths now synchronously absorb expected cancellation while preserving rejection for callers that await the original promise
 - Spec findings: passed all five acceptance criteria; noted only partial public observability of the TTL cleanup interval and session-document drift
 - Worthy fixes applied: client-parity single-flight initialization, generation cancellation, teardown serialization, attempt-scoped subscription cleanup, restartable TTL cleanup, stale callback generation guard, and cancellation rejection absorption
-- Findings ignored with reasons: direct TTL interval assertions require private-shape access and conflict with the public-API test criterion; restart behavior is instead proved by an encrypted expired request after reconnect
+- Findings ignored with reasons: direct TTL interval assertions require private-shape access and conflict with the public-API test criterion; restart behavior is instead proved by an encrypted expired request after reconnect; hosted CodeRabbit completed with no findings
 
 ## Verification
 
 - Focused: Jest/Bun lifecycle suite 6/6 after review-driven additions; NIP-47 Jest regression 9/9 suites and 76/76 tests
 - Full Jest: 83/83 suites and 1073/1073 tests
 - Full Bun: 83 files and 1073/1073 tests
-- Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, and pack verification all green
+- Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, pack verification, and all four hosted CI lanes green
 
 ## Risks
 
