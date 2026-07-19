@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: item 1 / issue #131 fully reviewed and verified; PR #140 ready to merge into `staging`
+- Current status: item 1 / issue #131 merged into `staging`; item 2 / issue #132 passed Grok review and all local verification; local CodeRabbit review pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -24,10 +24,10 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Spec issue: #130 — Complete the high-impact cleanup chain
 - Tickets: #131–#139
 - Ticket sessions: created as each ticket starts
-- Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all item #131 standards/spec passes
-- Review packets: `issue-131-review-packet.md`; created per later ticket
+- Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all standards/spec passes
+- Review packets: `issue-131-review-packet.md`, `issue-132-review-packet.md`; created per later ticket
 - Local CodeRabbit report: `issue-131-coderabbit-local.md`; created per later ticket
-- PR URL: #140 for issue #131; created per later ticket, always non-draft and targeting `staging`
+- PR URL: #140 merged for issue #131; created per later ticket, always non-draft and targeting `staging`
 
 ## Commands
 
@@ -41,8 +41,8 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 | Issue                             | Type | Status          | Branch                                  | Review                                                   | Verified                            |
 | --------------------------------- | ---- | --------------- | --------------------------------------- | -------------------------------------------------------- | ----------------------------------- |
-| #131 NIP-46 diagnostic redaction  | AFK  | PR #140 ready   | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes | Jest/Bun 1054/1054; hosted CI green |
-| #132 published declaration purity | AFK  | blocked by #131 | `feature/public-type-test-purity`       | pending                                                  | pending                             |
+| #131 NIP-46 diagnostic redaction  | AFK  | merged          | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes | Jest/Bun 1054/1054; hosted CI green |
+| #132 published declaration purity | AFK  | in review       | `feature/public-type-test-purity`       | Grok standards/spec pass; CodeRabbit pending             | Jest/Bun 1055/1055; all gates green |
 | #133 shared diagnostic seam       | AFK  | blocked by #132 | `feature/shared-diagnostics-completion` | pending                                                  | pending                             |
 | #134 NIP-47 service lifecycle     | AFK  | blocked by #133 | `feature/nip47-service-lifecycle`       | pending                                                  | pending                             |
 | #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                  | pending                             |
@@ -62,6 +62,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | Issue | Fixed point | Implementation owner                                | Commit                                     | Review result                                                        | Checks                                                                                        |
 | ----- | ----------- | --------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | #131  | `f4bda34`   | current Codex orchestrator; Grok 4.5 High reviewers | `7ed8433`, `00104cc`, `21b4ad9`, `426c17b` | Grok approved after hosted fixes; CodeRabbit local code review clean | focused Jest/Bun 7/7; final Jest/Bun 1054/1054; policies, lint, types, builds, examples, pack |
+| #132  | `cf705f0`   | current Codex orchestrator; Grok 4.5 High reviewers | pending                                    | Grok standards/spec passed after all initial findings were resolved  | focused 8/8; Jest/Bun 1055/1055; policies, lint, types, builds, examples, and pack green      |
 
 ## Alignment Decisions
 

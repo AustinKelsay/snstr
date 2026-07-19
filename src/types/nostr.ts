@@ -624,62 +624,6 @@ export interface RelayDebugOptions {
 }
 
 /**
- * Test context for relay testing
- */
-export interface RelayTestContext {
-  /** The relay instance being tested */
-  relay: RelayInterface;
-  /** Original methods/properties that were mocked during testing */
-  originals: {
-    /** Original WebSocket instance */
-    ws?: WebSocket | null;
-    /** Original on method for event handlers */
-    on?: <E extends RelayEvent>(
-      event: E,
-      callback: RelayEventCallbacks[E],
-    ) => void;
-    /** Original off method for event handlers */
-    off?: <E extends RelayEvent>(
-      event: E,
-      callback: RelayEventCallbacks[E],
-    ) => void;
-  };
-  /** Mock functions used during testing */
-  mocks: {
-    /** Mock WebSocket send function */
-    send?: jest.Mock;
-    /** Mock connect function */
-    connect?: jest.Mock;
-    /** Mock disconnect function */
-    disconnect?: jest.Mock;
-    /** Mock event handlers by event type */
-    handlers?: {
-      [key in RelayEvent]?: jest.Mock;
-    };
-  };
-  /** Captured callbacks from event registrations */
-  capturedCallbacks: {
-    /** Callbacks for ok events */
-    ok?: RelayEventCallbacks[RelayEvent.OK][];
-    /** Callbacks for other event types */
-    [key: string]: RelayEventCallbacks[keyof RelayEventCallbacks][] | undefined;
-  };
-  /** Options passed to the relay */
-  options?: {
-    /** Connection timeout in milliseconds */
-    connectionTimeout?: number;
-    /** Delay between buffering events and processing them (ms) */
-    bufferFlushDelay?: number;
-    /** Whether to automatically reconnect on disconnection */
-    autoReconnect?: boolean;
-    /** Maximum number of reconnection attempts (0 for unlimited) */
-    maxReconnectAttempts?: number;
-    /** Maximum delay between reconnection attempts (ms) */
-    maxReconnectDelay?: number;
-  };
-}
-
-/**
  * Enum for standard relay error types
  */
 export enum RelayErrorType {
