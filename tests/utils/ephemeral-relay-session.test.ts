@@ -22,26 +22,45 @@ async function createRelayEvent(content: string): Promise<NostrEvent> {
 }
 
 function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      const timeout = setTimeout(() => reject(new Error(message)), 1000);
-      timeout.unref?.();
-    }),
-  ]);
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(message)), 1000);
+    timeout.unref?.();
+    void promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
 
 async function waitFor(condition: () => boolean): Promise<void> {
-  await withTimeout(
-    new Promise<void>((resolve) => {
-      const check = () => {
-        if (condition()) resolve();
-        else setTimeout(check, 10);
-      };
-      check();
-    }),
-    "Timed out waiting for Relay session state",
-  );
+  await new Promise<void>((resolve, reject) => {
+    let pollTimer: NodeJS.Timeout | null = null;
+    let settled = false;
+    const timeout = setTimeout(() => {
+      settled = true;
+      if (pollTimer) clearTimeout(pollTimer);
+      reject(new Error("Timed out waiting for Relay session state"));
+    }, 1000);
+    timeout.unref?.();
+
+    const check = () => {
+      if (settled) return;
+      if (condition()) {
+        settled = true;
+        clearTimeout(timeout);
+        resolve();
+        return;
+      }
+      pollTimer = setTimeout(check, 10);
+    };
+    check();
+  });
 }
 
 function sendAndReceiveNotice(relay: Relay, message: string): Promise<string> {
