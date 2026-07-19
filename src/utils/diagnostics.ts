@@ -53,9 +53,14 @@ export function createDefaultDiagnosticLogger(
 /** Return stable failure metadata without forwarding untrusted error messages. */
 export function diagnosticFailureType(error: unknown): string {
   if (error instanceof Error) {
-    return typeof error.name === "string" && SAFE_ERROR_NAME.test(error.name)
-      ? error.name
-      : "Error";
+    try {
+      const { name } = error;
+      return typeof name === "string" && SAFE_ERROR_NAME.test(name)
+        ? name
+        : "Error";
+    } catch {
+      return "Error";
+    }
   }
   if (error === null) return "null";
   return typeof error;

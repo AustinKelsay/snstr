@@ -6,7 +6,7 @@
 - Fixed point before session: `46d7289`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commit: pending
-- Status: implementation, independent Grok review, CodeRabbit fixes, and final local verification complete; CodeRabbit re-review pending
+- Status: implementation, independent Grok review, local and hosted CodeRabbit fixes, and final local verification complete; incremental CodeRabbit re-review pending
 
 ## Inputs
 
@@ -36,8 +36,8 @@
 ## Verification
 
 - Focused: 14/14 suites and 204/204 tests; final seam test 11/11 after review-driven red-to-green cycles
-- Full Jest: 82/82 suites and 1067/1067 tests
-- Full Bun: 82 files and 1067/1067 tests
+- Full Jest: 82/82 suites and 1067/1067 tests, rerun after hosted fixes
+- Full Bun: 82 files and 1067/1067 tests, rerun after hosted fixes
 - Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, and pack verification all green
 
 ## Risks

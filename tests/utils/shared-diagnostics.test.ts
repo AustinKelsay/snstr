@@ -257,10 +257,18 @@ describe("shared production diagnostic seam", () => {
     unsafeError.name = "secret-token";
     const overlongError = new Error("not forwarded");
     overlongError.name = `${"A".repeat(64)}Error`;
+    const throwingNameError = new Error("not forwarded");
+    Object.defineProperty(throwingNameError, "name", {
+      get() {
+        throw new Error("name getter unavailable");
+      },
+    });
 
     expect(diagnosticFailureType(safeError)).toBe("NostrValidationError");
     expect(diagnosticFailureType(unsafeError)).toBe("Error");
     expect(diagnosticFailureType(overlongError)).toBe("Error");
+    expect(() => diagnosticFailureType(throwingNameError)).not.toThrow();
+    expect(diagnosticFailureType(throwingNameError)).toBe("Error");
   });
 
   test("propagates default parent logger policies to child Relays", async () => {

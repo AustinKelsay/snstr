@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: items 1–2 / issues #131–#132 merged into `staging`; item 3 / issue #133 implementation and all local verification complete, CodeRabbit re-review in progress
+- Current status: items 1–2 / issues #131–#132 merged into `staging`; item 3 / issue #133 hosted findings fixed and all local verification complete, incremental CodeRabbit re-review pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -26,8 +26,8 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Ticket sessions: created as each ticket starts
 - Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all standards/spec passes
 - Review packets: `issue-131-review-packet.md`, `issue-132-review-packet.md`, `issue-133-review-packet.md`; created per later ticket
-- Local CodeRabbit report: `issue-131-coderabbit-local.md`, `issue-132-coderabbit-local.md`; created per later ticket
-- PR URL: #140 merged for issue #131; #141 merged for issue #132; created per later ticket, always non-draft and targeting `staging`
+- Local CodeRabbit report: `issue-131-coderabbit-local.md`, `issue-132-coderabbit-local.md`, `issue-133-coderabbit-local.md`; created per later ticket
+- PR URL: #140 merged for issue #131; #141 merged for issue #132; #142 open for issue #133; created per later ticket, always non-draft and targeting `staging`
 
 ## Commands
 
@@ -39,17 +39,17 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 ## Ticket Ledger
 
-| Issue                             | Type | Status          | Branch                                  | Review                                                   | Verified                                  |
-| --------------------------------- | ---- | --------------- | --------------------------------------- | -------------------------------------------------------- | ----------------------------------------- |
-| #131 NIP-46 diagnostic redaction  | AFK  | merged          | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes | Jest/Bun 1054/1054; hosted CI green       |
-| #132 published declaration purity | AFK  | merged          | `feature/public-type-test-purity`       | Grok pass; CodeRabbit local/hosted clean                 | Jest/Bun 1055/1055; hosted CI green       |
-| #133 shared diagnostic seam       | AFK  | local re-review | `feature/shared-diagnostics-completion` | Grok standards/spec pass; four CodeRabbit findings fixed | Jest/Bun 1067/1067; all local gates green |
-| #134 NIP-47 service lifecycle     | AFK  | blocked by #133 | `feature/nip47-service-lifecycle`       | pending                                                  | pending                                   |
-| #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                  | pending                                   |
-| #136 NIP-46 protocol core         | AFK  | blocked by #135 | `feature/nip46-protocol-core`           | pending                                                  | pending                                   |
-| #137 default test feedback loop   | AFK  | blocked by #136 | `feature/fast-default-test-loop`        | pending                                                  | pending                                   |
-| #138 public behavior test seams   | AFK  | blocked by #137 | `feature/public-behavior-test-seams`    | pending                                                  | pending                                   |
-| #139 ephemeral Relay internals    | AFK  | blocked by #138 | `feature/ephemeral-relay-internals`     | pending                                                  | pending                                   |
+| Issue                             | Type | Status          | Branch                                  | Review                                                    | Verified                                  |
+| --------------------------------- | ---- | --------------- | --------------------------------------- | --------------------------------------------------------- | ----------------------------------------- |
+| #131 NIP-46 diagnostic redaction  | AFK  | merged          | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes  | Jest/Bun 1054/1054; hosted CI green       |
+| #132 published declaration purity | AFK  | merged          | `feature/public-type-test-purity`       | Grok pass; CodeRabbit local/hosted clean                  | Jest/Bun 1055/1055; hosted CI green       |
+| #133 shared diagnostic seam       | AFK  | re-review       | `feature/shared-diagnostics-completion` | Grok standards/spec pass; local and hosted findings fixed | Jest/Bun 1067/1067; all local gates green |
+| #134 NIP-47 service lifecycle     | AFK  | blocked by #133 | `feature/nip47-service-lifecycle`       | pending                                                   | pending                                   |
+| #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                   | pending                                   |
+| #136 NIP-46 protocol core         | AFK  | blocked by #135 | `feature/nip46-protocol-core`           | pending                                                   | pending                                   |
+| #137 default test feedback loop   | AFK  | blocked by #136 | `feature/fast-default-test-loop`        | pending                                                   | pending                                   |
+| #138 public behavior test seams   | AFK  | blocked by #137 | `feature/public-behavior-test-seams`    | pending                                                   | pending                                   |
+| #139 ephemeral Relay internals    | AFK  | blocked by #138 | `feature/ephemeral-relay-internals`     | pending                                                   | pending                                   |
 
 ## Parked HITL Slices
 
