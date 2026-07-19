@@ -15,7 +15,7 @@ import {
   PaymentResponseResult,
   MakeInvoiceResponseResult,
 } from "../../src/nip47/types";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { signEvent, sha256Hex } from "../../src/utils/crypto";
 
 /**

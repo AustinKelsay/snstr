@@ -1,7 +1,8 @@
 import { NostrEvent } from "../types/nostr";
-import { Nostr } from "../nip01/nostr";
+import { Nostr, type NostrOptions } from "../nip01/nostr";
 import * as nip07 from "./index";
 import { getUnixTime } from "../utils/time";
+import { diagnosticFailureType } from "../utils/diagnostics";
 
 /**
  * NIP-07 enabled Nostr client that uses browser extension for signing
@@ -16,9 +17,9 @@ export class Nip07Nostr extends Nostr {
    * @param relayUrls Array of relay URLs to connect to
    * @throws Error if NIP-07 extension is not available
    */
-  constructor(relayUrls: string[] = []) {
+  constructor(relayUrls: string[] = [], options?: NostrOptions) {
     // Initialize with default constructor
-    super(relayUrls);
+    super(relayUrls, options);
 
     if (!nip07.hasNip07Support()) {
       throw new Error("NIP-07 extension not available in this browser");
@@ -98,7 +99,9 @@ export class Nip07Nostr extends Nostr {
       await this.publishEvent(signedEvent);
       return signedEvent;
     } catch (error) {
-      console.error("Failed to publish text note:", error);
+      this.logger.error("Failed to publish text note", {
+        failureType: diagnosticFailureType(error),
+      });
       return null;
     }
   }
@@ -150,7 +153,9 @@ export class Nip07Nostr extends Nostr {
       await this.publishEvent(signedEvent);
       return signedEvent;
     } catch (error) {
-      console.error("Failed to publish direct message:", error);
+      this.logger.error("Failed to publish direct message", {
+        failureType: diagnosticFailureType(error),
+      });
       return null;
     }
   }

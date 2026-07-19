@@ -5,7 +5,7 @@ import {
   verifySignature,
 } from "../../../src";
 import { NIP46Error } from "../../../src/nip46/types";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 
 async function main() {
   console.log("=============================");

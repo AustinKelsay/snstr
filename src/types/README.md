@@ -35,13 +35,20 @@ Contains the fundamental types for Nostr events and communication:
 
 Contains types for the Nostr protocol messages and communication:
 
-- **`NostrEventMessage`**: ["EVENT", subscription_id, event] message format
+- **`NostrEventMessage`**: Client EVENT publication or Relay subscription EVENT tuple
+- **`NostrClientToServerEventMessage`**: Client EVENT publication tuple
+- **`NostrServerToClientEventMessage`**: Relay EVENT delivery tuple
 - **`NostrReqMessage`**: ["REQ", subscription_id, ...filters] message format
 - **`NostrCloseMessage`**: ["CLOSE", subscription_id] message format
 - **`NostrOkMessage`**: ["OK", event_id, success, message] message format
 - **`NostrEoseMessage`**: ["EOSE", subscription_id] message format
+- **`NostrClosedMessage`**: ["CLOSED", subscription_id, message] message format
 - **`NostrNoticeMessage`**: ["NOTICE", message] message format
-- **`NostrAuthMessage`**: ["AUTH", challenge] message format (NIP-42)
+- **`NostrAuthMessage`**: Relay challenge or client authentication EVENT tuple (NIP-42)
+- **`NostrRelayAuthMessage`**: Relay AUTH challenge tuple
+- **`NostrClientAuthMessage`**: Client AUTH response EVENT tuple
+- **`NostrClientMessage`**: Union of tuples sent from clients to relays
+- **`NostrRelayMessage`**: Union of tuples sent from relays to clients
 - **`NostrMessage`**: Union type of all message types
 - **`RelayConnectionOptions`**: Options for configuring relay connections
 
@@ -456,4 +463,4 @@ The types in this directory implement these NIPs:
 - **[NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md)**: Relay information document
 - **[NIP-16](https://github.com/nostr-protocol/nips/blob/master/16.md)**: Ephemeral events
 - **[NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md)**: Authentication of clients to relays 
-- **[NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md)**: Search capability 
+- **[NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md)**: Search capability

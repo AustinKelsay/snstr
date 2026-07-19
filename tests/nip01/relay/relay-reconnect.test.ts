@@ -2,9 +2,9 @@
  * Tests for Relay Reconnection functionality
  */
 
-import { Relay, ReconnectionStrategy } from "../../../src";
+import { Relay } from "../../../src";
+import { scheduleRelayReconnect } from "../../../src/testing";
 import { RelayConnectionOptions } from "../../../src/types/protocol";
-import { asTestRelay } from "../../types";
 
 // Mock WebSocket
 jest.mock("websocket-polyfill", () => ({}));
@@ -42,67 +42,77 @@ describe("Relay: Reconnection Configuration", () => {
     return relay;
   }
 
-  test("should initialize with default reconnection options", () => {
-    const relay = createRelay("wss://test.relay");
-    const testRelay = asTestRelay(relay);
-
-    // Verify the relay has the expected default values
-    expect(testRelay.autoReconnect).toBe(true);
-    expect(testRelay.maxReconnectAttempts).toBe(10);
-    expect(testRelay.maxReconnectDelay).toBe(30000);
-    expect(testRelay.reconnectAttempts).toBe(0);
-  });
-
-  test("should allow custom reconnection options", () => {
-    const options: RelayConnectionOptions = {
-      autoReconnect: false,
-      maxReconnectAttempts: 5,
-      maxReconnectDelay: 15000,
+  function captureReconnectTimers(): {
+    callbacks: Array<() => void>;
+    delays: number[];
+    restore(): void;
+  } {
+    const callbacks: Array<() => void> = [];
+    const delays: number[] = [];
+    const timeoutSpy = jest
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((callback: TimerHandler, delay?: number) => {
+        const timer = { unref: () => timer } as unknown as NodeJS.Timeout;
+        callbacks.push(callback as () => void);
+        delays.push(delay ?? 0);
+        return timer;
+      });
+    return {
+      callbacks,
+      delays,
+      restore: () => timeoutSpy.mockRestore(),
     };
+  }
 
+  test("applies constructor reconnection limits and capped delay", () => {
+    const options: RelayConnectionOptions = {
+      autoReconnect: true,
+      maxReconnectAttempts: 2,
+      maxReconnectDelay: 1500,
+    };
+    const timers = captureReconnectTimers();
     const relay = createRelay("wss://test.relay", options);
-    const testRelay = asTestRelay(relay);
+    const connectSpy = jest.spyOn(relay, "connect").mockResolvedValue(true);
 
-    // Verify the custom options were applied
-    expect(testRelay.autoReconnect).toBe(false);
-    expect(testRelay.maxReconnectAttempts).toBe(5);
-    expect(testRelay.maxReconnectDelay).toBe(15000);
+    try {
+      scheduleRelayReconnect(relay);
+      timers.callbacks[0]();
+      scheduleRelayReconnect(relay);
+      timers.callbacks[1]();
+      scheduleRelayReconnect(relay);
+
+      expect(connectSpy).toHaveBeenCalledTimes(2);
+      expect(timers.callbacks).toHaveLength(2);
+      expect(timers.delays[1]).toBeGreaterThanOrEqual(1500);
+      expect(timers.delays[1]).toBeLessThanOrEqual(1950);
+    } finally {
+      connectSpy.mockRestore();
+      timers.restore();
+    }
   });
 
-  test("should allow changing auto-reconnect setting", () => {
-    const relay = createRelay("wss://test.relay", { autoReconnect: false });
-    const testRelay = asTestRelay(relay);
-
-    // Verify initial state
-    expect(testRelay.autoReconnect).toBe(false);
-
-    // Change the setting
-    relay.setAutoReconnect(true);
-
-    // Verify the setting was updated
-    expect(testRelay.autoReconnect).toBe(true);
-  });
-
-  test("should allow changing max reconnect attempts", () => {
+  test("applies reconnect limit and delay changes to scheduling behavior", () => {
     const relay = createRelay("wss://test.relay");
-    const testRelay = asTestRelay(relay);
+    const timers = captureReconnectTimers();
+    const connectSpy = jest.spyOn(relay, "connect").mockResolvedValue(true);
 
-    // Change the setting
-    relay.setMaxReconnectAttempts(20);
+    try {
+      relay.setMaxReconnectAttempts(2);
+      relay.setMaxReconnectDelay(1200);
+      scheduleRelayReconnect(relay);
+      timers.callbacks[0]();
+      scheduleRelayReconnect(relay);
+      timers.callbacks[1]();
+      scheduleRelayReconnect(relay);
 
-    // Verify the setting was updated
-    expect(testRelay.maxReconnectAttempts).toBe(20);
-  });
-
-  test("should allow changing max reconnect delay", () => {
-    const relay = createRelay("wss://test.relay");
-    const testRelay = asTestRelay(relay);
-
-    // Change the setting
-    relay.setMaxReconnectDelay(60000);
-
-    // Verify the setting was updated
-    expect(testRelay.maxReconnectDelay).toBe(60000);
+      expect(connectSpy).toHaveBeenCalledTimes(2);
+      expect(timers.callbacks).toHaveLength(2);
+      expect(timers.delays[1]).toBeGreaterThanOrEqual(1200);
+      expect(timers.delays[1]).toBeLessThanOrEqual(1560);
+    } finally {
+      connectSpy.mockRestore();
+      timers.restore();
+    }
   });
 
   test("should validate max reconnect attempts (non-negative)", () => {
@@ -123,11 +133,33 @@ describe("Relay: Reconnection Configuration", () => {
     }).toThrow(/at least 1000ms/);
   });
 
-  test("ignores stale queued callbacks without losing replacement timers", () => {
+  test("disabling auto-reconnect cancels an already queued attempt", () => {
     const relay = createRelay("wss://test.relay");
-    const testRelay = asTestRelay(relay);
     const queuedReconnects: Array<() => void> = [];
-    const timers: NodeJS.Timeout[] = [];
+    const timeoutSpy = jest
+      .spyOn(globalThis, "setTimeout")
+      .mockImplementation((callback: TimerHandler) => {
+        const timer = { unref: () => timer } as unknown as NodeJS.Timeout;
+        queuedReconnects.push(callback as () => void);
+        return timer;
+      });
+    const connectSpy = jest.spyOn(relay, "connect").mockResolvedValue(true);
+
+    try {
+      scheduleRelayReconnect(relay);
+      relay.setAutoReconnect(false);
+      queuedReconnects[0]();
+
+      expect(connectSpy).not.toHaveBeenCalled();
+    } finally {
+      connectSpy.mockRestore();
+      timeoutSpy.mockRestore();
+    }
+  });
+
+  test("ignores stale queued callbacks without losing the replacement attempt", () => {
+    const relay = createRelay("wss://test.relay");
+    const queuedReconnects: Array<() => void> = [];
     const timeoutSpy = jest
       .spyOn(globalThis, "setTimeout")
       .mockImplementation((callback: TimerHandler) => {
@@ -135,62 +167,28 @@ describe("Relay: Reconnection Configuration", () => {
           unref: () => timer,
         } as unknown as NodeJS.Timeout;
         queuedReconnects.push(callback as () => void);
-        timers.push(timer);
         return timer;
       });
-    const clearTimeoutSpy = jest
-      .spyOn(globalThis, "clearTimeout")
-      .mockImplementation(() => {});
+    const connectSpy = jest.spyOn(relay, "connect").mockResolvedValue(true);
 
     try {
-      testRelay.scheduleReconnect();
+      scheduleRelayReconnect(relay);
       relay.disconnect();
-      testRelay.scheduleReconnect();
+      scheduleRelayReconnect(relay);
 
       queuedReconnects[0]();
-      expect(testRelay.reconnectTimer).toBe(timers[1]);
-      expect(testRelay.reconnectAttempts).toBe(0);
+      expect(connectSpy).not.toHaveBeenCalled();
 
-      relay.disconnect();
       queuedReconnects[1]();
+      expect(connectSpy).toHaveBeenCalledTimes(1);
 
-      expect(testRelay.reconnectAttempts).toBe(0);
-      expect(testRelay.reconnectTimer).toBeNull();
-      expect(testRelay.connectionPromise).toBeNull();
+      scheduleRelayReconnect(relay);
+      relay.disconnect();
+      queuedReconnects[2]();
+      expect(connectSpy).toHaveBeenCalledTimes(1);
     } finally {
-      clearTimeoutSpy.mockRestore();
+      connectSpy.mockRestore();
       timeoutSpy.mockRestore();
     }
-  });
-
-  // Additional test for ReconnectionStrategy interface
-  test("should be configurable with a full ReconnectionStrategy", () => {
-    // This test serves as a type-check for future implementation
-    // that uses the ReconnectionStrategy interface directly
-
-    // Define a strategy that could be used in the future
-    const strategy: ReconnectionStrategy = {
-      enabled: true,
-      maxAttempts: 15,
-      initialDelay: 1000,
-      maxDelay: 45000,
-      backoffFactor: 1.5,
-      useJitter: true,
-      jitterFactor: 0.2,
-    };
-
-    // Current implementation uses individual properties, but
-    // we can test that we can extract these properties correctly
-    const relay = createRelay("wss://test.relay", {
-      autoReconnect: strategy.enabled,
-      maxReconnectAttempts: strategy.maxAttempts,
-      maxReconnectDelay: strategy.maxDelay,
-    });
-    const testRelay = asTestRelay(relay);
-
-    // Verify basic properties were applied
-    expect(testRelay.autoReconnect).toBe(strategy.enabled);
-    expect(testRelay.maxReconnectAttempts).toBe(strategy.maxAttempts);
-    expect(testRelay.maxReconnectDelay).toBe(strategy.maxDelay);
   });
 });

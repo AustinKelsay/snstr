@@ -91,19 +91,28 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+
+      - name: Use canonical npm version
+        run: corepack prepare npm@9.8.1 --activate
       
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify package-manager policy
+        run: npm run package-manager:verify
       
       - name: Lint
         run: npm run lint
         
-      - name: Run tests
+      - name: Run routine tests
         run: npm test
+
+      - name: Run slow security and performance tests
+        run: npm run test:slow
       
-      - name: Run test coverage
+      - name: Run complete test coverage
         if: matrix.node-version == '20.x'
-        run: npm run test:coverage
+        run: npm run test:coverage:all
       
       - name: Build library
         run: npm run build
@@ -141,11 +150,17 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Verify package-manager policy
+        run: bun run package-manager:verify
+
       - name: Lint
         run: bun run lint
 
-      - name: Run Bun tests
+      - name: Run Bun routine tests
         run: bun run test:bun
+
+      - name: Run Bun slow security and performance tests
+        run: bun run test:bun:slow
 
       - name: Build library
         run: bun run build

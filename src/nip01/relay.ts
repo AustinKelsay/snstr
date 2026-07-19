@@ -16,15 +16,23 @@ import {
   ParsedOkReason,
   SubscriptionOptions,
 } from "../types/nostr";
-import { RelayConnectionOptions } from "../types/protocol";
-import { NostrValidationError, validateRelayIngressEvent } from "./validation";
-import { Logger, LogLevel } from "../utils/logger";
 import {
-  SECURITY_LIMITS,
-  getSecureRandom,
-  secureRandomHex,
-} from "../utils/security-validator";
+  NostrClientMessage,
+  NostrCloseMessage,
+  NostrReqMessage,
+  RelayConnectionOptions,
+} from "../types/protocol";
+import { NostrValidationError, validateRelayIngressEvent } from "./validation";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  protectDiagnosticLogger,
+  safeRelayDiagnostic,
+} from "../utils/diagnostics";
+import { getSecureRandom, secureRandomHex } from "../utils/security-validator";
 import { maybeUnref } from "../utils/timers";
+import { isLowercaseHexOfLength } from "../utils/wire-validation";
 import {
   BivariantHandler,
   OpenEventLike,
@@ -32,6 +40,7 @@ import {
   ErrorEventLike,
   MessageEventLike,
 } from "../utils/websocket-types";
+import { RelayEventStore } from "./relayEventStore";
 
 type WebSocketLike = {
   readyState: number;
@@ -44,12 +53,6 @@ type WebSocketLike = {
   terminate?: () => void;
 };
 
-type ClientMessage =
-  | ["EVENT", NostrEvent]
-  | ["AUTH", NostrEvent]
-  | ["REQ", string, ...Filter[]]
-  | ["CLOSE", string];
-
 const WS_READY_STATE = {
   CONNECTING: 0,
   OPEN: 1,
@@ -58,7 +61,8 @@ const WS_READY_STATE = {
 } as const;
 
 export class Relay {
-  private static readonly noopSocketHandler: BivariantHandler<unknown> = () => {};
+  private static readonly noopSocketHandler: BivariantHandler<unknown> =
+    () => {};
   private url: string;
   private ws: WebSocketLike | null = null;
   private connected = false;
@@ -78,12 +82,10 @@ export class Relay {
     finalize: (userInitiated?: boolean) => void;
   } | null = null;
   private connectionTimeout = 10000; // Default timeout of 10 seconds
-  private logger: Logger;
-  // Event buffers with memory limits
-  private eventBuffers: Map<string, NostrEvent[]> = new Map();
-  private eventBufferAccessTimes: Map<string, number> = new Map(); // For LRU eviction
-  private maxEventBuffers = SECURITY_LIMITS.MAX_RELAY_EVENT_BUFFERS;
-  private maxEventsPerBuffer = SECURITY_LIMITS.MAX_EVENTS_PER_BUFFER;
+  private logger: DiagnosticLogger;
+  private readonly eventStore = new RelayEventStore({
+    onEviction: (message) => this.logger.debug(message),
+  });
   private bufferFlushInterval: NodeJS.Timeout | null = null;
   private bufferFlushDelay = 50; // ms to wait before flushing event buffer
   // Reconnection parameters
@@ -94,27 +96,17 @@ export class Relay {
   private maxReconnectDelay = 30000; // Maximum delay between reconnect attempts (ms)
   private maxFutureTimestampDrift = 60 * 60; // Maximum accepted future event timestamp drift (s)
   private maxPastTimestampDrift = 0; // Maximum accepted past event timestamp drift (s); 0 disables this check
-  // Track replaceable and addressable events according to NIP-01 with memory limits
-  private replaceableEvents: Map<string, Map<number, NostrEvent>> = new Map();
-  private replaceableEventAccessTimes: Map<string, number> = new Map(); // For LRU eviction
-  private maxReplaceableEventPubkeys =
-    SECURITY_LIMITS.MAX_REPLACEABLE_EVENT_PUBKEYS;
-  private maxReplaceableEventsPerPubkey =
-    SECURITY_LIMITS.MAX_REPLACEABLE_EVENTS_PER_PUBKEY;
-
-  private addressableEvents: Map<string, NostrEvent> = new Map();
-  private addressableEventAccessTimes: Map<string, number> = new Map(); // For LRU eviction
-  private maxAddressableEvents = SECURITY_LIMITS.MAX_ADDRESSABLE_EVENTS;
   private pendingValidationCounts: Map<string, number> = new Map();
   private pendingEoseSubscriptions: Set<string> = new Set();
 
   constructor(url: string, options: RelayConnectionOptions = {}) {
     this.url = url;
-    this.logger = new Logger({
-      prefix: `Relay(${url})`,
-      level: LogLevel.WARN, // Default to WARN level for production use
-      includeTimestamp: false,
-    });
+    this.logger = options.logger
+      ? protectDiagnosticLogger(options.logger)
+      : createDefaultDiagnosticLogger({
+          prefix: `Relay(${safeRelayDiagnostic(url)})`,
+          includeTimestamp: false,
+        });
 
     if (options.connectionTimeout !== undefined) {
       this.connectionTimeout = options.connectionTimeout;
@@ -139,6 +131,11 @@ export class Relay {
       this.maxPastTimestampDrift =
         options.inboundValidation.maxPastTimestampDrift;
     }
+  }
+
+  /** Replace the diagnostic sink without changing Relay behavior. */
+  public setLogger(logger: DiagnosticLogger): void {
+    this.logger = protectDiagnosticLogger(logger);
   }
 
   public async connect(): Promise<boolean> {
@@ -212,7 +209,10 @@ export class Relay {
                 readyState?: number;
                 close?: () => void;
                 terminate?: () => void;
-                once?: (event: string, cb: (...args: unknown[]) => void) => void;
+                once?: (
+                  event: string,
+                  cb: (...args: unknown[]) => void,
+                ) => void;
               };
               if (typeof nodeWs.once === "function") {
                 nodeWs.once("error", () => {});
@@ -282,9 +282,8 @@ export class Relay {
           this.clearRelayDisconnectObserver();
           this.relayDisconnectObserver = {
             attemptId,
-            unregister: registerRelayDisconnectObserver(
-              this.url,
-              () => finalizeClose(),
+            unregister: registerRelayDisconnectObserver(this.url, () =>
+              finalizeClose(),
             ),
           };
           this.triggerEvent(RelayEvent.Connect, this.url);
@@ -345,7 +344,10 @@ export class Relay {
       }
 
       // Ensure we return false if connection fails but don't re-throw
-      this.logger.error(`Connection failed:`, _error);
+      this.logger.error("Connection failed", {
+        failureType: diagnosticFailureType(_error),
+        relay: safeRelayDiagnostic(this.url),
+      });
 
       // Schedule reconnection if auto-reconnect is enabled
       if (this.autoReconnect) {
@@ -389,33 +391,20 @@ export class Relay {
 
     // Cancel any scheduled reconnection
     this.cancelReconnect();
+    this.subscriptions.clear();
+    this.eventStore.clear();
+    this.pendingValidationCounts.clear();
+    this.pendingEoseSubscriptions.clear();
+    this.clearBufferFlush();
 
     if (!this.ws) {
       this.connected = false;
-      this.clearBufferFlush();
       return;
     }
 
     try {
       // Detach handlers first so any late socket events don't fire callbacks after teardown.
       this.detachSocketHandlers(this.ws);
-
-      // Clear all subscriptions to prevent further processing
-      this.subscriptions.clear();
-
-      // Clear event buffers and access times
-      this.eventBuffers.clear();
-      this.eventBufferAccessTimes.clear();
-
-      // Clear replaceable event storage and access times
-      this.replaceableEvents.clear();
-      this.replaceableEventAccessTimes.clear();
-
-      // Clear addressable event storage and access times
-      this.addressableEvents.clear();
-      this.addressableEventAccessTimes.clear();
-
-      this.clearBufferFlush(); // Clear the buffer flush interval
 
       // Close the WebSocket if it's open or connecting
       if (
@@ -454,7 +443,10 @@ export class Relay {
         }
       }
     } catch (error) {
-      console.error(`Error closing WebSocket for ${this.url}:`, error);
+      this.logger.error("Failed to close WebSocket", {
+        failureType: diagnosticFailureType(error),
+        relay: safeRelayDiagnostic(this.url),
+      });
     } finally {
       // Reset all state variables
       this.ws = null;
@@ -470,9 +462,12 @@ export class Relay {
 
     try {
       // Keep handlers callable for implementations that dispatch socket callbacks without type checks.
-      socket.onopen = Relay.noopSocketHandler as BivariantHandler<OpenEventLike>;
-      socket.onclose = Relay.noopSocketHandler as BivariantHandler<CloseEventLike>;
-      socket.onerror = Relay.noopSocketHandler as BivariantHandler<ErrorEventLike>;
+      socket.onopen =
+        Relay.noopSocketHandler as BivariantHandler<OpenEventLike>;
+      socket.onclose =
+        Relay.noopSocketHandler as BivariantHandler<CloseEventLike>;
+      socket.onerror =
+        Relay.noopSocketHandler as BivariantHandler<ErrorEventLike>;
       socket.onmessage =
         Relay.noopSocketHandler as BivariantHandler<MessageEventLike>;
     } catch {
@@ -509,9 +504,10 @@ export class Relay {
       this.maxReconnectAttempts > 0 &&
       this.reconnectAttempts >= this.maxReconnectAttempts
     ) {
-      console.warn(
-        `Maximum reconnection attempts (${this.maxReconnectAttempts}) reached for ${this.url}`,
-      );
+      this.logger.warn("Maximum reconnection attempts reached", {
+        attempts: this.maxReconnectAttempts,
+        relay: safeRelayDiagnostic(this.url),
+      });
       return;
     }
 
@@ -543,10 +539,11 @@ export class Relay {
       if (reconnectGeneration !== this.disconnectGeneration) return;
       this.reconnectAttempts++;
       this.connect().catch((error) => {
-        console.error(
-          `Reconnection attempt ${this.reconnectAttempts} failed for ${this.url}:`,
-          error,
-        );
+        this.logger.error("Reconnection attempt failed", {
+          attempt: this.reconnectAttempts,
+          failureType: diagnosticFailureType(error),
+          relay: safeRelayDiagnostic(this.url),
+        });
         // The next reconnection will be scheduled in the connect() method's catch handler
       });
     }, reconnectDelay);
@@ -683,7 +680,7 @@ export class Relay {
   }
 
   private async sendClientMessage(
-    message: ClientMessage,
+    message: NostrClientMessage,
     options: PublishOptions = {},
     ackEventId?: string,
   ): Promise<PublishResponse> {
@@ -739,7 +736,11 @@ export class Relay {
             return error.details.eventId;
           }
 
-          if (error instanceof Error && ackEventId && error.message.includes(ackEventId)) {
+          if (
+            error instanceof Error &&
+            ackEventId &&
+            error.message.includes(ackEventId)
+          ) {
             return ackEventId;
           }
 
@@ -816,7 +817,10 @@ export class Relay {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
-      console.error(`Error sending message to ${this.url}:`, errorMessage);
+      this.logger.error("Failed to send relay message", {
+        failureType: diagnosticFailureType(error),
+        relay: safeRelayDiagnostic(this.url),
+      });
       return {
         success: false,
         reason: `error: ${errorMessage}`,
@@ -870,11 +874,11 @@ export class Relay {
     }
 
     this.subscriptions.set(id, subscription);
-    this.eventBuffers.set(id, []); // Initialize an empty event buffer for this subscription
+    this.eventStore.initializeBuffer(id);
 
     if (this.connected && this.ws) {
-      const message = JSON.stringify(["REQ", id, ...filters]);
-      this.ws.send(message);
+      const message: NostrReqMessage = ["REQ", id, ...filters];
+      this.ws.send(JSON.stringify(message));
     }
 
     return id;
@@ -887,14 +891,13 @@ export class Relay {
       clearTimeout(subscription.eoseTimer);
     }
     this.subscriptions.delete(id);
-    this.eventBuffers.delete(id); // Clean up the event buffer for this subscription
-    this.eventBufferAccessTimes.delete(id); // Clean up the access time tracking
+    this.eventStore.deleteBuffer(id);
     this.pendingEoseSubscriptions.delete(id);
     this.pendingValidationCounts.delete(id);
 
     if (this.connected && this.ws) {
-      const message = JSON.stringify(["CLOSE", id]);
-      this.ws.send(message);
+      const message: NostrCloseMessage = ["CLOSE", id];
+      this.ws.send(JSON.stringify(message));
     }
   }
 
@@ -916,10 +919,18 @@ export class Relay {
           break;
         }
 
+        const subscriptionAtIngress = this.subscriptions.get(subscriptionId);
+        if (!subscriptionAtIngress) break;
+
         this.incrementPendingValidation(subscriptionId);
 
         this.validateInboundEvent(event)
           .then((validatedEvent) => {
+            if (
+              this.subscriptions.get(subscriptionId) !== subscriptionAtIngress
+            ) {
+              return;
+            }
             this.processValidatedEvent(validatedEvent, subscriptionId);
           })
           .catch((error) => {
@@ -1000,16 +1011,18 @@ export class Relay {
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
-            new Error(
-              `Invalid AUTH challenge: ${JSON.stringify(challenge)}`,
-            ),
+            new Error(`Invalid AUTH challenge: ${JSON.stringify(challenge)}`),
           );
         }
         break;
       }
       default:
         // Unknown message type, ignore or log
-        console.warn(`Relay(${this.url}): Unknown message type:`, type, rest);
+        this.logger.warn("Unknown relay message type", {
+          itemCount: rest.length,
+          messageType: "unknown",
+          relay: safeRelayDiagnostic(this.url),
+        });
         break;
     }
   }
@@ -1021,6 +1034,9 @@ export class Relay {
     event: NostrEvent,
     subscriptionId: string,
   ): void {
+    const subscription = this.subscriptions.get(subscriptionId);
+    if (!subscription) return;
+
     // Process replaceable events (kinds 0, 3, 10000-19999)
     if (
       event.kind === 0 ||
@@ -1034,12 +1050,8 @@ export class Relay {
       this.processAddressableEvent(event);
     }
 
-    const subscription = this.subscriptions.get(subscriptionId);
-    if (subscription) {
-      // Use the proper buffer management method that enforces memory limits and LRU eviction
-      this.addToEventBuffer(subscriptionId, event);
-      this.maybeFinalizeEOSE(subscriptionId);
-    }
+    this.addToEventBuffer(subscriptionId, event);
+    this.maybeFinalizeEOSE(subscriptionId);
   }
 
   private validateInboundEvent(event: unknown): Promise<NostrEvent> {
@@ -1078,10 +1090,7 @@ export class Relay {
     subscriptionId: string,
     message: string,
   ): void;
-  private triggerEvent(
-    event: RelayEvent.Auth,
-    challenge: string,
-  ): void;
+  private triggerEvent(event: RelayEvent.Auth, challenge: string): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
     const callbacks = this.eventHandlers[event];
 
@@ -1093,7 +1102,11 @@ export class Relay {
             // The type assertion in Relay.on ensures the callback matches the event.
             (callback as (...args: unknown[]) => void)(...args);
           } catch (e) {
-            console.error(`Relay(${this.url}): Error in ${event} callback:`, e);
+            this.logger.error("Relay callback failed", {
+              event,
+              failureType: diagnosticFailureType(e),
+              relay: safeRelayDiagnostic(this.url),
+            });
           }
         }
       });
@@ -1161,7 +1174,7 @@ export class Relay {
    * Flush all event buffers for all subscriptions
    */
   private flushAllBuffers(): void {
-    for (const subscriptionId of this.eventBuffers.keys()) {
+    for (const subscriptionId of this.eventStore.bufferIds()) {
       this.flushSubscriptionBuffer(subscriptionId);
     }
   }
@@ -1218,219 +1231,40 @@ export class Relay {
    * Flush the event buffer for a specific subscription
    */
   private flushSubscriptionBuffer(subscriptionId: string): void {
-    const buffer = this.eventBuffers.get(subscriptionId);
-    if (!buffer || buffer.length === 0) return;
+    const events = this.eventStore.drainBuffer(subscriptionId);
+    if (events.length === 0) return;
 
     const subscription = this.subscriptions.get(subscriptionId);
     if (!subscription) {
-      // If the subscription has been removed, clear the buffer
-      this.eventBuffers.delete(subscriptionId);
       return;
     }
 
-    // Sort the events according to NIP-01: newest first, then by lexical order of ID if same timestamp
-    const sortedEvents = this.sortEvents(buffer);
-
-    // Remove the buffer from the map instead of keeping an empty array
-    this.eventBuffers.delete(subscriptionId);
-    this.eventBufferAccessTimes.delete(subscriptionId);
-
     // Process all events
-    for (const event of sortedEvents) {
+    for (const event of events) {
       try {
         subscription.onEvent(event);
       } catch (error) {
-        console.error(
-          `Error in subscription handler for ${subscriptionId}:`,
-          error,
-        );
+        this.logger.error("Subscription handler failed", {
+          failureType: diagnosticFailureType(error),
+          subscriptionId,
+        });
       }
     }
-  }
-
-  /**
-   * Sort events according to NIP-01 specification:
-   * 1. created_at timestamp (descending - newer events first)
-   * 2. event id (lexical ascending) if timestamps are the same
-   */
-  private sortEvents(events: NostrEvent[]): NostrEvent[] {
-    return [...events].sort((a, b) => {
-      // Sort by created_at (descending - newer events first)
-      if (a.created_at !== b.created_at) {
-        return b.created_at - a.created_at;
-      }
-      // If created_at is the same, sort by id (ascending lexical order)
-      // This ensures lower IDs win when timestamps match, consistent with NIP-01 replaceable/addressable events.
-      return a.id.localeCompare(b.id);
-    });
   }
 
   // Add event to buffer with memory limits
   private addToEventBuffer(subscriptionId: string, event: NostrEvent): void {
-    // Update access time for LRU
-    this.eventBufferAccessTimes.set(subscriptionId, Date.now());
-
-    // Ensure we don't exceed max number of buffers
-    if (
-      !this.eventBuffers.has(subscriptionId) &&
-      this.eventBuffers.size >= this.maxEventBuffers
-    ) {
-      this.evictOldestEventBuffer();
-    }
-
-    // Get or create buffer
-    if (!this.eventBuffers.has(subscriptionId)) {
-      this.eventBuffers.set(subscriptionId, []);
-    }
-
-    const buffer = this.eventBuffers.get(subscriptionId)!;
-
-    // Ensure we don't exceed max events per buffer
-    if (buffer.length >= this.maxEventsPerBuffer) {
-      buffer.shift(); // Remove oldest event
-    }
-
-    buffer.push(event);
-  }
-
-  // Evict oldest accessed event buffer
-  private evictOldestEventBuffer(): void {
-    let oldestTime = Infinity;
-    let oldestId = "";
-
-    for (const [id, time] of this.eventBufferAccessTimes) {
-      if (time < oldestTime) {
-        oldestTime = time;
-        oldestId = id;
-      }
-    }
-
-    if (oldestId) {
-      this.eventBuffers.delete(oldestId);
-      this.eventBufferAccessTimes.delete(oldestId);
-      this.logger.debug(`Evicted event buffer for subscription: ${oldestId}`);
-    }
+    this.eventStore.addToBuffer(subscriptionId, event);
   }
 
   // Process replaceable event with memory limits
   private processReplaceableEvent(event: NostrEvent): void {
-    const pubkey = event.pubkey;
-
-    // Update access time for LRU
-    this.replaceableEventAccessTimes.set(pubkey, Date.now());
-
-    // Ensure we don't exceed max pubkeys
-    if (
-      !this.replaceableEvents.has(pubkey) &&
-      this.replaceableEvents.size >= this.maxReplaceableEventPubkeys
-    ) {
-      this.evictOldestReplaceablePubkey();
-    }
-
-    // Get or create pubkey map
-    if (!this.replaceableEvents.has(pubkey)) {
-      this.replaceableEvents.set(pubkey, new Map());
-    }
-
-    const kindMap = this.replaceableEvents.get(pubkey)!;
-    const existingEvent = kindMap.get(event.kind);
-
-    // Only store if newer or first of this kind
-    if (!existingEvent || event.created_at > existingEvent.created_at) {
-      // Ensure we don't exceed max events per pubkey
-      if (
-        kindMap.size >= this.maxReplaceableEventsPerPubkey &&
-        !kindMap.has(event.kind)
-      ) {
-        // Remove oldest event by created_at
-        let oldestKind = -1;
-        let oldestTime = Infinity;
-        for (const [kind, evt] of kindMap) {
-          if (evt.created_at < oldestTime) {
-            oldestTime = evt.created_at;
-            oldestKind = kind;
-          }
-        }
-        if (oldestKind !== -1) {
-          kindMap.delete(oldestKind);
-          this.logger.debug(
-            `Evicted replaceable event kind ${oldestKind} for pubkey: ${pubkey}`,
-          );
-        }
-      }
-
-      kindMap.set(event.kind, event);
-    }
-  }
-
-  // Evict oldest accessed replaceable event pubkey
-  private evictOldestReplaceablePubkey(): void {
-    let oldestTime = Infinity;
-    let oldestPubkey = "";
-
-    for (const [pubkey, time] of this.replaceableEventAccessTimes) {
-      if (time < oldestTime) {
-        oldestTime = time;
-        oldestPubkey = pubkey;
-      }
-    }
-
-    if (oldestPubkey) {
-      this.replaceableEvents.delete(oldestPubkey);
-      this.replaceableEventAccessTimes.delete(oldestPubkey);
-      this.logger.debug(
-        `Evicted replaceable events for pubkey: ${oldestPubkey}`,
-      );
-    }
+    this.eventStore.storeReplaceable(event);
   }
 
   // Process addressable event with memory limits
   private processAddressableEvent(event: NostrEvent): void {
-    const dTag = event.tags.find((tag) => tag[0] === "d");
-    const dValue = dTag ? dTag[1] : "";
-    const addressId = `${event.kind}:${event.pubkey}:${dValue}`;
-
-    // Update access time for LRU
-    this.addressableEventAccessTimes.set(addressId, Date.now());
-
-    // Ensure we don't exceed max addressable events
-    if (
-      !this.addressableEvents.has(addressId) &&
-      this.addressableEvents.size >= this.maxAddressableEvents
-    ) {
-      this.evictOldestAddressableEvent();
-    }
-
-    const existingEvent = this.addressableEvents.get(addressId);
-
-    // Only store if newer, first, or tie-breaker with smaller ID
-    if (
-      !existingEvent ||
-      event.created_at > existingEvent.created_at ||
-      (event.created_at === existingEvent.created_at &&
-        event.id < existingEvent.id)
-    ) {
-      this.addressableEvents.set(addressId, event);
-    }
-  }
-
-  // Evict oldest accessed addressable event
-  private evictOldestAddressableEvent(): void {
-    let oldestTime = Infinity;
-    let oldestId = "";
-
-    for (const [id, time] of this.addressableEventAccessTimes) {
-      if (time < oldestTime) {
-        oldestTime = time;
-        oldestId = id;
-      }
-    }
-
-    if (oldestId) {
-      this.addressableEvents.delete(oldestId);
-      this.addressableEventAccessTimes.delete(oldestId);
-      this.logger.debug(`Evicted addressable event: ${oldestId}`);
-    }
+    this.eventStore.storeAddressable(event);
   }
 
   // Update getLatestReplaceableEvent to use access tracking
@@ -1438,11 +1272,7 @@ export class Relay {
     pubkey: string,
     kind: number,
   ): NostrEvent | undefined {
-    // Update access time
-    this.replaceableEventAccessTimes.set(pubkey, Date.now());
-
-    const kindMap = this.replaceableEvents.get(pubkey);
-    return kindMap?.get(kind);
+    return this.eventStore.getReplaceable(pubkey, kind);
   }
 
   // Update getLatestAddressableEvent to use access tracking
@@ -1451,12 +1281,7 @@ export class Relay {
     pubkey: string,
     dTagValue: string = "",
   ): NostrEvent | undefined {
-    const addressId = `${kind}:${pubkey}:${dTagValue}`;
-
-    // Update access time
-    this.addressableEventAccessTimes.set(addressId, Date.now());
-
-    return this.addressableEvents.get(addressId);
+    return this.eventStore.getAddressable(kind, pubkey, dTagValue);
   }
 
   /**
@@ -1466,9 +1291,7 @@ export class Relay {
    * @returns Array of addressable events
    */
   public getAddressableEventsByPubkey(pubkey: string): NostrEvent[] {
-    return Array.from(this.addressableEvents.values()).filter(
-      (event) => event.pubkey === pubkey,
-    );
+    return this.eventStore.getAddressableByPubkey(pubkey);
   }
 
   /**
@@ -1478,9 +1301,7 @@ export class Relay {
    * @returns Array of addressable events
    */
   public getAddressableEventsByKind(kind: number): NostrEvent[] {
-    return Array.from(this.addressableEvents.values()).filter(
-      (event) => event.kind === kind,
-    );
+    return this.eventStore.getAddressableByKind(kind);
   }
 
   // Helper function to parse NIP-20 prefixes from OK messages
@@ -1504,10 +1325,6 @@ export class Relay {
 
   // New private helper method for validating NIP-01 filter identifiers
   private _isValidNip01FilterIdentifier(value: unknown): value is string {
-    if (typeof value !== "string") {
-      return false;
-    }
-    // Must be 64 characters, lowercase hex
-    return /^[0-9a-f]{64}$/.test(value);
+    return isLowercaseHexOfLength(value, 64);
   }
 }

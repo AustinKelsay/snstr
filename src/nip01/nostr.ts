@@ -11,7 +11,6 @@ import {
 } from "../types/nostr";
 import type { RelayConnectionOptions } from "../types/protocol";
 import { getPublicKey, generateKeypair } from "../utils/crypto";
-import { isValidRelayUrl } from "../nip19";
 import { createSignedAuthEvent } from "../nip42";
 import {
   createSignedEvent,
@@ -19,12 +18,13 @@ import {
   createDirectMessage,
   createMetadataEvent,
 } from "./event";
+import type { DiagnosticLogger } from "../utils/logger";
 import {
-  preprocessRelayUrl as preprocessRelayUrlUtil,
-  normalizeRelayUrl as normalizeRelayUrlUtil,
-  RelayUrlValidationError,
-} from "../utils/relayUrl";
-import { Logger, LogLevel } from "../utils/logger";
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  protectDiagnosticLogger,
+  safeRelayDiagnostic,
+} from "../utils/diagnostics";
 import {
   validateFilters,
   validateNumber,
@@ -33,6 +33,7 @@ import {
   RateLimitState,
 } from "../utils/security-validator";
 import { getRegisteredNIP04 } from "../nip04/registry";
+import { RelayRegistry } from "./relayRegistry";
 
 /**
  * Rate limit configuration for different operation types
@@ -60,6 +61,8 @@ export interface NostrRateLimits {
  * Options for Nostr client configuration
  */
 export interface NostrOptions {
+  /** Optional canonical logger used by the client and, by default, its Relays. */
+  logger?: DiagnosticLogger;
   /** Options to pass to each Relay instance */
   relayOptions?: RelayConnectionOptions;
   /** Rate limiting configuration for different operations */
@@ -81,10 +84,7 @@ export type NostrClosedCallback = (
   subscriptionId: string,
   message: string,
 ) => void;
-export type NostrAuthCallback = (
-  relay: string,
-  challenge: string,
-) => void;
+export type NostrAuthCallback = (relay: string, challenge: string) => void;
 
 export type NostrEventCallback =
   | NostrConnectCallback
@@ -119,12 +119,12 @@ function formatRetryAfterSeconds(retryAfter?: number): number {
 }
 
 export class Nostr {
-  private relays: Map<string, Relay> = new Map();
+  private relays: RelayRegistry;
   private privateKey?: string;
   private publicKey?: string;
   private relayOptions?: RelayConnectionOptions;
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
-  private logger: Logger;
+  protected logger: DiagnosticLogger;
 
   // Rate limiting state
   private subscribeRateLimit: RateLimitState = {
@@ -160,7 +160,21 @@ export class Nostr {
    * @param options.rateLimits Rate limiting configuration for different operations
    */
   constructor(relayUrls: string[] = [], options?: NostrOptions) {
-    this.relayOptions = options?.relayOptions;
+    const logger = options?.logger ?? options?.relayOptions?.logger;
+    this.logger = logger
+      ? protectDiagnosticLogger(logger)
+      : createDefaultDiagnosticLogger({
+          prefix: "Nostr",
+          includeTimestamp: false,
+          silent: process.env.NODE_ENV === "test",
+        });
+    const relayLogger =
+      options?.relayOptions?.logger ?? options?.logger ?? this.logger;
+    this.relayOptions = {
+      ...(options?.relayOptions ?? {}),
+      logger: relayLogger,
+    };
+    this.relays = new RelayRegistry(this.relayOptions);
 
     // Initialize rate limits with defaults or user-provided values
     this.RATE_LIMITS = {
@@ -172,37 +186,7 @@ export class Nostr {
       FETCH: options?.rateLimits?.fetch || { limit: 200, windowMs: 60000 }, // 200 fetches per minute
     };
 
-    this.logger = new Logger({
-      prefix: "Nostr",
-      level: LogLevel.WARN,
-      includeTimestamp: false,
-      silent: process.env.NODE_ENV === "test",
-    });
     relayUrls.forEach((url) => this.addRelay(url));
-  }
-
-  /**
-   * Normalize a relay URL by lowercasing only the scheme and host,
-   * while preserving the case of path, query, and fragment parts.
-   * This is the correct behavior per URL standards.
-   */
-  private normalizeRelayUrl(url: string): string {
-    // Delegate to shared utility for consistent canonicalization
-    return normalizeRelayUrlUtil(url);
-  }
-
-  /**
-   * Preprocesses a relay URL before normalization and validation.
-   * Adds wss:// prefix only to URLs without any scheme.
-   * Throws an error for URLs with incompatible schemes.
-   *
-   * @param url - The input URL string to preprocess
-   * @returns The preprocessed URL with appropriate scheme
-   * @throws Error if URL has an incompatible scheme
-   */
-  private preprocessRelayUrl(url: string): string {
-    // Delegate to shared utility for consistent preprocessing
-    return preprocessRelayUrlUtil(url);
   }
 
   // Helper function to create the event handler wrapper
@@ -248,9 +232,9 @@ export class Nostr {
         };
       default:
         // Should not happen if RelayEvent enum is comprehensive
-        console.warn(
-          `Unhandled RelayEvent type for handler creation: ${event}`,
-        );
+        this.logger.warn("Unhandled RelayEvent type for handler creation", {
+          event,
+        });
         // This case should ideally be impossible if RelayEvent is exhaustive
         // and all cases are handled. Return a no-op that matches a common handler signature.
         return () => {};
@@ -258,18 +242,10 @@ export class Nostr {
   }
 
   public addRelay(url: string): Relay {
-    url = this.preprocessRelayUrl(url);
-    url = this.normalizeRelayUrl(url);
-    if (!isValidRelayUrl(url)) {
-      throw new Error(`Invalid relay URL: ${url}`);
-    }
-
-    if (this.relays.has(url)) {
-      return this.relays.get(url)!;
-    }
-
-    const relay = new Relay(url, this.relayOptions);
-    this.relays.set(url, relay);
+    const registration = this.relays.register(url);
+    if (!registration.created) return registration.relay;
+    const { relay } = registration;
+    url = registration.url;
 
     // Attach stored callbacks to the new relay
     this.eventCallbacks.forEach((callbacksSet, eventType) => {
@@ -308,46 +284,11 @@ export class Nostr {
   }
 
   public getRelay(url: string): Relay | undefined {
-    // Re-use the same normalisation logic as addRelay()
-    try {
-      url = this.preprocessRelayUrl(url);
-      url = this.normalizeRelayUrl(url);
-      if (!isValidRelayUrl(url)) {
-        return undefined;
-      }
-      return this.relays.get(url);
-    } catch (error) {
-      // Handle RelayUrlValidationError and other URL processing errors gracefully
-      if (error instanceof RelayUrlValidationError) {
-        return undefined;
-      }
-      // For other unexpected errors, also return undefined for graceful handling
-      return undefined;
-    }
+    return this.relays.lookup(url);
   }
 
   public removeRelay(url: string): void {
-    // Re-use the same normalisation logic as addRelay() and getRelay()
-    try {
-      url = this.preprocessRelayUrl(url);
-      url = this.normalizeRelayUrl(url);
-      if (!isValidRelayUrl(url)) {
-        return;
-      }
-
-      const relay = this.relays.get(url);
-      if (relay) {
-        relay.disconnect();
-        this.relays.delete(url);
-      }
-    } catch (error) {
-      // Handle RelayUrlValidationError and other URL processing errors gracefully
-      if (error instanceof RelayUrlValidationError) {
-        return; // Silently ignore invalid URLs as intended
-      }
-      // For other unexpected errors, also return void for graceful handling
-      return;
-    }
+    this.relays.remove(url);
   }
 
   public async connectToRelays(): Promise<void> {
@@ -498,16 +439,15 @@ export class Nostr {
           relayResults,
         };
       } else {
-        // Get reasons for failures and log them for diagnostics
-        const failureReasons = Array.from(relayResults.entries())
+        const failedRelays = Array.from(relayResults.entries())
           .filter(([_, result]) => !result.success)
-          .map(([url, result]) => `${url}: ${result.reason || "unknown"}`);
+          .map(([url]) => safeRelayDiagnostic(url));
 
         this.logger.warn("Failed to publish event to any relay", {
           eventId: event.id,
           eventKind: event.kind,
-          failureCount: failureReasons.length,
-          failures: failureReasons,
+          failedRelays,
+          failureCount: failedRelays.length,
         });
 
         return {
@@ -517,13 +457,10 @@ export class Nostr {
         };
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "unknown error";
-
       this.logger.error("Failed to publish event", {
         eventId: event.id,
         eventKind: event.kind,
-        error: errorMessage,
+        failureType: diagnosticFailureType(error),
       });
 
       return {
@@ -625,14 +562,11 @@ export class Nostr {
       const { decrypt } = getRegisteredNIP04();
       return decrypt(this.privateKey, senderPubkey, event.content);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "unknown error";
-
       this.logger.error("Failed to decrypt direct message", {
         eventId: event.id,
-        senderPubkey,
+        failureType: diagnosticFailureType(error),
         recipientPubkey,
-        error: errorMessage,
+        senderPubkey,
       });
 
       throw new Error(
@@ -1203,9 +1137,7 @@ export class Nostr {
   ): Promise<PublishResponse> {
     this.enforcePublishRateLimit();
 
-    const normalizedRelayUrl = this.normalizeRelayUrl(
-      this.preprocessRelayUrl(relayUrl),
-    );
+    const normalizedRelayUrl = this.relays.canonicalUrl(relayUrl);
     const relay = this.getRelayByUrl(normalizedRelayUrl);
     const { createdAt, ...publishOptions } = options;
 
@@ -1239,15 +1171,7 @@ export class Nostr {
   }
 
   private getRelayByUrl(relayUrl: string): Relay {
-    const preprocessedUrl = this.preprocessRelayUrl(relayUrl);
-    const normalizedUrl = this.normalizeRelayUrl(preprocessedUrl);
-    const relay = this.relays.get(normalizedUrl);
-
-    if (!relay) {
-      throw new Error(`Relay not found: ${normalizedUrl}`);
-    }
-
-    return relay;
+    return this.relays.require(relayUrl);
   }
 
   private enforcePublishRateLimit(): void {

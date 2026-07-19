@@ -6,7 +6,7 @@
  */
 
 import { Nostr, Relay, RelayEvent } from "../../src";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { validateRelayIngressEvent } from "../../src/nip01/validation";
 
 // Type for debug-only message injection in this example.

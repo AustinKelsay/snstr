@@ -9,7 +9,7 @@
 - Feature branch: `feature/collapse-event-validation`
 - Human owner: plebdev
 - Started: 2026-07-06T13:30:37Z
-- Current status: PR opened
+- Current status: hosted gates passed; PR #86 merged into `staging`
 - Skill setup status: created `docs/agents/*`; GitHub triage labels confirmed/created
 
 ## Goal

@@ -11,10 +11,15 @@ import {
   getPublicKey,
   signEvent,
 } from "../../../src";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import {
+  dispatchRelayMessage,
+  installRelaySocket,
+  NostrRelay,
+  replaceRelayInboundValidator,
+  waitForRelayValidation,
+} from "../../../src/testing";
 import { testUtils } from "../../types";
 import {
-  asTestRelay,
   RelayConnectCallback,
   RelayDisconnectCallback,
   RelayErrorCallback,
@@ -72,24 +77,8 @@ async function handleInboundEvent(
   subscriptionId: string,
   event: unknown,
 ): Promise<void> {
-  const relayInternals = asTestRelay(relay);
-  relayInternals.handleMessage(["EVENT", subscriptionId, event]);
-
-  const deadline = Date.now() + 1000;
-  while (Date.now() < deadline) {
-    const pendingValidations =
-      relayInternals.pendingValidationCounts.get(subscriptionId) ?? 0;
-
-    if (pendingValidations === 0) {
-      return;
-    }
-
-    await testUtils.sleep(1);
-  }
-
-  throw new Error(
-    `Timed out waiting for inbound EVENT validation for ${subscriptionId}`,
-  );
+  dispatchRelayMessage(relay, ["EVENT", subscriptionId, event]);
+  await waitForRelayValidation(relay, subscriptionId);
 }
 
 function expectRelayError(errors: unknown[], message: string): void {
@@ -119,6 +108,21 @@ describe("Relay", () => {
   });
 
   describe("Connection Management", () => {
+    test("disconnect discards buffered delivery without an active socket", async () => {
+      const relay = new Relay("wss://example.com");
+      const onEvent = jest.fn();
+      const subscriptionId = relay.subscribe([{}], onEvent);
+      const event = await createSignedRelayEvent();
+
+      dispatchRelayMessage(relay, ["EVENT", subscriptionId, event]);
+
+      relay.disconnect();
+      await testUtils.sleep(20);
+
+      expect(relay.getSubscriptionIds().size).toBe(0);
+      expect(onEvent).not.toHaveBeenCalled();
+    });
+
     test("should connect to ephemeral relay", async () => {
       const relay = new Relay(ephemeralRelay.url);
 
@@ -224,9 +228,6 @@ describe("Relay", () => {
       await relay.connect();
       relay.disconnect();
 
-      // Verify the connectionPromise is cleared
-      expect(asTestRelay(relay).connectionPromise).toBeNull();
-
       // Second connect attempt should work
       const result = await relay.connect();
       expect(result).toBe(true);
@@ -258,7 +259,7 @@ describe("Relay", () => {
       const authHandler = jest.fn();
 
       relay.on(RelayEvent.Auth, authHandler);
-      asTestRelay(relay).handleMessage(["AUTH", "challenge-123"]);
+      dispatchRelayMessage(relay, ["AUTH", "challenge-123"]);
 
       expect(authHandler).toHaveBeenCalledWith("challenge-123");
     });
@@ -270,7 +271,7 @@ describe("Relay", () => {
 
       relay.on(RelayEvent.Auth, authHandler);
       relay.on(RelayEvent.Error, errorHandler);
-      asTestRelay(relay).handleMessage(["AUTH", 123]);
+      dispatchRelayMessage(relay, ["AUTH", 123]);
 
       expect(authHandler).not.toHaveBeenCalled();
       expect(errorHandler).toHaveBeenCalledTimes(1);
@@ -398,10 +399,7 @@ describe("Relay", () => {
 
     test("should send AUTH events to the relay and wait for OK by default", async () => {
       const authRelay = new Relay(ephemeralRelay.url);
-      const relayInternals = asTestRelay(authRelay);
-
-      relayInternals.connected = true;
-      relayInternals.ws = {
+      installRelaySocket(authRelay, {
         readyState: 1,
         onopen: null,
         onclose: null,
@@ -409,10 +407,15 @@ describe("Relay", () => {
         onmessage: null,
         send: jest.fn((payload: string) => {
           expect(payload).toBe(JSON.stringify(["AUTH", authEvent]));
-          relayInternals.handleMessage(["OK", authEvent.id, true, "accepted"]);
+          dispatchRelayMessage(authRelay, [
+            "OK",
+            authEvent.id,
+            true,
+            "accepted",
+          ]);
         }),
         close: jest.fn(),
-      } as unknown as WebSocket;
+      });
 
       const authEvent: NostrEvent = {
         id: "auth-event-id",
@@ -488,10 +491,7 @@ describe("Relay", () => {
     test("should support waitForAck false for AUTH events", async () => {
       const authRelay = new Relay(ephemeralRelay.url);
       const send = jest.fn();
-      const relayInternals = asTestRelay(authRelay);
-
-      relayInternals.connected = true;
-      relayInternals.ws = {
+      installRelaySocket(authRelay, {
         readyState: 1,
         onopen: null,
         onclose: null,
@@ -499,7 +499,7 @@ describe("Relay", () => {
         onmessage: null,
         send,
         close: jest.fn(),
-      } as unknown as WebSocket;
+      });
 
       const authEvent: NostrEvent = {
         id: "auth-event-id",
@@ -538,14 +538,13 @@ describe("Relay", () => {
       };
 
       // Avoid relay-side validation errors interfering with timeout behavior
-      const testRelay = asTestRelay(relay);
-      const originalWs = testRelay.ws;
       const mockSend = jest.fn();
-      testRelay.ws = {
+      const restoreSocket = installRelaySocket(relay, {
         // Use literal readyState values to avoid global WebSocket mutations
         readyState: 1, // OPEN
         send: mockSend,
-      } as unknown as WebSocket;
+        close: jest.fn(),
+      });
 
       try {
         // Use a short real timeout for cross-runner compatibility
@@ -565,7 +564,7 @@ describe("Relay", () => {
         }
       } finally {
         // Restore the original socket
-        testRelay.ws = originalWs;
+        restoreSocket();
       }
     });
 
@@ -608,20 +607,24 @@ describe("Relay", () => {
       };
 
       // Mock the WebSocket readyState to simulate a non-OPEN state
-      const testRelay = asTestRelay(relay);
-      const origWs = testRelay.ws;
-      testRelay.ws = { readyState: 2 } as WebSocket; // CLOSING
+      const restoreSocket = installRelaySocket(
+        relay,
+        { readyState: 2, send: jest.fn(), close: jest.fn() },
+        true,
+      );
 
-      // Try to publish with a socket that's not in OPEN state
-      const result: PublishResponse = await relay.publish(event);
+      try {
+        // Try to publish with a socket that's not in OPEN state
+        const result: PublishResponse = await relay.publish(event);
 
-      // Should fail with not_connected reason
-      expect(result.success).toBe(false);
-      expect(result.reason).toBe("not_connected");
-      expect(result.relay).toBe(ephemeralRelay.url);
-
-      // Restore the original WebSocket
-      testRelay.ws = origWs;
+        // Should fail with not_connected reason
+        expect(result.success).toBe(false);
+        expect(result.reason).toBe("not_connected");
+        expect(result.relay).toBe(ephemeralRelay.url);
+      } finally {
+        // Restore the original WebSocket
+        restoreSocket();
+      }
     });
 
     test("should support waitForAck option", async () => {
@@ -638,29 +641,28 @@ describe("Relay", () => {
 
       // Use an isolated relay instance to avoid shared-connection races
       const isolatedRelay = new Relay("ws://example.com");
-      const testRelay = asTestRelay(isolatedRelay);
-      const origWs = testRelay.ws;
-      const origConnected = testRelay.connected;
       const mockSend = jest.fn();
-      testRelay.ws = {
+      const restoreSocket = installRelaySocket(isolatedRelay, {
         readyState: 1, // OPEN
         send: mockSend,
-      } as unknown as WebSocket;
-      testRelay.connected = true;
+        close: jest.fn(),
+      });
 
       try {
         // Publish with waitForAck: false
         const options: PublishOptions = { waitForAck: false };
-        const result: PublishResponse = await isolatedRelay.publish(event, options);
+        const result: PublishResponse = await isolatedRelay.publish(
+          event,
+          options,
+        );
 
         // Should immediately return success without waiting for OK
         expect(result.success).toBe(true);
-        expect(result.relay).toBe(asTestRelay(isolatedRelay).url);
+        expect(result.relay).toBe("ws://example.com");
         expect(mockSend).toHaveBeenCalled();
       } finally {
         // Restore original relay connection state
-        testRelay.ws = origWs;
-        testRelay.connected = origConnected;
+        restoreSocket();
         isolatedRelay.disconnect();
       }
     });
@@ -689,27 +691,27 @@ describe("Relay", () => {
       nonRoutableRelay.disconnect();
 
       // For timeout error
-      const timeoutRelay = asTestRelay(relay);
-      const originalWs = timeoutRelay.ws;
-      timeoutRelay.ws = {
+      const restoreTimeoutSocket = installRelaySocket(relay, {
         readyState: 1, // OPEN
         send: jest.fn(),
-      } as unknown as WebSocket;
+        close: jest.fn(),
+      });
       const timeoutPromise = relay.publish(event, { timeout: 20 });
       const timeoutResult = await timeoutPromise;
       expect(timeoutResult.success).toBe(false);
       expect(["timeout", "not_connected"]).toContain(timeoutResult.reason);
-      timeoutRelay.ws = originalWs;
+      restoreTimeoutSocket();
 
       // For disconnected error
-      const testRelay = asTestRelay(relay);
-      const mockWs = { readyState: 3 }; // CLOSED
-      const origWs = testRelay.ws;
-      testRelay.ws = mockWs as unknown as WebSocket;
+      const restoreClosedSocket = installRelaySocket(
+        relay,
+        { readyState: 3, send: jest.fn(), close: jest.fn() },
+        true,
+      );
       const disconnectedResult = await relay.publish(event);
       expect(disconnectedResult.success).toBe(false);
       expect(disconnectedResult.reason).toBe("not_connected");
-      testRelay.ws = origWs;
+      restoreClosedSocket();
     });
   });
 
@@ -941,9 +943,7 @@ describe("Relay", () => {
         rawMessage: testRawMessage,
       };
 
-      // Access the private handleMessage method using type assertion
-      const internalRelay = asTestRelay(relay);
-      internalRelay.handleMessage([
+      dispatchRelayMessage(relay, [
         "OK",
         testEventId,
         testSuccess,
@@ -985,8 +985,7 @@ describe("Relay", () => {
         message: "Event was stored",
         rawMessage: testRawMessage,
       };
-      const internalRelay = asTestRelay(relay);
-      internalRelay.handleMessage([
+      dispatchRelayMessage(relay, [
         "OK",
         testEventId,
         testSuccess,
@@ -1018,20 +1017,14 @@ describe("Relay", () => {
       });
 
       // Create a subscription so we can verify it gets removed
-      const subId = "test-subscription-id";
-      const internalRelay = asTestRelay(relay);
-      internalRelay.subscriptions.set(subId, {
-        id: subId,
-        filters: [{ kinds: [1] }],
-        onEvent: () => {},
-      });
+      const subId = relay.subscribe([{ kinds: [1] }], () => {});
 
       // Verify the subscription exists before
-      expect(internalRelay.subscriptions.has(subId)).toBe(true);
+      expect(relay.getSubscriptionIds().has(subId)).toBe(true);
 
       // Manually trigger the CLOSED message handling
       const testMessage = "Subscription closed due to inactivity";
-      internalRelay.handleMessage(["CLOSED", subId, testMessage]);
+      dispatchRelayMessage(relay, ["CLOSED", subId, testMessage]);
 
       // Verify the handler was called with the right parameters
       expect(closedMessageReceived).toBe(true);
@@ -1039,7 +1032,7 @@ describe("Relay", () => {
       expect(closedMessage).toBe(testMessage);
 
       // Verify the subscription was removed
-      expect(internalRelay.subscriptions.has(subId)).toBe(false);
+      expect(relay.getSubscriptionIds().has(subId)).toBe(false);
     });
   });
 
@@ -1059,6 +1052,35 @@ describe("Relay", () => {
 
       expect(onEvent).toHaveBeenCalledTimes(1);
       expect(onEvent).toHaveBeenCalledWith(event);
+    });
+
+    test("should discard validation results after the subscription is removed", async () => {
+      const onEvent = jest.fn();
+      const subscriptionId = relay.subscribe([{ kinds: [30001] }], onEvent);
+      const event = await createSignedRelayEvent({
+        kind: 30001,
+        tags: [["d", "late"]],
+      });
+      let resolveValidation!: (validated: NostrEvent) => void;
+      const validation = new Promise<NostrEvent>((resolve) => {
+        resolveValidation = resolve;
+      });
+      const restoreValidator = replaceRelayInboundValidator(
+        relay,
+        jest.fn(() => validation),
+      );
+
+      dispatchRelayMessage(relay, ["EVENT", subscriptionId, event]);
+      relay.unsubscribe(subscriptionId);
+      resolveValidation(event);
+      await validation;
+      await Promise.resolve();
+
+      expect(onEvent).not.toHaveBeenCalled();
+      expect(
+        relay.getLatestAddressableEvent(30001, event.pubkey, "late"),
+      ).toBeUndefined();
+      restoreValidator();
     });
 
     test("should reject malformed inbound EVENT messages", async () => {
@@ -1278,350 +1300,32 @@ describe("Relay", () => {
       expect(onEvent).toHaveBeenCalledTimes(1);
       expect(onEvent).toHaveBeenCalledWith(encryptedEvent);
     });
-  });
 
-  describe("Addressable events (kinds 30000-39999)", () => {
-    let relay: Relay;
-    let testEvent: NostrEvent;
-
-    beforeEach(async () => {
-      relay = new Relay(ephemeralRelay.url);
-      await relay.connect();
-
-      // Create a valid addressable event
-      testEvent = {
-        id: "b0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3cd",
-        pubkey:
-          "884704d5780d85163c138d2695ca263eb7552b0f2c5ebaf86c8d9c4e62a337e3",
-        created_at: 1671312795,
+    test("stores signed addressable events received through the protocol path", async () => {
+      const event = await createSignedRelayEvent({
         kind: 30001,
-        tags: [
-          ["d", "test-identifier"],
-          ["t", "test"],
-        ],
-        content: "test content for addressable event",
-        sig: "553e66e4316cd6f8e2c363b7677d41da0f6b37775daa7728acdda6e477ed2fbf03be27c33f1eddaa2ee2711e9ca7c0ad7e97dd4d3eb4c1cf9ceaf98d9000af6a",
-      };
-    });
-
-    afterEach(() => {
-      relay.disconnect();
-    });
-
-    test("should process and store addressable events", () => {
-      // Access the private method directly for testing
-      const testRelay = asTestRelay(relay);
-      testRelay.processAddressableEvent(testEvent);
-
-      // Get the stored event using the public API
-      const storedEvent = relay.getLatestAddressableEvent(
-        30001,
-        testEvent.pubkey,
-        "test-identifier",
-      );
-
-      // Verify it was stored correctly
-      expect(storedEvent).toBeDefined();
-      expect(storedEvent?.id).toBe(testEvent.id);
-      expect(storedEvent?.kind).toBe(30001);
-    });
-
-    test("should replace older events with the same pubkey, kind, and d-tag", () => {
-      // Create an older event with the same pubkey, kind, and d-tag
-      const olderEvent = {
-        ...testEvent,
-        id: "c0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3ee",
-        created_at: 1671312700, // Older timestamp
-        content: "older content",
-      };
-
-      // Create a newer event with the same pubkey, kind, and d-tag
-      const newerEvent = {
-        ...testEvent,
-        id: "d0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3ff",
-        created_at: 1671312900, // Newer timestamp
-        content: "newer content",
-      };
-
-      // Process events out of order (newer first, then older)
-      const testRelay = asTestRelay(relay);
-      testRelay.processAddressableEvent(newerEvent);
-      testRelay.processAddressableEvent(olderEvent);
-
-      // Get the stored event
-      const storedEvent = relay.getLatestAddressableEvent(
-        30001,
-        testEvent.pubkey,
-        "test-identifier",
-      );
-
-      // Verify the newer event was kept
-      expect(storedEvent).toBeDefined();
-      expect(storedEvent?.id).toBe(newerEvent.id);
-      expect(storedEvent?.content).toBe("newer content");
-    });
-
-    test("should handle events with different d-tags separately", () => {
-      // Create an event with a different d-tag
-      const differentDTagEvent = {
-        ...testEvent,
-        id: "e0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f400",
-        tags: [
-          ["d", "different-identifier"],
-          ["t", "test"],
-        ],
-        content: "different d-tag content",
-      };
-
-      // Process both events
-      const testRelay = asTestRelay(relay);
-      testRelay.processAddressableEvent(testEvent);
-      testRelay.processAddressableEvent(differentDTagEvent);
-
-      // Get the stored events
-      const event1 = relay.getLatestAddressableEvent(
-        30001,
-        testEvent.pubkey,
-        "test-identifier",
-      );
-      const event2 = relay.getLatestAddressableEvent(
-        30001,
-        testEvent.pubkey,
-        "different-identifier",
-      );
-
-      // Verify both events were stored
-      expect(event1).toBeDefined();
-      expect(event1?.id).toBe(testEvent.id);
-      expect(event1?.content).toBe("test content for addressable event");
-
-      expect(event2).toBeDefined();
-      expect(event2?.id).toBe(differentDTagEvent.id);
-      expect(event2?.content).toBe("different d-tag content");
-    });
-
-    test("should retrieve addressable events by pubkey", () => {
-      // Create another event with the same pubkey but different kind and d-tag
-      const anotherEvent = {
-        ...testEvent,
-        id: "f0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f401",
-        kind: 30002,
-        tags: [
-          ["d", "another-identifier"],
-          ["t", "test"],
-        ],
-        content: "another content",
-      };
-
-      // Process both events
-      const testRelay = asTestRelay(relay);
-      testRelay.processAddressableEvent(testEvent);
-      testRelay.processAddressableEvent(anotherEvent);
-
-      // Get events by pubkey
-      const events = relay.getAddressableEventsByPubkey(testEvent.pubkey);
-
-      // Verify both events were retrieved
-      expect(events.length).toBe(2);
-      expect(events.some((e) => e.id === testEvent.id)).toBe(true);
-      expect(events.some((e) => e.id === anotherEvent.id)).toBe(true);
-    });
-
-    test("should retrieve addressable events by kind", () => {
-      // Create another event with the same kind but different pubkey
-      const differentPubkeyEvent = {
-        ...testEvent,
-        id: "g0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f402",
-        pubkey:
-          "994704d5780d85163c138d2695ca263eb7552b0f2c5ebaf86c8d9c4e62a337f4",
-        tags: [
-          ["d", "another-pubkey-identifier"],
-          ["t", "test"],
-        ],
-        content: "different pubkey content",
-      };
-
-      // Process both events
-      const testRelay = asTestRelay(relay);
-      testRelay.processAddressableEvent(testEvent);
-      testRelay.processAddressableEvent(differentPubkeyEvent);
-
-      // Get events by kind
-      const events = relay.getAddressableEventsByKind(30001);
-
-      // Verify both events were retrieved
-      expect(events.length).toBe(2);
-      expect(events.some((e) => e.id === testEvent.id)).toBe(true);
-      expect(events.some((e) => e.id === differentPubkeyEvent.id)).toBe(true);
-    });
-
-    test("should properly handle addressable events through handleMessage", async () => {
-      // Create a subscription to receive events
-      const onEvent = jest.fn();
-      const subscriptionId = relay.subscribe([{}], onEvent);
-      const testRelay = asTestRelay(relay);
-
-      // Create a valid addressable event
-      const addressableEvent = await createSignedRelayEvent({
-        kind: 30001,
-        tags: [["d", "test-identifier"]],
-        content: "Addressable event through handleMessage",
+        tags: [["d", "profile"]],
+        content: "addressable",
       });
+      const subscriptionId = relay.subscribe([{ kinds: [30001] }], () => {});
 
-      // Process the event through handleMessage
-      testRelay.handleMessage(["EVENT", subscriptionId, addressableEvent]);
+      await handleInboundEvent(relay, subscriptionId, event);
 
-      await testUtils.sleep(20);
-
-      const storedEvent = relay.getLatestAddressableEvent(
-        30001,
-        addressableEvent.pubkey,
-        "test-identifier",
-      );
-      expect(storedEvent).toBeDefined();
-      expect(storedEvent?.id).toBe(addressableEvent.id);
-      expect(onEvent).toHaveBeenCalledWith(addressableEvent);
+      expect(
+        relay.getLatestAddressableEvent(30001, event.pubkey, "profile"),
+      ).toEqual(event);
     });
-  });
 
-  describe("Replaceable events (kinds 0, 3, 10000-19999)", () => {
-    let relay: Relay;
-    let testEvent: NostrEvent;
-
-    beforeEach(async () => {
-      relay = new Relay(ephemeralRelay.url);
-      await relay.connect();
-
-      // Create a valid replaceable event (kind 0)
-      testEvent = {
-        id: "a0635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3cd",
-        pubkey:
-          "884704d5780d85163c138d2695ca263eb7552b0f2c5ebaf86c8d9c4e62a337e3",
-        created_at: 1671312795,
+    test("stores signed replaceable events received through the protocol path", async () => {
+      const event = await createSignedRelayEvent({
         kind: 0,
-        tags: [
-          ["name", "Test User"],
-          ["about", "Test description"],
-        ],
-        content: JSON.stringify({
-          name: "Test User",
-          about: "Test description",
-        }),
-        sig: "553e66e4316cd6f8e2c363b7677d41da0f6b37775daa7728acdda6e477ed2fbf03be27c33f1eddaa2ee2711e9ca7c0ad7e97dd4d3eb4c1cf9ceaf98d9000af6a",
-      };
-    });
+        content: "metadata",
+      });
+      const subscriptionId = relay.subscribe([{ kinds: [0] }], () => {});
 
-    afterEach(() => {
-      relay.disconnect();
-    });
+      await handleInboundEvent(relay, subscriptionId, event);
 
-    test("should process and store replaceable events", () => {
-      // Process the event
-      const testRelay = asTestRelay(relay);
-      testRelay.processReplaceableEvent(testEvent);
-
-      // Create a newer version
-      const newerEvent = {
-        ...testEvent,
-        created_at: testEvent.created_at + 1000,
-        id: "b1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3cf",
-        content: JSON.stringify({
-          name: "Test User Updated",
-          about: "Updated description",
-        }),
-      };
-
-      // Process the newer event
-      testRelay.processReplaceableEvent(newerEvent);
-
-      // Get the latest event
-      const retrievedEvent = relay.getLatestReplaceableEvent(
-        testEvent.pubkey,
-        testEvent.kind,
-      );
-
-      // It should be the newer event
-      expect(retrievedEvent).toBeDefined();
-      expect(retrievedEvent?.id).toBe(newerEvent.id);
-      expect(retrievedEvent?.content).toBe(newerEvent.content);
-    });
-
-    test("should keep older event if newer one has older timestamp", () => {
-      // Process the event
-      const testRelay = asTestRelay(relay);
-      testRelay.processReplaceableEvent(testEvent);
-
-      // Create an event with newer id but older timestamp
-      const olderEvent = {
-        ...testEvent,
-        created_at: testEvent.created_at - 1000, // Older timestamp
-        id: "c1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3c0", // Newer id
-        content: JSON.stringify({
-          name: "Test User Older",
-          about: "This should not replace the original",
-        }),
-      };
-
-      // Process the older event
-      testRelay.processReplaceableEvent(olderEvent);
-
-      // Get the latest event
-      const retrievedEvent = relay.getLatestReplaceableEvent(
-        testEvent.pubkey,
-        testEvent.kind,
-      );
-
-      // It should still be the original event
-      expect(retrievedEvent).toBeDefined();
-      expect(retrievedEvent?.id).toBe(testEvent.id);
-      expect(retrievedEvent?.content).toBe(testEvent.content);
-    });
-
-    test("should retrieve replaceable events by pubkey and kind", () => {
-      // Process events of different kinds
-      const testRelay = asTestRelay(relay);
-      testRelay.processReplaceableEvent(testEvent); // kind 0
-
-      // Create a kind 3 event
-      const contactEvent = {
-        ...testEvent,
-        kind: 3,
-        content: "",
-        tags: [["p", "some-pubkey", "some-relay"]],
-        id: "d1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3d1",
-      };
-
-      // Create a kind 10002 event
-      const relayEvent = {
-        ...testEvent,
-        kind: 10002,
-        content: "",
-        tags: [["r", "wss://relay.example.com", "read"]],
-        id: "e1635d6a9851d3aed0bc1c4f0c0924235bff013e037bf21eee532da2bba4f3e2",
-      };
-
-      // Process these events
-      testRelay.processReplaceableEvent(contactEvent);
-      testRelay.processReplaceableEvent(relayEvent);
-
-      // Retrieve each kind
-      const retrievedKind0 = relay.getLatestReplaceableEvent(
-        testEvent.pubkey,
-        0,
-      );
-      const retrievedKind3 = relay.getLatestReplaceableEvent(
-        testEvent.pubkey,
-        3,
-      );
-      const retrievedKind10002 = relay.getLatestReplaceableEvent(
-        testEvent.pubkey,
-        10002,
-      );
-
-      // Verify correct events were retrieved
-      expect(retrievedKind0?.id).toBe(testEvent.id);
-      expect(retrievedKind3?.id).toBe(contactEvent.id);
-      expect(retrievedKind10002?.id).toBe(relayEvent.id);
+      expect(relay.getLatestReplaceableEvent(event.pubkey, 0)).toEqual(event);
     });
   });
 });

@@ -24,7 +24,7 @@ import {
 import { parseLnurlPayResponse } from "../../src/nip57";
 
 import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { createServer, Server, IncomingMessage, ServerResponse } from "http";
 import { parse as parseUrl } from "url";
 import { parse as parseQuery } from "querystring";

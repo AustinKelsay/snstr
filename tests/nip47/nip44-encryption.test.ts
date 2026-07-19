@@ -7,7 +7,7 @@ import {
   beforeEach,
   afterEach,
 } from "@jest/globals";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { generateKeypair } from "../../src/utils/crypto";
 import {
   NostrWalletConnectClient,

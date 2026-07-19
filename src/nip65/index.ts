@@ -1,6 +1,13 @@
 import { NostrEvent } from "../types/nostr";
 import { isValidRelayUrl } from "../nip19/secure";
 import { getUnixTime } from "../utils/time";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  reportDiagnostic,
+} from "../utils/diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "NIP-65" });
 
 /** Relay list entry describing read/write preferences */
 export interface RelayListEntry {
@@ -28,6 +35,7 @@ export interface RelayListEvent extends NostrEvent {
 export function createRelayListEvent(
   relays: RelayListEntry[],
   content = "",
+  logger: DiagnosticLogger = defaultLogger,
 ): Omit<RelayListEvent, "id" | "sig" | "pubkey"> {
   const tags: string[][] = [];
 
@@ -35,9 +43,23 @@ export function createRelayListEvent(
     // skip entries with missing or invalid URL
     if (!r.url || !isValidRelayUrl(r.url)) {
       if (!r.url) {
-        console.warn("Skipping relay entry with missing URL", r);
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Skipping relay entry with missing URL",
+          {
+            reason: "missing-url",
+          },
+        );
       } else {
-        console.warn(`Skipping relay entry with invalid URL: ${r.url}`, r);
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Skipping relay entry with invalid URL",
+          {
+            reason: "invalid-url",
+          },
+        );
       }
       continue;
     }

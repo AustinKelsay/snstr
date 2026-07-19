@@ -2,6 +2,7 @@ import { createAddressableEvent, createEvent, UnsignedEvent } from "../nip01/eve
 import { NostrEvent, Filter } from "../types/nostr";
 import { getPublicKey } from "../utils/crypto";
 import { getUnixTime } from "../utils/time";
+import { isLowercaseHexOfLength } from "../utils/wire-validation";
 
 export const GROUP_METADATA_KIND = 39000;
 export const GROUP_ADMINS_KIND = 39001;
@@ -105,7 +106,7 @@ function assertGroupId(groupId: string): void {
 }
 
 function assertPubkey(pubkey: string, field = "pubkey"): void {
-  if (!/^[0-9a-f]{64}$/.test(pubkey)) {
+  if (!isLowercaseHexOfLength(pubkey, 64)) {
     throw new Error(`${field} must be a 64-character lowercase hex string`);
   }
 }

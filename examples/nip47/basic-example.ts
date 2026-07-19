@@ -19,7 +19,7 @@ import {
   SignMessageResponseResult,
   NIP47Error,
 } from "../../src/nip47/types";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { signEvent, getPublicKey } from "../../src/utils/crypto";
 import { getEventHash } from "../../src/nip01/event";
 

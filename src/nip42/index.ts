@@ -2,7 +2,8 @@ import { createSignedEvent, validateEvent } from "../nip01/event";
 import { EventTemplate, NIP20Prefix, NostrEvent } from "../types/nostr";
 import { getPublicKey } from "../utils/crypto";
 import { normalizeRelayUrl } from "../utils/relayUrl";
-import { sanitizeString, SECURITY_LIMITS } from "../utils/security-validator";
+import { sanitizeString } from "../utils/security-validator";
+import { SECURITY_LIMITS } from "../utils/security-limits";
 
 export const AUTH_EVENT_KIND = 22242;
 

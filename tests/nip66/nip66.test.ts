@@ -11,6 +11,17 @@ import {
   RelayMonitorAnnouncementOptions,
 } from "../../src/nip66";
 import { NostrEvent } from "../../src/types/nostr";
+import type { DiagnosticLogger } from "../../src/utils/logger";
+
+function createLogger(): jest.Mocked<DiagnosticLogger> {
+  return {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+  };
+}
 
 // Test types that allow invalid inputs for validation testing
 type TestRelayDiscoveryOptions = {
@@ -731,15 +742,10 @@ describe("NIP-66", () => {
   });
 
   describe("Enhanced parsing validation with bounds checking", () => {
-    // Mock console.warn to capture warnings
-    let consoleWarnSpy: jest.SpyInstance;
+    let logger: jest.Mocked<DiagnosticLogger>;
 
     beforeEach(() => {
-      consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      consoleWarnSpy.mockRestore();
+      logger = createLogger();
     });
 
     test("parseRelayMonitorAnnouncement should handle invalid timeout values gracefully", () => {
@@ -769,7 +775,7 @@ describe("NIP-66", () => {
         sig: "testsig",
       };
 
-      const parsed = parseRelayMonitorAnnouncement(malformedEvent);
+      const parsed = parseRelayMonitorAnnouncement(malformedEvent, logger);
       expect(parsed).not.toBeNull();
 
       // Should only have valid timeouts (note: "1.5" becomes 1 via parseInt, which is valid)
@@ -779,20 +785,15 @@ describe("NIP-66", () => {
       expect(parsed?.timeouts[2]).toEqual({ value: 4000, test: undefined });
 
       // Should have logged warnings for invalid entries
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "NIP-66: Skipping timeout tag with missing or empty value",
-        ),
-      );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "NIP-66: Skipping timeout tag with invalid numeric value",
-        ),
-      );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "NIP-66: Skipping timeout tag with value out of bounds",
-        ),
+      expect(logger.warn).toHaveBeenCalledWith("Skipping invalid timeout tag", {
+        reason: "missing-value",
+      });
+      expect(logger.warn).toHaveBeenCalledWith("Skipping invalid timeout tag", {
+        reason: "invalid-number",
+      });
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Skipping invalid timeout tag",
+        expect.objectContaining({ reason: "out-of-bounds" }),
       );
     });
 
@@ -816,27 +817,24 @@ describe("NIP-66", () => {
         sig: "testsig",
       };
 
-      const parsed = parseRelayMonitorAnnouncement(malformedEvent);
+      const parsed = parseRelayMonitorAnnouncement(malformedEvent, logger);
       expect(parsed).not.toBeNull();
 
       // Should use the valid frequency (last valid one wins)
       expect(parsed?.frequency).toBe(3600);
 
       // Should have logged warnings for invalid entries
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "NIP-66: Skipping frequency tag with missing or empty value",
-        ),
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Skipping invalid frequency tag",
+        { reason: "missing-value" },
       );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "NIP-66: Skipping frequency tag with invalid numeric value",
-        ),
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Skipping invalid frequency tag",
+        { reason: "invalid-number" },
       );
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining(
-          "NIP-66: Skipping frequency tag with value out of bounds",
-        ),
+      expect(logger.warn).toHaveBeenCalledWith(
+        "Skipping invalid frequency tag",
+        expect.objectContaining({ reason: "out-of-bounds" }),
       );
     });
 

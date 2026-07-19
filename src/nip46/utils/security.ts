@@ -2,7 +2,8 @@
  * Security validation utilities for NIP-46
  */
 
-import { isValidPrivateKey } from "../../nip44";
+import { isValidPrivateKey } from "../../utils/key-validation";
+import { isHexOfLength } from "../../utils/wire-validation";
 import { NIP46SecurityError, NIP46UnsignedEventData } from "../types";
 
 /**
@@ -158,7 +159,7 @@ export function validateKeypairForCrypto(
   }
 
   // Basic hex validation for public key (64 chars hex)
-  if (!/^[0-9a-f]{64}$/i.test(keypair.publicKey)) {
+  if (!isHexOfLength(keypair.publicKey, 64)) {
     throw new NIP46SecurityError(
       `${context} public key must be 64 character hex string`,
     );
@@ -218,7 +219,7 @@ export function validateEncryptionParams(
     );
   }
 
-  if (!/^[0-9a-f]{64}$/i.test(thirdPartyPubkey)) {
+  if (!isHexOfLength(thirdPartyPubkey, 64)) {
     throw new NIP46SecurityError(
       `${operation} third party public key must be 64 character hex string`,
     );
@@ -370,14 +371,14 @@ export function validateBunkerInitialization(options: {
     );
   }
 
-  if (!/^[0-9a-f]{64}$/i.test(options.userPubkey)) {
+  if (!isHexOfLength(options.userPubkey, 64)) {
     throw new NIP46SecurityError(
       "User public key must be 64 character hex string",
     );
   }
 
   // Validate signer public key if provided
-  if (options.signerPubkey && !/^[0-9a-f]{64}$/i.test(options.signerPubkey)) {
+  if (options.signerPubkey && !isHexOfLength(options.signerPubkey, 64)) {
     throw new NIP46SecurityError(
       "Signer public key must be 64 character hex string",
     );
