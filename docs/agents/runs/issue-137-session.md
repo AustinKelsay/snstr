@@ -71,7 +71,7 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - Slow Jest: 2/2 suites, 40/40 tests
 - Routine Bun: 84 files, 1063/1063 tests
 - Slow Bun: 2 files, 40/40 tests
-- Pinned Bun 1.3.9 compatibility: routine name filter skipped all 40 slow tests across both slow files in 104ms while the routine lane contract ran 7/7
+- Pinned Bun 1.3.9 compatibility: routine name filter skipped all 40 slow tests across both slow files in 104 ms while the routine lane contract completed 7/7 checks
 - Complete coverage before the hosted-fix regression test: 86/86 suites, 1102/1102 tests in 53.732s; final rerun pending
 - Repository gates: command/package-manager policy, ESLint, strict TypeScript, CommonJS script syntax, build, examples, pack, and diff integrity all green
 
