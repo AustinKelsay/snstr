@@ -1,8 +1,5 @@
-import { NostrEvent, NostrFilter } from "../types/nostr";
-import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
-import { getUnixTime } from "../utils/time";
 import { createSignedEvent, UnsignedEvent } from "../nip01/event";
 import {
   NIP46Request,
@@ -22,6 +19,7 @@ import {
 } from "./utils/request-response";
 import { buildConnectionString } from "./utils/connection";
 import { validatePrivateKeySecure } from "./utils/security";
+import { NIP46BunkerEngine } from "./internal/bunker-engine";
 
 // Session data for connected clients
 interface ClientSession {
@@ -36,16 +34,14 @@ interface ClientSession {
  * It is designed to be lightweight and easy to use.
  */
 export class SimpleNIP46Bunker {
-  private nostr: Nostr;
-  private relays: string[];
+  private readonly engine: NIP46BunkerEngine;
+  private readonly relays: string[];
   private userKeys: NIP46KeyPair;
   private signerKeys: NIP46KeyPair;
   private clients: Map<string, ClientSession>;
   private defaultPermissions: Set<string>;
-  private subId: string | null;
   private secret?: string;
   private logger: NIP46DiagnosticLogger;
-  private debug: boolean;
 
   /**
    * Create a new SimpleNIP46Bunker
@@ -62,23 +58,67 @@ export class SimpleNIP46Bunker {
     options: SimpleNIP46BunkerOptions = {},
   ) {
     this.relays = relays;
-    this.nostr = new Nostr(relays);
     this.userKeys = { publicKey: userPubkey, privateKey: "" };
     this.signerKeys = { publicKey: signerPubkey || userPubkey, privateKey: "" };
     this.clients = new Map();
     this.defaultPermissions = new Set(options.defaultPermissions || []);
-    this.subId = null;
     this.secret = options.secret;
-    this.debug = options.debug || false;
+    const debug = options.debug || false;
 
     // For backward compatibility, set the logger level based on debug flag if not explicitly set
     const logLevel =
-      options.logLevel || (this.debug ? LogLevel.DEBUG : LogLevel.INFO);
+      options.logLevel || (debug ? LogLevel.DEBUG : LogLevel.INFO);
 
     this.logger = NIP46DiagnosticLogger.create(options.logger, {
       prefix: "Bunker",
       level: logLevel,
       silent: process.env.NODE_ENV === "test", // Silent in test environment
+    });
+    this.engine = new NIP46BunkerEngine({
+      relays,
+      logger: this.logger,
+      signerKeys: () => this.signerKeys,
+      validateStart: () => {
+        if (!this.userKeys.publicKey) {
+          throw new NIP46ConnectionError("User public key not set");
+        }
+        if (!this.signerKeys.publicKey) {
+          throw new NIP46ConnectionError("Signer public key not set");
+        }
+        if (!this.signerKeys.privateKey) {
+          throw new NIP46ConnectionError("Signer private key not set");
+        }
+      },
+      handlers: {
+        [NIP46Method.CONNECT]: (request, clientPubkey) =>
+          this.handleConnect(request, clientPubkey),
+        [NIP46Method.GET_PUBLIC_KEY]: (request, clientPubkey) =>
+          this.handleGetPublicKey(request, clientPubkey),
+        [NIP46Method.PING]: (request, clientPubkey) =>
+          this.handlePing(request, clientPubkey),
+        [NIP46Method.SIGN_EVENT]: (request, clientPubkey) =>
+          this.handleSignEvent(request, clientPubkey),
+        [NIP46Method.NIP44_ENCRYPT]: (request, clientPubkey) =>
+          this.handleNIP44Encrypt(request, clientPubkey),
+        [NIP46Method.NIP44_DECRYPT]: (request, clientPubkey) =>
+          this.handleNIP44Decrypt(request, clientPubkey),
+        [NIP46Method.NIP04_ENCRYPT]: (request, clientPubkey) =>
+          this.handleNIP04Encrypt(request, clientPubkey),
+        [NIP46Method.NIP04_DECRYPT]: (request, clientPubkey) =>
+          this.handleNIP04Decrypt(request, clientPubkey),
+        [NIP46Method.GET_RELAYS]: (request, clientPubkey) =>
+          this.handleGetRelays(request, clientPubkey),
+        [NIP46Method.DISCONNECT]: (request, clientPubkey) =>
+          this.handleDisconnect(request, clientPubkey),
+      },
+      unknownMethod: (request) =>
+        createErrorResponse(request.id, `Unknown method: ${request.method}`),
+      failureResponse: (error) =>
+        createErrorResponse(
+          "unknown",
+          `Failed to process request: ${this.errorMessage(error)}`,
+        ),
+      afterStop: () => this.clients.clear(),
     });
   }
 
@@ -86,42 +126,13 @@ export class SimpleNIP46Bunker {
    * Start the bunker and listen for requests
    */
   async start(): Promise<void> {
-    // Validate keys
-    if (!this.userKeys.publicKey) {
-      throw new NIP46ConnectionError("User public key not set");
-    }
-
-    if (!this.signerKeys.publicKey) {
-      throw new NIP46ConnectionError("Signer public key not set");
-    }
-
-    // Also require the signer's _private_ key to be available up-front
-    if (!this.signerKeys.privateKey) {
-      throw new NIP46ConnectionError("Signer private key not set");
-    }
-
     try {
-      // Connect to relays
-      await this.nostr.connectToRelays();
-
-      // Subscribe to requests
-      const filter: NostrFilter = {
-        kinds: [24133],
-        "#p": [this.signerKeys.publicKey],
-      };
-
-      const subIds = this.nostr.subscribe([filter], (event) =>
-        this.handleRequest(event),
-      );
-      this.subId = subIds[0];
-
+      await this.engine.start();
       this.logger.info(
         `Bunker started for ${this.signerKeys.publicKey} on ${this.relays.length} relay(s)`,
       );
-      return;
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = this.errorMessage(error);
       this.logger.error(`Failed to start bunker:`, errorMessage);
       throw error instanceof NIP46Error
         ? error
@@ -133,27 +144,13 @@ export class SimpleNIP46Bunker {
    * Stop the bunker
    */
   async stop(): Promise<void> {
-    if (this.subId) {
-      try {
-        this.nostr.unsubscribe([this.subId]);
-      } catch (e) {
-        // Ignore unsubscribe errors
-      }
-      this.subId = null;
-    }
-
     try {
-      await this.nostr.disconnectFromRelays();
+      await this.engine.stop();
       this.logger.info(`Bunker stopped`);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = this.errorMessage(error);
       this.logger.warn(`Error disconnecting from relays:`, errorMessage);
-      // Continue despite errors
     }
-
-    // Clear client sessions
-    this.clients.clear();
   }
 
   /**
@@ -211,134 +208,6 @@ export class SimpleNIP46Bunker {
       return client.permissions.delete(permission);
     }
     return false;
-  }
-
-  /**
-   * Handle an incoming request event
-   */
-  private async handleRequest(event: NostrEvent): Promise<void> {
-    try {
-      this.logger.info(`Received request from ${event.pubkey}`);
-
-      // Check if we have the signer private key
-      if (!this.signerKeys.privateKey) {
-        this.logger.error(`Signer private key not set`);
-        return;
-      }
-
-      // Decrypt with the signer's private key and client's public key
-      try {
-        const decrypted = decryptNIP44(
-          event.content,
-          this.signerKeys.privateKey,
-          event.pubkey,
-        );
-
-        this.logger.debug(`Decrypted content: ${decrypted}`);
-
-        // Parse the request
-        const request: NIP46Request = JSON.parse(decrypted);
-        const clientPubkey = event.pubkey;
-
-        this.logger.debug(
-          `Processing request: ${request.method} (${request.id})`,
-        );
-
-        // Handle the request based on method
-        let response: NIP46Response;
-
-        switch (request.method) {
-          case NIP46Method.CONNECT:
-            response = await this.handleConnect(request, clientPubkey);
-            break;
-
-          case NIP46Method.GET_PUBLIC_KEY:
-            if (!this.isClientAuthorized(clientPubkey)) {
-              response = createErrorResponse(request.id, "Unauthorized");
-            } else {
-              this.logger.debug(`Sending pubkey: ${this.userKeys.publicKey}`);
-              response = createSuccessResponse(
-                request.id,
-                this.userKeys.publicKey,
-              );
-            }
-            break;
-
-          case NIP46Method.PING:
-            if (!this.isClientAuthorized(clientPubkey)) {
-              response = createErrorResponse(request.id, "Unauthorized");
-            } else {
-              this.logger.debug(`Ping-pong`);
-              response = createSuccessResponse(request.id, "pong");
-            }
-            break;
-
-          case NIP46Method.SIGN_EVENT:
-            response = await this.handleSignEvent(request, clientPubkey);
-            break;
-
-          case NIP46Method.NIP44_ENCRYPT:
-            response = await this.handleNIP44Encrypt(request, clientPubkey);
-            break;
-
-          case NIP46Method.NIP44_DECRYPT:
-            response = await this.handleNIP44Decrypt(request, clientPubkey);
-            break;
-
-          case NIP46Method.NIP04_ENCRYPT:
-            response = await this.handleNIP04Encrypt(request, clientPubkey);
-            break;
-
-          case NIP46Method.NIP04_DECRYPT:
-            response = await this.handleNIP04Decrypt(request, clientPubkey);
-            break;
-
-          case NIP46Method.GET_RELAYS:
-            response = await this.handleGetRelays(request, clientPubkey);
-            break;
-
-          case NIP46Method.DISCONNECT:
-            response = await this.handleDisconnect(request, clientPubkey);
-            break;
-
-          default:
-            response = createErrorResponse(
-              request.id,
-              `Unknown method: ${request.method}`,
-            );
-        }
-
-        // Send the response
-        await this.sendResponse(response, clientPubkey);
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        this.logger.error(`Failed to process request:`, errorMessage);
-
-        // Send error response to client even when we couldn't parse the request
-        const response = createErrorResponse(
-          "unknown", // cannot recover id - using convention for failed parse
-          `Failed to process request: ${errorMessage}`,
-        );
-        await this.sendResponse(response, event.pubkey);
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error handling request:`, errorMessage);
-
-      try {
-        // Attempt to send a generic error response for the outer handler as well
-        const response = createErrorResponse(
-          "unknown", // cannot recover id
-          `Failed to handle request: ${errorMessage}`,
-        );
-        await this.sendResponse(response, event.pubkey);
-      } catch {
-        // Just log if we can't send the response in this case
-        this.logger.error("Could not send error response");
-      }
-    }
   }
 
   /**
@@ -402,6 +271,26 @@ export class SimpleNIP46Bunker {
     return createSuccessResponse(request.id, requestedSecret || "ack");
   }
 
+  private async handleGetPublicKey(
+    request: NIP46Request,
+    clientPubkey: string,
+  ): Promise<NIP46Response> {
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+    return createSuccessResponse(request.id, this.userKeys.publicKey);
+  }
+
+  private async handlePing(
+    request: NIP46Request,
+    clientPubkey: string,
+  ): Promise<NIP46Response> {
+    if (!this.isClientAuthorized(clientPubkey)) {
+      return createErrorResponse(request.id, "Unauthorized");
+    }
+    return createSuccessResponse(request.id, "pong");
+  }
+
   /**
    * Handle a sign_event request
    */
@@ -453,9 +342,6 @@ export class SimpleNIP46Bunker {
         tags: eventData.tags ?? [],
         pubkey: this.userKeys.publicKey,
       };
-
-      // Set the private key on the Nostr instance for signing
-      this.nostr.setPrivateKey(this.userKeys.privateKey);
 
       // Create a signed event using createSignedEvent
       const signedEvent = await createSignedEvent(
@@ -817,50 +703,6 @@ export class SimpleNIP46Bunker {
   }
 
   /**
-   * Send a response to a client
-   */
-  private async sendResponse(
-    response: NIP46Response,
-    clientPubkey: string,
-  ): Promise<void> {
-    try {
-      this.logger.debug(
-        `Sending response for request ${response.id}:`,
-        JSON.stringify(response),
-      );
-
-      // Encrypt the response with the signer's private key and client's public key
-      const encrypted = encryptNIP44(
-        JSON.stringify(response),
-        this.signerKeys.privateKey,
-        clientPubkey,
-      );
-
-      // Create the unsigned event
-      const eventData: UnsignedEvent = {
-        kind: 24133,
-        pubkey: this.signerKeys.publicKey,
-        created_at: getUnixTime(),
-        tags: [["p", clientPubkey]],
-        content: encrypted,
-      };
-
-      // Create a properly signed event
-      const signedEvent = await createSignedEvent(
-        eventData,
-        this.signerKeys.privateKey,
-      );
-
-      // Use the Nostr class to publish the event
-      await this.nostr.publishEvent(signedEvent);
-
-      this.logger.debug(`Response sent for request: ${response.id}`);
-    } catch {
-      this.logger.error("Failed to send response");
-    }
-  }
-
-  /**
    * Check if a client is authorized
    */
   private isClientAuthorized(clientPubkey: string): boolean {
@@ -872,5 +714,9 @@ export class SimpleNIP46Bunker {
    */
   setLogLevel(level: LogLevel): void {
     this.logger.setLevel(level);
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 }

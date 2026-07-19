@@ -1,7 +1,6 @@
-import { Nostr } from "../nip01/nostr";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { encrypt as encryptNIP04, decrypt as decryptNIP04 } from "../nip04";
-import { NostrEvent, NostrFilter } from "../types/nostr";
+import { NostrEvent } from "../types/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
 import { generateRequestId } from "./utils/request-response";
@@ -12,7 +11,6 @@ import {
   NIP46BunkerOptions,
   NIP46AuthChallenge,
   NIP46Metadata,
-  NIP46EncryptionResult,
   NIP46ClientSession,
   NIP46KeyPair,
   NIP46UnsignedEventData,
@@ -33,15 +31,15 @@ import {
 } from "./utils/security";
 import { LogLevel } from "../utils/logger";
 import { NIP46DiagnosticLogger } from "./utils/diagnostics";
+import { NIP46BunkerEngine } from "./internal/bunker-engine";
 
 export class NostrRemoteSignerBunker {
-  private nostr: Nostr;
+  private readonly engine: NIP46BunkerEngine;
   private userKeypair: NIP46KeyPair;
   private signerKeypair: NIP46KeyPair;
   private options: NIP46BunkerOptions;
   private connectedClients: Map<string, NIP46ClientSession>;
   private pendingAuthChallenges: Map<string, NIP46AuthChallenge>;
-  private subId: string | null;
   private logger: NIP46DiagnosticLogger;
   private rateLimiter: NIP46RateLimiter;
   private permissionHandler:
@@ -56,10 +54,8 @@ export class NostrRemoteSignerBunker {
 
   constructor(options: NIP46BunkerOptions) {
     this.options = options;
-    this.nostr = new Nostr(options.relays || []);
     this.connectedClients = new Map();
     this.pendingAuthChallenges = new Map();
-    this.subId = null;
 
     // Initialize logger
     this.logger = NIP46DiagnosticLogger.create(options.logger, {
@@ -97,6 +93,91 @@ export class NostrRemoteSignerBunker {
       privateKey: "",
     };
 
+    this.engine = new NIP46BunkerEngine({
+      relays: options.relays || [],
+      logger: this.logger,
+      signerKeys: () => this.signerKeypair,
+      validateStart: () =>
+        validateSecureInitialization({
+          userKeypair: this.userKeypair,
+          signerKeypair: this.signerKeypair,
+        }),
+      validateEnvelope: (event) =>
+        validateBeforeDecryption(
+          this.signerKeypair,
+          event.pubkey,
+          event.content,
+          "NIP-44",
+        ),
+      beforeEvent: (event) => {
+        const result = this.rateLimiter.isAllowed(event.pubkey);
+        if (result.allowed) return { action: "continue" };
+        return {
+          action: "respond",
+          response: {
+            id: "unknown",
+            error:
+              NIP46ErrorUtils.getErrorDescription(NIP46ErrorCode.RATE_LIMITED) +
+              (result.retryAfter
+                ? ` Retry after ${result.retryAfter} seconds.`
+                : ""),
+          },
+        };
+      },
+      beforeRequest: (request) =>
+        this.isReplayAttack(request.id)
+          ? { action: "drop" }
+          : { action: "continue" },
+      handlers: {
+        [NIP46Method.CONNECT]: (request, clientPubkey) =>
+          this.handleConnect(request, clientPubkey),
+        [NIP46Method.SIGN_EVENT]: (request, clientPubkey) =>
+          this.handleSignEvent(request, clientPubkey),
+        [NIP46Method.GET_PUBLIC_KEY]: (request) =>
+          this.handleGetPublicKey(request),
+        [NIP46Method.PING]: async (request) => ({
+          id: request.id,
+          result: "pong",
+        }),
+        [NIP46Method.DISCONNECT]: (request, clientPubkey) =>
+          this.handleDisconnect(request, clientPubkey),
+        [NIP46Method.NIP04_ENCRYPT]: (request, clientPubkey) =>
+          this.handleEncryption(request, clientPubkey),
+        [NIP46Method.NIP04_DECRYPT]: (request, clientPubkey) =>
+          this.handleEncryption(request, clientPubkey),
+        [NIP46Method.NIP44_ENCRYPT]: (request, clientPubkey) =>
+          this.handleEncryption(request, clientPubkey),
+        [NIP46Method.NIP44_DECRYPT]: (request, clientPubkey) =>
+          this.handleEncryption(request, clientPubkey),
+      },
+      unknownMethod: (request) =>
+        NIP46ErrorUtils.createErrorResponse(
+          request.id,
+          NIP46ErrorCode.METHOD_NOT_SUPPORTED,
+          `Method ${request.method} is not supported`,
+        ),
+      afterStart: async () => {
+        if (this.options.metadata) {
+          await this.publishMetadata(this.options.metadata);
+        }
+        this.cleanupInterval = setInterval(() => this.cleanup(), 60000).unref();
+      },
+      beforeStop: () => {
+        if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+        this.cleanupInterval = null;
+      },
+      afterStop: () => {
+        try {
+          this.rateLimiter.destroy();
+        } catch (error) {
+          this.logger.error("Failed to destroy rate limiter", { error });
+        }
+        this.connectedClients.clear();
+        this.pendingAuthChallenges.clear();
+        this.usedRequestIds.clear();
+      },
+    });
+
     this.logger.info("Bunker initialized", {
       userPubkey: options.userPubkey,
       signerPubkey: options.signerPubkey || options.userPubkey,
@@ -114,82 +195,13 @@ export class NostrRemoteSignerBunker {
 
   public async start(): Promise<void> {
     this.logger.info("Starting bunker");
-
-    // Validate that private keys are properly set before starting
-    validateSecureInitialization({
-      userKeypair: this.userKeypair,
-      signerKeypair: this.signerKeypair,
-    });
-
-    // Connect to relays
-    await this.nostr.connectToRelays();
+    await this.engine.start();
     this.logger.info("Connected to relays successfully");
-
-    // Subscribe to requests
-    const filter: NostrFilter = {
-      kinds: [24133],
-      "#p": [this.signerKeypair.publicKey],
-    };
-
-    // Clean up any existing subscription
-    if (this.subId) {
-      this.nostr.unsubscribe([this.subId]);
-    }
-
-    // Subscribe to incoming requests
-    this.subId = this.nostr.subscribe([filter], (event: NostrEvent) =>
-      this.handleRequest(event),
-    )[0];
-
-    // Publish metadata if needed
-    if (this.options.metadata) {
-      await this.publishMetadata(this.options.metadata);
-    }
-
-    // Start cleanup interval
-    this.cleanupInterval = setInterval(() => this.cleanup(), 60000).unref(); // Run cleanup every 1 minute for better security, don't keep process alive
   }
 
   public async stop(): Promise<void> {
     this.logger.info("Stopping bunker");
-
-    // Clear the cleanup interval FIRST to prevent race conditions
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = null;
-    }
-
-    // Clean up subscription
-    if (this.subId) {
-      try {
-        await this.nostr.unsubscribe([this.subId]);
-        this.subId = null;
-      } catch (error) {
-        this.logger.error("Failed to unsubscribe", { error });
-      }
-    }
-
-    // Disconnect from relays
-    if (this.nostr) {
-      try {
-        await this.nostr.disconnectFromRelays();
-      } catch (error) {
-        this.logger.error("Failed to disconnect from relays", { error });
-      }
-    }
-
-    // Clean up rate limiter
-    try {
-      this.rateLimiter.destroy();
-    } catch (error) {
-      this.logger.error("Failed to destroy rate limiter", { error });
-    }
-
-    // Clear all data structures
-    this.connectedClients.clear();
-    this.pendingAuthChallenges.clear();
-    this.usedRequestIds.clear();
-
+    await this.engine.stop();
     this.logger.info("Bunker stopped successfully");
   }
 
@@ -392,147 +404,6 @@ export class NostrRemoteSignerBunker {
           clientPubkey: challenge.clientPubkey,
         });
       }
-    }
-  }
-
-  /**
-   * Handle incoming request events
-   * @private
-   */
-  private async handleRequest(event: NostrEvent): Promise<void> {
-    try {
-      const clientPubkey = event.pubkey;
-
-      this.logger.debug("Received request event", {
-        eventId: event.id,
-        clientPubkey,
-        eventKind: event.kind,
-      });
-
-      // Check rate limiting FIRST - Critical DoS protection
-      const rateLimitResult = this.rateLimiter.isAllowed(clientPubkey);
-      if (!rateLimitResult.allowed) {
-        this.logger.warn("Request rate limited", {
-          clientPubkey,
-          retryAfter: rateLimitResult.retryAfter,
-          remainingRequests: rateLimitResult.remainingRequests,
-        });
-
-        // Send rate limit error response
-        await this.sendResponse(
-          clientPubkey,
-          "unknown", // We don't have the request ID yet
-          null,
-          NIP46ErrorUtils.getErrorDescription(NIP46ErrorCode.RATE_LIMITED) +
-            (rateLimitResult.retryAfter
-              ? ` Retry after ${rateLimitResult.retryAfter} seconds.`
-              : ""),
-        );
-        return;
-      }
-
-      // Decrypt and parse the request
-      const decryptResult = await this.decryptContent(
-        event.content,
-        clientPubkey,
-      );
-      if (!decryptResult.success) {
-        this.logger.error("Failed to decrypt request", {
-          clientPubkey,
-          error: decryptResult.error,
-        });
-        return;
-      }
-
-      let request: NIP46Request;
-      try {
-        request = JSON.parse(decryptResult.data!) as NIP46Request;
-      } catch (error) {
-        this.logger.error("Failed to parse request JSON", {
-          clientPubkey,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        return;
-      }
-
-      // Validate request structure
-      if (!request.id || !request.method) {
-        this.logger.error("Invalid request structure", {
-          clientPubkey,
-          hasId: !!request.id,
-          hasMethod: !!request.method,
-        });
-        return;
-      }
-
-      // Check for replay attacks
-      if (this.isReplayAttack(request.id)) {
-        this.logger.warn("Ignoring replay attack", {
-          requestId: request.id,
-          clientPubkey,
-        });
-        return;
-      }
-
-      // Route the request to the appropriate handler
-      let response: NIP46Response;
-
-      const method = request.method;
-      this.logger.debug("Processing request", {
-        requestId: request.id,
-        method,
-        clientPubkey,
-        paramsCount: request.params?.length || 0,
-      });
-
-      switch (method) {
-        case NIP46Method.CONNECT:
-          response = await this.handleConnect(request, clientPubkey);
-          break;
-        case NIP46Method.SIGN_EVENT:
-          response = await this.handleSignEvent(request, clientPubkey);
-          break;
-        case NIP46Method.GET_PUBLIC_KEY:
-          response = await this.handleGetPublicKey(request);
-          break;
-        case NIP46Method.PING:
-          response = { id: request.id, result: "pong" };
-          break;
-        case NIP46Method.DISCONNECT:
-          response = await this.handleDisconnect(request, clientPubkey);
-          break;
-        case NIP46Method.NIP04_ENCRYPT:
-        case NIP46Method.NIP04_DECRYPT:
-        case NIP46Method.NIP44_ENCRYPT:
-        case NIP46Method.NIP44_DECRYPT:
-          response = await this.handleEncryption(request, clientPubkey);
-          break;
-        default:
-          this.logger.warn("Unknown method requested", {
-            method,
-            clientPubkey,
-          });
-          response = NIP46ErrorUtils.createErrorResponse(
-            request.id,
-            NIP46ErrorCode.METHOD_NOT_SUPPORTED,
-            `Method ${method} is not supported`,
-          );
-      }
-
-      // Send the response back to the client
-      await this.sendResponse(
-        clientPubkey,
-        response.id,
-        response.result || null,
-        response.error,
-        response.auth_url,
-      );
-    } catch (error) {
-      this.logger.error("Error handling request", {
-        error: error instanceof Error ? error.message : String(error),
-        eventId: event.id,
-        clientPubkey: event.pubkey,
-      });
     }
   }
 
@@ -884,61 +755,6 @@ export class NostrRemoteSignerBunker {
   }
 
   /**
-   * Send a response back to the client
-   * @private
-   */
-  private async sendResponse(
-    clientPubkey: string,
-    id: string,
-    result: string | null = null,
-    error?: string,
-    auth_url?: string,
-  ): Promise<void> {
-    try {
-      const response: NIP46Response = {
-        id,
-        result: result || undefined,
-        error,
-        auth_url,
-      };
-
-      const responseJson = JSON.stringify(response);
-      const encryptedContent = await encryptNIP44(
-        responseJson,
-        this.signerKeypair.privateKey,
-        clientPubkey,
-      );
-
-      const responseEvent: NostrEvent = await createSignedEvent(
-        {
-          kind: 24133,
-          pubkey: this.signerKeypair.publicKey,
-          content: encryptedContent,
-          created_at: getUnixTime(),
-          tags: [["p", clientPubkey]],
-        },
-        this.signerKeypair.privateKey,
-      );
-
-      await this.nostr.publishEvent(responseEvent);
-
-      this.logger.debug("Response sent to client", {
-        responseId: id,
-        clientPubkey,
-        hasResult: !!result,
-        hasError: !!error,
-        hasAuthUrl: !!auth_url,
-      });
-    } catch (error) {
-      this.logger.error("Failed to send response", {
-        responseId: id,
-        clientPubkey,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  /**
    * Check if a client is authorized (has completed auth challenge)
    * @private
    */
@@ -980,7 +796,7 @@ export class NostrRemoteSignerBunker {
         this.signerKeypair.privateKey,
       );
 
-      await this.nostr.publishEvent(metadataEvent);
+      await this.engine.publishEvent(metadataEvent);
       this.logger.info("Metadata published successfully");
       return metadataEvent;
     } catch (error) {
@@ -988,49 +804,6 @@ export class NostrRemoteSignerBunker {
         error: error instanceof Error ? error.message : String(error),
       });
       return undefined;
-    }
-  }
-
-  /**
-   * Decrypt content from a client
-   * @private
-   */
-  private async decryptContent(
-    content: string,
-    authorPubkey: string,
-  ): Promise<NIP46EncryptionResult> {
-    try {
-      // Security validation before decryption
-      validateBeforeDecryption(
-        this.signerKeypair,
-        authorPubkey,
-        content,
-        "NIP-44",
-      );
-
-      const decrypted = await decryptNIP44(
-        content,
-        this.signerKeypair.privateKey,
-        authorPubkey,
-      );
-
-      return {
-        success: true,
-        method: "nip44",
-        data: decrypted,
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error("NIP-44 decryption failed", {
-        error: errorMessage,
-        authorPubkey,
-      });
-      return {
-        success: false,
-        method: "nip44",
-        error: errorMessage,
-      };
     }
   }
 
