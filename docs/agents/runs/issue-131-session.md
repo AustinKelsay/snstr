@@ -5,8 +5,8 @@
 - Issue: #131
 - Fixed point before session: `f4bda34`
 - Worker session: current Codex orchestrator; Grok 4.5 High standards/spec reviewers
-- Commit: `7ed8433`, `00104cc`, `21b4ad9`; hosted-review fix pending commit
-- Status: PR #140 open against `staging`; hosted gates pending
+- Commit: `7ed8433`, `00104cc`, `21b4ad9`, `426c17b`
+- Status: local implementation and review complete; PR #140 open against `staging`; hosted rerun and CI pending for `426c17b`
 
 ## Inputs
 
@@ -40,10 +40,10 @@
 - Final Jest after hosted fixes: 80/80 suites, 1054/1054 tests, no open handles, 298.293 seconds
 - Final Bun after hosted fixes: 1054/1054 tests, 8173 assertions, 269.65 seconds
 - Build/package: commands and package-manager policy, lint, TypeScript, CJS/ESM builds, examples, and pack verification green
-- Local CodeRabbit: round 1 raised three valid issues; all fixed; round 2 raised zero issues
+- Local CodeRabbit: round 1 raised three valid code/test issues; all fixed; round 2 raised zero issues; round 3 raised one documentation-status inconsistency, fixed
 - Hosted CodeRabbit: raised two valid major findings; both fixed with public regressions; final hosted rerun pending
 - Grok hosted-fix review: initial pass found one additional permission interpolation; fixed after a public red test; follow-up verdict `APPROVE`
 
 ## Risks
 
-- None open. Recursive graphs and throwing custom loggers are isolated from public NIP-46 behavior.
+- No code risks remain open. Merge remains gated on the final hosted CodeRabbit rerun and CI for `426c17b`.

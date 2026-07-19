@@ -59,9 +59,9 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 ## Issue Session Ledger
 
-| Issue | Fixed point | Implementation owner                                | Commit                                                         | Review result                                                                | Checks                                                                                        |
-| ----- | ----------- | --------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| #131  | `f4bda34`   | current Codex orchestrator; Grok 4.5 High reviewers | `7ed8433`, `00104cc`, `21b4ad9` plus hosted-review fix pending | Grok approved after hosted fixes; CodeRabbit local clean before hosted round | focused Jest/Bun 7/7; final Jest/Bun 1054/1054; policies, lint, types, builds, examples, pack |
+| Issue | Fixed point | Implementation owner                                | Commit                                     | Review result                                                        | Checks                                                                                        |
+| ----- | ----------- | --------------------------------------------------- | ------------------------------------------ | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| #131  | `f4bda34`   | current Codex orchestrator; Grok 4.5 High reviewers | `7ed8433`, `00104cc`, `21b4ad9`, `426c17b` | Grok approved after hosted fixes; CodeRabbit local code review clean | focused Jest/Bun 7/7; final Jest/Bun 1054/1054; policies, lint, types, builds, examples, pack |
 
 ## Alignment Decisions
 
