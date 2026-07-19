@@ -5,7 +5,8 @@ import { getUnixTime } from "../utils/time";
 import { encrypt as encryptNIP44, decrypt as decryptNIP44 } from "../nip44";
 import { createSignedEvent } from "../nip01/event";
 import { generateRequestId } from "./utils/request-response";
-import { Logger, LogLevel } from "../utils/logger";
+import { LogLevel } from "../utils/logger";
+import { NIP46DiagnosticLogger } from "./utils/diagnostics";
 import { parseConnectionString } from "./utils/connection";
 import {
   NIP46KeyPair,
@@ -36,7 +37,7 @@ export class SimpleNIP46Client {
   private pendingRequests: Map<string, (response: NIP46Response) => void>;
   private subId: string | null = null;
   private timeout: number;
-  private logger: Logger;
+  private logger: NIP46DiagnosticLogger;
   private debug: boolean;
 
   /**
@@ -58,7 +59,7 @@ export class SimpleNIP46Client {
     const logLevel =
       options.logLevel || (this.debug ? LogLevel.DEBUG : LogLevel.INFO);
 
-    this.logger = new Logger({
+    this.logger = NIP46DiagnosticLogger.create(options.logger, {
       prefix: "Client",
       level: logLevel,
       silent: process.env.NODE_ENV === "test", // Silent in test environment
@@ -152,9 +153,9 @@ export class SimpleNIP46Client {
 
       if (connectResponse.result !== "ack") {
         // If not "ack", it should be a required secret value
-        this.logger.debug(
-          `Connect response requires secret: ${connectResponse.result}`,
-        );
+        this.logger.debug("Connect response requires secret", {
+          hasSecret: true,
+        });
         if (!info.secret || info.secret !== connectResponse.result) {
           throw new NIP46ConnectionError("Invalid or missing required secret");
         }

@@ -1,0 +1,202 @@
+import {
+  DiagnosticLogArgument,
+  DiagnosticLogger,
+  LogLevel,
+  Logger,
+  LoggerOptions,
+} from "../../utils/logger";
+
+const REDACTED = "[REDACTED]";
+const SENSITIVE_FIELD_NAMES = new Set([
+  "authurl",
+  "ciphertext",
+  "connectionstring",
+  "connectresult",
+  "content",
+  "data",
+  "decrypted",
+  "decrypteddata",
+  "details",
+  "error",
+  "errormessage",
+  "eventdata",
+  "message",
+  "params",
+  "plaintext",
+  "privatekey",
+  "result",
+  "secret",
+]);
+const LEGACY_PAYLOAD_MESSAGE =
+  /^(.*(?:decrypted content|json payload):)[\s\S]*/i;
+const LEGACY_RESPONSE_ENVELOPE_MESSAGE = /sending response for request/i;
+const CONNECTION_URI = /\b(bunker|nostrconnect):\/\/[^\s"']+/gi;
+
+function normalizedFieldName(fieldName: string): string {
+  return fieldName.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function safeDiagnosticLabel(value: unknown, fallback: string): string {
+  return typeof value === "string" && /^[a-z][a-z0-9_.:-]{0,63}$/i.test(value)
+    ? value
+    : fallback;
+}
+
+function redactDiagnosticText(value: string): string {
+  const withoutConnectionUris = value.replace(
+    CONNECTION_URI,
+    (_match, scheme: string) => `${scheme}://${REDACTED}`,
+  );
+
+  return withoutConnectionUris.replace(
+    LEGACY_PAYLOAD_MESSAGE,
+    (_match, prefix: string) => `${prefix} ${REDACTED}`,
+  );
+}
+
+function redactDiagnosticValue(
+  value: DiagnosticLogArgument,
+  seen: WeakSet<object>,
+): DiagnosticLogArgument {
+  if (typeof value === "string") {
+    return redactDiagnosticText(value);
+  }
+
+  if (value === null || typeof value !== "object") {
+    return value;
+  }
+
+  if (seen.has(value)) {
+    return "[Circular]";
+  }
+  seen.add(value);
+
+  try {
+    if (value instanceof Error) {
+      const errorWithMetadata = value as Error & {
+        code?: unknown;
+        type?: unknown;
+      };
+      const sanitizedError: Record<string, DiagnosticLogArgument> = {
+        name: safeDiagnosticLabel(value.name, "Error"),
+      };
+
+      if (
+        typeof errorWithMetadata.code === "number" ||
+        typeof errorWithMetadata.code === "boolean"
+      ) {
+        sanitizedError.code = errorWithMetadata.code;
+      } else if (typeof errorWithMetadata.code === "string") {
+        sanitizedError.code = safeDiagnosticLabel(
+          errorWithMetadata.code,
+          "UNKNOWN",
+        );
+      }
+
+      if (typeof errorWithMetadata.type === "string") {
+        sanitizedError.type = safeDiagnosticLabel(
+          errorWithMetadata.type,
+          "Error",
+        );
+      }
+
+      return sanitizedError;
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) =>
+        redactDiagnosticValue(item as DiagnosticLogArgument, seen),
+      );
+    }
+
+    const sanitized: Record<string, DiagnosticLogArgument> = {};
+    for (const [key, nestedValue] of Object.entries(value)) {
+      if (SENSITIVE_FIELD_NAMES.has(normalizedFieldName(key))) {
+        sanitized[key] = REDACTED;
+        continue;
+      }
+
+      sanitized[key] = redactDiagnosticValue(
+        nestedValue as DiagnosticLogArgument,
+        seen,
+      );
+    }
+
+    return sanitized;
+  } finally {
+    seen.delete(value);
+  }
+}
+
+/**
+ * NIP-46 diagnostic boundary that strips protocol payloads and connection
+ * secrets before forwarding safe operation metadata to the configured logger.
+ */
+export class NIP46DiagnosticLogger implements DiagnosticLogger {
+  private readonly delegate: DiagnosticLogger;
+
+  constructor(delegate: DiagnosticLogger) {
+    this.delegate = delegate;
+  }
+
+  static create(
+    logger: DiagnosticLogger | undefined,
+    defaultOptions: LoggerOptions,
+  ): NIP46DiagnosticLogger {
+    return new NIP46DiagnosticLogger(logger ?? new Logger(defaultOptions));
+  }
+
+  private write(
+    level: keyof DiagnosticLogger,
+    message: string,
+    args: DiagnosticLogArgument[],
+  ): void {
+    try {
+      const sanitizedArguments = LEGACY_RESPONSE_ENVELOPE_MESSAGE.test(message)
+        ? args.map(() => REDACTED)
+        : args.map((argument) =>
+            (level === "error" || level === "warn") &&
+            typeof argument === "string"
+              ? REDACTED
+              : redactDiagnosticValue(argument, new WeakSet<object>()),
+          );
+      this.delegate[level](
+        redactDiagnosticText(message),
+        ...sanitizedArguments,
+      );
+    } catch {
+      // Diagnostics are observational and must not alter NIP-46 behavior.
+    }
+  }
+
+  error(message: string, ...args: DiagnosticLogArgument[]): void {
+    this.write("error", message, args);
+  }
+
+  warn(message: string, ...args: DiagnosticLogArgument[]): void {
+    this.write("warn", message, args);
+  }
+
+  info(message: string, ...args: DiagnosticLogArgument[]): void {
+    this.write("info", message, args);
+  }
+
+  debug(message: string, ...args: DiagnosticLogArgument[]): void {
+    this.write("debug", message, args);
+  }
+
+  trace(message: string, ...args: DiagnosticLogArgument[]): void {
+    this.write("trace", message, args);
+  }
+
+  setLevel(level: LogLevel): void {
+    try {
+      const levelAwareLogger = this.delegate as DiagnosticLogger & {
+        setLevel?: (nextLevel: LogLevel) => void;
+      };
+      levelAwareLogger.setLevel?.(level);
+    } catch {
+      // A custom logger controls its own filtering and cannot alter behavior.
+    }
+  }
+}
