@@ -14,6 +14,7 @@ import { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 import { Nostr } from "../nip01/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
+import { getPublicKey } from "../utils/crypto";
 import {
   createZapRequest,
   validateZapReceipt,
@@ -30,6 +31,9 @@ import {
 import { Logger } from "../utils/logger";
 import type { DiagnosticLogger } from "../utils/logger";
 import { reportNIP57Diagnostic } from "./diagnostics";
+
+const LNURL_CACHE_CAPACITY = 256;
+const LNURL_CALLBACK_TIMEOUT_MS = 10_000;
 
 /**
  * Options for the ZapClient
@@ -117,28 +121,38 @@ export interface ZapStats {
  * This client provides high-level methods for sending zaps,
  * fetching zap receipts, and calculating zap statistics.
  */
-export class NostrZapClient {
+class ZapClientCore {
   private client: Nostr;
   private defaultRelays: string[];
   private logger: DiagnosticLogger;
+  private lnurlCache: Map<
+    string,
+    { pubkey: string; lnurl: string; supportsZaps: boolean }
+  > = new Map();
 
   /**
    * Create a new zap client
    * @param options Options for configuring the client
    */
-  constructor(options: {
-    /** The Nostr client instance to use */
-    client: Nostr;
-
-    /** Default relay URLs to use when not specified explicitly */
-    defaultRelays?: string[];
-
-    /** Receives NIP-57 diagnostics. Quiet by default. */
-    logger?: DiagnosticLogger;
-  }) {
-    this.client = options.client;
+  constructor(options: ZapClientOptions) {
+    this.client = options.nostrClient;
     this.defaultRelays = options.defaultRelays || [];
     this.logger = options.logger ?? new Logger({ silent: true });
+  }
+
+  private rememberLnurlResult(
+    pubkey: string,
+    lnurl: string,
+    supportsZaps: boolean,
+  ): void {
+    this.lnurlCache.delete(pubkey);
+    this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps });
+
+    while (this.lnurlCache.size > LNURL_CACHE_CAPACITY) {
+      const oldestPubkey = this.lnurlCache.keys().next().value;
+      if (oldestPubkey === undefined) break;
+      this.lnurlCache.delete(oldestPubkey);
+    }
   }
 
   /** Collect matching zap receipts until the first EOSE or the legacy timeout. */
@@ -247,12 +261,189 @@ export class NostrZapClient {
    * @returns Whether the user can receive zaps
    */
   async canReceiveZaps(pubkey: string, lnurl?: string): Promise<boolean> {
-    const zapClient = new ZapClient({
-      nostrClient: this.client,
-      defaultRelays: this.defaultRelays,
-      logger: this.logger,
-    });
-    return zapClient.canReceiveZaps(pubkey, lnurl);
+    try {
+      const cached = this.lnurlCache.get(pubkey);
+      if (cached && (!lnurl || cached.lnurl === lnurl)) {
+        this.lnurlCache.delete(pubkey);
+        this.lnurlCache.set(pubkey, cached);
+        return cached.supportsZaps;
+      }
+
+      if (!lnurl) {
+        return false;
+      }
+
+      const metadata = await fetchLnurlPayMetadata(lnurl, this.logger);
+      if (!metadata) {
+        this.rememberLnurlResult(pubkey, lnurl, false);
+        return false;
+      }
+
+      const supportsZaps = supportsNostrZaps(metadata);
+      this.rememberLnurlResult(pubkey, lnurl, supportsZaps);
+      return supportsZaps;
+    } catch (error) {
+      reportNIP57Diagnostic(
+        this.logger,
+        "error",
+        "Failed to check zap support",
+        { error },
+      );
+      return false;
+    }
+  }
+
+  async getZapInvoice(
+    options: {
+      recipientPubkey: string;
+      lnurl: string;
+      amount: number;
+      comment?: string;
+      eventId?: string;
+      aTag?: string;
+      relays?: string[];
+      anonymousZap?: boolean;
+    },
+    privateKey: string,
+  ): Promise<ZapInvoiceResult> {
+    try {
+      const senderPubkey = this.client.getPublicKey();
+      if (!senderPubkey && !options.anonymousZap) {
+        return {
+          invoice: "",
+          zapRequest: {} as NostrEvent,
+          error: "No public key available and not anonymous zap",
+        };
+      }
+
+      const metadata = await fetchLnurlPayMetadata(options.lnurl, this.logger);
+      if (!metadata) {
+        return {
+          invoice: "",
+          zapRequest: {} as NostrEvent,
+          error: "Invalid LNURL or failed to fetch metadata",
+        };
+      }
+
+      if (!supportsNostrZaps(metadata)) {
+        return {
+          invoice: "",
+          zapRequest: {} as NostrEvent,
+          error: "LNURL does not support Nostr zaps",
+        };
+      }
+
+      if (
+        options.amount < metadata.minSendable ||
+        options.amount > metadata.maxSendable
+      ) {
+        return {
+          invoice: "",
+          zapRequest: {} as NostrEvent,
+          error: `Amount out of range (${metadata.minSendable}-${metadata.maxSendable} millisats)`,
+        };
+      }
+
+      const zapRequestOptions: ZapRequestOptions = {
+        recipientPubkey: options.recipientPubkey,
+        amount: options.amount,
+        relays: options.relays || this.defaultRelays,
+        content: options.comment || "",
+        lnurl: options.lnurl,
+      };
+
+      if (options.eventId) {
+        zapRequestOptions.eventId = options.eventId;
+      }
+      if (options.aTag) {
+        zapRequestOptions.aTag = options.aTag;
+      }
+      if (options.anonymousZap && senderPubkey) {
+        zapRequestOptions.senderPubkey = senderPubkey;
+      }
+
+      const signingPubkey = options.anonymousZap
+        ? getPublicKey(privateKey)
+        : senderPubkey || "";
+      const requestTemplate = createZapRequest(
+        zapRequestOptions,
+        signingPubkey,
+      );
+
+      const signedZapRequest = await createSignedEvent(
+        {
+          ...requestTemplate,
+          tags: requestTemplate.tags || [],
+          pubkey: signingPubkey,
+          created_at: getUnixTime(),
+        },
+        privateKey,
+      );
+
+      const callbackUrl = buildZapCallbackUrl(
+        metadata.callback,
+        JSON.stringify(signedZapRequest),
+        options.amount,
+      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        LNURL_CALLBACK_TIMEOUT_MS,
+      );
+      let invoiceData: LnurlInvoiceResponse;
+      try {
+        const invoiceResponse = await fetch(callbackUrl, {
+          signal: controller.signal,
+        });
+        invoiceData = (await invoiceResponse.json()) as LnurlInvoiceResponse;
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return {
+            invoice: "",
+            zapRequest: signedZapRequest,
+            error: "LNURL callback timed out",
+          };
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (invoiceData.status === "ERROR") {
+        return {
+          invoice: "",
+          zapRequest: signedZapRequest,
+          error: invoiceData.reason || "LNURL error",
+        };
+      }
+
+      if (
+        typeof invoiceData.pr !== "string" ||
+        invoiceData.pr.trim().length === 0
+      ) {
+        return {
+          invoice: "",
+          zapRequest: signedZapRequest,
+          error: "LNURL server returned an invalid invoice response",
+        };
+      }
+
+      return {
+        invoice: invoiceData.pr,
+        zapRequest: signedZapRequest,
+        paymentHash: invoiceData.payment_hash,
+        successAction: invoiceData.successAction,
+      };
+    } catch (error) {
+      reportNIP57Diagnostic(this.logger, "error", "Failed to get zap invoice", {
+        error,
+      });
+      return {
+        invoice: "",
+        zapRequest: {} as NostrEvent,
+        error: `Error: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
   }
 
   /**
@@ -302,14 +493,8 @@ export class NostrZapClient {
     invoice?: string;
     error?: string;
   }> {
-    const zapClient = new ZapClient({
-      nostrClient: this.client,
-      defaultRelays: this.defaultRelays,
-      logger: this.logger,
-    });
-
     // Get the invoice
-    const result = await zapClient.getZapInvoice(options, privateKey);
+    const result = await this.getZapInvoice(options, privateKey);
 
     if (result.error) {
       return {
@@ -328,6 +513,40 @@ export class NostrZapClient {
     // 2. Return the payment success/failure
   }
 
+  private buildReceiptFilter(
+    options: ZapFilterOptions,
+    target: { recipientPubkey?: string; eventId?: string } = {},
+  ): Filter {
+    const filter: Filter = {
+      kinds: [9735],
+      limit: options.limit ?? 20,
+    };
+
+    if (target.recipientPubkey) {
+      filter["#p"] = [target.recipientPubkey];
+    }
+    if (target.eventId) {
+      filter["#e"] = [target.eventId];
+    } else if (
+      !target.recipientPubkey &&
+      options.events &&
+      options.events.length > 0
+    ) {
+      filter["#e"] = options.events;
+    }
+    if (options.since !== undefined) {
+      filter.since = options.since;
+    }
+    if (options.until !== undefined) {
+      filter.until = options.until;
+    }
+    if (options.authors && options.authors.length > 0) {
+      filter.authors = options.authors;
+    }
+
+    return filter;
+  }
+
   /**
    * Fetch zaps received by a user
    *
@@ -339,25 +558,9 @@ export class NostrZapClient {
     pubkey: string,
     options: ZapFilterOptions = {},
   ): Promise<NostrEvent[]> {
-    const filter: Filter = {
-      kinds: [9735],
-      "#p": [pubkey] as string[],
-      limit: options.limit || 20,
-    };
-
-    if (options.since) {
-      filter.since = options.since;
-    }
-
-    if (options.until) {
-      filter.until = options.until;
-    }
-
-    if (options.authors && options.authors.length > 0) {
-      filter.authors = options.authors;
-    }
-
-    return this.collectZapReceipts(filter);
+    return this.collectZapReceipts(
+      this.buildReceiptFilter(options, { recipientPubkey: pubkey }),
+    );
   }
 
   /**
@@ -415,25 +618,9 @@ export class NostrZapClient {
     eventId: string,
     options: ZapFilterOptions = {},
   ): Promise<NostrEvent[]> {
-    const filter: Filter = {
-      kinds: [9735],
-      "#e": [eventId] as string[],
-      limit: options.limit || 20,
-    };
-
-    if (options.since) {
-      filter.since = options.since;
-    }
-
-    if (options.until) {
-      filter.until = options.until;
-    }
-
-    if (options.authors && options.authors.length > 0) {
-      filter.authors = options.authors;
-    }
-
-    return this.collectZapReceipts(filter);
+    return this.collectZapReceipts(
+      this.buildReceiptFilter(options, { eventId }),
+    );
   }
 
   /**
@@ -445,28 +632,7 @@ export class NostrZapClient {
   async fetchZapReceipts(
     options: ZapFilterOptions = {},
   ): Promise<NostrEvent[]> {
-    const filter: Filter = {
-      kinds: [9735],
-      limit: options.limit || 20,
-    };
-
-    if (options.since) {
-      filter.since = options.since;
-    }
-
-    if (options.until) {
-      filter.until = options.until;
-    }
-
-    if (options.authors && options.authors.length > 0) {
-      filter.authors = options.authors;
-    }
-
-    if (options.events && options.events.length > 0) {
-      filter["#e"] = options.events as string[];
-    }
-
-    return this.collectZapReceipts(filter);
+    return this.collectZapReceipts(this.buildReceiptFilter(options));
   }
 
   /**
@@ -493,6 +659,46 @@ export class NostrZapClient {
     );
   }
 
+  private calculateZapStats(zaps: NostrEvent[]): ZapStats {
+    if (zaps.length === 0) {
+      return { total: 0, count: 0 };
+    }
+
+    const stats: ZapStats = {
+      total: 0,
+      count: 0,
+      largest: 0,
+      smallest: Number.MAX_SAFE_INTEGER,
+      average: 0,
+      firstAt: Number.MAX_SAFE_INTEGER,
+      latestAt: 0,
+    };
+
+    for (const zap of zaps) {
+      const validation = this.validateZapReceipt(zap);
+      if (!validation.valid || !validation.amount) continue;
+
+      stats.total += validation.amount;
+      stats.count++;
+      stats.largest = Math.max(stats.largest ?? 0, validation.amount);
+      stats.smallest = Math.min(
+        stats.smallest ?? Number.MAX_SAFE_INTEGER,
+        validation.amount,
+      );
+      stats.firstAt = Math.min(
+        stats.firstAt ?? Number.MAX_SAFE_INTEGER,
+        zap.created_at,
+      );
+      stats.latestAt = Math.max(stats.latestAt ?? 0, zap.created_at);
+    }
+
+    if (stats.count === 0) return { total: 0, count: 0 };
+
+    stats.average = Math.floor(stats.total / stats.count);
+
+    return stats;
+  }
+
   /**
    * Calculate total zaps received by a user
    *
@@ -505,66 +711,7 @@ export class NostrZapClient {
     options: ZapFilterOptions = {},
   ): Promise<ZapStats> {
     const zaps = await this.fetchUserReceivedZaps(pubkey, options);
-
-    if (zaps.length === 0) {
-      return { total: 0, count: 0 };
-    }
-
-    // Initialize stats
-    const stats: ZapStats = {
-      total: 0,
-      count: 0,
-      largest: 0,
-      smallest: Number.MAX_SAFE_INTEGER,
-      average: 0,
-      firstAt: Number.MAX_SAFE_INTEGER,
-      latestAt: 0,
-    };
-
-    // Process each zap
-    for (const zap of zaps) {
-      const validation = this.validateZapReceipt(zap);
-
-      if (validation.valid && validation.amount) {
-        stats.total += validation.amount;
-        stats.count++;
-
-        // Update largest/smallest
-        if (validation.amount > (stats.largest || 0)) {
-          stats.largest = validation.amount;
-        }
-
-        if (validation.amount < (stats.smallest || Number.MAX_SAFE_INTEGER)) {
-          stats.smallest = validation.amount;
-        }
-
-        // Update timestamps
-        if (zap.created_at < stats.firstAt!) {
-          stats.firstAt = zap.created_at;
-        }
-
-        if (zap.created_at > stats.latestAt!) {
-          stats.latestAt = zap.created_at;
-        }
-      }
-    }
-
-    // Calculate average
-    if (stats.count > 0) {
-      stats.average = Math.floor(stats.total / stats.count);
-    }
-
-    // Reset smallest if no valid zaps were found
-    if (stats.smallest === Number.MAX_SAFE_INTEGER) {
-      stats.smallest = undefined;
-    }
-
-    // Reset timestamps if no valid zaps were found
-    if (stats.firstAt === Number.MAX_SAFE_INTEGER) {
-      stats.firstAt = undefined;
-    }
-
-    return stats;
+    return this.calculateZapStats(zaps);
   }
 
   /**
@@ -579,66 +726,7 @@ export class NostrZapClient {
     options: ZapFilterOptions = {},
   ): Promise<ZapStats> {
     const zaps = await this.fetchEventZaps(eventId, options);
-
-    if (zaps.length === 0) {
-      return { total: 0, count: 0 };
-    }
-
-    // Initialize stats
-    const stats: ZapStats = {
-      total: 0,
-      count: 0,
-      largest: 0,
-      smallest: Number.MAX_SAFE_INTEGER,
-      average: 0,
-      firstAt: Number.MAX_SAFE_INTEGER,
-      latestAt: 0,
-    };
-
-    // Process each zap
-    for (const zap of zaps) {
-      const validation = this.validateZapReceipt(zap);
-
-      if (validation.valid && validation.amount) {
-        stats.total += validation.amount;
-        stats.count++;
-
-        // Update largest/smallest
-        if (validation.amount > (stats.largest || 0)) {
-          stats.largest = validation.amount;
-        }
-
-        if (validation.amount < (stats.smallest || Number.MAX_SAFE_INTEGER)) {
-          stats.smallest = validation.amount;
-        }
-
-        // Update timestamps
-        if (zap.created_at < stats.firstAt!) {
-          stats.firstAt = zap.created_at;
-        }
-
-        if (zap.created_at > stats.latestAt!) {
-          stats.latestAt = zap.created_at;
-        }
-      }
-    }
-
-    // Calculate average
-    if (stats.count > 0) {
-      stats.average = Math.floor(stats.total / stats.count);
-    }
-
-    // Reset smallest if no valid zaps were found
-    if (stats.smallest === Number.MAX_SAFE_INTEGER) {
-      stats.smallest = undefined;
-    }
-
-    // Reset timestamps if no valid zaps were found
-    if (stats.firstAt === Number.MAX_SAFE_INTEGER) {
-      stats.firstAt = undefined;
-    }
-
-    return stats;
+    return this.calculateZapStats(zaps);
   }
 
   /**
@@ -666,26 +754,129 @@ export class NostrZapClient {
   }
 }
 
+/** Comprehensive public NIP-57 facade retained for 0.x compatibility. */
+export class NostrZapClient {
+  private core: ZapClientCore;
+
+  /** Create a comprehensive NIP-57 client around an existing Nostr client. */
+  constructor(options: {
+    /** The Nostr client instance to use. */
+    client: Nostr;
+    /** Default relay URLs to use when not specified explicitly. */
+    defaultRelays?: string[];
+    /** Receives NIP-57 diagnostics. Quiet by default. */
+    logger?: DiagnosticLogger;
+  }) {
+    this.core = new ZapClientCore({
+      nostrClient: options.client,
+      defaultRelays: options.defaultRelays,
+      logger: options.logger,
+    });
+  }
+
+  /** Check whether a user LNURL supports Nostr zaps. */
+  async canReceiveZaps(pubkey: string, lnurl?: string): Promise<boolean> {
+    return this.core.canReceiveZaps(pubkey, lnurl);
+  }
+
+  /** Build a zap request and return the invoice needed to send the zap. */
+  async sendZap(
+    options: {
+      recipientPubkey: string;
+      lnurl: string;
+      amount: number;
+      comment?: string;
+      eventId?: string;
+      aTag?: string;
+      relays?: string[];
+      anonymousZap?: boolean;
+    },
+    privateKey: string,
+  ): Promise<{ success: boolean; invoice?: string; error?: string }> {
+    return this.core.sendZap(options, privateKey);
+  }
+
+  /** Fetch zap receipts received by a user. */
+  async fetchUserReceivedZaps(
+    pubkey: string,
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchUserReceivedZaps(pubkey, options);
+  }
+
+  /** Fetch zap receipts sent by a user. */
+  async fetchUserSentZaps(
+    pubkey: string,
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchUserSentZaps(pubkey, options);
+  }
+
+  /** Fetch zap receipts associated with an event. */
+  async fetchEventZaps(
+    eventId: string,
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchEventZaps(eventId, options);
+  }
+
+  /** Fetch all zap receipts matching the supplied filter options. */
+  async fetchZapReceipts(
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchZapReceipts(options);
+  }
+
+  /** Validate a zap receipt and extract its amount when valid. */
+  validateZapReceipt(
+    zapReceipt: NostrEvent,
+    lnurlPubkey?: string,
+  ): ZapValidationResult {
+    return this.core.validateZapReceipt(zapReceipt, lnurlPubkey);
+  }
+
+  /** Calculate aggregate zap statistics for a user. */
+  async getTotalZapsReceived(
+    pubkey: string,
+    options: ZapFilterOptions = {},
+  ): Promise<ZapStats> {
+    return this.core.getTotalZapsReceived(pubkey, options);
+  }
+
+  /** Calculate aggregate zap statistics for an event. */
+  async getTotalZapsForEvent(
+    eventId: string,
+    options: ZapFilterOptions = {},
+  ): Promise<ZapStats> {
+    return this.core.getTotalZapsForEvent(eventId, options);
+  }
+
+  /** Parse zap split recipients and weights from an event. */
+  parseZapSplit(event: NostrEvent) {
+    return this.core.parseZapSplit(event);
+  }
+
+  /** Calculate recipient amounts for parsed zap split information. */
+  calculateZapSplitAmounts(
+    totalAmount: number,
+    splitInfo: ReturnType<typeof parseZapSplit>,
+  ) {
+    return this.core.calculateZapSplitAmounts(totalAmount, splitInfo);
+  }
+}
+
 /**
  * Client for working with NIP-57 Zaps
  */
 export class ZapClient {
-  private nostrClient: Nostr;
-  private defaultRelays: string[];
-  private logger: DiagnosticLogger;
-  private lnurlCache: Map<
-    string,
-    { pubkey: string; lnurl: string; supportsZaps: boolean }
-  > = new Map();
+  private core: ZapClientCore;
 
   /**
    * Create a new ZapClient
    * @param options Options for the client
    */
   constructor(options: ZapClientOptions) {
-    this.nostrClient = options.nostrClient;
-    this.defaultRelays = options.defaultRelays || [];
-    this.logger = options.logger ?? new Logger({ silent: true });
+    this.core = new ZapClientCore(options);
   }
 
   /**
@@ -698,44 +889,7 @@ export class ZapClient {
     pubkey: string,
     lnurlFromProfile?: string,
   ): Promise<boolean> {
-    try {
-      // Check cache first
-      const cached = this.lnurlCache.get(pubkey);
-      if (cached) {
-        return cached.supportsZaps;
-      }
-
-      // Use provided LNURL or fetch from profile
-      const lnurl = lnurlFromProfile;
-      if (!lnurl) {
-        // In a real implementation, we would fetch the user's profile to get their LNURL
-        // For now, return false as we don't have profile fetching implemented
-        return false;
-      }
-
-      // Fetch and validate LNURL metadata
-      const metadata = await fetchLnurlPayMetadata(lnurl, this.logger);
-      if (!metadata) {
-        this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps: false });
-        return false;
-      }
-
-      // Check if it supports zaps
-      const supportsZaps = supportsNostrZaps(metadata);
-
-      // Cache the result
-      this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps });
-
-      return supportsZaps;
-    } catch (error) {
-      reportNIP57Diagnostic(
-        this.logger,
-        "error",
-        "Failed to check zap support",
-        { error },
-      );
-      return false;
-    }
+    return this.core.canReceiveZaps(pubkey, lnurlFromProfile);
   }
 
   /**
@@ -757,126 +911,7 @@ export class ZapClient {
     },
     privateKey: string,
   ): Promise<ZapInvoiceResult> {
-    try {
-      const senderPubkey = this.nostrClient.getPublicKey();
-      if (!senderPubkey && !options.anonymousZap) {
-        return {
-          invoice: "",
-          zapRequest: {} as NostrEvent,
-          error: "No public key available and not anonymous zap",
-        };
-      }
-
-      // Fetch LNURL metadata
-      const metadata = await fetchLnurlPayMetadata(options.lnurl, this.logger);
-      if (!metadata) {
-        return {
-          invoice: "",
-          zapRequest: {} as NostrEvent,
-          error: "Invalid LNURL or failed to fetch metadata",
-        };
-      }
-
-      // Check if LNURL supports zaps
-      if (!supportsNostrZaps(metadata)) {
-        return {
-          invoice: "",
-          zapRequest: {} as NostrEvent,
-          error: "LNURL does not support Nostr zaps",
-        };
-      }
-
-      // Check amount limits
-      if (
-        options.amount < metadata.minSendable ||
-        options.amount > metadata.maxSendable
-      ) {
-        return {
-          invoice: "",
-          zapRequest: {} as NostrEvent,
-          error: `Amount out of range (${metadata.minSendable}-${metadata.maxSendable} millisats)`,
-        };
-      }
-
-      // Create zap request
-      const zapRequestOptions: ZapRequestOptions = {
-        recipientPubkey: options.recipientPubkey,
-        amount: options.amount,
-        relays: options.relays || this.defaultRelays,
-        content: options.comment || "",
-        lnurl: options.lnurl,
-      };
-
-      // Add optional parameters
-      if (options.eventId) {
-        zapRequestOptions.eventId = options.eventId;
-      }
-
-      if (options.aTag) {
-        zapRequestOptions.aTag = options.aTag;
-      }
-
-      // For anonymous zaps
-      if (options.anonymousZap && senderPubkey) {
-        zapRequestOptions.senderPubkey = senderPubkey;
-      }
-
-      // Create and sign zap request
-      const requestTemplate = createZapRequest(
-        zapRequestOptions,
-        options.anonymousZap
-          ? "00000000000000000000000000000000000000000000000000000000000000"
-          : senderPubkey || "",
-      );
-
-      const signedZapRequest = await createSignedEvent(
-        {
-          ...requestTemplate,
-          tags: requestTemplate.tags || [],
-          pubkey: options.anonymousZap
-            ? "00000000000000000000000000000000000000000000000000000000000000"
-            : senderPubkey || "",
-          created_at: getUnixTime(),
-        },
-        privateKey,
-      );
-
-      // Build callback URL with the zap request
-      const callbackUrl = buildZapCallbackUrl(
-        metadata.callback,
-        JSON.stringify(signedZapRequest),
-        options.amount,
-      );
-
-      // Fetch invoice from LNURL
-      const invoiceResponse = await fetch(callbackUrl);
-      const invoiceData =
-        (await invoiceResponse.json()) as LnurlInvoiceResponse;
-
-      if (invoiceData.status === "ERROR") {
-        return {
-          invoice: "",
-          zapRequest: signedZapRequest,
-          error: invoiceData.reason || "LNURL error",
-        };
-      }
-
-      return {
-        invoice: invoiceData.pr,
-        zapRequest: signedZapRequest,
-        paymentHash: invoiceData.payment_hash,
-        successAction: invoiceData.successAction,
-      };
-    } catch (error) {
-      reportNIP57Diagnostic(this.logger, "error", "Failed to get zap invoice", {
-        error,
-      });
-      return {
-        invoice: "",
-        zapRequest: {} as NostrEvent,
-        error: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
+    return this.core.getZapInvoice(options, privateKey);
   }
 
   /**
@@ -889,7 +924,7 @@ export class ZapClient {
     zapReceipt: NostrEvent,
     lnurlPubkey: string,
   ): ZapValidationResult {
-    return validateZapReceipt(zapReceipt, lnurlPubkey, this.logger);
+    return this.core.validateZapReceipt(zapReceipt, lnurlPubkey);
   }
 
   /**
@@ -899,7 +934,46 @@ export class ZapClient {
    * @returns Split information for each recipient
    */
   getZapSplitAmounts(event: NostrEvent, totalAmount: number) {
-    const splitInfo = parseZapSplit(event);
-    return calculateZapSplitAmounts(totalAmount, splitInfo);
+    const splitInfo = this.core.parseZapSplit(event);
+    return this.core.calculateZapSplitAmounts(totalAmount, splitInfo);
+  }
+
+  /** Fetch all zap receipts matching the filter criteria. */
+  async fetchZapReceipts(
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchZapReceipts(options);
+  }
+
+  /** Fetch zap receipts received by a user. */
+  async fetchUserReceivedZaps(
+    pubkey: string,
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchUserReceivedZaps(pubkey, options);
+  }
+
+  /** Fetch zap receipts for an event. */
+  async fetchEventZaps(
+    eventId: string,
+    options: ZapFilterOptions = {},
+  ): Promise<NostrEvent[]> {
+    return this.core.fetchEventZaps(eventId, options);
+  }
+
+  /** Calculate zap statistics for a user. */
+  async getTotalZapsReceived(
+    pubkey: string,
+    options: ZapFilterOptions = {},
+  ): Promise<ZapStats> {
+    return this.core.getTotalZapsReceived(pubkey, options);
+  }
+
+  /** Calculate zap statistics for an event. */
+  async getTotalZapsForEvent(
+    eventId: string,
+    options: ZapFilterOptions = {},
+  ): Promise<ZapStats> {
+    return this.core.getTotalZapsForEvent(eventId, options);
   }
 }
