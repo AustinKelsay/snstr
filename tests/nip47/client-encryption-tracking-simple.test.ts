@@ -1,8 +1,8 @@
 /**
- * Simplified test for NIP-47 client encryption tracking
+ * NIP-47 client encryption negotiation and response behavior
  *
- * This test verifies that the client correctly tracks and uses the same
- * encryption scheme for decrypting responses as was used for the request.
+ * These tests verify the negotiated request scheme through the wire event and
+ * prove the matching response path completes end to end.
  */
 
 import { generateKeypair } from "../../src/utils/crypto";
@@ -19,7 +19,7 @@ import {
 } from "../../src/nip47/types";
 import { dispatchNip47ClientResponse, NostrRelay } from "../../src/testing";
 
-describe("NIP-47: Client encryption tracking (simplified)", () => {
+describe("NIP-47: Client encryption negotiation", () => {
   let relay: NostrRelay;
 
   beforeAll(async () => {
@@ -33,7 +33,7 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     }
   });
 
-  test("should track and use the correct encryption scheme for responses", async () => {
+  test("uses NIP-44 for the request and completes the response roundtrip", async () => {
     const serviceKeys = await generateKeypair();
     const clientKeys = await generateKeypair();
 
@@ -104,7 +104,7 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     await service.disconnect();
   }, 10000);
 
-  test("should fallback to NIP-04 when NIP-44 is not supported", async () => {
+  test("falls back to NIP-04 and completes the response roundtrip", async () => {
     const serviceKeys = await generateKeypair();
     const clientKeys = await generateKeypair();
 

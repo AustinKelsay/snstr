@@ -19,6 +19,7 @@ import {
   generateNWCURL,
   parseNWCURL,
   NIP47ErrorCode,
+  NIP47EventKind,
   GetInfoResponseResult,
   PaymentResponseResult,
   MakeInvoiceResponseResult,
@@ -281,6 +282,21 @@ describe("NIP-47 client initialization fallback", () => {
 
     expect(subscriptions).toHaveLength(1);
     expect(callbacks).toHaveLength(1);
+
+    callbacks[0](
+      {
+        id: "info-id",
+        pubkey: "02".repeat(32),
+        created_at: Math.floor(Date.now() / 1000),
+        kind: NIP47EventKind.INFO,
+        tags: [],
+        content: NIP47Method.PAY_INVOICE,
+        sig: "",
+      },
+      "wss://relay.example.com",
+    );
+    await Promise.resolve();
+    expect(fallbackClient.supportsMethod(NIP47Method.PAY_INVOICE)).toBe(true);
   });
 
   it.each([0, false, ""])(

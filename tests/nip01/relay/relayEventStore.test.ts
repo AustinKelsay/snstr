@@ -137,6 +137,15 @@ describe("RelayEventStore", () => {
     expect(store.getAddressableByKind(30001)).toHaveLength(2);
   });
 
+  test("keeps the newer addressable event when an older candidate arrives", () => {
+    const store = new RelayEventStore();
+    const coordinate = { kind: 30001, tags: [["d", "profile"]] };
+    store.storeAddressable(event("newer", 20, coordinate));
+    store.storeAddressable(event("older", 10, coordinate));
+
+    expect(store.getAddressable(30001, "pubkey", "profile")?.id).toBe("newer");
+  });
+
   test("bounds addressable storage and ignores misses for LRU accounting", () => {
     let now = 0;
     const store = new RelayEventStore({

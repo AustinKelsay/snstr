@@ -448,9 +448,6 @@ export class NostrWalletConnectClient {
   }
 
   /**
-   * Validate that a response follows the NIP-47 specification structure
-   */
-  /**
    * Handle response events
    */
   private async handleResponse(event: NostrEvent): Promise<void> {
