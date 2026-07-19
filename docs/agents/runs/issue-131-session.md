@@ -40,7 +40,7 @@
 - Final Jest after hosted fixes: 80/80 suites, 1054/1054 tests, no open handles, 298.293 seconds
 - Final Bun after hosted fixes: 1054/1054 tests, 8173 assertions, 269.65 seconds
 - Build/package: commands and package-manager policy, lint, TypeScript, CJS/ESM builds, examples, and pack verification green
-- Local CodeRabbit: round 1 raised three valid code/test issues; all fixed; round 2 raised zero issues; round 3 raised one documentation-status inconsistency, fixed
+- Local CodeRabbit: round 1 raised three valid code/test issues; all fixed; round 2 raised zero issues; round 3 raised one documentation-status inconsistency, fixed; round 4 raised zero issues
 - Hosted CodeRabbit: raised two valid major findings; both fixed with public regressions; final hosted rerun pending
 - Grok hosted-fix review: initial pass found one additional permission interpolation; fixed after a public red test; follow-up verdict `APPROVE`
 
