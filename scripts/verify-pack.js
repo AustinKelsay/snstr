@@ -231,23 +231,30 @@ function verifyPackedNodeSubpathResolution(cacheDir) {
         );
       }
     }
-    execFileSync(
-      "npm",
-      [
-        "install",
-        "--ignore-scripts",
-        "--no-audit",
-        "--no-fund",
-        "--cache",
-        cacheDir,
-        tarballPath,
-        ...requiredConsumerTypes.map(
-          (dependency) =>
-            `${dependency}@${packageManifest.devDependencies[dependency]}`,
-        ),
-      ],
-      { cwd: tempDir, stdio: "pipe" },
-    );
+    try {
+      execFileSync(
+        "npm",
+        [
+          "install",
+          "--ignore-scripts",
+          "--no-audit",
+          "--no-fund",
+          "--cache",
+          cacheDir,
+          tarballPath,
+          ...requiredConsumerTypes.map(
+            (dependency) =>
+              `${dependency}@${packageManifest.devDependencies[dependency]}`,
+          ),
+        ],
+        { cwd: tempDir, stdio: "pipe" },
+      );
+    } catch (err) {
+      const detail = err?.stderr
+        ? err.stderr.toString().trim()
+        : (err?.message ?? String(err));
+      throw new Error(`Packed consumer npm install failed. ${detail}`);
+    }
     const packageRoot = path.join(tempDir, "node_modules", "snstr");
     for (const forbiddenPackage of ["jest", "@types/jest"]) {
       if (fs.existsSync(path.join(tempDir, "node_modules", forbiddenPackage))) {
