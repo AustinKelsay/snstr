@@ -32,4 +32,20 @@ describe("testing entrypoint relay context types", () => {
     expect(context.mocks.connect).toBe(typedMock);
     expect(context.mocks.handlers?.[RelayEvent.OK]).toBe(jestMock);
   });
+
+  test("preserves event-specific captured callback types", () => {
+    const context: RelayTestContext = {
+      relay: {} as RelayInterface,
+      originals: {},
+      mocks: {},
+      capturedCallbacks: {
+        [RelayEvent.OK]: [(_id, accepted) => void accepted],
+        [RelayEvent.Error]: [(_relay, error) => void error],
+        // @ts-expect-error Callback capture keys must be actual RelayEvent values.
+        message: [],
+      },
+    };
+
+    expect(context.capturedCallbacks[RelayEvent.OK]).toHaveLength(1);
+  });
 });

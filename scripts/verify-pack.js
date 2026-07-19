@@ -172,6 +172,7 @@ function verifyPublishedDeclarationPurity(packageRoot) {
     /<reference\s+types=["']jest["']/,
     /\bfrom\s+["'](?:@jest\/globals|jest)["']/,
     /\bimport\s+["'](?:@jest\/globals|jest)["']/,
+    /\bimport\s*\(\s*["'](?:@jest\/globals|jest)["']\s*\)/,
   ];
   const polluted = declarationFiles(packageRoot).filter((declarationPath) => {
     const declaration = fs.readFileSync(declarationPath, "utf8");
@@ -222,6 +223,14 @@ function verifyPackedNodeSubpathResolution(cacheDir) {
       "@types/node",
       "@types/ws",
     ];
+    for (const dependency of requiredConsumerTypes) {
+      const version = packageManifest.devDependencies?.[dependency];
+      if (typeof version !== "string" || version.trim().length === 0) {
+        throw new Error(
+          `Packed consumer dependency ${JSON.stringify(dependency)} is missing from devDependencies`,
+        );
+      }
+    }
     execFileSync(
       "npm",
       [

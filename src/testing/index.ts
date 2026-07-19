@@ -51,8 +51,7 @@ export interface RelayTestContext {
   };
   /** Callbacks captured from event registrations. */
   capturedCallbacks: {
-    ok?: RelayEventCallbacks[RelayEvent.OK][];
-    [key: string]: RelayEventCallbacks[keyof RelayEventCallbacks][] | undefined;
+    [E in RelayEvent]?: RelayEventCallbacks[E][];
   };
   /** Options passed to the relay under test. */
   options?: {
