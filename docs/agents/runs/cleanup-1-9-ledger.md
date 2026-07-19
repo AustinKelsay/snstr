@@ -27,7 +27,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all standards/spec passes
 - Review packets: `issue-131-review-packet.md`, `issue-132-review-packet.md`, `issue-133-review-packet.md`; created per later ticket
 - Local CodeRabbit report: `issue-131-coderabbit-local.md`, `issue-132-coderabbit-local.md`, `issue-133-coderabbit-local.md`, `issue-134-coderabbit-local.md`; created per later ticket
-- PR URL: #140 merged for issue #131; #141 merged for issue #132; #142 merged for issue #133; created per later ticket, always non-draft and targeting `staging`
+- PR URL: #140 merged for issue #131; #141 merged for issue #132; #142 merged for issue #133; #143 open for issue #134; created per later ticket, always non-draft and targeting `staging`
 
 ## Commands
 
@@ -44,7 +44,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | #131 NIP-46 diagnostic redaction  | AFK  | merged          | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes  | Jest/Bun 1054/1054; hosted CI green       |
 | #132 published declaration purity | AFK  | merged          | `feature/public-type-test-purity`       | Grok pass; CodeRabbit local/hosted clean                  | Jest/Bun 1055/1055; hosted CI green       |
 | #133 shared diagnostic seam       | AFK  | merged          | `feature/shared-diagnostics-completion` | Grok standards/spec pass; local and hosted clean           | Jest/Bun 1067/1067; hosted CI green       |
-| #134 NIP-47 service lifecycle     | AFK  | PR pending      | `feature/nip47-service-lifecycle`       | Grok pass; CodeRabbit local re-review clean               | Jest/Bun 1073/1073; all local gates green |
+| #134 NIP-47 service lifecycle     | AFK  | hosted review   | `feature/nip47-service-lifecycle`       | Grok pass; CodeRabbit local clean; hosted pending         | Jest/Bun 1073/1073; all local gates green |
 | #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                   | pending                                   |
 | #136 NIP-46 protocol core         | AFK  | blocked by #135 | `feature/nip46-protocol-core`           | pending                                                   | pending                                   |
 | #137 default test feedback loop   | AFK  | blocked by #136 | `feature/fast-default-test-loop`        | pending                                                   | pending                                   |
