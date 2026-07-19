@@ -1263,10 +1263,12 @@ describe("Detailed subscription cleanup", () => {
   it("should unsubscribe earlier relays when a later detailed subscribe fails", () => {
     const nostr = new Nostr();
     const firstRelay = {
+      disconnect: jest.fn(),
       subscribe: jest.fn().mockReturnValue("sub-1"),
       unsubscribe: jest.fn(),
     };
     const secondRelay = {
+      disconnect: jest.fn(),
       subscribe: jest.fn(() => {
         throw new Error("subscribe failed");
       }),
@@ -1288,6 +1290,7 @@ describe("Addressable events functionality", () => {
   let nostr: Nostr;
   // Define with specific structure for the test
   let mockRelays: {
+    disconnect: jest.Mock;
     getLatestAddressableEvent: jest.Mock;
     getAddressableEventsByPubkey: jest.Mock;
     getAddressableEventsByKind: jest.Mock;
@@ -1297,11 +1300,13 @@ describe("Addressable events functionality", () => {
     // Create mock relay objects instead of actual Relay instances
     mockRelays = [
       {
+        disconnect: jest.fn(),
         getLatestAddressableEvent: jest.fn(),
         getAddressableEventsByPubkey: jest.fn(),
         getAddressableEventsByKind: jest.fn(),
       },
       {
+        disconnect: jest.fn(),
         getLatestAddressableEvent: jest.fn(),
         getAddressableEventsByPubkey: jest.fn(),
         getAddressableEventsByKind: jest.fn(),

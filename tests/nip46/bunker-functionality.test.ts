@@ -428,9 +428,46 @@ describe("NIP-46 Bunker Functionality", () => {
         );
 
         expect(matchingResponses()).toHaveLength(1);
+
+        await bunker.stop();
+        await bunker.start();
+        await sender.publishEvent(request);
+        await testUtils.waitFor(() => matchingResponses().length === 2);
       } finally {
         sender.disconnectFromRelays();
         await bunker.stop().catch(() => {});
+      }
+    });
+
+    test("stop clears the bunker-owned cleanup interval", async () => {
+      const setIntervalSpy = jest.spyOn(globalThis, "setInterval");
+      const clearIntervalSpy = jest.spyOn(globalThis, "clearInterval");
+      const bunker = new NostrRemoteSignerBunker({
+        userPubkey: userKeypair.publicKey,
+        signerPubkey: signerKeypair.publicKey,
+        relays: [relayUrl],
+        defaultPermissions: [NIP46Method.PING],
+        rateLimitConfig: { cleanupIntervalMs: 300000 },
+      });
+      bunker.setUserPrivateKey(userKeypair.privateKey);
+      bunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+      try {
+        await bunker.start();
+        const cleanupCallIndex = setIntervalSpy.mock.calls.findIndex(
+          ([, delay]) => delay === 60000,
+        );
+        expect(cleanupCallIndex).toBeGreaterThanOrEqual(0);
+        const cleanupTimer =
+          setIntervalSpy.mock.results[cleanupCallIndex].value;
+
+        await bunker.stop();
+
+        expect(clearIntervalSpy).toHaveBeenCalledWith(cleanupTimer);
+      } finally {
+        await bunker.stop().catch(() => {});
+        setIntervalSpy.mockRestore();
+        clearIntervalSpy.mockRestore();
       }
     });
   });

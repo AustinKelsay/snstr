@@ -104,7 +104,10 @@ export function scheduleRelayReconnect(relay: Relay): void {
   (relay as unknown as { scheduleReconnect(): void }).scheduleReconnect();
 }
 
-/** Invoke only the bunker connect handler for auth-challenge protocol tests. */
+/**
+ * Invoke only the bunker connect handler for auth-challenge protocol tests.
+ * This intentionally bypasses engine middleware such as replay protection.
+ */
 export function invokeNip46BunkerConnect(
   bunker: NostrRemoteSignerBunker,
   request: NIP46Request,
@@ -231,7 +234,11 @@ export async function dispatchNip47ClientResponse(
     encryptionScheme,
     resolve: () => undefined,
   });
-  await target.handleResponse(event);
+  try {
+    await target.handleResponse(event);
+  } finally {
+    target.pendingRequests.delete(requestId);
+  }
 }
 
 /** Deliver one request through the production NIP-47 service protocol handler. */
@@ -251,7 +258,7 @@ export interface NostrTestRelay {
     options?: PublishOptions,
   ): Promise<PublishResponse>;
   connect?(): Promise<unknown>;
-  disconnect?(): unknown;
+  disconnect(): unknown;
   on?(...args: unknown[]): unknown;
   off?(...args: unknown[]): unknown;
   subscribe?(...args: unknown[]): string;
