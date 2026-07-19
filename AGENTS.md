@@ -14,7 +14,8 @@
 - `npm ci` — install the canonical dependency graph from `package-lock.json`.
 - `npm run package-manager:verify` — verify npm/Bun metadata, lockfiles, and CI policy.
 - `npm run build` — clean and compile TypeScript to `dist/`.
-- `npm test` | `npm run test:watch` | `npm run test:coverage` — run Jest, watch mode, or coverage (reports in `coverage/`).
+- `npm test` | `npm run test:watch` | `npm run test:coverage` — run the routine Jest lane, routine watch mode, or routine coverage.
+- `npm run test:slow` | `npm run test:all` | `npm run test:coverage:all` — run the named security/performance lane or the complete test/coverage inventory.
 - `npm run lint` — ESLint (`@typescript-eslint`) over `.ts` sources.
 - `npm run format` — Prettier 3 for `src/`, `tests/`, `examples/`.
 - `npm run example` (or `example:*`) | `npm start` — run examples; default is the NIP‑07 example.
@@ -31,14 +32,14 @@
 
 - Framework: Jest with `ts-jest`, Node environment.
 - Naming: `*.test.ts` or `*.spec.ts`; mirror the `src/` layout.
-- Coverage: keep or improve; use `npm run test:coverage`.
+- Coverage: keep or improve; use `npm run test:coverage:all` before review so slow-lane files remain covered.
 - Use test vectors and the ephemeral relay; never include real credentials.
 
 ## Commit & Pull Request Guidelines
 
 - Commits: Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`), imperative and concise.
 - Branches: create from `staging` using `feature/<name>` or `fix/<name>`; PRs target `staging`.
-- PR checklist: clear what/why, linked issues (e.g., `#123`), tests and examples updated if behavior changes. Run `npm run lint && npm test && npm run build` before opening.
+- PR checklist: clear what/why, linked issues (e.g., `#123`), tests and examples updated if behavior changes. Run `npm run lint && npm run test:all && npm run build` before opening.
 
 ## Security & Configuration Tips
 

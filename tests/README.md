@@ -66,16 +66,23 @@ Tests are organized into directories by NIP number, with subdirectories for spec
 
 ## Running Tests
 
-To run all tests:
+To run the routine feedback lane:
 
 ```bash
 npm test
 ```
 
-To run all tests with Bun:
+To run the complete Jest assurance set, including the named slow security and performance lane:
+
+```bash
+npm run test:all
+```
+
+To run the routine or complete assurance set with Bun:
 
 ```bash
 bun run test:bun
+bun run test:bun:all
 ```
 
 To run tests for a specific NIP:

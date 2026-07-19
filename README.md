@@ -442,7 +442,7 @@ Runnable examples cover core usage, NIP-specific flows, and curated groups. See 
 
 ## Testing
 
-The Jest suite uses an ephemeral relay where possible so normal test runs avoid external services. See the [testing guide](./tests/README.md) for organization and methodology, and use the [Command Reference](#command-reference) for every supported test command.
+The Jest suite uses an ephemeral relay where possible so normal test runs avoid external services. `npm test` is the fast routine lane; `npm run test:slow` contains the explicitly named security/performance load suites, and `npm run test:all` runs the complete assurance set. CI always runs both lanes for Node and Bun. See the [testing guide](./tests/README.md) for organization and methodology, and use the [Command Reference](#command-reference) for every supported test command.
 
 ## Command Reference
 
@@ -470,19 +470,23 @@ The `scripts` object in [package.json](./package.json) is the executable source 
 
 ### Primary Tests
 
-| Command                    | Definition                       |
-| -------------------------- | -------------------------------- |
-| `npm run test`             | `jest`                           |
-| `npm run test:watch`       | `jest --watch`                   |
-| `npm run test:coverage`    | `jest --coverage`                |
-| `npm run test:integration` | `jest tests/integration.test.ts` |
+| Command                        | Definition                                                     |
+| ------------------------------ | -------------------------------------------------------------- |
+| `npm run test`                 | `node scripts/run-test-lane.js jest routine`                   |
+| `npm run test:watch`           | `node scripts/run-test-lane.js jest routine --watch`           |
+| `npm run test:coverage`        | `node scripts/run-test-lane.js jest routine --coverage`        |
+| `npm run test:coverage:all`    | `node scripts/run-test-lane.js jest all --coverage`            |
+| `npm run test:slow`            | `node scripts/run-test-lane.js jest slow`                      |
+| `npm run test:integration`     | `jest tests/integration.test.ts`                               |
 
 ### Bun Tests
 
-| Command                  | Definition                                                     |
-| ------------------------ | -------------------------------------------------------------- |
-| `npm run test:bun`       | `bun test ./tests --max-concurrency 1 --timeout 30000`         |
-| `npm run test:bun:watch` | `bun test ./tests --watch --max-concurrency 1 --timeout 30000` |
+| Command                  | Definition                                             |
+| ------------------------ | ------------------------------------------------------ |
+| `npm run test:bun`       | `node scripts/run-test-lane.js bun routine`            |
+| `npm run test:bun:watch` | `node scripts/run-test-lane.js bun routine --watch`    |
+| `npm run test:bun:slow`  | `node scripts/run-test-lane.js bun slow`               |
+| `npm run test:bun:all`   | `bun run test:bun && bun run test:bun:slow`            |
 
 ### NIP-01 and Core Tests
 
@@ -534,7 +538,7 @@ The `scripts` object in [package.json](./package.json) is the executable source 
 
 | Command                  | Definition                                                |
 | ------------------------ | --------------------------------------------------------- |
-| `npm run test:all`       | `npm test`                                                |
+| `npm run test:all`       | `npm test && npm run test:slow`                           |
 | `npm run test:crypto`    | `jest tests/utils/crypto.test.ts tests/nip04 tests/nip44` |
 | `npm run test:identity`  | `jest tests/nip05 tests/nip07 tests/nip19`                |
 | `npm run test:protocols` | `jest tests/nip46 tests/nip47 tests/nip57`                |
