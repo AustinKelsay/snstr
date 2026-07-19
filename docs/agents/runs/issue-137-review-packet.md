@@ -17,9 +17,9 @@ The default Jest and Bun commands now run a canonical routine inventory, while t
 - `implement` session: `issue-137-session.md`
 - `tdd` used: lane-contract test failed before the module and wiring existed
 - Routine Jest: 84 suites / 1063 tests / 32.356s
-- Slow Jest: 2 suites / 40 tests / 43.640s
+- Slow Jest: 2 suites / 40 tests / 43.154s
 - Routine Bun: 84 files / 1063 tests / 190.68s
-- Slow Bun: 2 files / 40 tests / 40.41s
+- Slow Bun: 2 files / 40 tests / 40.42s
 - Full union: 86 suites/files / 1103 tests in each runtime
 - Complete Jest coverage command: pre-hosted-fix 86 suites / 1102 tests / 53.732s; final rerun pending
 
@@ -38,7 +38,7 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - none; post-CodeRabbit Grok follow-up also passed
 
-CODERABBIT_STATUS: local pass after fixes; hosted findings fixed, clean rerun pending
+CODERABBIT_STATUS: local pass through `295d114`; Bun 1.3.9 compatibility fix rerun pending
 CODERABBIT_FINDINGS:
 - major: include Jest-compatible .spec.* files in canonical discovery — fixed with a red/green regression test
 - minor: assert routine and complete coverage wiring — fixed
@@ -47,4 +47,6 @@ CODERABBIT_FINDINGS:
 - hosted minor: dynamically discover new routine tests during Bun watch without admitting slow paths — fixed with a red/green pure argument-builder test
 - hosted minor: document standalone Jest and Bun slow commands — fixed
 - hosted major: directly cover spawned Bun argument construction for dynamic watch and fixed non-watch modes — fixed
+- Grok P1: replace Bun 1.3.11-only path ignores with pinned-1.3.9-compatible `[slow]` name filtering — fixed and exercised with the Bun 1.3.9 binary
+- Grok P2: record hosted-fix commit `295d114` in the ledger — fixed
 ```

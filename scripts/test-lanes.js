@@ -5,6 +5,7 @@ const SLOW_TEST_PATHS = Object.freeze([
   "tests/nip44/nip44-performance-security.test.ts",
   "tests/nip46/performance-security.test.ts",
 ]);
+const SLOW_TEST_NAME_PREFIX = "[slow]";
 
 function toPosixPath(filePath) {
   return filePath.split(path.sep).join("/");
@@ -62,6 +63,7 @@ function getJestArgsForLane(lane) {
 }
 
 module.exports = {
+  SLOW_TEST_NAME_PREFIX,
   SLOW_TEST_PATHS,
   discoverTestFiles,
   getJestArgsForLane,

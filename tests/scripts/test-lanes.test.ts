@@ -15,6 +15,7 @@ type TestLane = "all" | "routine" | "slow";
 
 interface TestLaneModule {
   SLOW_TEST_PATHS: string[];
+  SLOW_TEST_NAME_PREFIX: string;
   discoverTestFiles(repoRoot: string): string[];
   getJestArgsForLane(lane: TestLane): string[];
   getTestFilesForLane(lane: TestLane, repoRoot: string): string[];
@@ -39,8 +40,16 @@ describe("test lane contract", () => {
 
   test("keeps one explicit sorted slow security and performance inventory", () => {
     expect(lanes.SLOW_TEST_PATHS).toEqual(expectedSlowPaths);
+    expect(lanes.SLOW_TEST_NAME_PREFIX).toBe("[slow]");
     for (const relativePath of lanes.SLOW_TEST_PATHS) {
-      expect(existsSync(path.join(repoRoot, relativePath))).toBe(true);
+      const absolutePath = path.join(repoRoot, relativePath);
+      expect(existsSync(absolutePath)).toBe(true);
+
+      const source = readFileSync(absolutePath, "utf8");
+      const topLevelDescribes = source.match(/^describe\(/gm) ?? [];
+      const slowTopLevelDescribes = source.match(/^describe\("\[slow\]/gm) ?? [];
+      expect(topLevelDescribes.length).toBeGreaterThan(0);
+      expect(slowTopLevelDescribes).toHaveLength(topLevelDescribes.length);
     }
   });
 
@@ -92,9 +101,7 @@ describe("test lane contract", () => {
     const nonWatchArgs = runner.getBunArgsForLane("routine", [], repoRoot);
 
     expect(args.slice(0, 2)).toEqual(["test", "./tests"]);
-    for (const slowPath of expectedSlowPaths) {
-      expect(args).toContain(`--path-ignore-patterns=${slowPath}`);
-    }
+    expect(args).toContain("--test-name-pattern=^(?!\\[slow\\])");
     expect(args).toEqual(
       expect.arrayContaining([
         "--max-concurrency",
@@ -105,6 +112,9 @@ describe("test lane contract", () => {
       ]),
     );
     expect(args).not.toContain("tests/scripts/test-lanes.test.ts");
+    for (const slowPath of expectedSlowPaths) {
+      expect(args).not.toContain(slowPath);
+    }
     expect(nonWatchArgs).toContain("tests/scripts/test-lanes.test.ts");
     expect(nonWatchArgs).not.toContain("./tests");
     for (const slowPath of expectedSlowPaths) {

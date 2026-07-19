@@ -1,7 +1,7 @@
 const path = require("path");
 const { spawnSync } = require("child_process");
 const {
-  SLOW_TEST_PATHS,
+  SLOW_TEST_NAME_PREFIX,
   getJestArgsForLane,
   getTestFilesForLane,
 } = require("./test-lanes");
@@ -22,12 +22,14 @@ function run(command, args) {
 function getBunArgsForLane(lane, extraArgs, root = repoRoot) {
   const testFiles = getTestFilesForLane(lane, root);
   const isRoutineWatch = lane === "routine" && extraArgs.includes("--watch");
+  const escapedSlowPrefix = SLOW_TEST_NAME_PREFIX.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
   const testSelection = isRoutineWatch
     ? [
         "./tests",
-        ...SLOW_TEST_PATHS.map(
-          (filePath) => `--path-ignore-patterns=${filePath}`,
-        ),
+        `--test-name-pattern=^(?!${escapedSlowPrefix})`,
       ]
     : testFiles;
 

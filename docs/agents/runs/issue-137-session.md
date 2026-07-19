@@ -6,7 +6,7 @@
 - Fixed point before session: `8b970e4`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commits: `0de11d9`, `91ffafa`; final review-record commit pending
-- Status: hosted CodeRabbit fixes in progress on PR #146
+- Status: Bun 1.3.9 watch compatibility fix green; local review reruns pending on PR #146
 
 ## Inputs
 
@@ -42,9 +42,9 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 | --- | ---: | ---: | ---: |
 | Baseline default Jest | 85 | 1096 | 58.793s |
 | Routine Jest | 84 | 1063 | 32.356s |
-| Slow Jest | 2 | 40 | 43.640s |
+| Slow Jest | 2 | 40 | 43.154s |
 | Routine Bun | 84 | 1063 | 190.68s |
-| Slow Bun | 2 | 40 | 40.41s |
+| Slow Bun | 2 | 40 | 40.42s |
 
 - The hosted-fix routine Jest run improved by 45.0%, exceeding the 40% target.
 - `input-validation` dropped from 58.171s in the baseline parallel run to 29.015s in the post-review routine run; its isolated Jest run is 25.294s.
@@ -61,6 +61,7 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - CodeRabbit result: clean committed rerun with zero findings after fixes
 - Grok follow-up: standards and spec both passed after the CodeRabbit delta with no findings
 - Hosted CodeRabbit findings: accepted all four; synchronized the run status, documented standalone slow commands, and made routine Bun watch discovery dynamic through a tested pure argument builder while preserving fixed non-watch inventory
+- Final Grok findings: the first hosted fix used a Bun 1.3.11-only ignore flag and the ledger omitted `295d114`; both were valid. The watch lane now uses Bun 1.3.9-supported name filtering, the slow inventory contract enforces `[slow]` on every top-level slow suite, and the ledger records the hosted-fix commit.
 
 ## Verification
 
@@ -70,6 +71,7 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - Slow Jest: 2/2 suites, 40/40 tests
 - Routine Bun: 84 files, 1063/1063 tests
 - Slow Bun: 2 files, 40/40 tests
+- Pinned Bun 1.3.9 compatibility: routine name filter skipped all 40 slow tests across both slow files in 104ms while the routine lane contract ran 7/7
 - Complete coverage before the hosted-fix regression test: 86/86 suites, 1102/1102 tests in 53.732s; final rerun pending
 - Repository gates: command/package-manager policy, ESLint, strict TypeScript, CommonJS script syntax, build, examples, pack, and diff integrity all green
 
