@@ -29,7 +29,7 @@
 
 ## Verification Before Final Review
 
-- NIP-46 Jest: 10/10 suites, 183/183 tests
+- NIP-46 Jest: 10/10 suites, 185/185 tests
 - Full Jest: 85/85 suites, 1096/1096 tests
 - Full Bun: 85 files, 1096/1096 tests
 - Commands/package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, and pack verification: green

@@ -17,7 +17,7 @@ The four public NIP-46 facades now delegate transport behavior to four internal 
 - `implement` session: `issue-136-session.md`
 - `tdd` used: characterization-first for behavior-preserving refactoring
 - Baseline characterization: the public seam suite passed before consolidation, fixing expected observable outcomes
-- Green implementation: 10 NIP-46 suites / 183 tests, including both facade pairings, typed protocol failures, both timeout contracts, simple and advanced reconnect, client shutdown, bunker shutdown, concurrent bunker lifecycle, serialized client success/failure transitions, restart-safe rate limiting, correlation settle/timeout/cancel cleanup, malformed envelopes, and extension methods
+- Green implementation: 10 NIP-46 suites / 185 tests, including both facade pairings, typed protocol failures, both timeout contracts, simple and advanced reconnect, client shutdown, bunker shutdown, concurrent bunker lifecycle, serialized client success/failure transitions, restart-safe rate limiting, correlation settle/timeout/cancel cleanup, malformed envelopes, and extension methods
 - Commands run: focused Jest/Bun, full NIP-46, full Jest/Bun, command/package-manager policy, strict TypeScript, ESLint, CJS/ESM builds, examples, pack verification, and diff checks
 
 ## Review Instructions
@@ -37,7 +37,7 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - all acceptance criteria met; zero remaining findings
 
-CODERABBIT_STATUS: pass
+CODERABBIT_STATUS: local pass; final hosted rerun pending
 CODERABBIT_FINDINGS:
 - initial six issues fixed: envelope schemas, duplicate IDs, validation order, lifecycle serialization, publish deadline, browser-safe process access
 - two follow-up test issues addressed with timeout/cancel coverage and deterministic synthetic keypairs

@@ -6,7 +6,7 @@
 - Fixed point before session: `ed9fa4a`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commits: `cf3819b`, `baa2bf2`, `03a6652`, `7b5a7d0`, `2d4fc6f`, `d983bae`, `bc342cd`, `9e029be`, `1c38f2c`
-- Status: PR #145 open; follow-up hosted and local findings fixed; final local and hosted reruns pending
+- Status: PR #145 open; follow-up hosted and local findings fixed; all local gates green; final hosted rerun pending
 
 ## Inputs
 
@@ -35,7 +35,7 @@
 
 ## Verification
 
-- Focused: NIP-46 10/10 suites and 183/183 tests; focused protocol-core, public seam, performance-security, and diagnostic suites green
+- Focused: NIP-46 10/10 suites and 185/185 tests; focused protocol-core, public seam, performance-security, and diagnostic suites green
 - Full Jest: 85/85 suites and 1096/1096 tests
 - Full Bun: 85 files and 1096/1096 tests
 - Repository gates: command and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, pack verification, and diff checks all green
