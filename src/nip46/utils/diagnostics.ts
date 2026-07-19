@@ -16,19 +16,30 @@ const SENSITIVE_FIELD_NAMES = new Set([
   "data",
   "decrypted",
   "decrypteddata",
+  "details",
+  "error",
+  "errormessage",
   "eventdata",
+  "message",
   "params",
   "plaintext",
   "privatekey",
   "result",
   "secret",
 ]);
-const LEGACY_PAYLOAD_MESSAGE = /^(.*(?:decrypted content|json payload):).*/i;
+const LEGACY_PAYLOAD_MESSAGE =
+  /^(.*(?:decrypted content|json payload):)[\s\S]*/i;
 const LEGACY_RESPONSE_ENVELOPE_MESSAGE = /sending response for request/i;
 const CONNECTION_URI = /\b(bunker|nostrconnect):\/\/[^\s"']+/gi;
 
 function normalizedFieldName(fieldName: string): string {
   return fieldName.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+function safeDiagnosticLabel(value: unknown, fallback: string): string {
+  return typeof value === "string" && /^[a-z][a-z0-9_.:-]{0,63}$/i.test(value)
+    ? value
+    : fallback;
 }
 
 function redactDiagnosticText(value: string): string {
@@ -62,10 +73,34 @@ function redactDiagnosticValue(
 
   try {
     if (value instanceof Error) {
-      return {
-        name: value.name,
-        message: redactDiagnosticText(value.message),
+      const errorWithMetadata = value as Error & {
+        code?: unknown;
+        type?: unknown;
       };
+      const sanitizedError: Record<string, DiagnosticLogArgument> = {
+        name: safeDiagnosticLabel(value.name, "Error"),
+      };
+
+      if (
+        typeof errorWithMetadata.code === "number" ||
+        typeof errorWithMetadata.code === "boolean"
+      ) {
+        sanitizedError.code = errorWithMetadata.code;
+      } else if (typeof errorWithMetadata.code === "string") {
+        sanitizedError.code = safeDiagnosticLabel(
+          errorWithMetadata.code,
+          "UNKNOWN",
+        );
+      }
+
+      if (typeof errorWithMetadata.type === "string") {
+        sanitizedError.type = safeDiagnosticLabel(
+          errorWithMetadata.type,
+          "Error",
+        );
+      }
+
+      return sanitizedError;
     }
 
     if (Array.isArray(value)) {
@@ -120,7 +155,10 @@ export class NIP46DiagnosticLogger implements DiagnosticLogger {
       const sanitizedArguments = LEGACY_RESPONSE_ENVELOPE_MESSAGE.test(message)
         ? args.map(() => REDACTED)
         : args.map((argument) =>
-            redactDiagnosticValue(argument, new WeakSet<object>()),
+            (level === "error" || level === "warn") &&
+            typeof argument === "string"
+              ? REDACTED
+              : redactDiagnosticValue(argument, new WeakSet<object>()),
           );
       this.delegate[level](
         redactDiagnosticText(message),

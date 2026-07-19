@@ -17,7 +17,7 @@ All four NIP-46 client and bunker facades now route diagnostics through one inte
 - `implement` session: `issue-131-session.md`
 - `tdd` used: yes
 - Red test, if applicable: public constructor options rejected logger injection before implementation; subsequent red cycles caught `connectResult` and the simple bunker's response envelope
-- Green implementation, if applicable: five public integration tests cover advanced/simple cross-pairs, legacy simple/simple, invalid-secret metadata, encryption plaintext, private-key sentinels, all diagnostic levels, and throwing loggers
+- Green implementation, if applicable: seven public integration tests cover advanced/simple cross-pairs, legacy simple/simple, invalid-secret metadata, encryption plaintext, private-key sentinels, all diagnostic levels, throwing loggers, multiline payloads, reflected `Error` messages, and malformed legacy permissions
 - Refactor, if applicable: one internal adapter owns recursive field policy, legacy message handling, non-throwing delegation, and optional level forwarding
 - Commands run: focused Jest/Bun; NIP-46 Jest; full Jest/Bun; policy verifiers; lint; TypeScript; CJS/ESM builds; examples; pack verifier
 
@@ -35,4 +35,9 @@ STANDARDS_FINDINGS:
 SPEC_STATUS: pass
 SPEC_FINDINGS:
 - Initial coverage gaps and one free-form secret interpolation were fixed; all four acceptance criteria pass on follow-up.
+
+HOSTED_REVIEW_STATUS: pass after fixes
+HOSTED_REVIEW_FINDINGS:
+- CodeRabbit found multiline legacy payload leakage and reflected untrusted error messages; both were reproduced through public seams and fixed.
+- A follow-up Grok pass found one additional legacy permission interpolation path; a public red test reproduced it, the log now exposes only permission count, and Grok approved the final patch.
 ```

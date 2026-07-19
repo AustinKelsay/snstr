@@ -220,6 +220,7 @@ describe("NIP-46 diagnostic redaction", () => {
     const userKeys = await generateKeypair();
     const signerKeys = await generateKeypair();
     const connectionSecret = "legacy-connect-response-secret";
+    const multilinePlaintext = "multiline-secret-first\nmultiline-secret-last";
     const clientDiagnostics = createCapturingLogger();
     const bunkerDiagnostics = createCapturingLogger();
     const bunker = new SimpleNIP46Bunker(
@@ -228,7 +229,7 @@ describe("NIP-46 diagnostic redaction", () => {
       signerKeys.publicKey,
       {
         secret: connectionSecret,
-        defaultPermissions: ["get_public_key"],
+        defaultPermissions: ["get_public_key", "sign_event"],
         logger: bunkerDiagnostics.logger,
       },
     );
@@ -243,14 +244,24 @@ describe("NIP-46 diagnostic redaction", () => {
     try {
       await bunker.start();
       await client.connect(bunker.getConnectionString());
+      await client.signEvent({
+        kind: 1,
+        content: multilinePlaintext,
+        created_at: 1_700_000_002,
+        tags: [],
+      });
 
       expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
         connectionSecret,
+        multilinePlaintext,
+        "multiline-secret-last",
         userKeys.privateKey,
         signerKeys.privateKey,
       ]);
       expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         connectionSecret,
+        multilinePlaintext,
+        "multiline-secret-last",
         userKeys.privateKey,
         signerKeys.privateKey,
       ]);
@@ -369,6 +380,71 @@ describe("NIP-46 diagnostic redaction", () => {
         userKeys.publicKey,
       );
       await expect(client.ping()).resolves.toBe(true);
+    } finally {
+      await client.disconnect().catch(() => undefined);
+      await bunker.stop().catch(() => undefined);
+    }
+  });
+
+  test("untrusted Error messages retain only safe failure type", async () => {
+    const userKeys = await generateKeypair();
+    const reflectedSecret = "reflected-error-secret";
+    const multilinePayload =
+      "Decrypted content: multiline-reflected-first\nmultiline-reflected-last";
+    const diagnostics = createCapturingLogger();
+    const malformedPermissions = [
+      new Error(reflectedSecret),
+      multilinePayload,
+    ] as unknown as string[];
+
+    expect(
+      () =>
+        new NostrRemoteSignerBunker({
+          userPubkey: userKeys.publicKey,
+          defaultPermissions: malformedPermissions,
+          logger: diagnostics.logger,
+        }),
+    ).not.toThrow();
+
+    const rendered = renderDiagnostics(diagnostics.diagnostics);
+    expect(rendered).not.toContain(reflectedSecret);
+    expect(rendered).not.toContain("multiline-reflected-last");
+    expect(rendered).toContain("[REDACTED]");
+    expect(rendered).toContain("Error");
+  });
+
+  test("simple bunker does not stringify untrusted permission values", async () => {
+    const userKeys = await generateKeypair();
+    const signerKeys = await generateKeypair();
+    const reflectedSecret = "simple-permission-reflection-secret";
+    const diagnostics = createCapturingLogger();
+    const malformedPermissions = [
+      new Error(reflectedSecret),
+    ] as unknown as string[];
+    const bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeys.publicKey,
+      signerKeys.publicKey,
+      {
+        defaultPermissions: malformedPermissions,
+        logLevel: LogLevel.DEBUG,
+        logger: diagnostics.logger,
+      },
+    );
+    const client = new NostrRemoteSignerClient({
+      relays: [relayUrl],
+      timeout: 3000,
+    });
+    bunker.setUserPrivateKey(userKeys.privateKey);
+    bunker.setSignerPrivateKey(signerKeys.privateKey);
+
+    try {
+      await bunker.start();
+      await client.connect(bunker.getConnectionString());
+
+      const rendered = renderDiagnostics(diagnostics.diagnostics);
+      expect(rendered).not.toContain(reflectedSecret);
+      expect(rendered).toContain("Client permissions");
     } finally {
       await client.disconnect().catch(() => undefined);
       await bunker.stop().catch(() => undefined);

@@ -334,10 +334,9 @@ export class SimpleNIP46Bunker {
           `Failed to handle request: ${errorMessage}`,
         );
         await this.sendResponse(response, event.pubkey);
-      } catch (err) {
+      } catch {
         // Just log if we can't send the response in this case
-        const errMessage = err instanceof Error ? err.message : String(err);
-        this.logger.error(`Could not send error response: ${errMessage}`);
+        this.logger.error("Could not send error response");
       }
     }
   }
@@ -395,9 +394,9 @@ export class SimpleNIP46Bunker {
     this.clients.set(clientPubkey, session);
 
     this.logger.info(`Client ${clientPubkey.slice(0, 8)}... connected`);
-    this.logger.debug(
-      `Client permissions: ${Array.from(session.permissions).join(", ")}`,
-    );
+    this.logger.debug("Client permissions configured", {
+      permissionCount: session.permissions.size,
+    });
 
     // Respond with "ack" or the secret if provided
     return createSuccessResponse(request.id, requestedSecret || "ack");
@@ -856,10 +855,8 @@ export class SimpleNIP46Bunker {
       await this.nostr.publishEvent(signedEvent);
 
       this.logger.debug(`Response sent for request: ${response.id}`);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      this.logger.error(`Failed to send response: ${errorMessage}`);
+    } catch {
+      this.logger.error("Failed to send response");
     }
   }
 
