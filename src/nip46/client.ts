@@ -90,6 +90,7 @@ export class NostrRemoteSignerClient {
       }
       return response.result || "ack";
     } catch (error) {
+      await this.engine.disconnect();
       if (error instanceof NIP46Error) throw error;
       throw new NIP46ConnectionError(
         `Failed to connect: ${this.errorMessage(error)}`,

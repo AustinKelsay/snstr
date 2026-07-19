@@ -62,6 +62,46 @@ describe("NIP-46 public facade seams", () => {
     }
   });
 
+  test("advanced client cleans up a rejected connect before retrying", async () => {
+    const userKeys = await generateKeypair();
+    const signerKeys = await generateKeypair();
+    const bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeys.publicKey,
+      signerKeys.publicKey,
+      {
+        secret: "expected-secret",
+        defaultPermissions: ["get_public_key", "ping"],
+        logLevel: LogLevel.ERROR,
+      },
+    );
+    bunker.setUserPrivateKey(userKeys.privateKey);
+    bunker.setSignerPrivateKey(signerKeys.privateKey);
+    const client = new NostrRemoteSignerClient({
+      relays: [relayUrl],
+      timeout: 500,
+    });
+
+    try {
+      await bunker.start();
+      const connectionString = bunker.getConnectionString();
+      await expect(
+        client.connect(
+          connectionString.replace("expected-secret", "rejected-secret"),
+        ),
+      ).rejects.toThrow(/invalid secret/i);
+      await expect(client.ping()).rejects.toBeInstanceOf(NIP46ConnectionError);
+
+      await expect(client.connect(connectionString)).resolves.toBe(
+        "expected-secret",
+      );
+      await expect(client.ping()).resolves.toBe("pong");
+    } finally {
+      await client.disconnect();
+      await bunker.stop();
+    }
+  });
+
   test("simple client preserves success and protocol failure behavior with the advanced bunker", async () => {
     const userKeys = await generateKeypair();
     const signerKeys = await generateKeypair();

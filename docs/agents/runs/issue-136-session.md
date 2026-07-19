@@ -6,7 +6,7 @@
 - Fixed point before session: `ed9fa4a`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commits: `cf3819b`, `baa2bf2`, `03a6652`, `7b5a7d0`, `2d4fc6f`, `d983bae`
-- Status: implemented, independently reviewed, and fully verified; PR pending
+- Status: PR #145 open; all hosted CI green; two hosted CodeRabbit findings fixed and awaiting rerun
 
 ## Inputs
 
@@ -28,9 +28,9 @@
 
 - Review fixed point: `ed9fa4a`
 - Design findings: Grok mapped the two client and two bunker facades, their return-value and timeout differences, relay/subscription policies, private compatibility seams, advanced-only security behavior, simple-only permissions, and the requirement for one client engine plus one bunker engine behind thin adapters
-- Standards findings: the initial Grok review found a correlator ownership bypass, dead advanced-client auth machinery, collapsed simple/advanced disconnect errors, and incomplete reconnect/shutdown coverage; all were fixed and the follow-up passed. A later Grok review required an explicit bunker publish bound; the 10-second relay default is now explicit in the canonical bunker engine and the re-review passed
+- Standards findings: the initial Grok review found a correlator ownership bypass, dead advanced-client auth machinery, collapsed simple/advanced disconnect errors, and incomplete reconnect/shutdown coverage; all were fixed and the follow-up passed. A later Grok review required an explicit bunker publish bound; the 10-second relay default is now explicit in the canonical bunker engine and the re-review passed. Grok also passed the hosted rejected-connect cleanup fix
 - Spec findings: final Grok review passed every acceptance criterion with no remaining findings
-- Worthy fixes applied: distinct request/response envelope validation, extension-method compatibility, duplicate correlation-ID rejection, facade-specific disconnect errors, mandatory pre-dispatch envelope validation, serialized idempotent bunker transitions, bounded client/bunker publishes, browser-safe logger initialization, portable correlator cleanup tests, and deterministic synthetic wire keys
+- Worthy fixes applied: distinct request/response envelope validation, extension-method compatibility, duplicate correlation-ID rejection, facade-specific disconnect errors, mandatory pre-dispatch envelope validation, serialized idempotent bunker transitions, bounded client/bunker publishes, browser-safe logger initialization, portable correlator cleanup tests, deterministic synthetic wire keys, and advanced-client cleanup after rejected connect responses
 - Findings ignored with reasons: none in production code. CodeRabbit's wording that the direct wire unit test used an ephemeral relay was inapplicable because the test has no relay; its underlying reproducibility request was still satisfied with fixed synthetic keypairs
 
 ## Verification

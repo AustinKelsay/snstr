@@ -7,6 +7,7 @@
 - Initial result: six issues (five major, one minor)
 - Follow-up result: two test issues
 - Final result: 0 issues across all 10 changed files
+- Hosted result: two findings on PR #145; tracking metadata and advanced-client rejected-connect cleanup are fixed, focused Jest/Bun is green, and Grok passed the delta
 
 ## Findings and Resolutions
 
@@ -18,6 +19,8 @@
 6. Simple facade logger initialization assumed Node's global `process`. All touched facade initializers now guard browser access.
 7. Focused timeout and `cancelAll` cleanup coverage was missing. Portable Jest/Bun tests assert settlement errors and empty pending state.
 8. Wire tests used random keypairs. Fixed synthetic test-only private keys now make the round-trip setup reproducible without real credentials.
+9. PR tracking still said pending and omitted two commits. The ledger and session now record PR #145, its hosted state, and the complete implementation commit set.
+10. A connect error returned by the bunker was raised after `engine.connect` completed, so the advanced facade did not invoke engine cleanup. The facade now awaits `engine.disconnect` in every catch path, with a public rejected-connect then successful-retry regression test.
 
 ## Verification Before Final Review
 

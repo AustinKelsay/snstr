@@ -42,4 +42,5 @@ CODERABBIT_FINDINGS:
 - initial six issues fixed: envelope schemas, duplicate IDs, validation order, lifecycle serialization, publish deadline, browser-safe process access
 - two follow-up test issues addressed with timeout/cancel coverage and deterministic synthetic keypairs
 - final committed-diff review raised 0 issues across all 10 changed files
+- hosted full review found stale PR tracking and a leaked advanced-client transport after a rejected connect response; tracking is synchronized and the catch path now awaits canonical engine cleanup before preserving the public error
 ```
