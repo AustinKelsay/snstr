@@ -102,8 +102,13 @@ class TTLMap<K, V> {
   }
 
   private startCleanup(): void {
+    if (this.cleanupInterval) return;
     this.cleanupInterval = setInterval(() => this.cleanup(), 30000);
     maybeUnref(this.cleanupInterval);
+  }
+
+  start(): void {
+    this.startCleanup();
   }
 
   destroy(): void {
@@ -185,6 +190,10 @@ export class NostrWalletService {
   private subIds: string[] = [];
   private authorizedClients: string[] = [];
   private requestEncryption: TTLMap<string, NIP47EncryptionScheme>; // Track encryption per request with TTL
+  private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
+  private disconnectionPromise: Promise<void> | null = null;
+  private lifecycleGeneration = 0;
 
   constructor(
     options: NostrWalletServiceOptions,
@@ -232,26 +241,124 @@ export class NostrWalletService {
   /**
    * Initialize the service, connect to relays, and publish capabilities
    */
-  public async init(): Promise<void> {
-    // Connect to relays
-    await this.client.connectToRelays();
-    this.logger.info("Service connected to configured relays");
+  public init(): Promise<void> {
+    if (this.initialized) return Promise.resolve();
+    if (this.initializationPromise) return this.initializationPromise;
 
-    // Set up subscription to receive requests
-    this.setupSubscription();
-    this.logger.info("Service subscribed to requests");
+    const generation = this.lifecycleGeneration;
+    const initialization = this.initialize(generation).finally(() => {
+      if (this.initializationPromise === initialization) {
+        this.initializationPromise = null;
+      }
+    });
+    this.initializationPromise = initialization;
+    return initialization;
+  }
 
-    // Publish info event
-    await this.publishInfoEvent();
-    this.logger.info(
-      `Service published info event with methods: ${this.supportedMethods.join(", ")}`,
-    );
+  /** Perform one initialization attempt after any active disconnect completes. */
+  private async initialize(generation: number): Promise<void> {
+    if (this.disconnectionPromise) {
+      await this.disconnectionPromise;
+    }
+    this.assertInitializationCurrent(generation);
+    if (this.initialized) return;
+
+    let attemptSubIds: string[] = [];
+
+    try {
+      this.requestEncryption.start();
+
+      await this.client.connectToRelays();
+      this.assertInitializationCurrent(generation);
+      this.logger.info("Service connected to configured relays");
+
+      attemptSubIds = this.setupSubscription(generation);
+      this.subIds = attemptSubIds;
+      this.assertInitializationCurrent(generation);
+      this.logger.info("Service subscribed to requests");
+
+      await this.publishInfoEvent();
+      this.assertInitializationCurrent(generation);
+      this.logger.info(
+        `Service published info event with methods: ${this.supportedMethods.join(", ")}`,
+      );
+      this.initialized = true;
+    } catch (error) {
+      if (attemptSubIds.length > 0) {
+        this.client.unsubscribe(attemptSubIds);
+      }
+      if (this.subIds === attemptSubIds) {
+        this.subIds = [];
+      }
+      if (generation === this.lifecycleGeneration) {
+        this.initialized = false;
+        this.requestEncryption.destroy();
+        try {
+          await this.client.disconnectFromRelays();
+        } catch (disconnectError) {
+          this.logger.error(
+            "Error cleaning up failed service initialization:",
+            disconnectError instanceof Error
+              ? disconnectError
+              : String(disconnectError),
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  /** Reject an initialization attempt invalidated by disconnect. */
+  private assertInitializationCurrent(generation: number): void {
+    if (generation !== this.lifecycleGeneration) {
+      throw new Error("Service initialization cancelled by disconnect");
+    }
   }
 
   /**
    * Disconnect from relays
    */
-  public async disconnect(): Promise<void> {
+  public disconnect(): Promise<void> {
+    if (this.disconnectionPromise) {
+      if (this.initializationPromise) {
+        this.lifecycleGeneration += 1;
+        const invalidatedInitialization = this.initializationPromise;
+        this.initializationPromise = null;
+        this.observeInvalidatedInitialization(invalidatedInitialization);
+      }
+      return this.disconnectionPromise;
+    }
+
+    this.lifecycleGeneration += 1;
+    this.initialized = false;
+    const invalidatedInitialization = this.initializationPromise;
+    this.initializationPromise = null;
+    this.observeInvalidatedInitialization(invalidatedInitialization);
+
+    const disconnection = this.performDisconnect(invalidatedInitialization).finally(
+      () => {
+        if (this.disconnectionPromise === disconnection) {
+          this.disconnectionPromise = null;
+        }
+      },
+    );
+    this.disconnectionPromise = disconnection;
+    return disconnection;
+  }
+
+  /** Prevent an expected cancellation from becoming an unhandled rejection. */
+  private observeInvalidatedInitialization(
+    initialization: Promise<void> | null,
+  ): void {
+    void initialization?.catch(() => {
+      // Awaiters still receive the original rejection from initialization.
+    });
+  }
+
+  /** Release all service-owned lifecycle resources. */
+  private async performDisconnect(
+    invalidatedInitialization: Promise<void> | null,
+  ): Promise<void> {
     try {
       // Clean up TTL map
       this.requestEncryption.destroy();
@@ -272,8 +379,16 @@ export class NostrWalletService {
         );
       }
 
+      if (invalidatedInitialization) {
+        try {
+          await invalidatedInitialization;
+        } catch {
+          // Disconnect intentionally invalidates an in-flight initialization.
+        }
+      }
+
       // Short delay to allow any other cleanup to complete
-      return new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         const t = setTimeout(resolve, 100);
         maybeUnref(t);
       });
@@ -330,14 +445,15 @@ export class NostrWalletService {
   /**
    * Set up subscription to receive requests
    */
-  private setupSubscription(): void {
+  private setupSubscription(generation: number): string[] {
     // Subscribe to request events directed at this service
     const filter = {
       kinds: [NIP47EventKind.REQUEST],
       "#p": [this.pubkey],
     };
 
-    this.subIds = this.client.subscribe([filter], (event: NostrEvent) => {
+    return this.client.subscribe([filter], (event: NostrEvent) => {
+      if (generation !== this.lifecycleGeneration) return;
       this.handleEvent(event);
     });
   }

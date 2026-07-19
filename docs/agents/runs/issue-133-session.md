@@ -5,8 +5,8 @@
 - Issue: #133
 - Fixed point before session: `46d7289`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
-- Commit: pending
-- Status: implementation, independent Grok review, local and hosted CodeRabbit fixes, and final local verification complete; incremental CodeRabbit re-review pending
+- Commit: `b238461`, `6dd75c3`, `ae15ace`; merged into `staging` at `2a3556d`
+- Status: merged; issue closed
 
 ## Inputs
 
@@ -29,7 +29,7 @@
 - Review fixed point: `46d7289`
 - Design findings: Grok inventoried every production `console.*` call and recommended additive instance/call injection over mutable global configuration, WARN/ERROR-visible defaults, a non-throwing dispatcher, safe structured context, and unchanged NIP-02 compatibility aliases
 - Standards findings: initial review failed because the default Relay logger prefix retained the raw relay URL; a later pass caught an unbounded unknown relay wire type; both secret-exposure paths were fixed with red-to-green tests, and the final standards re-review passed with no hard findings
-- Spec findings: passed with no missing, partial, over-scoped, or incorrectly implemented acceptance criteria
+- Spec findings: passed with no missing, partial, over-scoped, or incorrectly implemented acceptance criteria; final hosted incremental review was clean
 - Worthy fixes applied: a shared non-throwing dispatcher; additive stateful and stateless logger seams; canonical policy propagation to default and explicitly configured child Relays; replacement logging for existing pooled Relays; bounded failure types; redacted relay identifiers and prefixes; stable unknown-wire metadata; and migration of console-spy tests to injected public seams
 - Findings ignored with reasons: test-only Nostr silence and DEBUG eviction metadata shape remain optional because they are not default-visible production WARN/ERROR behavior; all CodeRabbit findings were accepted and fixed
 
@@ -38,7 +38,7 @@
 - Focused: 14/14 suites and 204/204 tests; final seam test 11/11 after review-driven red-to-green cycles
 - Full Jest: 82/82 suites and 1067/1067 tests, rerun after hosted fixes
 - Full Bun: 82 files and 1067/1067 tests, rerun after hosted fixes
-- Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, and pack verification all green
+- Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, pack verification, and all four hosted CI lanes green
 
 ## Risks
 
