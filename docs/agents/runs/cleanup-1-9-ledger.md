@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: item 1 / issue #131 in implementation on `feature/nip46-diagnostic-redaction`
+- Current status: item 1 / issue #131 reviewed and locally verified; delivery PR pending on `feature/nip46-diagnostic-redaction`
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -24,9 +24,9 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Spec issue: #130 — Complete the high-impact cleanup chain
 - Tickets: #131–#139
 - Ticket sessions: created as each ticket starts
-- Agent briefs: Grok 4.5 is the exclusive delegated sidecar; authentication is pending at preflight and no substitute subagent is authorized
-- Review packets: created per ticket
-- Local CodeRabbit report: created per ticket
+- Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all item #131 standards/spec passes
+- Review packets: `issue-131-review-packet.md`; created per later ticket
+- Local CodeRabbit report: `issue-131-coderabbit-local.md`; created per later ticket
 - PR URL: created per ticket, always non-draft and targeting `staging`
 
 ## Commands
@@ -39,17 +39,17 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 ## Ticket Ledger
 
-| Issue                             | Type | Status            | Branch                                  | Review  | Verified |
-| --------------------------------- | ---- | ----------------- | --------------------------------------- | ------- | -------- |
-| #131 NIP-46 diagnostic redaction  | AFK  | in implementation | `feature/nip46-diagnostic-redaction`    | pending | pending  |
-| #132 published declaration purity | AFK  | blocked by #131   | `feature/public-type-test-purity`       | pending | pending  |
-| #133 shared diagnostic seam       | AFK  | blocked by #132   | `feature/shared-diagnostics-completion` | pending | pending  |
-| #134 NIP-47 service lifecycle     | AFK  | blocked by #133   | `feature/nip47-service-lifecycle`       | pending | pending  |
-| #135 NIP-57 consolidation         | AFK  | blocked by #134   | `feature/nip57-client-consolidation`    | pending | pending  |
-| #136 NIP-46 protocol core         | AFK  | blocked by #135   | `feature/nip46-protocol-core`           | pending | pending  |
-| #137 default test feedback loop   | AFK  | blocked by #136   | `feature/fast-default-test-loop`        | pending | pending  |
-| #138 public behavior test seams   | AFK  | blocked by #137   | `feature/public-behavior-test-seams`    | pending | pending  |
-| #139 ephemeral Relay internals    | AFK  | blocked by #138   | `feature/ephemeral-relay-internals`     | pending | pending  |
+| Issue                             | Type | Status          | Branch                                  | Review                                                  | Verified                            |
+| --------------------------------- | ---- | --------------- | --------------------------------------- | ------------------------------------------------------- | ----------------------------------- |
+| #131 NIP-46 diagnostic redaction  | AFK  | ready for PR    | `feature/nip46-diagnostic-redaction`    | Grok standards/spec pass; CodeRabbit 3 fixed then clean | Jest/Bun 1052/1052; all local gates |
+| #132 published declaration purity | AFK  | blocked by #131 | `feature/public-type-test-purity`       | pending                                                 | pending                             |
+| #133 shared diagnostic seam       | AFK  | blocked by #132 | `feature/shared-diagnostics-completion` | pending                                                 | pending                             |
+| #134 NIP-47 service lifecycle     | AFK  | blocked by #133 | `feature/nip47-service-lifecycle`       | pending                                                 | pending                             |
+| #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                 | pending                             |
+| #136 NIP-46 protocol core         | AFK  | blocked by #135 | `feature/nip46-protocol-core`           | pending                                                 | pending                             |
+| #137 default test feedback loop   | AFK  | blocked by #136 | `feature/fast-default-test-loop`        | pending                                                 | pending                             |
+| #138 public behavior test seams   | AFK  | blocked by #137 | `feature/public-behavior-test-seams`    | pending                                                 | pending                             |
+| #139 ephemeral Relay internals    | AFK  | blocked by #138 | `feature/ephemeral-relay-internals`     | pending                                                 | pending                             |
 
 ## Parked HITL Slices
 
@@ -59,9 +59,9 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 ## Issue Session Ledger
 
-| Issue | Fixed point | Implementation owner                          | Commit  | Review result | Checks  |
-| ----- | ----------- | --------------------------------------------- | ------- | ------------- | ------- |
-| #131  | `f4bda34`   | current Codex orchestrator; Grok auth pending | pending | pending       | pending |
+| Issue | Fixed point | Implementation owner                                | Commit                          | Review result                                                  | Checks                                                                                        |
+| ----- | ----------- | --------------------------------------------------- | ------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| #131  | `f4bda34`   | current Codex orchestrator; Grok 4.5 High reviewers | `7ed8433`, `00104cc`, `21b4ad9` | Grok standards/spec pass after fixes; CodeRabbit round 2 clean | focused Jest/Bun 5/5; final Jest/Bun 1052/1052; policies, lint, types, builds, examples, pack |
 
 ## Alignment Decisions
 
@@ -80,4 +80,4 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 ## Escalations
 
-- Grok preflight: `agent` and Node are installed, but the Cursor CLI requires one-time browser authentication. The login session is waiting while local work proceeds.
+- Resolved: Cursor CLI authentication completed. The skill's `grok-4.5-xhigh` alias is not present in the installed catalog; the highest available Grok 4.5 tier, `cursor-grok-4.5-high`, is used and verified.
