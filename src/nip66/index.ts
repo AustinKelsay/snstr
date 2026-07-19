@@ -26,6 +26,14 @@ import {
   RelayMonitorAnnouncementOptions,
   ParsedRelayMonitorAnnouncement,
 } from "./types";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  reportDiagnostic,
+} from "../utils/diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "NIP-66" });
 
 export * from "./types";
 
@@ -322,6 +330,7 @@ export function createRelayDiscoveryEvent(
  */
 export function parseRelayDiscoveryEvent(
   event: NostrEvent,
+  logger: DiagnosticLogger = defaultLogger,
 ): ParsedRelayDiscoveryEvent | null {
   if (event.kind !== RELAY_DISCOVERY_KIND) return null;
 
@@ -394,12 +403,14 @@ export function parseRelayDiscoveryEvent(
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        // Log bounds checking error but continue processing
-        if (typeof console !== "undefined" && console.warn) {
-          console.warn(
-            `NIP-66: Bounds checking error in tag processing: ${error.message}`,
-          );
-        }
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Bounds checking failed in discovery tag",
+          {
+            failureType: diagnosticFailureType(error),
+          },
+        );
       }
     }
   }
@@ -547,6 +558,7 @@ export function createRelayMonitorAnnouncement(
  */
 export function parseRelayMonitorAnnouncement(
   event: NostrEvent,
+  logger: DiagnosticLogger = defaultLogger,
 ): ParsedRelayMonitorAnnouncement | null {
   if (event.kind !== RELAY_MONITOR_KIND) return null;
 
@@ -578,11 +590,14 @@ export function parseRelayMonitorAnnouncement(
               !tagValue ||
               (typeof tagValue === "string" && tagValue.trim() === "")
             ) {
-              if (typeof console !== "undefined" && console.warn) {
-                console.warn(
-                  `NIP-66: Skipping frequency tag with missing or empty value: ${JSON.stringify(tag)}`,
-                );
-              }
+              reportDiagnostic(
+                logger,
+                "warn",
+                "Skipping invalid frequency tag",
+                {
+                  reason: "missing-value",
+                },
+              );
               break;
             }
 
@@ -594,11 +609,14 @@ export function parseRelayMonitorAnnouncement(
 
             // Check if parsing resulted in a valid number
             if (isNaN(frequencyValue)) {
-              if (typeof console !== "undefined" && console.warn) {
-                console.warn(
-                  `NIP-66: Skipping frequency tag with invalid numeric value: "${tagValue}"`,
-                );
-              }
+              reportDiagnostic(
+                logger,
+                "warn",
+                "Skipping invalid frequency tag",
+                {
+                  reason: "invalid-number",
+                },
+              );
               break;
             }
 
@@ -611,11 +629,16 @@ export function parseRelayMonitorAnnouncement(
               frequencyValue < MIN_FREQUENCY ||
               frequencyValue > MAX_FREQUENCY
             ) {
-              if (typeof console !== "undefined" && console.warn) {
-                console.warn(
-                  `NIP-66: Skipping frequency tag with value out of bounds (${MIN_FREQUENCY}-${MAX_FREQUENCY}s): ${frequencyValue}s`,
-                );
-              }
+              reportDiagnostic(
+                logger,
+                "warn",
+                "Skipping invalid frequency tag",
+                {
+                  maximum: MAX_FREQUENCY,
+                  minimum: MIN_FREQUENCY,
+                  reason: "out-of-bounds",
+                },
+              );
               break;
             }
 
@@ -623,12 +646,9 @@ export function parseRelayMonitorAnnouncement(
             data.frequency = frequencyValue;
           } catch (error) {
             // Handle any unexpected errors during parsing
-            if (typeof console !== "undefined" && console.warn) {
-              console.warn(
-                `NIP-66: Error parsing frequency tag ${JSON.stringify(tag)}:`,
-                error,
-              );
-            }
+            reportDiagnostic(logger, "warn", "Failed to parse frequency tag", {
+              failureType: diagnosticFailureType(error),
+            });
             // Continue processing other tags
           }
           break;
@@ -640,11 +660,9 @@ export function parseRelayMonitorAnnouncement(
               !tagValue ||
               (typeof tagValue === "string" && tagValue.trim() === "")
             ) {
-              if (typeof console !== "undefined" && console.warn) {
-                console.warn(
-                  `NIP-66: Skipping timeout tag with missing or empty value: ${JSON.stringify(tag)}`,
-                );
-              }
+              reportDiagnostic(logger, "warn", "Skipping invalid timeout tag", {
+                reason: "missing-value",
+              });
               break;
             }
 
@@ -657,11 +675,9 @@ export function parseRelayMonitorAnnouncement(
 
             // Check if parsing resulted in a valid number
             if (isNaN(timeoutValue)) {
-              if (typeof console !== "undefined" && console.warn) {
-                console.warn(
-                  `NIP-66: Skipping timeout tag with invalid numeric value: "${tagValue}"`,
-                );
-              }
+              reportDiagnostic(logger, "warn", "Skipping invalid timeout tag", {
+                reason: "invalid-number",
+              });
               break;
             }
 
@@ -671,11 +687,11 @@ export function parseRelayMonitorAnnouncement(
 
             // Check bounds
             if (timeoutValue < MIN_TIMEOUT || timeoutValue > MAX_TIMEOUT) {
-              if (typeof console !== "undefined" && console.warn) {
-                console.warn(
-                  `NIP-66: Skipping timeout tag with value out of bounds (${MIN_TIMEOUT}-${MAX_TIMEOUT}ms): ${timeoutValue}ms`,
-                );
-              }
+              reportDiagnostic(logger, "warn", "Skipping invalid timeout tag", {
+                maximum: MAX_TIMEOUT,
+                minimum: MIN_TIMEOUT,
+                reason: "out-of-bounds",
+              });
               break;
             }
 
@@ -686,11 +702,14 @@ export function parseRelayMonitorAnnouncement(
               if (typeof testValue === "string" && testValue.trim() !== "") {
                 testParam = testValue;
               } else if (testValue !== undefined) {
-                if (typeof console !== "undefined" && console.warn) {
-                  console.warn(
-                    `NIP-66: Skipping timeout tag with invalid test parameter: ${JSON.stringify(testValue)}`,
-                  );
-                }
+                reportDiagnostic(
+                  logger,
+                  "warn",
+                  "Skipping invalid timeout tag",
+                  {
+                    reason: "invalid-test-parameter",
+                  },
+                );
                 break;
               }
             }
@@ -702,12 +721,9 @@ export function parseRelayMonitorAnnouncement(
             });
           } catch (error) {
             // Handle any unexpected errors during parsing
-            if (typeof console !== "undefined" && console.warn) {
-              console.warn(
-                `NIP-66: Error parsing timeout tag ${JSON.stringify(tag)}:`,
-                error,
-              );
-            }
+            reportDiagnostic(logger, "warn", "Failed to parse timeout tag", {
+              failureType: diagnosticFailureType(error),
+            });
             // Continue processing other tags
           }
           break;
@@ -724,12 +740,14 @@ export function parseRelayMonitorAnnouncement(
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        // Log bounds checking error but continue processing
-        if (typeof console !== "undefined" && console.warn) {
-          console.warn(
-            `NIP-66: Bounds checking error in tag processing: ${error.message}`,
-          );
-        }
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Bounds checking failed in monitor tag",
+          {
+            failureType: diagnosticFailureType(error),
+          },
+        );
       }
     }
   }

@@ -7,7 +7,7 @@
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commits: `0c111d7`, `20565a0`, `abfc836`, `dea7aa0`, `466d1d5`, `0d0ef41`
 - PR: #141
-- Status: PR #141 ready to merge after hosted CI and CodeRabbit completed cleanly
+- Status: merged into `staging` as `46d7289`; issue closed
 
 ## Inputs
 

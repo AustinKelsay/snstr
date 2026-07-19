@@ -41,9 +41,7 @@ export type NostrRelayAuthMessage = ["AUTH", string];
 export type NostrClientAuthMessage = ["AUTH", NostrEvent];
 
 /** Union type for AUTH messages in either direction */
-export type NostrAuthMessage =
-  | NostrRelayAuthMessage
-  | NostrClientAuthMessage;
+export type NostrAuthMessage = NostrRelayAuthMessage | NostrClientAuthMessage;
 
 /** Messages sent from a Nostr client to a relay */
 export type NostrClientMessage =
@@ -82,6 +80,8 @@ export class NostrMessageParseError extends Error {
  * Interface for relay connection options
  */
 export interface RelayConnectionOptions {
+  /** Optional canonical diagnostic logger. */
+  logger?: import("../utils/logger").DiagnosticLogger;
   /** Connection timeout in milliseconds */
   connectionTimeout?: number;
   /** Delay between buffering events and processing them (ms) */

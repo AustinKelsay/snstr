@@ -23,7 +23,13 @@ import {
   RelayConnectionOptions,
 } from "../types/protocol";
 import { NostrValidationError, validateRelayIngressEvent } from "./validation";
-import { Logger, LogLevel } from "../utils/logger";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  protectDiagnosticLogger,
+  safeRelayDiagnostic,
+} from "../utils/diagnostics";
 import { getSecureRandom, secureRandomHex } from "../utils/security-validator";
 import { maybeUnref } from "../utils/timers";
 import { isLowercaseHexOfLength } from "../utils/wire-validation";
@@ -55,7 +61,8 @@ const WS_READY_STATE = {
 } as const;
 
 export class Relay {
-  private static readonly noopSocketHandler: BivariantHandler<unknown> = () => {};
+  private static readonly noopSocketHandler: BivariantHandler<unknown> =
+    () => {};
   private url: string;
   private ws: WebSocketLike | null = null;
   private connected = false;
@@ -75,7 +82,7 @@ export class Relay {
     finalize: (userInitiated?: boolean) => void;
   } | null = null;
   private connectionTimeout = 10000; // Default timeout of 10 seconds
-  private logger: Logger;
+  private logger: DiagnosticLogger;
   private readonly eventStore = new RelayEventStore({
     onEviction: (message) => this.logger.debug(message),
   });
@@ -94,11 +101,12 @@ export class Relay {
 
   constructor(url: string, options: RelayConnectionOptions = {}) {
     this.url = url;
-    this.logger = new Logger({
-      prefix: `Relay(${url})`,
-      level: LogLevel.WARN, // Default to WARN level for production use
-      includeTimestamp: false,
-    });
+    this.logger = options.logger
+      ? protectDiagnosticLogger(options.logger)
+      : createDefaultDiagnosticLogger({
+          prefix: `Relay(${safeRelayDiagnostic(url)})`,
+          includeTimestamp: false,
+        });
 
     if (options.connectionTimeout !== undefined) {
       this.connectionTimeout = options.connectionTimeout;
@@ -123,6 +131,11 @@ export class Relay {
       this.maxPastTimestampDrift =
         options.inboundValidation.maxPastTimestampDrift;
     }
+  }
+
+  /** Replace the diagnostic sink without changing Relay behavior. */
+  public setLogger(logger: DiagnosticLogger): void {
+    this.logger = protectDiagnosticLogger(logger);
   }
 
   public async connect(): Promise<boolean> {
@@ -196,7 +209,10 @@ export class Relay {
                 readyState?: number;
                 close?: () => void;
                 terminate?: () => void;
-                once?: (event: string, cb: (...args: unknown[]) => void) => void;
+                once?: (
+                  event: string,
+                  cb: (...args: unknown[]) => void,
+                ) => void;
               };
               if (typeof nodeWs.once === "function") {
                 nodeWs.once("error", () => {});
@@ -266,9 +282,8 @@ export class Relay {
           this.clearRelayDisconnectObserver();
           this.relayDisconnectObserver = {
             attemptId,
-            unregister: registerRelayDisconnectObserver(
-              this.url,
-              () => finalizeClose(),
+            unregister: registerRelayDisconnectObserver(this.url, () =>
+              finalizeClose(),
             ),
           };
           this.triggerEvent(RelayEvent.Connect, this.url);
@@ -329,7 +344,10 @@ export class Relay {
       }
 
       // Ensure we return false if connection fails but don't re-throw
-      this.logger.error(`Connection failed:`, _error);
+      this.logger.error("Connection failed", {
+        failureType: diagnosticFailureType(_error),
+        relay: safeRelayDiagnostic(this.url),
+      });
 
       // Schedule reconnection if auto-reconnect is enabled
       if (this.autoReconnect) {
@@ -425,7 +443,10 @@ export class Relay {
         }
       }
     } catch (error) {
-      console.error(`Error closing WebSocket for ${this.url}:`, error);
+      this.logger.error("Failed to close WebSocket", {
+        failureType: diagnosticFailureType(error),
+        relay: safeRelayDiagnostic(this.url),
+      });
     } finally {
       // Reset all state variables
       this.ws = null;
@@ -441,9 +462,12 @@ export class Relay {
 
     try {
       // Keep handlers callable for implementations that dispatch socket callbacks without type checks.
-      socket.onopen = Relay.noopSocketHandler as BivariantHandler<OpenEventLike>;
-      socket.onclose = Relay.noopSocketHandler as BivariantHandler<CloseEventLike>;
-      socket.onerror = Relay.noopSocketHandler as BivariantHandler<ErrorEventLike>;
+      socket.onopen =
+        Relay.noopSocketHandler as BivariantHandler<OpenEventLike>;
+      socket.onclose =
+        Relay.noopSocketHandler as BivariantHandler<CloseEventLike>;
+      socket.onerror =
+        Relay.noopSocketHandler as BivariantHandler<ErrorEventLike>;
       socket.onmessage =
         Relay.noopSocketHandler as BivariantHandler<MessageEventLike>;
     } catch {
@@ -480,9 +504,10 @@ export class Relay {
       this.maxReconnectAttempts > 0 &&
       this.reconnectAttempts >= this.maxReconnectAttempts
     ) {
-      console.warn(
-        `Maximum reconnection attempts (${this.maxReconnectAttempts}) reached for ${this.url}`,
-      );
+      this.logger.warn("Maximum reconnection attempts reached", {
+        attempts: this.maxReconnectAttempts,
+        relay: safeRelayDiagnostic(this.url),
+      });
       return;
     }
 
@@ -514,10 +539,11 @@ export class Relay {
       if (reconnectGeneration !== this.disconnectGeneration) return;
       this.reconnectAttempts++;
       this.connect().catch((error) => {
-        console.error(
-          `Reconnection attempt ${this.reconnectAttempts} failed for ${this.url}:`,
-          error,
-        );
+        this.logger.error("Reconnection attempt failed", {
+          attempt: this.reconnectAttempts,
+          failureType: diagnosticFailureType(error),
+          relay: safeRelayDiagnostic(this.url),
+        });
         // The next reconnection will be scheduled in the connect() method's catch handler
       });
     }, reconnectDelay);
@@ -710,7 +736,11 @@ export class Relay {
             return error.details.eventId;
           }
 
-          if (error instanceof Error && ackEventId && error.message.includes(ackEventId)) {
+          if (
+            error instanceof Error &&
+            ackEventId &&
+            error.message.includes(ackEventId)
+          ) {
             return ackEventId;
           }
 
@@ -787,7 +817,10 @@ export class Relay {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "unknown error";
-      console.error(`Error sending message to ${this.url}:`, errorMessage);
+      this.logger.error("Failed to send relay message", {
+        failureType: diagnosticFailureType(error),
+        relay: safeRelayDiagnostic(this.url),
+      });
       return {
         success: false,
         reason: `error: ${errorMessage}`,
@@ -978,16 +1011,18 @@ export class Relay {
           this.triggerEvent(
             RelayEvent.Error,
             this.url,
-            new Error(
-              `Invalid AUTH challenge: ${JSON.stringify(challenge)}`,
-            ),
+            new Error(`Invalid AUTH challenge: ${JSON.stringify(challenge)}`),
           );
         }
         break;
       }
       default:
         // Unknown message type, ignore or log
-        console.warn(`Relay(${this.url}): Unknown message type:`, type, rest);
+        this.logger.warn("Unknown relay message type", {
+          itemCount: rest.length,
+          messageType: "unknown",
+          relay: safeRelayDiagnostic(this.url),
+        });
         break;
     }
   }
@@ -1055,10 +1090,7 @@ export class Relay {
     subscriptionId: string,
     message: string,
   ): void;
-  private triggerEvent(
-    event: RelayEvent.Auth,
-    challenge: string,
-  ): void;
+  private triggerEvent(event: RelayEvent.Auth, challenge: string): void;
   private triggerEvent(event: RelayEvent, ...args: unknown[]): void {
     const callbacks = this.eventHandlers[event];
 
@@ -1070,7 +1102,11 @@ export class Relay {
             // The type assertion in Relay.on ensures the callback matches the event.
             (callback as (...args: unknown[]) => void)(...args);
           } catch (e) {
-            console.error(`Relay(${this.url}): Error in ${event} callback:`, e);
+            this.logger.error("Relay callback failed", {
+              event,
+              failureType: diagnosticFailureType(e),
+              relay: safeRelayDiagnostic(this.url),
+            });
           }
         }
       });
@@ -1208,10 +1244,10 @@ export class Relay {
       try {
         subscription.onEvent(event);
       } catch (error) {
-        console.error(
-          `Error in subscription handler for ${subscriptionId}:`,
-          error,
-        );
+        this.logger.error("Subscription handler failed", {
+          failureType: diagnosticFailureType(error),
+          subscriptionId,
+        });
       }
     }
   }

@@ -8,6 +8,10 @@
 import { Filter } from "../types/nostr";
 import { isHexOfLength } from "./wire-validation";
 import { SECURITY_LIMITS } from "./security-limits";
+import type { DiagnosticLogger } from "./logger";
+import { createDefaultDiagnosticLogger, reportDiagnostic } from "./diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "security" });
 
 export { SECURITY_LIMITS } from "./security-limits";
 
@@ -625,6 +629,7 @@ export function enforceMemoryLimits<K, V>(
   maxSize: number,
   accessTracker?: Map<K, number>,
   context: string = "memory",
+  logger: DiagnosticLogger = defaultLogger,
 ): void {
   if (map.size <= maxSize) {
     return;
@@ -666,9 +671,12 @@ export function enforceMemoryLimits<K, V>(
     }
   }
 
-  if (typeof console !== "undefined" && console.warn && removedCount > 0) {
-    console.warn(
-      `Security: Enforced memory limit for ${context}, removed ${removedCount} entries (${initialSize} -> ${map.size})`,
-    );
+  if (removedCount > 0) {
+    reportDiagnostic(logger, "warn", "Enforced memory limit", {
+      finalSize: map.size,
+      initialSize,
+      removedCount,
+      scope: context,
+    });
   }
 }

@@ -1,6 +1,14 @@
 import { schnorr } from "@noble/curves/secp256k1";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 import { sha256 as nobleSha256 } from "@noble/hashes/sha2";
+import type { DiagnosticLogger } from "./logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  reportDiagnostic,
+} from "./diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "crypto" });
 
 /**
  * Sign an event with the given private key
@@ -22,6 +30,7 @@ export function verifySignatureSync(
   eventId: string,
   signature: string,
   publicKey: string,
+  logger: DiagnosticLogger = defaultLogger,
 ): boolean {
   try {
     const eventIdBytes = hexToBytes(eventId);
@@ -29,7 +38,9 @@ export function verifySignatureSync(
     const publicKeyBytes = hexToBytes(publicKey);
     return schnorr.verify(signatureBytes, eventIdBytes, publicKeyBytes);
   } catch (error) {
-    console.error("Failed to verify signature:", error);
+    reportDiagnostic(logger, "error", "Failed to verify signature", {
+      failureType: diagnosticFailureType(error),
+    });
     return false;
   }
 }
@@ -38,8 +49,9 @@ export async function verifySignature(
   eventId: string,
   signature: string,
   publicKey: string,
+  logger: DiagnosticLogger = defaultLogger,
 ): Promise<boolean> {
-  return verifySignatureSync(eventId, signature, publicKey);
+  return verifySignatureSync(eventId, signature, publicKey, logger);
 }
 
 /**
