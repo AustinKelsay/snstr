@@ -31,4 +31,5 @@ A later pass reported one additional minor finding: preserve npm stderr when the
 - The second committed review found no code issues. Its only finding was that this section still described the clean rerun as pending.
 - A subsequent pass found the missing npm stderr diagnostic described above; the pack gate remained green after the fix.
 - The post-fix green checks were the focused Jest, lint, strict TypeScript, CJS/ESM build, and packed-consumer run recorded above.
-- Status: code review clean; documentation provenance clarified
+- Final committed review: zero findings across all eight changed files
+- Status: clean
