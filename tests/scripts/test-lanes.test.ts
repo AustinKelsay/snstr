@@ -20,6 +20,14 @@ interface TestLaneModule {
   getTestFilesForLane(lane: TestLane, repoRoot: string): string[];
 }
 
+interface TestLaneRunnerModule {
+  getBunArgsForLane(
+    lane: TestLane,
+    extraArgs: string[],
+    repoRoot: string,
+  ): string[];
+}
+
 const repoRoot = path.resolve(__dirname, "../..");
 const lanes = require("../../scripts/test-lanes.js") as TestLaneModule;
 
@@ -76,6 +84,32 @@ describe("test lane contract", () => {
     }
     expect(lanes.getJestArgsForLane("slow")).toEqual(expectedSlowPaths);
     expect(lanes.getJestArgsForLane("all")).toEqual([]);
+  });
+
+  test("keeps routine Bun watch discovery dynamic for newly added tests", () => {
+    const runner = require("../../scripts/run-test-lane.js") as TestLaneRunnerModule;
+    const args = runner.getBunArgsForLane("routine", ["--watch"], repoRoot);
+    const nonWatchArgs = runner.getBunArgsForLane("routine", [], repoRoot);
+
+    expect(args.slice(0, 2)).toEqual(["test", "./tests"]);
+    for (const slowPath of expectedSlowPaths) {
+      expect(args).toContain(`--path-ignore-patterns=${slowPath}`);
+    }
+    expect(args).toEqual(
+      expect.arrayContaining([
+        "--max-concurrency",
+        "1",
+        "--timeout",
+        "30000",
+        "--watch",
+      ]),
+    );
+    expect(args).not.toContain("tests/scripts/test-lanes.test.ts");
+    expect(nonWatchArgs).toContain("tests/scripts/test-lanes.test.ts");
+    expect(nonWatchArgs).not.toContain("./tests");
+    for (const slowPath of expectedSlowPaths) {
+      expect(nonWatchArgs).not.toContain(slowPath);
+    }
   });
 
   test("wires routine, slow, and complete Jest and Bun commands", () => {

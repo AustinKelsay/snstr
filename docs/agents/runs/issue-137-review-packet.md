@@ -10,18 +10,18 @@
 
 ## Implementation Summary
 
-The default Jest and Bun commands now run a canonical routine inventory, while two explicitly named security/performance load suites run in a slow lane. A small CommonJS lane module owns discovery and membership for Node 16 compatibility. CI runs routine and slow steps on Node 16, 18, 20, and Bun; Node 20 coverage uses the complete inventory. Parser-only NIP-46 validation cases no longer pay public-client teardown delays, cutting the post-review default Jest wall time from 58.793s to 32.391s (44.9%).
+The default Jest and Bun commands now run a canonical routine inventory, while two explicitly named security/performance load suites run in a slow lane. A small CommonJS lane module owns discovery and membership for Node 16 compatibility. CI runs routine and slow steps on Node 16, 18, 20, and Bun; Node 20 coverage uses the complete inventory. Parser-only NIP-46 validation cases no longer pay public-client teardown delays, cutting the hosted-fix default Jest wall time from 58.793s to 32.356s (45.0%).
 
 ## Implementation Evidence
 
 - `implement` session: `issue-137-session.md`
 - `tdd` used: lane-contract test failed before the module and wiring existed
-- Routine Jest: 84 suites / 1062 tests / 32.391s
+- Routine Jest: 84 suites / 1063 tests / 32.356s
 - Slow Jest: 2 suites / 40 tests / 43.640s
-- Routine Bun: 84 files / 1062 tests / 190.51s
+- Routine Bun: 84 files / 1063 tests / 190.68s
 - Slow Bun: 2 files / 40 tests / 40.41s
-- Full union: 86 suites/files / 1102 tests in each runtime
-- Complete Jest coverage command: 86 suites / 1102 tests / 53.732s; 80.53% statement coverage
+- Full union: 86 suites/files / 1103 tests in each runtime
+- Complete Jest coverage command: pre-hosted-fix 86 suites / 1102 tests / 53.732s; final rerun pending
 
 ## Review Instructions
 
@@ -38,9 +38,13 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - none; post-CodeRabbit Grok follow-up also passed
 
-CODERABBIT_STATUS: pass after fixes; committed rerun returned zero findings
+CODERABBIT_STATUS: local pass after fixes; hosted findings fixed, clean rerun pending
 CODERABBIT_FINDINGS:
 - major: include Jest-compatible .spec.* files in canonical discovery — fixed with a red/green regression test
 - minor: assert routine and complete coverage wiring — fixed
 - minor: replace the ledger baseline hash with the implementation commit — fixed
+- hosted minor: synchronize the top-level run status — fixed
+- hosted minor: dynamically discover new routine tests during Bun watch without admitting slow paths — fixed with a red/green pure argument-builder test
+- hosted minor: document standalone Jest and Bun slow commands — fixed
+- hosted major: directly cover spawned Bun argument construction for dynamic watch and fixed non-watch modes — fixed
 ```

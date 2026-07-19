@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: items 1–6 / issues #131–#136 merged into `staging`; item 7 / issue #137 is in implementation on `feature/fast-default-test-loop`
+- Current status: items 1–6 / issues #131–#136 merged into `staging`; item 7 / issue #137 is implemented with PR #146 pending on `feature/fast-default-test-loop`
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -47,7 +47,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | #134 NIP-47 service lifecycle     | AFK  | merged          | `feature/nip47-service-lifecycle`       | Grok pass; CodeRabbit local/hosted clean                 | Jest/Bun 1073/1073; hosted CI green     |
 | #135 NIP-57 consolidation         | AFK  | merged          | `feature/nip57-client-consolidation`    | Grok pass; CodeRabbit local/hosted clean after fixes     | Jest/Bun 1082/1082; hosted CI green     |
 | #136 NIP-46 protocol core         | AFK  | merged          | `feature/nip46-protocol-core`           | Grok and CodeRabbit local/hosted clean after fixes        | Jest/Bun 1096/1096; hosted CI green     |
-| #137 default test feedback loop   | AFK  | PR pending      | `feature/fast-default-test-loop`        | Grok pass; CodeRabbit local clean after fixes               | routine 1062; slow 40; coverage 1102    |
+| #137 default test feedback loop   | AFK  | PR fixes        | `feature/fast-default-test-loop`        | Grok pass; hosted CodeRabbit fixes in review                 | routine 1063; slow 40; full 1103        |
 | #138 public behavior test seams   | AFK  | blocked by #137 | `feature/public-behavior-test-seams`    | pending                                                  | pending                                 |
 | #139 ephemeral Relay internals    | AFK  | blocked by #138 | `feature/ephemeral-relay-internals`     | pending                                                  | pending                                 |
 
@@ -67,7 +67,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | #134  | `2a3556d`   | current Codex orchestrator; Grok 4.5 High reviewers | `569b266` plus review artifacts                                             | Grok standards/spec passed; CodeRabbit local/hosted clean               | focused 6/6; Jest/Bun 1073/1073; all local gates and four hosted lanes green                  |
 | #135  | `25e055d`   | current Codex orchestrator; Grok 4.5 High reviewers | `0909227`, `1b12872`, `b66d483`                                             | Grok passes; CodeRabbit local/hosted clean after fixes                  | focused 23/23; NIP-57 41/41; Jest/Bun 1082/1082; all local gates and four hosted lanes green  |
 | #136  | `ed9fa4a`   | current Codex orchestrator; Grok 4.5 High reviewers | PR #145 through merge `8b970e4` | Grok and CodeRabbit local/hosted clean after fixes | NIP-46 185/185; Jest/Bun 1096/1096; all local and hosted gates green                           |
-| #137  | `8b970e4`   | current Codex orchestrator; Grok 4.5 High reviewers | `0de11d9`, `91ffafa` | Grok standards/spec passed; CodeRabbit local clean after fixes | baseline 85/1096/58.793s; routine 84/1062/32.391s; slow 2/40/43.640s; coverage 86/1102 green   |
+| #137  | `8b970e4`   | current Codex orchestrator; Grok 4.5 High reviewers | `0de11d9`, `91ffafa`; hosted fix pending | Grok standards/spec passed; hosted CodeRabbit fixes pending clean rerun | baseline 85/1096/58.793s; routine 84/1063/32.356s; slow 2/40/43.640s; full 86/1103           |
 
 ## Alignment Decisions
 

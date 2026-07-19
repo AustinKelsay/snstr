@@ -6,7 +6,7 @@
 - Fixed point before session: `8b970e4`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commits: `0de11d9`, `91ffafa`; final review-record commit pending
-- Status: implementation, local reviews, and final local gates green; PR pending
+- Status: hosted CodeRabbit fixes in progress on PR #146
 
 ## Inputs
 
@@ -41,14 +41,14 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 | Lane | Suites | Tests | Time |
 | --- | ---: | ---: | ---: |
 | Baseline default Jest | 85 | 1096 | 58.793s |
-| Routine Jest | 84 | 1062 | 32.391s |
+| Routine Jest | 84 | 1063 | 32.356s |
 | Slow Jest | 2 | 40 | 43.640s |
-| Routine Bun | 84 | 1062 | 190.51s |
+| Routine Bun | 84 | 1063 | 190.68s |
 | Slow Bun | 2 | 40 | 40.41s |
 
-- The post-review routine Jest run improved by 44.9%, exceeding the 40% target.
+- The hosted-fix routine Jest run improved by 45.0%, exceeding the 40% target.
 - `input-validation` dropped from 58.171s in the baseline parallel run to 29.015s in the post-review routine run; its isolated Jest run is 25.294s.
-- Routine plus slow remains the complete 86-suite, 1102-test assurance set in both runtimes.
+- Routine plus slow remains the complete 86-suite, 1103-test assurance set in both runtimes.
 
 ## Review
 
@@ -60,16 +60,17 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - Findings ignored with reasons: none; all three local CodeRabbit findings were valid and fixed
 - CodeRabbit result: clean committed rerun with zero findings after fixes
 - Grok follow-up: standards and spec both passed after the CodeRabbit delta with no findings
+- Hosted CodeRabbit findings: accepted all four; synchronized the run status, documented standalone slow commands, and made routine Bun watch discovery dynamic through a tested pure argument builder while preserving fixed non-watch inventory
 
 ## Verification
 
 - Focused Jest/Bun input-validation: 33/33 in each runtime
-- Lane contract: 6/6 in Jest and Bun
-- Routine Jest: 84/84 suites, 1062/1062 tests
+- Lane contract: 7/7 in Jest and Bun
+- Routine Jest: 84/84 suites, 1063/1063 tests
 - Slow Jest: 2/2 suites, 40/40 tests
-- Routine Bun: 84 files, 1062/1062 tests
+- Routine Bun: 84 files, 1063/1063 tests
 - Slow Bun: 2 files, 40/40 tests
-- Complete coverage: 86/86 suites, 1102/1102 tests in 53.732s; 80.53% statements, 68.44% branches, 82.72% functions, 81.02% lines
+- Complete coverage before the hosted-fix regression test: 86/86 suites, 1102/1102 tests in 53.732s; final rerun pending
 - Repository gates: command/package-manager policy, ESLint, strict TypeScript, CommonJS script syntax, build, examples, pack, and diff integrity all green
 
 ## Risks

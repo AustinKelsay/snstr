@@ -75,6 +75,7 @@ npm test
 To run the complete Jest assurance set, including the named slow security and performance lane:
 
 ```bash
+npm run test:slow
 npm run test:all
 ```
 
@@ -82,6 +83,7 @@ To run the routine or complete assurance set with Bun:
 
 ```bash
 bun run test:bun
+bun run test:bun:slow
 bun run test:bun:all
 ```
 
