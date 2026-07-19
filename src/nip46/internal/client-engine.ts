@@ -53,6 +53,7 @@ export class NIP46ClientEngine {
   private signerPubkey: string | null = null;
   private userPubkey: string | null = null;
   private subId: string | null = null;
+  private lifecycleQueue: Promise<void> = Promise.resolve();
   private isConnected = false;
 
   constructor(profile: NIP46ClientEngineProfile) {
@@ -81,48 +82,52 @@ export class NIP46ClientEngine {
   }
 
   async connect(connectionString: string): Promise<NIP46ClientConnectResult> {
-    try {
-      let info: NIP46ConnectionInfo;
+    return this.enqueueLifecycle(async () => {
+      try {
+        let info: NIP46ConnectionInfo;
 
-      if (this.profile.parseBeforeInitialConnect) {
-        info = parseConnectionString(connectionString);
-        await this.prepareConnection(info);
-      } else {
-        await this.ensureClientKeys();
-        await this.nostr.connectToRelays();
-        info = parseConnectionString(connectionString);
-        await this.applyConnectionRelays(info);
+        if (this.profile.parseBeforeInitialConnect) {
+          info = parseConnectionString(connectionString);
+          await this.prepareConnection(info);
+        } else {
+          await this.ensureClientKeys();
+          await this.nostr.connectToRelays();
+          info = parseConnectionString(connectionString);
+          await this.applyConnectionRelays(info);
+        }
+
+        this.signerPubkey = info.pubkey;
+        await this.setupSubscription();
+
+        const response = await this.request(
+          NIP46Method.CONNECT,
+          this.profile.buildConnectParams(info),
+        );
+        if (!response.error) this.isConnected = true;
+
+        return { info, response };
+      } catch (error) {
+        await this.cleanup();
+        throw error;
       }
-
-      this.signerPubkey = info.pubkey;
-      await this.setupSubscription();
-
-      const response = await this.request(
-        NIP46Method.CONNECT,
-        this.profile.buildConnectParams(info),
-      );
-      if (!response.error) this.isConnected = true;
-
-      return { info, response };
-    } catch (error) {
-      await this.cleanup();
-      throw error;
-    }
+    });
   }
 
   async disconnect(): Promise<void> {
-    try {
-      if (this.canSendDisconnect()) {
-        await this.request(NIP46Method.DISCONNECT, []);
+    return this.enqueueLifecycle(async () => {
+      try {
+        if (this.canSendDisconnect()) {
+          await this.request(NIP46Method.DISCONNECT, []);
+        }
+      } catch (error) {
+        this.profile.logger.warn("Failed to send disconnect request", {
+          error,
+        });
+      } finally {
+        await this.cleanup();
+        await this.delay(this.profile.disconnectDelayMs);
       }
-    } catch (error) {
-      this.profile.logger.warn("Failed to send disconnect request", {
-        error,
-      });
-    } finally {
-      await this.cleanup();
-      await this.delay(this.profile.disconnectDelayMs);
-    }
+    });
   }
 
   async request(method: NIP46Method, params: string[]): Promise<NIP46Response> {
@@ -304,6 +309,17 @@ export class NIP46ClientEngine {
     } finally {
       this.subId = null;
     }
+  }
+
+  // Serialize session transitions only. Ordinary requests remain concurrent,
+  // and disconnect cleanup deliberately cancels them through the correlator.
+  private enqueueLifecycle<T>(transition: () => Promise<T>): Promise<T> {
+    const result = this.lifecycleQueue.then(transition, transition);
+    this.lifecycleQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 
   private firstRelayFailure(

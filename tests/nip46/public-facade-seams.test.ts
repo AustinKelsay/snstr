@@ -6,7 +6,13 @@ import {
   SimpleNIP46Client,
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
-import { NIP46ConnectionError, NIP46Error } from "../../src/nip46/types";
+import {
+  NIP46ConnectionError,
+  NIP46DecryptionError,
+  NIP46EncryptionError,
+  NIP46Error,
+  NIP46SigningError,
+} from "../../src/nip46/types";
 import { NostrRelay } from "../../src/testing";
 
 jest.setTimeout(30000);
@@ -132,7 +138,15 @@ describe("NIP-46 public facade seams", () => {
           created_at: Math.floor(Date.now() / 1000),
           tags: [],
         }),
-      ).rejects.toBeInstanceOf(NIP46Error);
+      ).rejects.toBeInstanceOf(NIP46SigningError);
+      await expect(
+        client.nip44Encrypt(signerKeys.publicKey, "not permitted"),
+      ).rejects.toBeInstanceOf(NIP46EncryptionError);
+      await expect(
+        client.nip44Decrypt(signerKeys.publicKey, "not permitted"),
+      ).rejects.toBeInstanceOf(NIP46DecryptionError);
+
+      await expect(client.getRelays()).rejects.toBeInstanceOf(NIP46Error);
 
       await client.disconnect();
       await expect(client.ping()).resolves.toBe(false);

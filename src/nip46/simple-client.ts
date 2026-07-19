@@ -40,7 +40,7 @@ export class SimpleNIP46Client {
       parseBeforeInitialConnect: true,
       regenerateKeysOnConnect: true,
       filterResponsesBySigner: true,
-      rejectProtocolErrors: true,
+      rejectProtocolErrors: false,
       requireConnectedForRequests: false,
       inspectPublishResult: true,
       connectDelayMs: 1000,
@@ -105,6 +105,11 @@ export class SimpleNIP46Client {
 
   async getPublicKey(): Promise<string> {
     const response = await this.engine.request(NIP46Method.GET_PUBLIC_KEY, []);
+    if (response.error) {
+      throw new NIP46ConnectionError(
+        `Failed to get public key: ${response.error}`,
+      );
+    }
     return response.result!;
   }
 
@@ -176,6 +181,9 @@ export class SimpleNIP46Client {
 
   async getRelays(): Promise<string[]> {
     const response = await this.engine.request(NIP46Method.GET_RELAYS, []);
+    if (response.error) {
+      throw new NIP46Error(`Failed to get relays: ${response.error}`);
+    }
     return JSON.parse(response.result!) as string[];
   }
 

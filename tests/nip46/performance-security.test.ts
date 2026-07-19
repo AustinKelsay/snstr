@@ -638,6 +638,19 @@ describe("NIP-46 Performance & DoS Protection", () => {
       expect(bunkerWithInternals.cleanupInterval).toBeNull();
     });
 
+    test("rate limiter cleanup restarts with the bunker lifecycle", async () => {
+      const bunkerWithInternals = managedBunker as unknown as {
+        rateLimiter: { cleanupInterval: NodeJS.Timeout | null };
+      };
+
+      expect(bunkerWithInternals.rateLimiter.cleanupInterval).not.toBeNull();
+      await managedBunker.stop();
+      expect(bunkerWithInternals.rateLimiter.cleanupInterval).toBeNull();
+
+      await managedBunker.start();
+      expect(bunkerWithInternals.rateLimiter.cleanupInterval).not.toBeNull();
+    });
+
     test("All resources are properly cleaned up on stop", async () => {
       const bunkerWithInternals = managedBunker as unknown as {
         connectedClients: Map<

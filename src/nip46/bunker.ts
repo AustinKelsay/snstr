@@ -161,6 +161,7 @@ export class NostrRemoteSignerBunker {
         if (this.options.metadata) {
           await this.publishMetadata(this.options.metadata);
         }
+        this.rateLimiter.start();
         this.cleanupInterval = setInterval(() => this.cleanup(), 60000).unref();
       },
       beforeStop: () => {
