@@ -37,11 +37,11 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - all acceptance criteria met; zero findings
 
-CODERABBIT_STATUS: re-review pending
+CODERABBIT_STATUS: pass
 CODERABBIT_FINDINGS:
 - stale verification packet corrected
 - anonymous signer pubkey now derives from the supplied ephemeral private key and verifies cryptographically
 - LNURL cache now respects URL changes and evicts least-recently-used entries above 256
 - invoice callback is bounded to 10 seconds and successful responses require a non-empty invoice
-- all four findings fixed, independently re-reviewed by Grok, and fully verified; final committed-diff CodeRabbit pass pending
+- all four findings fixed, independently re-reviewed by Grok, fully verified, and accepted by the final committed-diff CodeRabbit pass with zero findings
 ```
