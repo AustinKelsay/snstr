@@ -6,7 +6,7 @@
 - Fixed point before session: `f4bda34`
 - Worker session: current Codex orchestrator; Grok 4.5 High standards/spec reviewers
 - Commit: `7ed8433`, `00104cc`, `21b4ad9`
-- Status: reviewed, locally verified, ready for delivery PR
+- Status: PR #140 open against `staging`; hosted gates pending
 
 ## Inputs
 

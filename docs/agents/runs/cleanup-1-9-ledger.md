@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: item 1 / issue #131 reviewed and locally verified; delivery PR pending on `feature/nip46-diagnostic-redaction`
+- Current status: item 1 / issue #131 reviewed and locally verified; PR #140 open against `staging`
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -27,7 +27,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all item #131 standards/spec passes
 - Review packets: `issue-131-review-packet.md`; created per later ticket
 - Local CodeRabbit report: `issue-131-coderabbit-local.md`; created per later ticket
-- PR URL: created per ticket, always non-draft and targeting `staging`
+- PR URL: #140 for issue #131; created per later ticket, always non-draft and targeting `staging`
 
 ## Commands
 
@@ -41,7 +41,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 
 | Issue                             | Type | Status          | Branch                                  | Review                                                  | Verified                            |
 | --------------------------------- | ---- | --------------- | --------------------------------------- | ------------------------------------------------------- | ----------------------------------- |
-| #131 NIP-46 diagnostic redaction  | AFK  | ready for PR    | `feature/nip46-diagnostic-redaction`    | Grok standards/spec pass; CodeRabbit 3 fixed then clean | Jest/Bun 1052/1052; all local gates |
+| #131 NIP-46 diagnostic redaction  | AFK  | PR #140 open    | `feature/nip46-diagnostic-redaction`    | Grok standards/spec pass; CodeRabbit 3 fixed then clean | Jest/Bun 1052/1052; all local gates |
 | #132 published declaration purity | AFK  | blocked by #131 | `feature/public-type-test-purity`       | pending                                                 | pending                             |
 | #133 shared diagnostic seam       | AFK  | blocked by #132 | `feature/shared-diagnostics-completion` | pending                                                 | pending                             |
 | #134 NIP-47 service lifecycle     | AFK  | blocked by #133 | `feature/nip47-service-lifecycle`       | pending                                                 | pending                             |
