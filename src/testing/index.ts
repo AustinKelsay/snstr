@@ -7,15 +7,27 @@
 export { NostrRelay } from "../utils/ephemeral-relay";
 export type { NostrRelayOptions } from "../utils/ephemeral-relay";
 export {
+  dispatchNip47ClientResponse,
   dispatchRelayMessage,
   getRelaySocket,
   installNostrTestRelay,
+  installNip46ClientEngineLifecycleHooks,
+  installNip47ClientInitializationHooks,
   installRelaySocket,
+  invokeNip46BunkerConnect,
+  processNip47ServiceRequest,
+  replaceNip46RateLimiterDestroy,
   replaceRelayInboundValidator,
   scheduleRelayReconnect,
   waitForRelayValidation,
 } from "./behavior-controls";
-export type { NostrTestRelay, RelayTestSocket } from "./behavior-controls";
+export type {
+  NIP46ClientEngineLifecycleHooks,
+  NIP47ClientInitializationHooks,
+  NIP47ClientInitializationTransport,
+  NostrTestRelay,
+  RelayTestSocket,
+} from "./behavior-controls";
 
 import type {
   RelayEvent,

@@ -7,24 +7,14 @@ import {
   verifySignature,
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
-import { NostrRelay } from "../../src/testing";
-import { NIP46ConnectionError } from "../../src/nip46/types";
+import { invokeNip46BunkerConnect, NostrRelay } from "../../src/testing";
+import {
+  NIP46ConnectionError,
+  NIP46Method,
+} from "../../src/nip46/types";
 import { validateSecureInitialization } from "../../src/nip46/utils/security";
 
 jest.setTimeout(60000); // 60 second timeout for NIP-46 operations to handle full test suite load
-
-// Type for accessing internal client properties in tests
-interface ClientWithInternals {
-  clientKeys: { publicKey: string };
-}
-
-// Interface for accessing internal bunker methods in tests
-interface BunkerWithInternals {
-  handleConnect(
-    request: { id: string; method: string; params: string[] },
-    clientPubkey: string,
-  ): Promise<{ id: string; result: string; error: string; auth_url?: string }>;
-}
 
 describe("NIP-46 Core Functionality (Optimized)", () => {
   let relay: NostrRelay;
@@ -94,6 +84,8 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       "ping",
       "nip44_encrypt",
       "nip44_decrypt",
+      "nip04_encrypt",
+      "nip04_decrypt",
     ]);
 
     await bunker.start();
@@ -181,12 +173,6 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         nip44Encrypted,
       );
       expect(nip44Decrypted).toBe(message);
-
-      // Test NIP-04 (legacy) - need to grant permissions
-      const clientPubkey = (client as unknown as ClientWithInternals).clientKeys
-        .publicKey;
-      bunker.addClientPermission(clientPubkey, "nip04_encrypt");
-      bunker.addClientPermission(clientPubkey, "nip04_decrypt");
 
       const nip04Encrypted = await client.nip04Encrypt(
         recipientKeys.publicKey,
@@ -333,18 +319,7 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         // Test disconnect cleanup
         await fullClient.disconnect();
 
-        const clientWithInternals = fullClient as unknown as {
-          connected: boolean;
-          pendingRequests: Map<
-            string,
-            {
-              resolve: (value: unknown) => void;
-              reject: (error: Error) => void;
-            }
-          >;
-        };
-        expect(clientWithInternals.connected).toBe(false);
-        expect(clientWithInternals.pendingRequests.size).toBe(0);
+        await expect(fullClient.ping()).rejects.toThrow(NIP46ConnectionError);
       } finally {
         await fullClient.disconnect().catch(() => {});
       }
@@ -408,23 +383,8 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         ];
         await Promise.all(requests);
 
-        const clientWithInternals = testClient as unknown as {
-          pendingRequests: Map<
-            string,
-            {
-              resolve: (value: unknown) => void;
-              reject: (error: Error) => void;
-            }
-          >;
-          connected: boolean;
-        };
-
         // Disconnect immediately
         await testClient.disconnect();
-
-        // Verify cleanup
-        expect(clientWithInternals.pendingRequests.size).toBe(0);
-        expect(clientWithInternals.connected).toBe(false);
 
         // New requests should be rejected
         await expect(testClient.ping()).rejects.toThrow(NIP46ConnectionError);
@@ -496,10 +456,9 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
         expect(typeof resolved).toBe("boolean");
 
         // Test auth challenge format
-        const testBunker = authBunker as unknown as BunkerWithInternals;
         const connectRequest = {
           id: "test-connect-id",
-          method: "connect",
+          method: NIP46Method.CONNECT,
           params: [
             testSignerKeypair.publicKey,
             "",
@@ -507,7 +466,8 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
           ],
         };
 
-        const response = await testBunker.handleConnect(
+        const response = await invokeNip46BunkerConnect(
+          authBunker,
           connectRequest,
           testUserKeypair.publicKey,
         );

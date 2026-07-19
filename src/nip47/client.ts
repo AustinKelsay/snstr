@@ -33,12 +33,7 @@ import {
 import { SecurityValidationError } from "../utils/security-validator";
 import { Logger, LogLevel } from "../utils/logger";
 import type { DiagnosticLogger } from "../utils/logger";
-import {
-  generateNWCURL,
-  parseNIP47Response,
-  parseNWCURL,
-  validateNIP47Response,
-} from "./protocol";
+import { generateNWCURL, parseNIP47Response, parseNWCURL } from "./protocol";
 
 export { generateNWCURL, parseNWCURL };
 
@@ -436,10 +431,14 @@ export class NostrWalletConnectClient {
       event.kind === NIP47EventKind.NOTIFICATION ||
       event.kind === NIP47EventKind.NOTIFICATION_NIP44
     ) {
-      this.logger.debug(`Processing as NOTIFICATION event (kind ${event.kind})`);
+      this.logger.debug(
+        `Processing as NOTIFICATION event (kind ${event.kind})`,
+      );
       await this.handleNotification(event);
     } else if (event.kind === NIP47EventKind.INFO) {
-      this.logger.debug(`Processing as INFO event (kind ${NIP47EventKind.INFO})`);
+      this.logger.debug(
+        `Processing as INFO event (kind ${NIP47EventKind.INFO})`,
+      );
       this.handleInfoEvent(event);
     } else {
       this.logger.debug(
@@ -451,14 +450,6 @@ export class NostrWalletConnectClient {
   /**
    * Validate that a response follows the NIP-47 specification structure
    */
-  private validateResponse(response: unknown): NIP47Response {
-    return validateNIP47Response(
-      response,
-      (message) =>
-        new NIP47ClientError(message, NIP47ErrorCode.INVALID_REQUEST),
-    );
-  }
-
   /**
    * Handle response events
    */
@@ -869,8 +860,8 @@ export class NostrWalletConnectClient {
         info.notifications ?? this.supportedNotifications;
       const nextEncryption = info.encryption
         ? info.encryption
-          .map((s) => s as NIP47EncryptionScheme)
-          .filter((s) => Object.values(NIP47EncryptionScheme).includes(s))
+            .map((s) => s as NIP47EncryptionScheme)
+            .filter((s) => Object.values(NIP47EncryptionScheme).includes(s))
         : [NIP47EncryptionScheme.NIP04];
 
       // Commit the capability snapshot only after every field validates.

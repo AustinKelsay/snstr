@@ -7,7 +7,6 @@ import {
   NIP46DecryptionError,
   NIP46EncryptionError,
   NIP46Error,
-  NIP46KeyPair,
   NIP46Method,
   NIP46SigningError,
   NIP46TimeoutError,
@@ -58,11 +57,6 @@ export class SimpleNIP46Client {
           `Failed to sign or publish event: ${this.errorMessage(error)}`,
         ),
     });
-  }
-
-  // Runtime-compatible private seam retained for the existing test contract.
-  private get clientKeys(): NIP46KeyPair {
-    return this.engine.clientKeys;
   }
 
   /** Connect and retain the simple facade's user-pubkey return contract. */

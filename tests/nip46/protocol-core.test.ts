@@ -3,6 +3,7 @@ import { NIP46RequestCorrelator } from "../../src/nip46/internal/request-correla
 import { NIP46ClientEngine } from "../../src/nip46/internal/client-engine";
 import { NIP46Wire } from "../../src/nip46/internal/wire";
 import { NIP46DiagnosticLogger } from "../../src/nip46/utils/diagnostics";
+import { installNip46ClientEngineLifecycleHooks } from "../../src/testing";
 import {
   NIP46ConnectionError,
   NIP46Method,
@@ -149,13 +150,7 @@ describe("NIP-46 protocol core", () => {
   test("serializes client connect and disconnect transitions", async () => {
     const events: string[] = [];
     const engine = createTestClientEngine();
-    const engineInternals = engine as unknown as {
-      clientKeypair: typeof sender;
-      prepareConnection: () => Promise<void>;
-      setupSubscription: () => Promise<void>;
-      cleanup: () => Promise<void>;
-    };
-    engineInternals.clientKeypair = sender;
+    Object.assign(engine.clientKeys, sender);
 
     let releaseConnection!: () => void;
     const connectionGate = new Promise<void>((resolve) => {
@@ -165,14 +160,16 @@ describe("NIP-46 protocol core", () => {
     const entered = new Promise<void>((resolve) => {
       connectionEntered = resolve;
     });
-    engineInternals.prepareConnection = jest.fn(async () => {
-      events.push("connect-start");
-      connectionEntered();
-      await connectionGate;
-    });
-    engineInternals.setupSubscription = jest.fn(async () => undefined);
-    engineInternals.cleanup = jest.fn(async () => {
-      events.push("cleanup");
+    const restoreLifecycle = installNip46ClientEngineLifecycleHooks(engine, {
+      prepareConnection: jest.fn(async () => {
+        events.push("connect-start");
+        connectionEntered();
+        await connectionGate;
+      }),
+      setupSubscription: jest.fn(async () => undefined),
+      cleanup: jest.fn(async () => {
+        events.push("cleanup");
+      }),
     });
     jest.spyOn(engine, "request").mockImplementation(async (method) => {
       events.push(method);
@@ -194,21 +191,13 @@ describe("NIP-46 protocol core", () => {
       NIP46Method.DISCONNECT,
       "cleanup",
     ]);
+    restoreLifecycle();
   });
 
   test("finishes failed-connect cleanup before a queued disconnect", async () => {
     const events: string[] = [];
     const engine = createTestClientEngine();
-    const engineInternals = engine as unknown as {
-      clientKeypair: typeof sender;
-      prepareConnection: () => Promise<void>;
-      cleanup: () => Promise<void>;
-    };
-    engineInternals.clientKeypair = sender;
-    engineInternals.prepareConnection = jest.fn(async () => {
-      events.push("connect-failed");
-      throw new Error("expected connect failure");
-    });
+    Object.assign(engine.clientKeys, sender);
 
     let releaseCleanup!: () => void;
     const cleanupGate = new Promise<void>((resolve) => {
@@ -219,14 +208,20 @@ describe("NIP-46 protocol core", () => {
       firstCleanupEntered = resolve;
     });
     let cleanupCalls = 0;
-    engineInternals.cleanup = jest.fn(async () => {
-      cleanupCalls += 1;
-      events.push(`cleanup-${cleanupCalls}-start`);
-      if (cleanupCalls === 1) {
-        firstCleanupEntered();
-        await cleanupGate;
-      }
-      events.push(`cleanup-${cleanupCalls}-end`);
+    const restoreLifecycle = installNip46ClientEngineLifecycleHooks(engine, {
+      prepareConnection: jest.fn(async () => {
+        events.push("connect-failed");
+        throw new Error("expected connect failure");
+      }),
+      cleanup: jest.fn(async () => {
+        cleanupCalls += 1;
+        events.push(`cleanup-${cleanupCalls}-start`);
+        if (cleanupCalls === 1) {
+          firstCleanupEntered();
+          await cleanupGate;
+        }
+        events.push(`cleanup-${cleanupCalls}-end`);
+      }),
     });
 
     const connecting = captureRejection(
@@ -252,5 +247,6 @@ describe("NIP-46 protocol core", () => {
       "cleanup-2-start",
       "cleanup-2-end",
     ]);
+    restoreLifecycle();
   });
 });
