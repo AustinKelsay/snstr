@@ -10,7 +10,7 @@ import { NIP46RateLimiter } from "../../src/nip46/utils/rate-limiter";
 
 jest.setTimeout(60000); // 60 second timeout for performance tests to handle full test suite load
 
-describe("NIP-46 Performance & DoS Protection", () => {
+describe("[slow] NIP-46 Performance & DoS Protection", () => {
   let relay: NostrRelay;
   let client: SimpleNIP46Client;
   let bunker: SimpleNIP46Bunker;

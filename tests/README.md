@@ -66,17 +66,28 @@ Tests are organized into directories by NIP number, with subdirectories for spec
 
 ## Running Tests
 
-To run all tests:
+To run the routine feedback lane:
 
 ```bash
 npm test
-```
-
-To run all tests with Bun:
-
-```bash
 bun run test:bun
 ```
+
+To run only the named slow security and performance lane:
+
+```bash
+npm run test:slow
+bun run test:bun:slow
+```
+
+To run the complete assurance set in either runtime:
+
+```bash
+npm run test:all
+bun run test:bun:all
+```
+
+Each complete command already runs its routine and slow lanes; do not run the standalone slow command first.
 
 To run tests for a specific NIP:
 
