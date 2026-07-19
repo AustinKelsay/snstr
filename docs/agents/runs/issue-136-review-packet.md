@@ -17,7 +17,7 @@ The four public NIP-46 facades now delegate transport behavior to four internal 
 - `implement` session: `issue-136-session.md`
 - `tdd` used: characterization-first for behavior-preserving refactoring
 - Baseline characterization: the public seam suite passed before consolidation, fixing expected observable outcomes
-- Green implementation: 10 NIP-46 suites / 178 tests, including both facade pairings, protocol failure, both timeout contracts, simple and advanced reconnect, client shutdown, bunker shutdown, concurrent bunker lifecycle, correlation timeout/cancel cleanup, malformed envelopes, and extension methods
+- Green implementation: 10 NIP-46 suites / 183 tests, including both facade pairings, typed protocol failures, both timeout contracts, simple and advanced reconnect, client shutdown, bunker shutdown, concurrent bunker lifecycle, serialized client success/failure transitions, restart-safe rate limiting, correlation settle/timeout/cancel cleanup, malformed envelopes, and extension methods
 - Commands run: focused Jest/Bun, full NIP-46, full Jest/Bun, command/package-manager policy, strict TypeScript, ESLint, CJS/ESM builds, examples, pack verification, and diff checks
 
 ## Review Instructions
@@ -43,4 +43,6 @@ CODERABBIT_FINDINGS:
 - two follow-up test issues addressed with timeout/cancel coverage and deterministic synthetic keypairs
 - final committed-diff review raised 0 issues across all 10 changed files
 - hosted full review found stale PR tracking and a leaked advanced-client transport after a rejected connect response; tracking is synchronized and the catch path now awaits canonical engine cleanup before preserving the public error
+- follow-up hosted review found client lifecycle, bunker rate-limiter restart, simple typed-error, tracking, and correlator-coverage gaps; all were fixed and local CodeRabbit returned 0 findings
+- the raw engine-log finding was rejected because the canonical diagnostic logger redacts `params` and `result`, with dedicated secret-leak regression coverage
 ```
