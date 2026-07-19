@@ -62,7 +62,8 @@ export class NostrRemoteSignerBunker {
       level: options.debug ? LogLevel.DEBUG : LogLevel.INFO,
       prefix: "NIP46-BUNKER",
       includeTimestamp: true,
-      silent: process.env.NODE_ENV === "test", // Silent in test environment
+      silent:
+        typeof process !== "undefined" && process.env?.NODE_ENV === "test",
     });
 
     // Initialize rate limiter with configurable options

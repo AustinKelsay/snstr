@@ -18,7 +18,10 @@ import {
   createErrorResponse,
 } from "./utils/request-response";
 import { buildConnectionString } from "./utils/connection";
-import { validatePrivateKeySecure } from "./utils/security";
+import {
+  validateBeforeDecryption,
+  validatePrivateKeySecure,
+} from "./utils/security";
 import { NIP46BunkerEngine } from "./internal/bunker-engine";
 
 // Session data for connected clients
@@ -72,7 +75,8 @@ export class SimpleNIP46Bunker {
     this.logger = NIP46DiagnosticLogger.create(options.logger, {
       prefix: "Bunker",
       level: logLevel,
-      silent: process.env.NODE_ENV === "test", // Silent in test environment
+      silent:
+        typeof process !== "undefined" && process.env?.NODE_ENV === "test",
     });
     this.engine = new NIP46BunkerEngine({
       relays,
@@ -89,6 +93,13 @@ export class SimpleNIP46Bunker {
           throw new NIP46ConnectionError("Signer private key not set");
         }
       },
+      validateEnvelope: (event) =>
+        validateBeforeDecryption(
+          this.signerKeys,
+          event.pubkey,
+          event.content,
+          "NIP-44",
+        ),
       handlers: {
         [NIP46Method.CONNECT]: (request, clientPubkey) =>
           this.handleConnect(request, clientPubkey),

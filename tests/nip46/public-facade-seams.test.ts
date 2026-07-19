@@ -190,4 +190,38 @@ describe("NIP-46 public facade seams", () => {
       await bunker.stop();
     }
   });
+
+  test("concurrent bunker lifecycle calls share one public transition", async () => {
+    const userKeys = await generateKeypair();
+    const signerKeys = await generateKeypair();
+    const bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeys.publicKey,
+      signerKeys.publicKey,
+      {
+        defaultPermissions: ["get_public_key", "ping"],
+        logLevel: LogLevel.ERROR,
+      },
+    );
+    bunker.setUserPrivateKey(userKeys.privateKey);
+    bunker.setSignerPrivateKey(signerKeys.privateKey);
+    const client = new SimpleNIP46Client([relayUrl], {
+      timeout: 200,
+      logLevel: LogLevel.ERROR,
+    });
+
+    try {
+      await Promise.all([bunker.start(), bunker.start(), bunker.start()]);
+      await expect(client.connect(bunker.getConnectionString())).resolves.toBe(
+        userKeys.publicKey,
+      );
+      await expect(client.ping()).resolves.toBe(true);
+
+      await Promise.all([bunker.stop(), bunker.stop(), bunker.stop()]);
+      await expect(client.ping()).resolves.toBe(false);
+    } finally {
+      await client.disconnect();
+      await bunker.stop();
+    }
+  });
 });

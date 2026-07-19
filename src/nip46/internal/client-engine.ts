@@ -150,7 +150,9 @@ export class NIP46ClientEngine {
         this.clientKeypair,
         this.signerPubkey!,
       );
-      const result = await this.nostr.publishEvent(event);
+      const result = await this.nostr.publishEvent(event, {
+        timeout: this.profile.timeout,
+      });
       if (this.profile.inspectPublishResult && !result.success) {
         throw new NIP46ConnectionError(
           `Relay rejected event: ${this.firstRelayFailure(result.relayResults)}`,

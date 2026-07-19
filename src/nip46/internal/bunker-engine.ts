@@ -24,7 +24,7 @@ export interface NIP46BunkerEngineProfile {
   logger: NIP46DiagnosticLogger;
   signerKeys: () => NIP46KeyPair;
   validateStart: () => void;
-  validateEnvelope?: (event: NostrEvent) => void;
+  validateEnvelope: (event: NostrEvent) => void;
   beforeEvent?: (
     event: NostrEvent,
   ) => Promise<NIP46DispatchGuardResult> | NIP46DispatchGuardResult;
@@ -45,6 +45,8 @@ export class NIP46BunkerEngine {
   private readonly nostr: Nostr;
   private readonly profile: NIP46BunkerEngineProfile;
   private subId: string | null = null;
+  private lifecycleQueue: Promise<void> = Promise.resolve();
+  private running = false;
 
   constructor(profile: NIP46BunkerEngineProfile) {
     this.profile = profile;
@@ -52,31 +54,50 @@ export class NIP46BunkerEngine {
   }
 
   async start(): Promise<void> {
-    this.profile.validateStart();
-    await this.nostr.connectToRelays();
-    await this.removeSubscription();
+    return this.enqueueLifecycle(async () => {
+      if (this.running) return;
+      this.profile.validateStart();
 
-    const filter: NostrFilter = {
-      kinds: [NIP46_EVENT_KIND],
-      "#p": [this.profile.signerKeys().publicKey],
-    };
-    this.subId = this.nostr.subscribe([filter], (event) => {
-      this.handleEvent(event);
-    })[0];
-    await this.profile.afterStart?.();
+      try {
+        await this.nostr.connectToRelays();
+        await this.removeSubscription();
+
+        const filter: NostrFilter = {
+          kinds: [NIP46_EVENT_KIND],
+          "#p": [this.profile.signerKeys().publicKey],
+        };
+        this.subId = this.nostr.subscribe([filter], (event) => {
+          this.handleEvent(event);
+        })[0];
+        await this.profile.afterStart?.();
+        this.running = true;
+      } catch (error) {
+        await this.removeSubscription();
+        try {
+          await this.nostr.disconnectFromRelays();
+        } catch {
+          // Preserve the original start failure.
+        }
+        throw error;
+      }
+    });
   }
 
   async stop(): Promise<void> {
-    await this.profile.beforeStop?.();
-    await this.removeSubscription();
-    try {
-      await this.nostr.disconnectFromRelays();
-    } catch (error) {
-      this.profile.logger.warn("Failed to disconnect bunker relays", {
-        error,
-      });
-    }
-    await this.profile.afterStop?.();
+    return this.enqueueLifecycle(async () => {
+      if (!this.running) return;
+      await this.profile.beforeStop?.();
+      await this.removeSubscription();
+      try {
+        await this.nostr.disconnectFromRelays();
+      } catch (error) {
+        this.profile.logger.warn("Failed to disconnect bunker relays", {
+          error,
+        });
+      }
+      await this.profile.afterStop?.();
+      this.running = false;
+    });
   }
 
   async publishEvent(event: NostrEvent): Promise<void> {
@@ -85,12 +106,12 @@ export class NIP46BunkerEngine {
 
   private async handleEvent(event: NostrEvent): Promise<void> {
     try {
+      this.profile.validateEnvelope(event);
       const eventGuard = await this.profile.beforeEvent?.(event);
       if (eventGuard && (await this.applyGuard(eventGuard, event.pubkey))) {
         return;
       }
 
-      this.profile.validateEnvelope?.(event);
       const request = NIP46Wire.decryptRequest(
         event,
         this.profile.signerKeys().privateKey,
@@ -169,5 +190,14 @@ export class NIP46BunkerEngine {
     } finally {
       this.subId = null;
     }
+  }
+
+  private enqueueLifecycle(transition: () => Promise<void>): Promise<void> {
+    const result = this.lifecycleQueue.then(transition, transition);
+    this.lifecycleQueue = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
   }
 }

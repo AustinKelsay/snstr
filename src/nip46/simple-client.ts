@@ -29,7 +29,8 @@ export class SimpleNIP46Client {
     this.logger = NIP46DiagnosticLogger.create(options.logger, {
       prefix: "Client",
       level: logLevel,
-      silent: process.env.NODE_ENV === "test",
+      silent:
+        typeof process !== "undefined" && process.env?.NODE_ENV === "test",
     });
     this.engine = new NIP46ClientEngine({
       relays,

@@ -15,6 +15,12 @@ export class NIP46RequestCorrelator {
     timeoutMs: number,
     timeoutError: () => Error,
   ): Promise<NIP46Response> {
+    if (this.pending.has(requestId)) {
+      return Promise.reject(
+        new Error(`NIP-46 request '${requestId}' is already pending`),
+      );
+    }
+
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(requestId);

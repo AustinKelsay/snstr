@@ -3,6 +3,12 @@ import { decrypt as decryptNIP44, encrypt as encryptNIP44 } from "../../nip44";
 import { NostrEvent } from "../../types/nostr";
 import { getUnixTime } from "../../utils/time";
 import { NIP46KeyPair, NIP46Request, NIP46Response } from "../types";
+import {
+  MAX_CONTENT_SIZE,
+  MAX_ID_LENGTH,
+  MAX_PARAMS_COUNT,
+  validatePubkey,
+} from "../utils/validator";
 
 export const NIP46_EVENT_KIND = 24133;
 
@@ -28,14 +34,18 @@ export class NIP46Wire {
     event: NostrEvent,
     recipientPrivateKey: string,
   ): NIP46Request {
-    return this.decryptPayload<NIP46Request>(event, recipientPrivateKey);
+    const payload = this.decryptPayload(event, recipientPrivateKey);
+    if (!this.isRequest(payload)) throw new Error("Invalid NIP-46 request");
+    return payload;
   }
 
   static decryptResponse(
     event: NostrEvent,
     recipientPrivateKey: string,
   ): NIP46Response {
-    return this.decryptPayload<NIP46Response>(event, recipientPrivateKey);
+    const payload = this.decryptPayload(event, recipientPrivateKey);
+    if (!this.isResponse(payload)) throw new Error("Invalid NIP-46 response");
+    return payload;
   }
 
   static decryptContent(
@@ -69,15 +79,62 @@ export class NIP46Wire {
     );
   }
 
-  private static decryptPayload<T>(
+  private static decryptPayload(
     event: NostrEvent,
     recipientPrivateKey: string,
-  ): T {
+  ): unknown {
     const decrypted = this.decryptContent(
       event.content,
       recipientPrivateKey,
       event.pubkey,
     );
-    return JSON.parse(decrypted) as T;
+    return JSON.parse(decrypted) as unknown;
+  }
+
+  private static isRequest(payload: unknown): payload is NIP46Request {
+    if (!this.isRecord(payload)) return false;
+    if (!this.isId(payload.id)) return false;
+    if (
+      typeof payload.method !== "string" ||
+      payload.method.length === 0 ||
+      payload.method.length > 64
+    ) {
+      return false;
+    }
+    if (
+      !Array.isArray(payload.params) ||
+      payload.params.length > MAX_PARAMS_COUNT ||
+      !payload.params.every((param) => typeof param === "string")
+    ) {
+      return false;
+    }
+    const pubkey = payload.pubkey;
+    return (
+      pubkey === undefined ||
+      (typeof pubkey === "string" && validatePubkey(pubkey))
+    );
+  }
+
+  private static isResponse(payload: unknown): payload is NIP46Response {
+    if (!this.isRecord(payload) || !this.isId(payload.id)) return false;
+    const fields = [payload.result, payload.error, payload.auth_url];
+    if (!fields.some((field) => field !== undefined)) return false;
+    return fields.every(
+      (field) =>
+        field === undefined ||
+        (typeof field === "string" && field.length <= MAX_CONTENT_SIZE),
+    );
+  }
+
+  private static isId(value: unknown): value is string {
+    return (
+      typeof value === "string" &&
+      value.length > 0 &&
+      value.length <= MAX_ID_LENGTH
+    );
+  }
+
+  private static isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === "object" && !Array.isArray(value);
   }
 }
