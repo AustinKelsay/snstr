@@ -19,7 +19,7 @@
 - Red tests: `ZapClient` lacked the five receipt-query/statistics methods required to compare both public facades; focused compilation failed on those missing public methods
 - Green implementation: both facades reuse per-instance LNURL state, emit equivalent user/event/general receipt filters, preserve `limit: 0`, and calculate equivalent user/event statistics
 - Refactor: all behavior ownership remains private; no private shape or production test hook is used
-- Commands run: focused Jest/Bun public-client suites, NIP-57 Jest regression suite, strict TypeScript, ESLint, and diff checks; full-suite and packaging gates follow independent review
+- Commands run: focused Jest/Bun public-client suites, NIP-57 Jest regression suite, full Jest/Bun suites, strict TypeScript, ESLint, CJS/ESM builds, examples, package verification, and diff checks; all completed successfully before committed-diff review
 
 ## Review Instructions
 
@@ -37,7 +37,11 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - all acceptance criteria met; zero findings
 
-CODERABBIT_STATUS: pending
+CODERABBIT_STATUS: re-review pending
 CODERABBIT_FINDINGS:
-- pending
+- stale verification packet corrected
+- anonymous signer pubkey now derives from the supplied ephemeral private key and verifies cryptographically
+- LNURL cache now respects URL changes and evicts least-recently-used entries above 256
+- invoice callback is bounded to 10 seconds and successful responses require a non-empty invoice
+- all four findings fixed, independently re-reviewed by Grok, and fully verified; final committed-diff CodeRabbit pass pending
 ```

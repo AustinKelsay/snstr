@@ -14,6 +14,7 @@ import { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 import { Nostr } from "../nip01/nostr";
 import { createSignedEvent } from "../nip01/event";
 import { getUnixTime } from "../utils/time";
+import { getPublicKey } from "../utils/crypto";
 import {
   createZapRequest,
   validateZapReceipt,
@@ -30,6 +31,9 @@ import {
 import { Logger } from "../utils/logger";
 import type { DiagnosticLogger } from "../utils/logger";
 import { reportNIP57Diagnostic } from "./diagnostics";
+
+const LNURL_CACHE_CAPACITY = 256;
+const LNURL_CALLBACK_TIMEOUT_MS = 10_000;
 
 /**
  * Options for the ZapClient
@@ -134,6 +138,21 @@ class ZapClientCore {
     this.client = options.nostrClient;
     this.defaultRelays = options.defaultRelays || [];
     this.logger = options.logger ?? new Logger({ silent: true });
+  }
+
+  private rememberLnurlResult(
+    pubkey: string,
+    lnurl: string,
+    supportsZaps: boolean,
+  ): void {
+    this.lnurlCache.delete(pubkey);
+    this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps });
+
+    while (this.lnurlCache.size > LNURL_CACHE_CAPACITY) {
+      const oldestPubkey = this.lnurlCache.keys().next().value;
+      if (oldestPubkey === undefined) break;
+      this.lnurlCache.delete(oldestPubkey);
+    }
   }
 
   /** Collect matching zap receipts until the first EOSE or the legacy timeout. */
@@ -244,7 +263,9 @@ class ZapClientCore {
   async canReceiveZaps(pubkey: string, lnurl?: string): Promise<boolean> {
     try {
       const cached = this.lnurlCache.get(pubkey);
-      if (cached) {
+      if (cached && (!lnurl || cached.lnurl === lnurl)) {
+        this.lnurlCache.delete(pubkey);
+        this.lnurlCache.set(pubkey, cached);
         return cached.supportsZaps;
       }
 
@@ -254,12 +275,12 @@ class ZapClientCore {
 
       const metadata = await fetchLnurlPayMetadata(lnurl, this.logger);
       if (!metadata) {
-        this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps: false });
+        this.rememberLnurlResult(pubkey, lnurl, false);
         return false;
       }
 
       const supportsZaps = supportsNostrZaps(metadata);
-      this.lnurlCache.set(pubkey, { pubkey, lnurl, supportsZaps });
+      this.rememberLnurlResult(pubkey, lnurl, supportsZaps);
       return supportsZaps;
     } catch (error) {
       reportNIP57Diagnostic(
@@ -341,20 +362,19 @@ class ZapClientCore {
         zapRequestOptions.senderPubkey = senderPubkey;
       }
 
+      const signingPubkey = options.anonymousZap
+        ? getPublicKey(privateKey)
+        : senderPubkey || "";
       const requestTemplate = createZapRequest(
         zapRequestOptions,
-        options.anonymousZap
-          ? "0000000000000000000000000000000000000000000000000000000000000000"
-          : senderPubkey || "",
+        signingPubkey,
       );
 
       const signedZapRequest = await createSignedEvent(
         {
           ...requestTemplate,
           tags: requestTemplate.tags || [],
-          pubkey: options.anonymousZap
-            ? "0000000000000000000000000000000000000000000000000000000000000000"
-            : senderPubkey || "",
+          pubkey: signingPubkey,
           created_at: getUnixTime(),
         },
         privateKey,
@@ -365,15 +385,46 @@ class ZapClientCore {
         JSON.stringify(signedZapRequest),
         options.amount,
       );
-      const invoiceResponse = await fetch(callbackUrl);
-      const invoiceData =
-        (await invoiceResponse.json()) as LnurlInvoiceResponse;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        LNURL_CALLBACK_TIMEOUT_MS,
+      );
+      let invoiceData: LnurlInvoiceResponse;
+      try {
+        const invoiceResponse = await fetch(callbackUrl, {
+          signal: controller.signal,
+        });
+        invoiceData = (await invoiceResponse.json()) as LnurlInvoiceResponse;
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return {
+            invoice: "",
+            zapRequest: signedZapRequest,
+            error: "LNURL callback timed out",
+          };
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (invoiceData.status === "ERROR") {
         return {
           invoice: "",
           zapRequest: signedZapRequest,
           error: invoiceData.reason || "LNURL error",
+        };
+      }
+
+      if (
+        typeof invoiceData.pr !== "string" ||
+        invoiceData.pr.trim().length === 0
+      ) {
+        return {
+          invoice: "",
+          zapRequest: signedZapRequest,
+          error: "LNURL server returned an invalid invoice response",
         };
       }
 

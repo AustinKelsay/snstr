@@ -8,6 +8,7 @@ import {
   NostrZapClient,
   SubscriptionOptions,
   ZapClient,
+  verifySignature,
 } from "../../src";
 import { createSignedEvent } from "../../src/nip01/event";
 import { NostrRelay } from "../../src/testing";
@@ -450,6 +451,7 @@ describe("NIP-57 public clients", () => {
     };
 
     afterEach(() => {
+      jest.useRealTimers();
       jest.restoreAllMocks();
       if (installedFetchForTest) {
         delete (globalThis as { fetch?: typeof fetch }).fetch;
@@ -538,6 +540,137 @@ describe("NIP-57 public clients", () => {
         error: callbackError,
       });
     });
+
+    test("signs anonymous requests with the supplied ephemeral key", async () => {
+      const realPrivateKey = "8".repeat(64);
+      const ephemeralPrivateKey = "9".repeat(64);
+      const nostr = new Nostr();
+      nostr.setPrivateKey(realPrivateKey);
+      spyOnGlobalFetch()
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({
+            callback: "https://lnurl.test/callback",
+            maxSendable: 10_000,
+            minSendable: 1,
+            metadata: "[]",
+            tag: "payRequest",
+            allowsNostr: true,
+            nostrPubkey: "7".repeat(64),
+          }),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ pr: "lnbc-valid-invoice" }),
+        } as unknown as Response);
+      const client = new ZapClient({ nostrClient: nostr });
+
+      const result = await client.getZapInvoice(
+        {
+          recipientPubkey: "a".repeat(64),
+          lnurl: "https://lnurl.test/metadata",
+          amount: 1_000,
+          anonymousZap: true,
+        },
+        ephemeralPrivateKey,
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.zapRequest.pubkey).toBe(getPublicKey(ephemeralPrivateKey));
+      expect(result.zapRequest.tags).toContainEqual([
+        "P",
+        getPublicKey(realPrivateKey),
+      ]);
+      await expect(
+        verifySignature(
+          result.zapRequest.id,
+          result.zapRequest.sig,
+          result.zapRequest.pubkey,
+        ),
+      ).resolves.toBe(true);
+    });
+
+    test("rejects a successful callback response without a usable invoice", async () => {
+      const privateKey = "9".repeat(64);
+      const nostr = new Nostr();
+      nostr.setPrivateKey(privateKey);
+      spyOnGlobalFetch()
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({
+            callback: "https://lnurl.test/callback",
+            maxSendable: 10_000,
+            minSendable: 1,
+            metadata: "[]",
+            tag: "payRequest",
+            allowsNostr: true,
+            nostrPubkey: "8".repeat(64),
+          }),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({ status: "OK" }),
+        } as unknown as Response);
+      const client = new ZapClient({ nostrClient: nostr });
+
+      await expect(
+        client.getZapInvoice(
+          {
+            recipientPubkey: "a".repeat(64),
+            lnurl: "https://lnurl.test/metadata",
+            amount: 1_000,
+          },
+          privateKey,
+        ),
+      ).resolves.toMatchObject({
+        invoice: "",
+        error: "LNURL server returned an invalid invoice response",
+      });
+    });
+
+    test("bounds a stalled LNURL invoice callback", async () => {
+      const nativeSetTimeout = globalThis.setTimeout;
+      const timeoutSpy = jest
+        .spyOn(globalThis, "setTimeout")
+        .mockImplementation(((callback: () => void) =>
+          nativeSetTimeout(callback, 0)) as typeof setTimeout);
+      const privateKey = "9".repeat(64);
+      const nostr = new Nostr();
+      nostr.setPrivateKey(privateKey);
+      spyOnGlobalFetch()
+        .mockResolvedValueOnce({
+          json: jest.fn().mockResolvedValue({
+            callback: "https://lnurl.test/callback",
+            maxSendable: 10_000,
+            minSendable: 1,
+            metadata: "[]",
+            tag: "payRequest",
+            allowsNostr: true,
+            nostrPubkey: "8".repeat(64),
+          }),
+        } as unknown as Response)
+        .mockImplementationOnce(
+          (_url, init) =>
+            new Promise((_resolve, reject) => {
+              init?.signal?.addEventListener("abort", () => {
+                const error = new Error("aborted");
+                error.name = "AbortError";
+                reject(error);
+              });
+            }),
+        );
+      const client = new ZapClient({ nostrClient: nostr });
+      await expect(
+        client.getZapInvoice(
+          {
+            recipientPubkey: "a".repeat(64),
+            lnurl: "https://lnurl.test/metadata",
+            amount: 1_000,
+          },
+          privateKey,
+        ),
+      ).resolves.toMatchObject({
+        invoice: "",
+        error: "LNURL callback timed out",
+      });
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 10_000);
+    });
   });
 
   describe("shared facade behavior", () => {
@@ -588,12 +721,20 @@ describe("NIP-57 public clients", () => {
         true,
       );
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+      await expect(
+        nostrFacade.canReceiveZaps(pubkey, `${lnurl}/changed`),
+      ).resolves.toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       fetchSpy.mockClear();
       const zapFacade = new ZapClient({ nostrClient: new Nostr() });
       await expect(zapFacade.canReceiveZaps(pubkey, lnurl)).resolves.toBe(true);
       await expect(zapFacade.canReceiveZaps(pubkey, lnurl)).resolves.toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
+      await expect(
+        zapFacade.canReceiveZaps(pubkey, `${lnurl}/changed`),
+      ).resolves.toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
 
       fetchSpy.mockClear();
       const first = new NostrZapClient({ client: new Nostr() });
@@ -601,6 +742,32 @@ describe("NIP-57 public clients", () => {
       await expect(first.canReceiveZaps(pubkey, lnurl)).resolves.toBe(true);
       await expect(second.canReceiveZaps(pubkey, lnurl)).resolves.toBe(true);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    test("bounds persistent LNURL state with observable eviction", async () => {
+      const fetchSpy = spyOnGlobalFetch().mockResolvedValue({
+        json: jest.fn().mockResolvedValue({
+          callback: "https://lnurl.test/callback",
+          maxSendable: 10_000,
+          minSendable: 1,
+          metadata: "[]",
+          tag: "payRequest",
+          allowsNostr: true,
+          nostrPubkey: "8".repeat(64),
+        }),
+      } as unknown as Response);
+      const client = new ZapClient({ nostrClient: new Nostr() });
+      const cacheCapacity = 256;
+
+      for (let index = 0; index <= cacheCapacity; index += 1) {
+        await client.canReceiveZaps(
+          index.toString(16).padStart(64, "0"),
+          `https://lnurl.test/${index}`,
+        );
+      }
+      await client.canReceiveZaps("0".repeat(64), "https://lnurl.test/0");
+
+      expect(fetchSpy).toHaveBeenCalledTimes(cacheCapacity + 2);
     });
 
     test("both facades produce equivalent receipt filters", async () => {
