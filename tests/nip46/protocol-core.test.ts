@@ -1,4 +1,4 @@
-import { generateKeypair } from "../../src";
+import { getPublicKey } from "../../src/utils/crypto";
 import { NIP46RequestCorrelator } from "../../src/nip46/internal/request-correlator";
 import { NIP46Wire } from "../../src/nip46/internal/wire";
 import {
@@ -8,6 +8,15 @@ import {
 } from "../../src/nip46/types";
 
 describe("NIP-46 protocol core", () => {
+  const sender = {
+    privateKey: "11".repeat(32),
+    publicKey: getPublicKey("11".repeat(32)),
+  };
+  const recipient = {
+    privateKey: "22".repeat(32),
+    publicKey: getPublicKey("22".repeat(32)),
+  };
+
   test("rejects duplicate pending request IDs without replacing the owner", async () => {
     const correlator = new NIP46RequestCorrelator();
     const first = correlator.register("duplicate", 1000, () => new Error());
@@ -57,8 +66,6 @@ describe("NIP-46 protocol core", () => {
   });
 
   test("accepts well-shaped extension methods and rejects malformed envelopes", async () => {
-    const sender = await generateKeypair();
-    const recipient = await generateKeypair();
     const extensionRequest: NIP46Request = {
       id: "extension-request",
       method: "future_method" as NIP46Method,
