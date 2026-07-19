@@ -6,7 +6,7 @@
 - Fixed point before session: `3c1e905` (`staging` merge of PR #147)
 - Worker session: current Codex orchestrator; Grok 4.5 High is the exclusive delegated read-only reviewer
 - Commits: `d6504f6`, `7a48586`, `f8e9aac`, `96dd79f` plus review artifacts
-- Status: implementation and local review complete; PR pending
+- Status: PR #148 open into `staging`; hosted rerun pending after one loaded Node 20 NIP-46 timeout
 
 ## Inputs
 
@@ -22,7 +22,7 @@
 - Behaviors covered: native and in-memory connection lifecycle, session wire messages and cleanup, Subscription Filter matching, restart state reset, exact-URL disconnect observation, and package export compatibility
 - `tdd` used: yes; tests stay at public `NostrRelay`/wire seams, with a compact pure matcher contract at its internal module interface
 - Commands run during implementation: focused Jest/Bun public-behavior baseline 25/25; final focused owner/lifecycle/session/filter set 50/50 after production review fixes; final polling-only confirmation 2/2 in both runtimes
-- Full suite command: `npm test`, `npm run test:slow`, `npm run test:bun`, `npm run test:bun:slow`, and `npm run test:coverage:all` — green at 1,067 routine + 35 slow = 1,102 tests
+- Full suite command: `npm test`, `npm run test:slow`, `npm run test:bun`, `npm run test:bun:slow`, and `npm run test:coverage:all` — green at 1,074 routine + 35 slow = 1,109 tests
 
 ## Review
 
@@ -50,8 +50,8 @@
 
 ## Verification Result
 
-- Routine Jest/Bun: 1,067/1,067 each.
+- Routine Jest/Bun: 1,074/1,074 each.
 - Slow Jest/Bun: 35/35 each.
-- Complete Jest coverage inventory: 1,102/1,102.
+- Complete Jest coverage inventory: 1,109/1,109.
 - Policy, lint, strict types, CJS/ESM and examples builds, web exports, and pack verification: green.
 - Pack verification: 19 referenced targets, 376 packed files, 55 web modules, 3 guarded Node fallbacks.
