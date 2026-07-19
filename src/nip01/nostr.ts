@@ -18,7 +18,13 @@ import {
   createDirectMessage,
   createMetadataEvent,
 } from "./event";
-import { Logger, LogLevel } from "../utils/logger";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  protectDiagnosticLogger,
+  safeRelayDiagnostic,
+} from "../utils/diagnostics";
 import {
   validateFilters,
   validateNumber,
@@ -55,6 +61,8 @@ export interface NostrRateLimits {
  * Options for Nostr client configuration
  */
 export interface NostrOptions {
+  /** Optional canonical logger used by the client and, by default, its Relays. */
+  logger?: DiagnosticLogger;
   /** Options to pass to each Relay instance */
   relayOptions?: RelayConnectionOptions;
   /** Rate limiting configuration for different operations */
@@ -76,10 +84,7 @@ export type NostrClosedCallback = (
   subscriptionId: string,
   message: string,
 ) => void;
-export type NostrAuthCallback = (
-  relay: string,
-  challenge: string,
-) => void;
+export type NostrAuthCallback = (relay: string, challenge: string) => void;
 
 export type NostrEventCallback =
   | NostrConnectCallback
@@ -119,7 +124,7 @@ export class Nostr {
   private publicKey?: string;
   private relayOptions?: RelayConnectionOptions;
   private eventCallbacks: Map<RelayEvent, Set<NostrEventCallback>> = new Map();
-  private logger: Logger;
+  protected logger: DiagnosticLogger;
 
   // Rate limiting state
   private subscribeRateLimit: RateLimitState = {
@@ -155,7 +160,22 @@ export class Nostr {
    * @param options.rateLimits Rate limiting configuration for different operations
    */
   constructor(relayUrls: string[] = [], options?: NostrOptions) {
-    this.relayOptions = options?.relayOptions;
+    const logger = options?.logger ?? options?.relayOptions?.logger;
+    this.logger = logger
+      ? protectDiagnosticLogger(logger)
+      : createDefaultDiagnosticLogger({
+          prefix: "Nostr",
+          includeTimestamp: false,
+          silent: process.env.NODE_ENV === "test",
+        });
+    this.relayOptions = options?.relayOptions
+      ? {
+          ...options.relayOptions,
+          logger: options.relayOptions.logger ?? options.logger,
+        }
+      : options?.logger
+        ? { logger: options.logger }
+        : undefined;
     this.relays = new RelayRegistry(this.relayOptions);
 
     // Initialize rate limits with defaults or user-provided values
@@ -168,12 +188,6 @@ export class Nostr {
       FETCH: options?.rateLimits?.fetch || { limit: 200, windowMs: 60000 }, // 200 fetches per minute
     };
 
-    this.logger = new Logger({
-      prefix: "Nostr",
-      level: LogLevel.WARN,
-      includeTimestamp: false,
-      silent: process.env.NODE_ENV === "test",
-    });
     relayUrls.forEach((url) => this.addRelay(url));
   }
 
@@ -220,9 +234,9 @@ export class Nostr {
         };
       default:
         // Should not happen if RelayEvent enum is comprehensive
-        console.warn(
-          `Unhandled RelayEvent type for handler creation: ${event}`,
-        );
+        this.logger.warn("Unhandled RelayEvent type for handler creation", {
+          event,
+        });
         // This case should ideally be impossible if RelayEvent is exhaustive
         // and all cases are handled. Return a no-op that matches a common handler signature.
         return () => {};
@@ -427,16 +441,15 @@ export class Nostr {
           relayResults,
         };
       } else {
-        // Get reasons for failures and log them for diagnostics
-        const failureReasons = Array.from(relayResults.entries())
+        const failedRelays = Array.from(relayResults.entries())
           .filter(([_, result]) => !result.success)
-          .map(([url, result]) => `${url}: ${result.reason || "unknown"}`);
+          .map(([url]) => safeRelayDiagnostic(url));
 
         this.logger.warn("Failed to publish event to any relay", {
           eventId: event.id,
           eventKind: event.kind,
-          failureCount: failureReasons.length,
-          failures: failureReasons,
+          failedRelays,
+          failureCount: failedRelays.length,
         });
 
         return {
@@ -446,13 +459,10 @@ export class Nostr {
         };
       }
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "unknown error";
-
       this.logger.error("Failed to publish event", {
         eventId: event.id,
         eventKind: event.kind,
-        error: errorMessage,
+        failureType: diagnosticFailureType(error),
       });
 
       return {
@@ -554,14 +564,11 @@ export class Nostr {
       const { decrypt } = getRegisteredNIP04();
       return decrypt(this.privateKey, senderPubkey, event.content);
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "unknown error";
-
       this.logger.error("Failed to decrypt direct message", {
         eventId: event.id,
-        senderPubkey,
+        failureType: diagnosticFailureType(error),
         recipientPubkey,
-        error: errorMessage,
+        senderPubkey,
       });
 
       throw new Error(

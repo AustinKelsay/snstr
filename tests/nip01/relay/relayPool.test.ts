@@ -3,6 +3,17 @@ import { testUtils } from "../../types";
 import { NostrRelay } from "../../../src/testing";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { createTextNote, createSignedEvent } from "../../../src/nip01/event";
+import type { DiagnosticLogger } from "../../../src/utils/logger";
+
+function createLogger(): jest.Mocked<DiagnosticLogger> {
+  return {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+  };
+}
 
 const PORT1 = 0;
 const PORT2 = 0;
@@ -324,32 +335,16 @@ describe("RelayPool", () => {
   });
 
   test("should handle event processing errors gracefully", async () => {
-    const pool = new RelayPool([relay1.url, relay2.url]);
+    const logger = createLogger();
+    const pool = new RelayPool([relay1.url, relay2.url], { logger });
     const keys = await generateKeypair();
 
     const received: NostrEvent[] = [];
-    const errors: Error[] = [];
 
     // Use a timestamp to filter only our test events
     const testTimestamp = Math.floor(Date.now() / 1000);
 
-    // Mock console.warn to capture error logs
-    const originalWarn = console.warn;
-
     try {
-      console.warn = (...args: unknown[]) => {
-        // Call original to preserve output
-        originalWarn(...args);
-
-        if (
-          args[0] &&
-          typeof args[0] === "string" &&
-          args[0].includes("Error processing event from")
-        ) {
-          errors.push(new Error(args[0]));
-        }
-      };
-
       const sub = await pool.subscribe(
         [relay1.url, relay2.url],
         [{ kinds: [1], since: testTimestamp, authors: [keys.publicKey] }],
@@ -433,10 +428,15 @@ describe("RelayPool", () => {
       expect(received.some((e) => e.content === "error event")).toBe(true);
 
       // Should have logged the error
-      expect(errors.length).toBeGreaterThan(0);
+      expect(logger.warn).toHaveBeenCalledWith(
+        "RelayPool event callback failed",
+        expect.objectContaining({
+          eventId: errorEvent.id,
+          eventKind: errorEvent.kind,
+          failureType: "Error",
+        }),
+      );
     } finally {
-      // Restore console.warn
-      console.warn = originalWarn;
       await pool.close();
     }
   });

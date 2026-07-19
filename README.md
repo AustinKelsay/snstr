@@ -164,6 +164,35 @@ production relay server and may evolve between minor 0.x releases. The legacy
 `close()` resolves only after owned transports and observable client disconnect
 coordination complete; callers should not add fixed teardown delays.
 
+## Diagnostics
+
+Production diagnostics use the shared `DiagnosticLogger` contract. Warnings and
+errors remain console-visible by default; inject one logger to capture, filter,
+or silence diagnostics from a `Nostr`, `Relay`, or `RelayPool` instance and its
+child relays:
+
+```typescript
+import { Nostr, RelayPool } from "snstr";
+import type { DiagnosticLogger } from "snstr";
+
+const logger: DiagnosticLogger = {
+  error: (message, ...context) => appLogger.error(message, ...context),
+  warn: (message, ...context) => appLogger.warn(message, ...context),
+  info: (message, ...context) => appLogger.info(message, ...context),
+  debug: (message, ...context) => appLogger.debug(message, ...context),
+  trace: (message, ...context) => appLogger.trace(message, ...context),
+};
+
+const client = new Nostr(["wss://relay.example"], { logger });
+const pool = new RelayPool(["wss://relay.example"], { logger });
+```
+
+Stateless helpers that can report recoverable input or network failures accept
+the same logger as an optional final argument or in their existing options bag.
+Diagnostic sinks are observational: an exception thrown by a custom logger does
+not replace the helper or client result. The deprecated warn-only NIP-02 logger
+contract remains compatible throughout the 0.x line.
+
 ## Basic client usage
 
 ```typescript
