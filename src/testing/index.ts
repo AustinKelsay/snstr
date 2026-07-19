@@ -6,6 +6,16 @@
  */
 export { NostrRelay } from "../utils/ephemeral-relay";
 export type { NostrRelayOptions } from "../utils/ephemeral-relay";
+export {
+  dispatchRelayMessage,
+  getRelaySocket,
+  installNostrTestRelay,
+  installRelaySocket,
+  replaceRelayInboundValidator,
+  scheduleRelayReconnect,
+  waitForRelayValidation,
+} from "./behavior-controls";
+export type { NostrTestRelay, RelayTestSocket } from "./behavior-controls";
 
 import type {
   RelayEvent,

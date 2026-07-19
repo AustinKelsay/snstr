@@ -11,10 +11,10 @@ import {
   RelayEvent,
 } from "../../../src/types/nostr";
 import { Relay } from "../../../src/nip01/relay";
-import { NostrRelay } from "../../../src/testing";
+import { getRelaySocket, NostrRelay } from "../../../src/testing";
 import { createSignedEvent } from "../../../src/nip01/event";
 import { generateKeypair } from "../../../src/utils/crypto";
-import { asTestRelay, testUtils } from "../../types";
+import { testUtils } from "../../types";
 
 // Helper function to wait for events
 const waitForEvents = (
@@ -72,11 +72,9 @@ describe("Enhanced NostrFilter Types", () => {
         relay.on(RelayEvent.Notice, handler);
       });
 
-      const socket = asTestRelay(relay).ws;
+      const socket = getRelaySocket(relay);
       expect(socket).not.toBeNull();
-      socket?.send(
-        JSON.stringify(["REQ", "invalid-filter", { kinds: "1" }]),
-      );
+      socket?.send(JSON.stringify(["REQ", "invalid-filter", { kinds: "1" }]));
 
       await expect(notice).resolves.toBe("invalid: REQ filters");
     });
