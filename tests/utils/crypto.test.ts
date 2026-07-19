@@ -145,22 +145,28 @@ describe("Crypto Utilities", () => {
       expect(decrypted).toEqual(originalMessage);
     });
 
-    test("decryption should fail with wrong keys", async () => {
+    test("decryption with wrong keys should not recover the plaintext", () => {
       const originalMessage = "This is a secret message!";
-      const encrypted = encryptNIP04(
-        alicePrivateKey,
-        bobPublicKey,
-        originalMessage,
+      const fixedAlicePrivateKey = `${"0".repeat(63)}1`;
+      const fixedBobPrivateKey = `${"0".repeat(63)}2`;
+      const fixedEvePrivateKey = `${"0".repeat(63)}3`;
+      const fixedAlicePublicKey = getPublicKey(fixedAlicePrivateKey);
+
+      // NIP-04 uses unauthenticated AES-CBC. Wrong-key plaintext can
+      // occasionally have valid padding, so failure is not guaranteed. This
+      // fixed vector exercises that case and must only produce gibberish.
+      const encrypted =
+        "7tqJrsqTVbzTJxdfchHjKJk6QEGXcsBRxkFhsDhls3Y=?iv=ge1giUI+IDKF3ibFHhqsSA==";
+      const decrypted = decryptNIP04(
+        fixedEvePrivateKey,
+        fixedAlicePublicKey,
+        encrypted,
       );
 
-      // Generate an unrelated keypair
-      const eveKeypair = await generateKeypair();
-      const evePrivateKey = eveKeypair.privateKey;
-
-      // Eve tries to decrypt with her key
-      expect(() =>
-        decryptNIP04(evePrivateKey, alicePublicKey, encrypted),
-      ).toThrow(NIP04DecryptionError);
+      expect(
+        decryptNIP04(fixedBobPrivateKey, fixedAlicePublicKey, encrypted),
+      ).toBe(originalMessage);
+      expect(decrypted).not.toBe(originalMessage);
     });
 
     test("should produce different ciphertexts for the same message to different recipients", async () => {
