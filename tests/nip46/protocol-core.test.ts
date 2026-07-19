@@ -7,6 +7,15 @@ import {
   NIP46Response,
 } from "../../src/nip46/types";
 
+async function captureRejection(promise: Promise<unknown>): Promise<Error> {
+  try {
+    await promise;
+    return new Error("Expected promise to reject");
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error));
+  }
+}
+
 describe("NIP-46 protocol core", () => {
   const sender = {
     privateKey: "11".repeat(32),
@@ -20,48 +29,41 @@ describe("NIP-46 protocol core", () => {
   test("rejects duplicate pending request IDs without replacing the owner", async () => {
     const correlator = new NIP46RequestCorrelator();
     const first = correlator.register("duplicate", 1000, () => new Error());
-    const firstOutcome = expect(first).rejects.toThrow("cleanup");
+    const firstOutcome = captureRejection(first);
 
-    await expect(
+    const duplicateError = await captureRejection(
       correlator.register("duplicate", 1000, () => new Error()),
-    ).rejects.toThrow("already pending");
+    );
+    expect(duplicateError.message).toContain("already pending");
     expect(correlator.pending.size).toBe(1);
 
     correlator.reject("duplicate", new Error("cleanup"));
-    await firstOutcome;
+    expect((await firstOutcome).message).toBe("cleanup");
     expect(correlator.pending.size).toBe(0);
   });
 
   test("removes a pending request when its timeout settles", async () => {
-    jest.useFakeTimers();
-    try {
-      const correlator = new NIP46RequestCorrelator();
-      const request = correlator.register(
-        "timeout",
-        25,
-        () => new Error("expected timeout"),
-      );
-      const outcome = expect(request).rejects.toThrow("expected timeout");
+    const correlator = new NIP46RequestCorrelator();
+    const request = correlator.register(
+      "timeout",
+      5,
+      () => new Error("expected timeout"),
+    );
 
-      jest.advanceTimersByTime(25);
-      await outcome;
-      expect(correlator.pending.size).toBe(0);
-    } finally {
-      jest.useRealTimers();
-    }
+    expect((await captureRejection(request)).message).toBe("expected timeout");
+    expect(correlator.pending.size).toBe(0);
   });
 
   test("cancels and removes every pending request", async () => {
     const correlator = new NIP46RequestCorrelator();
     const first = correlator.register("first", 1000, () => new Error());
     const second = correlator.register("second", 1000, () => new Error());
-    const outcomes = [
-      expect(first).rejects.toThrow("expected cancellation"),
-      expect(second).rejects.toThrow("expected cancellation"),
-    ];
+    const outcomes = [captureRejection(first), captureRejection(second)];
 
     correlator.cancelAll(new Error("expected cancellation"));
-    await Promise.all(outcomes);
+    for (const error of await Promise.all(outcomes)) {
+      expect(error.message).toBe("expected cancellation");
+    }
     expect(correlator.pending.size).toBe(0);
   });
 
