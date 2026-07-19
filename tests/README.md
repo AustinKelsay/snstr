@@ -70,22 +70,24 @@ To run the routine feedback lane:
 
 ```bash
 npm test
+bun run test:bun
 ```
 
-To run the complete Jest assurance set, including the named slow security and performance lane:
+To run only the named slow security and performance lane:
 
 ```bash
 npm run test:slow
-npm run test:all
+bun run test:bun:slow
 ```
 
-To run the routine or complete assurance set with Bun:
+To run the complete assurance set in either runtime:
 
 ```bash
-bun run test:bun
-bun run test:bun:slow
+npm run test:all
 bun run test:bun:all
 ```
+
+Each complete command already runs its routine and slow lanes; do not run the standalone slow command first.
 
 To run tests for a specific NIP:
 
