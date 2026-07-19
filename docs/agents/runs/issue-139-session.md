@@ -27,8 +27,8 @@
 ## Review
 
 - Review fixed point: `3c1e905`
-- Standards findings: initial Grok pass found missing JSDoc, new snake_case ownership, duplicated diagnostic coercion, and transport client-set traversal; all were fixed. The private factory and cohesive session owner were retained deliberately.
-- Spec findings: initial Grok pass found final gates/PR pending and session coverage error-only; gates are green and focused session coverage now proves REQ, EOSE, EVENT, CLOSE, malformed messages, and stale-route removal. PR delivery remains the next workflow step.
+- Standards findings: initial Grok pass found missing JSDoc, new snake_case ownership, duplicated diagnostic coercion, and transport client-set traversal; all were fixed. Final Grok re-review approved with 0 hard and 0 actionable judgement findings.
+- Spec findings: initial Grok pass found final gates/PR pending and session coverage error-only; gates are green and focused session coverage now proves REQ, EOSE, EVENT, CLOSE, malformed messages, and stale-route removal. Final Grok re-review approved with 0 code/spec findings and named the PR as the expected next action.
 - Worthy fixes applied: shared diagnostic coercion/protection, transport-owned broadcast, camelCase subscription state, post-start server error handling, guaranteed shutdown cleanup, direct NIP-46 subscription routing, and cancellable test polling.
 - Findings ignored with reasons: CodeRabbit's connection cap requires a new unspecified product policy; changing duplicate delivery for overlapping filters changes pre-existing observable behavior. Both are outside the structural compatibility scope.
 - CodeRabbit: two full-diff passes completed; five in-scope findings fixed; final incremental review 0 findings. See `issue-139-coderabbit-local.md`.

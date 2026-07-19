@@ -49,7 +49,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | #136 NIP-46 protocol core         | AFK  | merged      | `feature/nip46-protocol-core`           | Grok and CodeRabbit local/hosted clean after fixes       | Jest/Bun 1096/1096; hosted CI green  |
 | #137 default test feedback loop   | AFK  | merged      | `feature/fast-default-test-loop`        | Grok pass; CodeRabbit hosted finding fixed and confirmed | routine 1063; slow 40; coverage 1103 |
 | #138 public behavior test seams   | AFK  | merged      | `feature/public-behavior-test-seams`    | Grok approved; CodeRabbit local/hosted findings resolved | Jest/Bun 1061; hosted CI green       |
-| #139 ephemeral Relay internals    | AFK  | ready for PR | `feature/ephemeral-relay-internals`     | Grok review fixes applied; CodeRabbit findings resolved/triaged | Jest/Bun 1,102; all local gates green |
+| #139 ephemeral Relay internals    | AFK  | ready for PR | `feature/ephemeral-relay-internals`     | Grok standards/spec approved; CodeRabbit findings resolved/triaged | Jest/Bun 1,102; all local gates green |
 
 ## Parked HITL Slices
 
@@ -69,7 +69,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | #136  | `ed9fa4a`   | current Codex orchestrator; Grok 4.5 High reviewers | PR #145 through merge `8b970e4`            | Grok and CodeRabbit local/hosted clean after fixes                                                       | NIP-46 185/185; Jest/Bun 1096/1096; all local and hosted gates green                                    |
 | #137  | `8b970e4`   | current Codex orchestrator; Grok 4.5 High reviewers | PR #146 through merge `b33f31f`            | Grok standards/spec passed after Bun 1.3.9 fix; CodeRabbit hosted finding fixed and explicitly confirmed | baseline 85/1096/58.793s; routine 84/1063/32.356s; slow 2/40/43.154s; coverage 86/1103; hosted CI green |
 | #138  | `b33f31f`   | current Codex orchestrator; Grok 4.5 High reviewers | PR #147 through merge `3c1e905`            | Grok approved; CodeRabbit local clean; two hosted nits fixed and false positive withdrawn                | routine Jest/Bun 1061; slow Jest/Bun 35; coverage 1096; all local gates and four hosted lanes green     |
-| #139  | `3c1e905`   | current Codex orchestrator; Grok 4.5 High reviewers | `d6504f6`, `7a48586`, `f8e9aac`, `96dd79f` plus review artifacts | Grok design/standards/spec passes; CodeRabbit in-scope findings fixed, scope changes rejected | focused 50/50; Jest/Bun 1,102/1,102; policies, lint, types, builds, examples, web, pack green |
+| #139  | `3c1e905`   | current Codex orchestrator; Grok 4.5 High reviewers | `d6504f6`, `7a48586`, `f8e9aac`, `96dd79f` plus review artifacts | Grok standards/spec approved with 0 findings; CodeRabbit in-scope findings fixed, scope changes rejected | focused 50/50; Jest/Bun 1,102/1,102; policies, lint, types, builds, examples, web, pack green |
 
 ## Alignment Decisions
 
