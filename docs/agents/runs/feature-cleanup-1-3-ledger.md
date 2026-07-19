@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-logging-web-build`
 - Human owner: plebdev
 - Started: 2026-07-11
-- Current status: PR open; checks and review complete
+- Current status: checks and review complete; hosted gates passed; PR #92 merged into `staging`
 - Skill setup status: present and verified
 
 ## Goal
@@ -26,7 +26,7 @@ Implement cleanup items 1–3 from the repository scan end to end:
 - ADRs: none; choices are reversible and follow existing logger/build conventions
 - Prototype source branch, if any: none
 - Spec issue: #88 — https://github.com/AustinKelsay/snstr/issues/88
-- Tickets: #89, #90, #91 — implemented; ready-for-review
+- Tickets: #89, #90, #91 — implemented and merged through PR #92
 - Ticket sessions: `issue-89-session.md`, `issue-90-session.md`, `issue-91-session.md`
 - Agent briefs: not applicable; current orchestrator implemented the slices
 - Review packets: `issue-89-review-packet.md`, `issue-90-review-packet.md`, `issue-91-review-packet.md`

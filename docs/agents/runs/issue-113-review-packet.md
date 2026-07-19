@@ -43,7 +43,7 @@
 - Jest: 74 suites, 1013/1013
 - Bun: 1013/1013
 - Commands, lint, root/examples typechecks, CJS/ESM build, examples build, and pack verification: pass
-- Local CodeRabbit: 4/4 findings fixed; hosted review pending
+- Local CodeRabbit: 4/4 findings fixed; hosted review passed before PR #122 merged into `staging`
 
 ## Known Tooling Limitation
 

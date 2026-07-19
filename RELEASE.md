@@ -25,8 +25,12 @@ npm publish --access public
 gh release create "v$(node -p 'require("./package.json").version')" --generate-notes
 ```
 
-The cleanup release is backward-compatible and adds browser/React Native
-exports, so its expected version bump is **minor** (`0.3.4` → `0.4.0`).
+The current cleanup candidate is backward-compatible and adds supported public
+testing and protocol surfaces, so its expected version bump is **minor**
+(`0.5.0` → `0.6.0`). Keep the package at the currently published version while
+the candidate remains on `staging`. After promotion, create the version commit
+from a clean `main` checkout and move the populated `Unreleased` changelog
+entries under the dated `0.6.0` heading before publishing.
 
 ## Pre-release Checklist
 
