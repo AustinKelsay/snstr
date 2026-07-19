@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: items 1–3 / issues #131–#133 merged into `staging`; item 4 / issue #134 passed independent review and is entering local CodeRabbit review
+- Current status: items 1–3 / issues #131–#133 merged into `staging`; item 4 / issue #134 passed all local gates and is entering hosted review
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -44,7 +44,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | #131 NIP-46 diagnostic redaction  | AFK  | merged          | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes  | Jest/Bun 1054/1054; hosted CI green       |
 | #132 published declaration purity | AFK  | merged          | `feature/public-type-test-purity`       | Grok pass; CodeRabbit local/hosted clean                  | Jest/Bun 1055/1055; hosted CI green       |
 | #133 shared diagnostic seam       | AFK  | merged          | `feature/shared-diagnostics-completion` | Grok standards/spec pass; local and hosted clean           | Jest/Bun 1067/1067; hosted CI green       |
-| #134 NIP-47 service lifecycle     | AFK  | local re-review | `feature/nip47-service-lifecycle`       | Grok pass; CodeRabbit minor doc finding fixed             | Jest/Bun 1073/1073; all local gates green |
+| #134 NIP-47 service lifecycle     | AFK  | PR pending      | `feature/nip47-service-lifecycle`       | Grok pass; CodeRabbit local re-review clean               | Jest/Bun 1073/1073; all local gates green |
 | #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                   | pending                                   |
 | #136 NIP-46 protocol core         | AFK  | blocked by #135 | `feature/nip46-protocol-core`           | pending                                                   | pending                                   |
 | #137 default test feedback loop   | AFK  | blocked by #136 | `feature/fast-default-test-loop`        | pending                                                   | pending                                   |
