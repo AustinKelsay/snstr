@@ -692,15 +692,9 @@ class ZapClientCore {
       stats.latestAt = Math.max(stats.latestAt ?? 0, zap.created_at);
     }
 
-    if (stats.count > 0) {
-      stats.average = Math.floor(stats.total / stats.count);
-    }
-    if (stats.smallest === Number.MAX_SAFE_INTEGER) {
-      stats.smallest = undefined;
-    }
-    if (stats.firstAt === Number.MAX_SAFE_INTEGER) {
-      stats.firstAt = undefined;
-    }
+    if (stats.count === 0) return { total: 0, count: 0 };
+
+    stats.average = Math.floor(stats.total / stats.count);
 
     return stats;
   }

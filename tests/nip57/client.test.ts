@@ -917,5 +917,31 @@ describe("NIP-57 public clients", () => {
         runEventStats(new ZapClient({ nostrClient: zapEvent }), zapEvent),
       ).resolves.toEqual(expected);
     });
+
+    test("both facades normalize all-invalid receipts to empty statistics", async () => {
+      jest.spyOn(nip57, "validateZapReceipt").mockReturnValue({
+        valid: false,
+        message: "invalid receipt",
+      });
+
+      const runStatistics = async (
+        facade: NostrZapClient | ZapClient,
+        nostr: ScriptedNostr,
+      ) => {
+        const statistics = facade.getTotalZapsReceived("a".repeat(64));
+        nostr.emitEvent(RECEIPT);
+        nostr.emitEOSE();
+        return statistics;
+      };
+      const nostrClient = new ScriptedNostr();
+      const zapClient = new ScriptedNostr();
+
+      await expect(
+        runStatistics(new NostrZapClient({ client: nostrClient }), nostrClient),
+      ).resolves.toEqual({ total: 0, count: 0 });
+      await expect(
+        runStatistics(new ZapClient({ nostrClient: zapClient }), zapClient),
+      ).resolves.toEqual({ total: 0, count: 0 });
+    });
   });
 });
