@@ -339,7 +339,7 @@ class ClientSession implements RelaySession {
         this.host.store(event);
 
         // Find subscriptions that match this event
-        for (const [uid, sub] of this.host.subscriptions().entries()) {
+        for (const sub of this.host.subscriptions().values()) {
           for (const filter of sub.filters) {
             if (filter.kinds?.includes(24133)) {
               // Check for #p tag filter - safe array access
@@ -372,25 +372,11 @@ class ClientSession implements RelaySession {
                 continue;
               }
 
-              // Send to matching subscription - safe array access
-              try {
-                const uidParts = uid.split("/");
-                if (validateArrayAccess(uidParts, 1)) {
-                  const subId = safeArrayAccess(uidParts, 1);
-                  if (typeof subId !== "string") {
-                    continue;
-                  }
-                  sub.instance.send(["EVENT", subId, event]);
-                  break;
-                }
-              } catch (error) {
-                if (error instanceof SecurityValidationError) {
-                  this.log.debug(
-                    `Bounds checking error in subscription routing: ${error.message}`,
-                  );
-                }
+              if (typeof sub.subscriptionId !== "string") {
                 continue;
               }
+              sub.instance.sendMatchedEvent(sub.subscriptionId, event);
+              break;
             }
           }
         }

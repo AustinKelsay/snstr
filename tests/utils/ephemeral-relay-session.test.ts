@@ -31,6 +31,19 @@ function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
   ]);
 }
 
+async function waitFor(condition: () => boolean): Promise<void> {
+  await withTimeout(
+    new Promise<void>((resolve) => {
+      const check = () => {
+        if (condition()) resolve();
+        else setTimeout(check, 10);
+      };
+      check();
+    }),
+    "Timed out waiting for Relay session state",
+  );
+}
+
 function sendAndReceiveNotice(relay: Relay, message: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(
@@ -103,6 +116,7 @@ describe("ephemeral Relay client session", () => {
 
       let resolveEvent!: (event: NostrEvent) => void;
       let resolveEose!: () => void;
+      const routedEvents: NostrEvent[] = [];
       const receivedEvent = new Promise<NostrEvent>((resolve) => {
         resolveEvent = resolve;
       });
@@ -111,7 +125,10 @@ describe("ephemeral Relay client session", () => {
       });
       const subscriptionId = subscriber.subscribe(
         [{ kinds: [1] }],
-        resolveEvent,
+        (event) => {
+          routedEvents.push(event);
+          resolveEvent(event);
+        },
         resolveEose,
       );
 
@@ -125,6 +142,18 @@ describe("ephemeral Relay client session", () => {
       ).resolves.toMatchObject({ id: event.id });
 
       subscriber.unsubscribe(subscriptionId);
+      await waitFor(() => server.subs.size === 0);
+
+      const eventAfterClose = await createRelayEvent(
+        "session owner after CLOSE",
+      );
+      await expect(
+        publisher.publish(eventAfterClose, { timeout: 1000 }),
+      ).resolves.toMatchObject({ success: true });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(routedEvents.map((routedEvent) => routedEvent.id)).toEqual([
+        event.id,
+      ]);
     } finally {
       publisher?.disconnect();
       subscriber?.disconnect();

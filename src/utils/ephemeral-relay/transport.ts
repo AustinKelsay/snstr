@@ -87,6 +87,7 @@ class ManagedRelayTransport implements RelayTransport {
 
         const onListening = () => {
           cleanup();
+          server.on("error", (error) => this.handleRuntimeError(error));
           const address = server.address();
           if (address && typeof address === "object" && "port" in address) {
             this.boundPort =
@@ -149,34 +150,39 @@ class ManagedRelayTransport implements RelayTransport {
     const transportShutdown = webSocketServer
       ? this.closeWebSocketTransport(webSocketServer)
       : Promise.resolve();
+    let sessionTimeout: NodeJS.Timeout | null = null;
 
-    if (inMemoryServer) {
-      unregisterInMemoryServer(this.boundPort || this.port);
-      await closeSessions();
-      inMemoryServer.removeAllListeners();
-    } else if (webSocketServer) {
-      const sessionShutdown = closeSessions();
-      let sessionTimeout: NodeJS.Timeout | null = null;
-      const timedOut = new Promise<boolean>((resolve) => {
-        sessionTimeout = setTimeout(() => resolve(true), 1000);
-        maybeUnref(sessionTimeout);
-      });
-      const sessionsClosed = sessionShutdown.then(() => false);
+    try {
+      if (inMemoryServer) {
+        unregisterInMemoryServer(this.boundPort || this.port);
+        await closeSessions();
+      } else if (webSocketServer) {
+        const sessionShutdown = closeSessions();
+        const timedOut = new Promise<boolean>((resolve) => {
+          sessionTimeout = setTimeout(() => resolve(true), 1000);
+          maybeUnref(sessionTimeout);
+        });
+        const sessionsClosed = sessionShutdown.then(() => false);
 
-      if (await Promise.race([sessionsClosed, timedOut])) {
-        this.logger.warn("Relay client close timed out; forcing cleanup");
-        forceSessions();
-        await sessionShutdown;
+        if (await Promise.race([sessionsClosed, timedOut])) {
+          this.logger.warn("Relay client close timed out; forcing cleanup");
+          forceSessions();
+          await sessionShutdown;
+        }
       }
+    } finally {
       if (sessionTimeout) clearTimeout(sessionTimeout);
 
-      await transportShutdown;
-      webSocketServer.removeAllListeners();
+      try {
+        await transportShutdown;
+        inMemoryServer?.removeAllListeners();
+        webSocketServer?.removeAllListeners();
+      } finally {
+        this.inMemoryServer = null;
+        this.webSocketServer = null;
+        this.boundPort = null;
+      }
     }
-
-    this.inMemoryServer = null;
-    this.webSocketServer = null;
-    this.boundPort = null;
   }
 
   private accept(socket: WebSocket): void {
@@ -207,6 +213,7 @@ class ManagedRelayTransport implements RelayTransport {
     server.on("connection", (socket: EventEmitter) =>
       this.accept(socket as WebSocket),
     );
+    server.on("error", (error) => this.handleRuntimeError(error));
     this.acceptingConnections = true;
 
     return new Promise((resolve) => queueMicrotask(resolve));
@@ -239,6 +246,12 @@ class ManagedRelayTransport implements RelayTransport {
       message.includes("EACCES") ||
       message.includes("EADDRNOTAVAIL")
     );
+  }
+
+  private handleRuntimeError(error: unknown): void {
+    this.logger.warn("Relay transport error", {
+      error: asDiagnosticArgument(error),
+    });
   }
 
   private resetFailedWebSocketServer(server: WebSocketServer): void {

@@ -227,6 +227,25 @@ describe("NostrRelay lifecycle", () => {
     ]);
   });
 
+  test("reports server errors that occur after startup", async () => {
+    const { NostrRelay } = await import("../../src/testing");
+    const { logger, warn } = createDiagnosticLogger();
+    const relay = new NostrRelay(0, { logger });
+
+    try {
+      await relay.start();
+
+      expect(() =>
+        relay.wss.emit("error", new Error("late failure")),
+      ).not.toThrow();
+      expect(warn).toHaveBeenCalledWith("Relay transport error", {
+        error: expect.any(Error),
+      });
+    } finally {
+      await relay.close();
+    }
+  });
+
   test("a throwing diagnostic logger cannot alter Relay lifecycle behavior", async () => {
     const { NostrRelay } = await import("../../src/testing");
     const relay = new NostrRelay(0, {
