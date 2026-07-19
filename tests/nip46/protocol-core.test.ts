@@ -23,6 +23,39 @@ describe("NIP-46 protocol core", () => {
     expect(correlator.pending.size).toBe(0);
   });
 
+  test("removes a pending request when its timeout settles", async () => {
+    jest.useFakeTimers();
+    try {
+      const correlator = new NIP46RequestCorrelator();
+      const request = correlator.register(
+        "timeout",
+        25,
+        () => new Error("expected timeout"),
+      );
+      const outcome = expect(request).rejects.toThrow("expected timeout");
+
+      jest.advanceTimersByTime(25);
+      await outcome;
+      expect(correlator.pending.size).toBe(0);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("cancels and removes every pending request", async () => {
+    const correlator = new NIP46RequestCorrelator();
+    const first = correlator.register("first", 1000, () => new Error());
+    const second = correlator.register("second", 1000, () => new Error());
+    const outcomes = [
+      expect(first).rejects.toThrow("expected cancellation"),
+      expect(second).rejects.toThrow("expected cancellation"),
+    ];
+
+    correlator.cancelAll(new Error("expected cancellation"));
+    await Promise.all(outcomes);
+    expect(correlator.pending.size).toBe(0);
+  });
+
   test("accepts well-shaped extension methods and rejects malformed envelopes", async () => {
     const sender = await generateKeypair();
     const recipient = await generateKeypair();
