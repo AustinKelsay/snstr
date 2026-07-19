@@ -535,9 +535,12 @@ describe("[slow] NIP-46 Performance & DoS Protection", () => {
 
     test("bunker operations remain healthy after a stop/start cycle", async () => {
       const firstClient = new SimpleNIP46Client([relay.url], { timeout: 5000 });
-      await firstClient.connect(managedBunker.getConnectionString());
-      await expect(firstClient.ping()).resolves.toBe(true);
-      await firstClient.disconnect();
+      try {
+        await firstClient.connect(managedBunker.getConnectionString());
+        await expect(firstClient.ping()).resolves.toBe(true);
+      } finally {
+        await firstClient.disconnect();
+      }
 
       await managedBunker.stop();
       await managedBunker.start();

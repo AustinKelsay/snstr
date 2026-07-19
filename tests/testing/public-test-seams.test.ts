@@ -19,6 +19,7 @@ describe("public behavior test seams", () => {
       "tests/nip01/relay/filters.test.ts",
       "tests/nip01/relay/relay-reconnect.test.ts",
       "tests/nip01/relay/relay.test.ts",
+      "tests/nip01/relay/relayEventStore.test.ts",
     ]
       .map(read)
       .join("\n");
@@ -64,7 +65,12 @@ describe("public behavior test seams", () => {
   });
 
   test("keeps testing-entrypoint controls narrow and behavior-oriented", () => {
-    const behaviorControls = read("src/testing/behavior-controls.ts");
+    const testingEntrypoints = [
+      "src/testing/behavior-controls.ts",
+      "src/testing/index.ts",
+    ]
+      .map(read)
+      .join("\n");
 
     for (const broadControl of [
       "installNip47ClientInitializationHooks",
@@ -74,7 +80,7 @@ describe("public behavior test seams", () => {
       "encryptionRetained",
       "requestEncryption.has",
     ]) {
-      expect(behaviorControls).not.toContain(broadControl);
+      expect(testingEntrypoints).not.toContain(broadControl);
     }
   });
 });
