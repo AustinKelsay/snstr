@@ -38,7 +38,7 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - none; final pinned-Bun Grok follow-up passed standards and spec
 
-CODERABBIT_STATUS: compatibility implementation clean; final wording fix committed, zero-finding retry pending after CLI cooldown
+CODERABBIT_STATUS: clean committed rerun with zero findings; all hosted findings fixed and verified
 CODERABBIT_FINDINGS:
 - major: include Jest-compatible .spec.* files in canonical discovery — fixed with a red/green regression test
 - minor: assert routine and complete coverage wiring — fixed

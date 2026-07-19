@@ -15,7 +15,7 @@
 | Client and service delegate pure protocol work | client delegates URL/response codecs; service delegates request parsing and dispatch |
 | Exhaustive compatible dispatch | `src/nip47/requestDispatcher.ts` plus direct tests |
 | Preserve lifecycle and encryption negotiation | existing public NIP-47 and NIP-44 integration suites |
-| Full verification | post-hosted-review focused 71/71; pre-hosted-review full Jest/Bun 1021/1021; commands, types, builds, pack; hosted rerun pending |
+| Full verification | post-hosted-review focused 71/71; full Jest/Bun 1021/1021; commands, types, builds, pack; hosted CodeRabbit and Bun/Node 16/18/20 checks green |
 
 ## Decisions
 

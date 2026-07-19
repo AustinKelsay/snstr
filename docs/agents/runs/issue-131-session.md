@@ -6,7 +6,7 @@
 - Fixed point before session: `f4bda34`
 - Worker session: current Codex orchestrator; Grok 4.5 High standards/spec reviewers
 - Commit: `7ed8433`, `00104cc`, `21b4ad9`, `426c17b`
-- Status: local and hosted review complete; PR #140 open against `staging`; all hosted gates passed for `4ea5fbc`
+- Status: local and hosted review complete; PR #140 merged into `staging` as `cf705f0`; all hosted gates passed
 
 ## Inputs
 
@@ -46,4 +46,4 @@
 
 ## Risks
 
-- No code or hosted-gate risks remain open; `4ea5fbc` is ready to merge into `staging`.
+- No code or hosted-gate risks remained when PR #140 merged into `staging`.

@@ -27,7 +27,7 @@ Remove the shared `Nostr` and `Relay` private-shape adapters, rewrite tests arou
 
 ## Status
 
-- Local implementation and review are complete; the non-draft PR to `staging` is pending.
+- Local implementation and review completed; all hosted gates passed and PR #147 merged into `staging` as `3c1e905`.
 
 ## Implementation Result
 

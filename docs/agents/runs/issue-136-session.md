@@ -6,7 +6,7 @@
 - Fixed point before session: `ed9fa4a`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commits: `cf3819b`, `baa2bf2`, `03a6652`, `7b5a7d0`, `2d4fc6f`, `d983bae`, `bc342cd`, `9e029be`, `1c38f2c`
-- Status: PR #145 open; follow-up hosted and local findings fixed; all local gates green; final hosted rerun pending
+- Status: PR #145 merged into `staging` as `8b970e4`; follow-up hosted and local findings fixed; all local and hosted gates green
 
 ## Inputs
 

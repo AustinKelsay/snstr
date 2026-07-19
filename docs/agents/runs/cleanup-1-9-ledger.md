@@ -25,8 +25,8 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Tickets: #131–#139
 - Ticket sessions: created as each ticket starts
 - Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all standards/spec passes
-- Review packets: `issue-131-review-packet.md` through `issue-137-review-packet.md`; created per later ticket
-- Local CodeRabbit report: `issue-131-coderabbit-local.md` through `issue-136-coderabbit-local.md`; created per later ticket
+- Review packets: `issue-131-review-packet.md` through `issue-137-review-packet.md`, plus `issue-139-review-packet.md`; issue #138 keeps its review evidence in `issue-138-session.md`
+- Local CodeRabbit reports: `issue-131-coderabbit-local.md` through `issue-136-coderabbit-local.md`, plus `issue-139-coderabbit-local.md`; issues #137 and #138 keep their CodeRabbit evidence in their review packet and session record respectively
 - PR URL: #140 merged for issue #131; #141 merged for issue #132; #142 merged for issue #133; #143 merged for issue #134; #144 merged for issue #135; #145 merged for issue #136; #146 merged for issue #137; #147 merged for issue #138; #148 merged for issue #139; all were non-draft and targeted `staging`
 
 ## Commands

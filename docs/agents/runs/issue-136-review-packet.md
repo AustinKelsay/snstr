@@ -37,7 +37,7 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - all acceptance criteria met; zero remaining findings
 
-CODERABBIT_STATUS: local pass; final hosted rerun pending
+CODERABBIT_STATUS: local and hosted pass; PR #145 merged into `staging`
 CODERABBIT_FINDINGS:
 - initial six issues fixed: envelope schemas, duplicate IDs, validation order, lifecycle serialization, publish deadline, browser-safe process access
 - two follow-up test issues addressed with timeout/cancel coverage and deterministic synthetic keypairs

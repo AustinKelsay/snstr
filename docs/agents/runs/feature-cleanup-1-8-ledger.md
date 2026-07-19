@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-logging-web-build`
 - Human owner: plebdev
 - Started: 2026-07-13
-- Current status: items 1–8 complete locally; final review fixes verified and ready for PR CI refresh
+- Current status: items 1–8 complete; final review fixes and hosted gates passed; PR #92 merged into `staging`
 - Skill setup status: present and verified
 
 ## Goal
@@ -63,7 +63,7 @@ Complete all eight cleanup items from the repository scan end to end, optimizing
 
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
-| Items 1–3 (#89–#91) | `staging` | completed prior sessions + final review fixes | `934a2d5`, `1543c6a`, `62ba743`, `d4fb538`, `2f3126e`, `932a787` | pass/pass | lint, typecheck, 879 tests, builds, pack, CI refresh pending |
+| Items 1–3 (#89–#91) | `staging` | completed prior sessions + final review fixes | `934a2d5`, `1543c6a`, `62ba743`, `d4fb538`, `2f3126e`, `932a787` | pass/pass | lint, typecheck, 879 tests, builds, pack; hosted gates passed |
 | Item 4 (#94) | `1334370` | Luna-high worker + orchestrator | `e77c49c` | pass/pass | coverage 66/879; 23 nested indexes measured |
 | Item 5 (#95) | `2f6a6f4` | orchestrator | `3daf6ad` | pass/pass after wording fix | five targeted scripts; integrated 66/879 |
 | Item 6 (#96) | `e77c49c` | orchestrator | `40f01c9` | pass/pass | lockfiles, 56 focused tests, builds, pack |
