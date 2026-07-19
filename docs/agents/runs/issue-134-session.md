@@ -6,7 +6,7 @@
 - Fixed point before session: `2a3556d`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commit: pending
-- Status: implementation, focused verification, and independent Grok standards/spec review complete; local CodeRabbit review pending
+- Status: implementation, full verification, and independent Grok standards/spec review complete; local CodeRabbit review waiting on service cooldown
 
 ## Inputs
 
@@ -22,7 +22,7 @@
 - Behaviors covered: sequential and concurrent initialization, idempotent disconnect, restart with one fresh request subscription, and expiration-aware request handling after restart
 - `tdd` used: yes; the focused suite observes service behavior through the public service API and the exported ephemeral Relay test surface
 - Commands run during implementation: focused Jest/Bun lifecycle suites, NIP-47 Jest regression suite, strict TypeScript, ESLint, and diff checks
-- Full suite command: pending
+- Full suite command: `npm test -- --runInBand`; `npm run test:bun`; repository policy, lint, type, build, example, and pack gates
 
 ## Review
 
@@ -36,9 +36,9 @@
 ## Verification
 
 - Focused: Jest/Bun lifecycle suite 6/6 after review-driven additions; NIP-47 Jest regression 9/9 suites and 76/76 tests
-- Full Jest: pending
-- Full Bun: pending
-- Repository gates: pending
+- Full Jest: 83/83 suites and 1073/1073 tests
+- Full Bun: 83 files and 1073/1073 tests
+- Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, and pack verification all green
 
 ## Risks
 

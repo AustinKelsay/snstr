@@ -19,7 +19,7 @@
 - Red tests: sequential initialization left two active Relay subscriptions; concurrent initialization returned different promises and duplicated work; a queued restart originally survived a later disconnect
 - Green implementation: public lifecycle suite covers sequential and concurrent initialization, repeated disconnect, queued and in-flight cancellation, restart, one active subscription, and an encrypted expired request after restart
 - Refactor: lifecycle state and resource ownership remain private to `NostrWalletService`; no production test hook or public API addition was introduced
-- Commands run: focused Jest/Bun lifecycle suites, NIP-47 Jest regression suite, strict TypeScript, ESLint, and diff checks; full repository gates pending final review
+- Commands run: focused Jest/Bun lifecycle suites, NIP-47 Jest regression suite, full Jest/Bun, command and package-manager policy checks, strict TypeScript, ESLint, CJS/ESM builds, examples, pack verification, and diff checks
 
 ## Review Instructions
 
