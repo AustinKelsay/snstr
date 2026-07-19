@@ -27,4 +27,28 @@ Remove the shared `Nostr` and `Relay` private-shape adapters, rewrite tests arou
 
 ## Status
 
-- In progress: repository cast inventory complete; Grok design review running.
+- Local implementation and review are complete; the non-draft PR to `staging` is pending.
+
+## Implementation Result
+
+- Removed the shared `NostrInternals`, `getNostrInternals`, `RelayTestAccess`, and `asTestRelay` private-shape adapters.
+- Reworked the targeted Nostr, Relay, NIP-46, and NIP-47 suites around public lifecycle, callbacks, relay wire behavior, or focused controls exported by `src/testing`.
+- Added a source contract that prevents the removed adapters and broad private-shape patterns from returning in the targeted suites.
+- Extracted the NIP-46 replay guard into an internal module and exercised replay rejection, lifecycle reset, timer cleanup, relay reconnect policy, socket replacement, and replaceable-event ordering through behavior-sensitive tests.
+- Kept NIP-04 permissions out of the shared core fixture and granted them only in the encryption compatibility test.
+
+## Review Result
+
+- Grok design, standards, and specification review: approved after the behavior-sensitivity fixes.
+- CodeRabbit local review: clean, 0 findings on the final full diff after five earlier minor findings were fixed.
+- No public replay-window option was added: exposing product configuration only to support a test would violate this issue's guardrail, while the internal replay guard remains directly testable.
+
+## Verification Result
+
+- Routine Jest: 86 suites, 1,061 tests passed.
+- Slow Jest: 35 tests passed.
+- Routine Bun: 1,061 tests passed.
+- Slow Bun: 35 tests passed.
+- Complete Jest coverage lane: 88 suites, 1,096 tests passed; 80.72% statements, 68.59% branches, 82.63% functions, and 81.20% lines.
+- Commands policy, package-manager policy, lint, strict TypeScript, build, examples build, and package verification passed.
+- Final NIP-04 permission adjustment passed its focused Jest and Bun test plus lint and strict TypeScript.
