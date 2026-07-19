@@ -8,10 +8,7 @@ import {
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
 import { invokeNip46BunkerConnect, NostrRelay } from "../../src/testing";
-import {
-  NIP46ConnectionError,
-  NIP46Method,
-} from "../../src/nip46/types";
+import { NIP46ConnectionError, NIP46Method } from "../../src/nip46/types";
 import { validateSecureInitialization } from "../../src/nip46/utils/security";
 
 jest.setTimeout(60000); // 60 second timeout for NIP-46 operations to handle full test suite load
@@ -84,8 +81,6 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
       "ping",
       "nip44_encrypt",
       "nip44_decrypt",
-      "nip04_encrypt",
-      "nip04_decrypt",
     ]);
 
     await bunker.start();
@@ -154,6 +149,13 @@ describe("NIP-46 Core Functionality (Optimized)", () => {
     });
 
     test("NIP-44 and NIP-04 encryption support", async () => {
+      bunker.setDefaultPermissions([
+        "nip44_encrypt",
+        "nip44_decrypt",
+        "nip04_encrypt",
+        "nip04_decrypt",
+      ]);
+
       const connectionString = bunker.getConnectionString();
       await client.connect(connectionString);
 
