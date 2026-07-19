@@ -3,13 +3,13 @@
 ## Review
 
 - Command: `coderabbit review --agent --type committed --base staging -c AGENTS.md`
-- Reviewed commit: `569b266`
-- Initial result: service rate limit; retry required after the included-review cooldown
+- Reviewed commits: `569b266`, `644b52f`
+- Initial result: one minor documentation finding after the included-review cooldown
 - Re-review: pending
 
 ## Findings and Resolutions
 
-- Pending successful review execution.
+1. The issue session still recorded its implementation commit as pending. Fixed by recording implementation commit `569b266` and verification-artifact commit `644b52f`.
 
 ## Verification Before Retry
 
