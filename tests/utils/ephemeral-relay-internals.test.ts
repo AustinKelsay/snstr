@@ -39,6 +39,7 @@ describe("ephemeral Relay internal ownership", () => {
     expect(facadeSource).not.toContain("unregisterInMemoryServer");
     expect(facadeSource).not.toContain("closeWebSocketTransport");
     expect(facadeSource).not.toContain("_acceptingConnections");
+    expect(facadeSource).not.toContain(".clients.forEach");
   });
 
   test("private Relay owners do not become package entrypoints", () => {

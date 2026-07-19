@@ -1,9 +1,9 @@
 import EventEmitter from "events";
-import { WebSocket } from "ws";
 import { NostrEvent } from "../types/nostr";
+import { protectDiagnosticLogger } from "./diagnostics";
 import { maybeUnref } from "./timers";
 import { notifyRelayDisconnectObservers } from "./websocket";
-import { DiagnosticLogArgument, DiagnosticLogger, Logger } from "./logger";
+import { DiagnosticLogger, Logger } from "./logger";
 import {
   createClientSession,
   RelaySession,
@@ -19,30 +19,6 @@ import {
 
 // Prefer 127.0.0.1 over localhost to avoid IPv6 resolution issues in CI.
 const HOST = "ws://127.0.0.1";
-
-function createNonThrowingDiagnosticLogger(
-  logger: DiagnosticLogger,
-): DiagnosticLogger {
-  const write = (
-    level: keyof DiagnosticLogger,
-    message: string,
-    args: DiagnosticLogArgument[],
-  ) => {
-    try {
-      logger[level](message, ...args);
-    } catch {
-      // Diagnostics are observational and must not alter Relay behavior.
-    }
-  };
-
-  return {
-    error: (message, ...args) => write("error", message, args),
-    warn: (message, ...args) => write("warn", message, args),
-    info: (message, ...args) => write("info", message, args),
-    debug: (message, ...args) => write("debug", message, args),
-    trace: (message, ...args) => write("trace", message, args),
-  };
-}
 
 /* ================ [ Interfaces ] ================ */
 
@@ -86,7 +62,7 @@ export class NostrRelay {
     this._port = port;
     this._purge = options.purgeInterval ?? null;
     this._subs = new Map();
-    this._logger = createNonThrowingDiagnosticLogger(
+    this._logger = protectDiagnosticLogger(
       options.logger ?? new Logger({ silent: true }),
     );
     this._sessions = new Set();
@@ -94,13 +70,8 @@ export class NostrRelay {
       cachedEvents: () => this._cache,
       subscriptions: () => this._subs,
       store: (event) => this.store(event),
-      broadcast: (message, sender) => {
-        this.wss.clients.forEach((client) => {
-          if (client !== sender && client.readyState === WebSocket.OPEN) {
-            client.send(message);
-          }
-        });
-      },
+      broadcast: (message, sender) =>
+        this._transport?.broadcast(message, sender),
       clientDisconnected: () => {
         this.conn = Math.max(0, this.conn - 1);
       },

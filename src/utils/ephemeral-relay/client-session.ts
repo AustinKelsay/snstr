@@ -6,8 +6,9 @@ import type {
   NostrOkMessage,
   NostrRelayMessage,
 } from "../../types/protocol";
+import { asDiagnosticArgument } from "../diagnostics";
 import { isValidPublicKeyPoint } from "../key-validation";
-import type { DiagnosticLogArgument, DiagnosticLogger } from "../logger";
+import type { DiagnosticLogger } from "../logger";
 import {
   safeArrayAccess,
   SecurityValidationError,
@@ -25,21 +26,7 @@ function isValid64ByteHex(hex: string): boolean {
   return isHexOfLength(hex, 128);
 }
 
-function toDiagnosticArgument(value: unknown): DiagnosticLogArgument {
-  if (
-    value === null ||
-    value === undefined ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    typeof value === "object"
-  ) {
-    return value;
-  }
-
-  return String(value);
-}
-
+/** Lifecycle and protocol operations exposed to the Relay composition root. */
 export interface RelaySession {
   readonly closed: Promise<void>;
   close(): Promise<void>;
@@ -48,12 +35,14 @@ export interface RelaySession {
   sendMatchedEvent(subscriptionId: string, event: NostrEvent): void;
 }
 
+/** Subscription state shared between active client sessions. */
 export interface RelaySubscription {
   filters: NostrFilter[];
   instance: RelaySession;
-  sub_id: string;
+  subscriptionId: string;
 }
 
+/** Narrow Relay capabilities required by one client session. */
 export interface RelaySessionHost {
   cachedEvents(): readonly NostrEvent[];
   subscriptions(): Map<string, RelaySubscription>;
@@ -62,6 +51,7 @@ export interface RelaySessionHost {
   clientDisconnected(): void;
 }
 
+/** Create a client session and attach its socket event handlers. */
 export function createClientSession(
   host: RelaySessionHost,
   socket: WebSocket,
@@ -90,6 +80,7 @@ export function createClientSession(
   return session;
 }
 
+/** Owns one client's wire protocol, subscriptions, and socket lifecycle. */
 class ClientSession implements RelaySession {
   private _sid: string;
   private readonly _host: RelaySessionHost;
@@ -190,7 +181,7 @@ class ClientSession implements RelaySession {
     } catch (error) {
       this._logger.warn("Relay client close failed", {
         sessionId: this._sid,
-        error: toDiagnosticArgument(error),
+        error: asDiagnosticArgument(error),
       });
       this.cleanup(1006);
     }
@@ -232,7 +223,7 @@ class ClientSession implements RelaySession {
     } catch (e) {
       this._logger.error("Relay client cleanup failed", {
         sessionId: this._sid,
-        error: toDiagnosticArgument(e),
+        error: asDiagnosticArgument(e),
       });
     } finally {
       this._resolveClosed();
@@ -271,8 +262,8 @@ class ClientSession implements RelaySession {
                 ]);
               }
               {
-                const sub_id = parsed[1];
-                if (typeof sub_id !== "string") {
+                const subscriptionId = parsed[1];
+                if (typeof subscriptionId !== "string") {
                   return this.send([
                     "NOTICE",
                     "invalid: REQ subscription id must be a string",
@@ -287,7 +278,7 @@ class ClientSession implements RelaySession {
                   }
                   throw error;
                 }
-                return this.handleRequest(sub_id, filters);
+                return this.handleRequest(subscriptionId, filters);
               }
 
             case "CLOSE":
@@ -320,9 +311,9 @@ class ClientSession implements RelaySession {
     }
   }
 
-  private handleClose(sub_id: string): void {
-    this.log.info("closed subscription:", sub_id);
-    this.remSub(sub_id);
+  private handleClose(subscriptionId: string): void {
+    this.log.info("closed subscription:", subscriptionId);
+    this.remSub(subscriptionId);
   }
 
   handleError(err: Error): void {
@@ -447,12 +438,12 @@ class ClientSession implements RelaySession {
       this.send(["OK", event.id, true, ""] as NostrOkMessage);
       this.host.store(event);
 
-      for (const { filters, instance, sub_id } of this.host
+      for (const { filters, instance, subscriptionId } of this.host
         .subscriptions()
         .values()) {
         for (const filter of filters) {
           if (matchesFilter(event, filter)) {
-            instance.sendMatchedEvent(sub_id, event);
+            instance.sendMatchedEvent(subscriptionId, event);
           }
         }
       }
@@ -461,17 +452,17 @@ class ClientSession implements RelaySession {
     }
   }
 
-  private handleRequest(sub_id: string, filters: NostrFilter[]): void {
+  private handleRequest(subscriptionId: string, filters: NostrFilter[]): void {
     if (filters.length === 0) {
       this.log.client("request has no filters");
       return;
     }
 
-    this.log.client("received subscription request:", sub_id);
+    this.log.client("received subscription request:", subscriptionId);
     this.log.debug("filters:", filters);
 
     // Add subscription
-    this.addSub(sub_id, ...filters);
+    this.addSub(subscriptionId, ...filters);
 
     // For each filter
     let count = 0;
@@ -485,10 +476,10 @@ class ClientSession implements RelaySession {
 
         // Check if event matches filter
         if (matchesFilter(event, filter)) {
-          this.send(["EVENT", sub_id, event]);
+          this.send(["EVENT", subscriptionId, event]);
           count++;
           this.log.client(`event matched in cache: ${event.id}`);
-          this.log.client(`event matched subscription: ${sub_id}`);
+          this.log.client(`event matched subscription: ${subscriptionId}`);
 
           // Update limit counter
           if (limitCount !== undefined) limitCount--;
@@ -499,7 +490,7 @@ class ClientSession implements RelaySession {
     this.log.debug(`sent ${count} matching events from cache`);
 
     // Send EOSE
-    this.send(["EOSE", sub_id] as NostrEoseMessage);
+    this.send(["EOSE", subscriptionId] as NostrEoseMessage);
   }
 
   get log() {
@@ -510,7 +501,7 @@ class ClientSession implements RelaySession {
       const [message = "", ...args] = messages;
       this._logger[level](
         `[Relay client ${this._sid}] ${String(message)}`,
-        ...args.map(toDiagnosticArgument),
+        ...args.map(asDiagnosticArgument),
       );
     };
 
@@ -522,10 +513,14 @@ class ClientSession implements RelaySession {
     };
   }
 
-  addSub(sub_id: string, ...filters: NostrFilter[]) {
-    const uid = `${this.sid}/${sub_id}`;
-    this.host.subscriptions().set(uid, { filters, instance: this, sub_id });
-    this._subs.add(sub_id);
+  addSub(subscriptionId: string, ...filters: NostrFilter[]) {
+    const uid = `${this.sid}/${subscriptionId}`;
+    this.host.subscriptions().set(uid, {
+      filters,
+      instance: this,
+      subscriptionId,
+    });
+    this._subs.add(subscriptionId);
   }
 
   remSub(subId: string) {

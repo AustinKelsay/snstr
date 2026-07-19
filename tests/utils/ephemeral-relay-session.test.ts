@@ -1,6 +1,35 @@
 import { Relay } from "../../src/nip01/relay";
-import { RelayEvent } from "../../src/types/nostr";
+import { createEvent, createSignedEvent } from "../../src/nip01/event";
+import { NostrEvent, RelayEvent } from "../../src/types/nostr";
 import { getRelaySocket, NostrRelay } from "../../src/testing";
+import { getPublicKey } from "../../src/utils/crypto";
+
+const PRIVATE_KEY = "1".repeat(64);
+
+async function createRelayEvent(content: string): Promise<NostrEvent> {
+  return createSignedEvent(
+    createEvent(
+      {
+        kind: 1,
+        tags: [],
+        content,
+        created_at: Math.floor(Date.now() / 1000),
+      },
+      getPublicKey(PRIVATE_KEY),
+    ),
+    PRIVATE_KEY,
+  );
+}
+
+function withTimeout<T>(promise: Promise<T>, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      const timeout = setTimeout(() => reject(new Error(message)), 1000);
+      timeout.unref?.();
+    }),
+  ]);
+}
 
 function sendAndReceiveNotice(relay: Relay, message: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -50,6 +79,55 @@ describe("ephemeral Relay client session", () => {
       );
     } finally {
       client?.disconnect();
+      await server.close();
+    }
+  });
+
+  test("routes successful REQ, EOSE, EVENT, and CLOSE messages", async () => {
+    const server = new NostrRelay(0);
+    let publisher: Relay | null = null;
+    let subscriber: Relay | null = null;
+
+    try {
+      await server.start();
+      publisher = new Relay(server.url, {
+        autoReconnect: false,
+        connectionTimeout: 1000,
+      });
+      subscriber = new Relay(server.url, {
+        autoReconnect: false,
+        connectionTimeout: 1000,
+      });
+      expect(await publisher.connect()).toBe(true);
+      expect(await subscriber.connect()).toBe(true);
+
+      let resolveEvent!: (event: NostrEvent) => void;
+      let resolveEose!: () => void;
+      const receivedEvent = new Promise<NostrEvent>((resolve) => {
+        resolveEvent = resolve;
+      });
+      const receivedEose = new Promise<void>((resolve) => {
+        resolveEose = resolve;
+      });
+      const subscriptionId = subscriber.subscribe(
+        [{ kinds: [1] }],
+        resolveEvent,
+        resolveEose,
+      );
+
+      await withTimeout(receivedEose, "Timed out waiting for EOSE");
+      const event = await createRelayEvent("session owner happy path");
+      await expect(
+        publisher.publish(event, { timeout: 1000 }),
+      ).resolves.toMatchObject({ success: true });
+      await expect(
+        withTimeout(receivedEvent, "Timed out waiting for EVENT"),
+      ).resolves.toMatchObject({ id: event.id });
+
+      subscriber.unsubscribe(subscriptionId);
+    } finally {
+      publisher?.disconnect();
+      subscriber?.disconnect();
       await server.close();
     }
   });

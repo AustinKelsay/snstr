@@ -9,6 +9,22 @@ import {
 type DiagnosticMethod = keyof DiagnosticLogger;
 const SAFE_ERROR_NAME = /^(?:Error|[A-Z][A-Za-z0-9]{0,58}Error)$/;
 
+/** Convert an unknown value into the structured diagnostic contract. */
+export function asDiagnosticArgument(value: unknown): DiagnosticLogArgument {
+  if (
+    value === null ||
+    value === undefined ||
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "object"
+  ) {
+    return value;
+  }
+
+  return String(value);
+}
+
 /** Emit an observational diagnostic without allowing the sink to alter behavior. */
 export function reportDiagnostic(
   logger: DiagnosticLogger,

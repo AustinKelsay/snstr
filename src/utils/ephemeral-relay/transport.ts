@@ -5,13 +5,15 @@ import {
   registerInMemoryServer,
   unregisterInMemoryServer,
 } from "../inMemoryWebSocket";
-import type { DiagnosticLogArgument, DiagnosticLogger } from "../logger";
+import { asDiagnosticArgument } from "../diagnostics";
+import type { DiagnosticLogger } from "../logger";
 import { maybeUnref } from "../timers";
 
 export interface RelayTransport {
   readonly actualPort: number | null;
   readonly server: WebSocketServer;
   start(): Promise<void>;
+  broadcast(message: string, sender: WebSocket): void;
   close(
     closeSessions: () => Promise<void>,
     forceSessions: () => void,
@@ -24,27 +26,14 @@ interface RelayTransportOptions {
   onConnection(socket: WebSocket): void;
 }
 
-function toDiagnosticArgument(value: unknown): DiagnosticLogArgument {
-  if (
-    value === null ||
-    value === undefined ||
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    typeof value === "object"
-  ) {
-    return value;
-  }
-
-  return String(value);
-}
-
+/** Create one private owner for Relay connection and shutdown mechanics. */
 export function createRelayTransport(
   options: RelayTransportOptions,
 ): RelayTransport {
   return new ManagedRelayTransport(options);
 }
 
+/** Owns native/in-memory selection, connections, and ordered shutdown. */
 class ManagedRelayTransport implements RelayTransport {
   private readonly port: number;
   private readonly logger: DiagnosticLogger;
@@ -137,6 +126,14 @@ class ManagedRelayTransport implements RelayTransport {
         } else {
           reject(error);
         }
+      }
+    });
+  }
+
+  broadcast(message: string, sender: WebSocket): void {
+    this.server.clients.forEach((client) => {
+      if (client !== sender && client.readyState === WebSocket.OPEN) {
+        client.send(message);
       }
     });
   }
@@ -277,7 +274,7 @@ class ManagedRelayTransport implements RelayTransport {
         server.close(finish);
       } catch (error) {
         this.logger.warn("Relay transport close failed", {
-          error: toDiagnosticArgument(error),
+          error: asDiagnosticArgument(error),
         });
         finish();
       }
