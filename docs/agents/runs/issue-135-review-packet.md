@@ -37,7 +37,7 @@ SPEC_STATUS: pass
 SPEC_FINDINGS:
 - all acceptance criteria met; zero findings
 
-CODERABBIT_STATUS: hosted re-review pending
+CODERABBIT_STATUS: pass
 CODERABBIT_FINDINGS:
 - stale verification packet corrected
 - anonymous signer pubkey now derives from the supplied ephemeral private key and verifies cryptographically
@@ -45,4 +45,5 @@ CODERABBIT_FINDINGS:
 - invoice callback is bounded to 10 seconds and successful responses require a non-empty invoice
 - all four findings fixed, independently re-reviewed by Grok, fully verified, and accepted by the final committed-diff CodeRabbit pass with zero findings
 - hosted full review found inconsistent seeded fields for an all-invalid receipt set; fixed to return canonical empty statistics through both public facades, passed by Grok, and fully re-verified
+- final hosted rerun completed successfully; the remaining mandatory-error-result cast note was a low-value nitpick intentionally retained for 0.x contract compatibility
 ```
