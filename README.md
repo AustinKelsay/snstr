@@ -151,6 +151,13 @@ try {
 }
 ```
 
+Framework-neutral relay test-double types live at the same boundary, so using
+them does not add Jest (or another test runner) to application declarations:
+
+```typescript
+import type { RelayTestContext, RelayTestMock } from "snstr/testing";
+```
+
 The testing subpath is supported during the 0.x release line, but it is not a
 production relay server and may evolve between minor 0.x releases. The legacy
 `snstr/utils/ephemeral-relay` subpath remains available for 0.x compatibility.
