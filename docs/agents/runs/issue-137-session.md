@@ -5,8 +5,8 @@
 - Issue: #137
 - Fixed point before session: `8b970e4`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
-- Commits: `0de11d9`, `91ffafa`, `45a1a4f`, `295d114`, `d8de419`; final review-record commit pending
-- Status: Bun 1.3.9 watch compatibility fix green; metadata review fix pending on PR #146
+- Implementation commits: `0de11d9`, `91ffafa`, `295d114`, `d8de419`; supporting review records continue through the current branch HEAD
+- Status: implementation, Grok review, and final local gates green; clean CodeRabbit retry pending after cooldown on PR #146
 
 ## Inputs
 
@@ -62,6 +62,7 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - Grok follow-up: standards and spec both passed after the CodeRabbit delta with no findings
 - Hosted CodeRabbit findings: accepted all four; synchronized the run status, documented standalone slow commands, and made routine Bun watch discovery dynamic through a tested pure argument builder while preserving fixed non-watch inventory
 - Final Grok findings: the first hosted fix used a Bun 1.3.11-only ignore flag and the ledger omitted `295d114`; both were valid. The watch lane now uses Bun 1.3.9-supported name filtering, the slow inventory contract enforces `[slow]` on every top-level slow suite, and the ledger records the hosted-fix commit.
+- Final Grok result: standards and spec pass with the pinned Bun 1.3.9 evidence verified
 
 ## Verification
 
@@ -72,7 +73,7 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - Routine Bun: 84 files, 1063/1063 tests
 - Slow Bun: 2 files, 40/40 tests
 - Pinned Bun 1.3.9 compatibility: routine name filter skipped all 40 slow tests across both slow files in 104 ms while the routine lane contract completed 7/7 checks
-- Complete coverage before the hosted-fix regression test: 86/86 suites, 1102/1102 tests in 53.732s; final rerun pending
+- Complete coverage: 86/86 suites, 1103/1103 tests in 49.078s; 80.51% statements, 68.41% branches, 82.80% functions, 81.01% lines
 - Repository gates: command/package-manager policy, ESLint, strict TypeScript, CommonJS script syntax, build, examples, pack, and diff integrity all green
 
 ## Risks

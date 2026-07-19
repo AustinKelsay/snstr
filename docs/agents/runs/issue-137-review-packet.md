@@ -21,7 +21,7 @@ The default Jest and Bun commands now run a canonical routine inventory, while t
 - Routine Bun: 84 files / 1063 tests / 190.68s
 - Slow Bun: 2 files / 40 tests / 40.42s
 - Full union: 86 suites/files / 1103 tests in each runtime
-- Complete Jest coverage command: pre-hosted-fix 86 suites / 1102 tests / 53.732s; final rerun pending
+- Complete Jest coverage command: 86 suites / 1103 tests / 49.078s; 80.51% statement coverage
 
 ## Review Instructions
 
@@ -36,9 +36,9 @@ STANDARDS_FINDINGS:
 
 SPEC_STATUS: pass
 SPEC_FINDINGS:
-- none; post-CodeRabbit Grok follow-up also passed
+- none; final pinned-Bun Grok follow-up passed standards and spec
 
-CODERABBIT_STATUS: local pass through `295d114`; Bun 1.3.9 compatibility fix rerun pending
+CODERABBIT_STATUS: compatibility implementation clean; final wording fix committed, zero-finding retry pending after CLI cooldown
 CODERABBIT_FINDINGS:
 - major: include Jest-compatible .spec.* files in canonical discovery — fixed with a red/green regression test
 - minor: assert routine and complete coverage wiring — fixed
