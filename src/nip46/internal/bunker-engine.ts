@@ -9,6 +9,8 @@ import {
 } from "../types";
 import { NIP46_EVENT_KIND, NIP46Wire } from "./wire";
 
+const DEFAULT_PUBLISH_TIMEOUT = 10000;
+
 export type NIP46RequestHandler = (
   request: NIP46Request,
   clientPubkey: string,
@@ -101,7 +103,7 @@ export class NIP46BunkerEngine {
   }
 
   async publishEvent(event: NostrEvent): Promise<void> {
-    await this.nostr.publishEvent(event);
+    await this.nostr.publishEvent(event, { timeout: DEFAULT_PUBLISH_TIMEOUT });
   }
 
   private async handleEvent(event: NostrEvent): Promise<void> {
@@ -175,7 +177,9 @@ export class NIP46BunkerEngine {
         this.profile.signerKeys(),
         clientPubkey,
       );
-      await this.nostr.publishEvent(event);
+      await this.nostr.publishEvent(event, {
+        timeout: DEFAULT_PUBLISH_TIMEOUT,
+      });
     } catch (error) {
       this.profile.logger.error("Failed to send NIP-46 response", { error });
     }
