@@ -9,6 +9,7 @@ import {
 } from "../../src";
 import type { NostrEvent } from "../../src";
 import type { DiagnosticLogger } from "../../src/utils/logger";
+import { diagnosticFailureType } from "../../src/utils/diagnostics";
 import { createRelayListEvent } from "../../src/nip65";
 import { fetchRelayInformation } from "../../src/nip11";
 
@@ -36,8 +37,38 @@ class ThrowingWebSocket {
   }
 }
 
+class ControlledWebSocket {
+  static latest: ControlledWebSocket | undefined;
+  readyState = 0;
+  onopen: ((event: unknown) => void) | null = null;
+  onclose: ((event: unknown) => void) | null = null;
+  onerror: ((event: unknown) => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
+
+  constructor() {
+    ControlledWebSocket.latest = this;
+  }
+
+  send(): void {}
+
+  close(): void {
+    this.readyState = 3;
+    this.onclose?.({});
+  }
+
+  open(): void {
+    this.readyState = 1;
+    this.onopen?.({});
+  }
+
+  receive(data: string): void {
+    this.onmessage?.({ data });
+  }
+}
+
 describe("shared production diagnostic seam", () => {
   afterEach(() => {
+    ControlledWebSocket.latest = undefined;
     resetWebSocketImplementation();
     jest.restoreAllMocks();
   });
@@ -79,6 +110,33 @@ describe("shared production diagnostic seam", () => {
     await expect(relay.connect()).resolves.toBe(false);
   });
 
+  test("does not forward unknown relay wire types into warning context", async () => {
+    const logger = createLogger();
+    const secret = "secret-token";
+    useWebSocketImplementation(
+      ControlledWebSocket as unknown as typeof WebSocket,
+    );
+    const relay = new Relay("wss://relay.example", {
+      autoReconnect: false,
+      logger,
+    });
+
+    const connection = relay.connect();
+    ControlledWebSocket.latest?.open();
+    await expect(connection).resolves.toBe(true);
+    ControlledWebSocket.latest?.receive(
+      JSON.stringify([secret, "untrusted payload"]),
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith("Unknown relay message type", {
+      itemCount: 1,
+      messageType: "unknown",
+      relay: "wss://relay.example",
+    });
+    expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(secret);
+    relay.disconnect();
+  });
+
   test("uses one injected policy for RelayPool and its child Relays", async () => {
     const logger = createLogger();
     useWebSocketImplementation(
@@ -99,6 +157,27 @@ describe("shared production diagnostic seam", () => {
       "Connection failed",
       expect.objectContaining({ relay: "wss://relay.example" }),
     );
+  });
+
+  test("applies a replacement logger when RelayPool reconfigures an existing Relay", async () => {
+    const originalLogger = createLogger();
+    const replacementLogger = createLogger();
+    useWebSocketImplementation(
+      ThrowingWebSocket as unknown as typeof WebSocket,
+    );
+    const pool = new RelayPool([], { logger: originalLogger });
+
+    pool.addRelay("wss://relay.example", { autoReconnect: false });
+    const relay = pool.addRelay("wss://relay.example", {
+      logger: replacementLogger,
+    });
+    await expect(relay.connect()).resolves.toBe(false);
+
+    expect(replacementLogger.error).toHaveBeenCalledWith(
+      "Connection failed",
+      expect.objectContaining({ relay: "wss://relay.example" }),
+    );
+    expect(originalLogger.error).not.toHaveBeenCalled();
   });
 
   test("keeps Nostr public fallback behavior when its logger throws", async () => {
@@ -169,6 +248,45 @@ describe("shared production diagnostic seam", () => {
     createRelayListEvent([{ url: "", read: true, write: true }]);
 
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+
+  test("bounds Error names before using them as failure metadata", () => {
+    const safeError = new Error("not forwarded");
+    safeError.name = "NostrValidationError";
+    const unsafeError = new Error("not forwarded");
+    unsafeError.name = "secret-token";
+    const overlongError = new Error("not forwarded");
+    overlongError.name = `${"A".repeat(64)}Error`;
+
+    expect(diagnosticFailureType(safeError)).toBe("NostrValidationError");
+    expect(diagnosticFailureType(unsafeError)).toBe("Error");
+    expect(diagnosticFailureType(overlongError)).toBe("Error");
+  });
+
+  test("propagates default parent logger policies to child Relays", async () => {
+    const error = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    useWebSocketImplementation(
+      ThrowingWebSocket as unknown as typeof WebSocket,
+    );
+
+    const pool = new RelayPool();
+    const pooledRelay = pool.addRelay("wss://pool.example", {
+      autoReconnect: false,
+    });
+    await expect(pooledRelay.connect()).resolves.toBe(false);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining("[RelayPool] Connection failed"),
+      expect.any(Object),
+    );
+
+    error.mockClear();
+    const client = new Nostr(["wss://nostr.example"], {
+      relayOptions: { autoReconnect: false },
+    });
+    await client.connectToRelays();
+    expect(error).not.toHaveBeenCalled();
   });
 
   test("keeps default Relay and RelayPool failures visible through ConsoleLogger", async () => {

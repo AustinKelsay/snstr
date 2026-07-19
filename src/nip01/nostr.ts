@@ -168,14 +168,12 @@ export class Nostr {
           includeTimestamp: false,
           silent: process.env.NODE_ENV === "test",
         });
-    this.relayOptions = options?.relayOptions
-      ? {
-          ...options.relayOptions,
-          logger: options.relayOptions.logger ?? options.logger,
-        }
-      : options?.logger
-        ? { logger: options.logger }
-        : undefined;
+    const relayLogger =
+      options?.relayOptions?.logger ?? options?.logger ?? this.logger;
+    this.relayOptions = {
+      ...(options?.relayOptions ?? {}),
+      logger: relayLogger,
+    };
     this.relays = new RelayRegistry(this.relayOptions);
 
     // Initialize rate limits with defaults or user-provided values

@@ -6,7 +6,7 @@
 - Fixed point before session: `46d7289`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
 - Commit: pending
-- Status: implementation, independent Grok review, and full local verification complete; CodeRabbit review pending
+- Status: implementation, independent Grok review, CodeRabbit fixes, and final local verification complete; CodeRabbit re-review pending
 
 ## Inputs
 
@@ -28,16 +28,16 @@
 
 - Review fixed point: `46d7289`
 - Design findings: Grok inventoried every production `console.*` call and recommended additive instance/call injection over mutable global configuration, WARN/ERROR-visible defaults, a non-throwing dispatcher, safe structured context, and unchanged NIP-02 compatibility aliases
-- Standards findings: initial review failed because the default Relay logger prefix retained the raw relay URL and could expose credentials or query tokens; the re-review passed with no hard findings
+- Standards findings: initial review failed because the default Relay logger prefix retained the raw relay URL; a later pass caught an unbounded unknown relay wire type; both secret-exposure paths were fixed with red-to-green tests, and the final standards re-review passed with no hard findings
 - Spec findings: passed with no missing, partial, over-scoped, or incorrectly implemented acceptance criteria
-- Worthy fixes applied: a shared non-throwing dispatcher; additive stateful and stateless logger seams; policy propagation even when per-Relay options are supplied; safe failure types and redacted relay identifiers; migration of console-spy tests to injected public seams; shared default construction and a regression proving the formatted Relay prefix cannot expose URL secrets
-- Findings ignored with reasons: optional runtime logger replacement for an existing Relay, test-only Nostr silence, DEBUG eviction metadata shape, and bounding an unknown wire message label were left for separate scope because they do not violate issue #133 or ADR 0002 and would expand public/runtime behavior
+- Worthy fixes applied: a shared non-throwing dispatcher; additive stateful and stateless logger seams; canonical policy propagation to default and explicitly configured child Relays; replacement logging for existing pooled Relays; bounded failure types; redacted relay identifiers and prefixes; stable unknown-wire metadata; and migration of console-spy tests to injected public seams
+- Findings ignored with reasons: test-only Nostr silence and DEBUG eviction metadata shape remain optional because they are not default-visible production WARN/ERROR behavior; all CodeRabbit findings were accepted and fixed
 
 ## Verification
 
-- Focused: 14/14 suites and 204/204 tests; final seam test 7/7 after the child-policy regression cycle
-- Full Jest: 82/82 suites and 1063/1063 tests
-- Full Bun: 82 files and 1063/1063 tests
+- Focused: 14/14 suites and 204/204 tests; final seam test 11/11 after review-driven red-to-green cycles
+- Full Jest: 82/82 suites and 1067/1067 tests
+- Full Bun: 82 files and 1067/1067 tests
 - Repository gates: commands and package-manager policy, ESLint, strict TypeScript, CJS/ESM builds, examples, and pack verification all green
 
 ## Risks

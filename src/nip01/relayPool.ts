@@ -43,14 +43,12 @@ export class RelayPool {
     this.logger = options?.logger
       ? protectDiagnosticLogger(options.logger)
       : createDefaultDiagnosticLogger({ prefix: "RelayPool" });
-    this.relayOptions = options?.relayOptions
-      ? {
-          ...options.relayOptions,
-          logger: options.relayOptions.logger ?? options.logger,
-        }
-      : options?.logger
-        ? { logger: options.logger }
-        : undefined;
+    const relayLogger =
+      options?.relayOptions?.logger ?? options?.logger ?? this.logger;
+    this.relayOptions = {
+      ...(options?.relayOptions ?? {}),
+      logger: relayLogger,
+    };
     relayUrls.forEach((url) => {
       try {
         this.addRelay(url);
@@ -120,6 +118,9 @@ export class RelayPool {
       this.relays.set(normalizedUrl, relay);
     } else if (options) {
       // Merge the new options into the existing relay's configuration
+      if (options.logger !== undefined) {
+        relay.setLogger(options.logger);
+      }
       if (options.connectionTimeout !== undefined) {
         relay.setConnectionTimeout(options.connectionTimeout);
       }

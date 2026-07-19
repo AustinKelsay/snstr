@@ -133,6 +133,11 @@ export class Relay {
     }
   }
 
+  /** Replace the diagnostic sink without changing Relay behavior. */
+  public setLogger(logger: DiagnosticLogger): void {
+    this.logger = protectDiagnosticLogger(logger);
+  }
+
   public async connect(): Promise<boolean> {
     if (this.connected) return true;
     if (this.connectionPromise) return this.connectionPromise;
@@ -1015,7 +1020,7 @@ export class Relay {
         // Unknown message type, ignore or log
         this.logger.warn("Unknown relay message type", {
           itemCount: rest.length,
-          messageType: typeof type === "string" ? type : "unknown",
+          messageType: "unknown",
           relay: safeRelayDiagnostic(this.url),
         });
         break;

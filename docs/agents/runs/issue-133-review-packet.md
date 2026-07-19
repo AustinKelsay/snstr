@@ -17,7 +17,7 @@ Every production TypeScript module now delegates diagnostics to the canonical lo
 - `implement` session: `issue-133-session.md`
 - `tdd` used: yes
 - Red test: logger properties/arguments were rejected by Relay, RelayPool, Nostr, NIP-65, and NIP-11; the structural gate listed direct production console owners
-- Green implementation: focused affected suites 204/204, final shared-seam regression 7/7, strict TypeScript and lint green; the default Relay prefix regression failed before the redaction fix and passed afterward; final Jest and Bun runs each passed 1063/1063 tests
+- Green implementation: focused affected suites 204/204, final shared-seam regression 11/11, strict TypeScript and lint green; secret-prefix, error-name, parent-policy, existing-child replacement, and unknown-wire regressions failed before their fixes and passed afterward; final Jest and Bun runs each passed 1067/1067 tests
 - Refactor: one internal diagnostics module owns default construction, sink protection, failure typing, and relay-identifier redaction; the canonical logger remains the only console writer
 - Commands run: focused and full Jest, full Bun, source console scan, command/package-manager policy verification, ESLint, strict TypeScript, CJS/ESM builds, example build, and pack verification
 
@@ -30,11 +30,11 @@ Review only issue #133 unless a severe cross-slice regression appears. Keep stan
 ```text
 STANDARDS_STATUS: pass
 STANDARDS_FINDINGS:
-- no hard findings after fixing the raw Relay URL default-prefix leak
-- optional follow-ups only: runtime logger replacement, test-only Nostr silence, DEBUG metadata shape, and bounding unknown message labels
+- no hard findings after fixing the raw Relay URL prefix and unknown relay wire label leaks
+- optional follow-ups only: test-only Nostr silence and DEBUG metadata shape
 
 SPEC_STATUS: pass
 SPEC_FINDINGS:
 - no missing, partial, over-scoped, or incorrectly implemented criteria
-- raw Relay prefix regression and shared default-factory fix verified
+- raw Relay prefix, bounded failure type, parent policy, runtime replacement, unknown-wire redaction, and shared default-factory fixes verified
 ```

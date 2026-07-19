@@ -7,6 +7,7 @@ import {
 } from "./logger";
 
 type DiagnosticMethod = keyof DiagnosticLogger;
+const SAFE_ERROR_NAME = /^(?:Error|[A-Z][A-Za-z0-9]{0,58}Error)$/;
 
 /** Emit an observational diagnostic without allowing the sink to alter behavior. */
 export function reportDiagnostic(
@@ -51,7 +52,11 @@ export function createDefaultDiagnosticLogger(
 
 /** Return stable failure metadata without forwarding untrusted error messages. */
 export function diagnosticFailureType(error: unknown): string {
-  if (error instanceof Error && error.name) return error.name;
+  if (error instanceof Error) {
+    return typeof error.name === "string" && SAFE_ERROR_NAME.test(error.name)
+      ? error.name
+      : "Error";
+  }
   if (error === null) return "null";
   return typeof error;
 }
