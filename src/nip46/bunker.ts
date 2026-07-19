@@ -32,6 +32,7 @@ import {
 import { LogLevel } from "../utils/logger";
 import { NIP46DiagnosticLogger } from "./utils/diagnostics";
 import { NIP46BunkerEngine } from "./internal/bunker-engine";
+import { NIP46ReplayGuard } from "./internal/replay-guard";
 
 export class NostrRemoteSignerBunker {
   private readonly engine: NIP46BunkerEngine;
@@ -49,7 +50,7 @@ export class NostrRemoteSignerBunker {
         params: string[],
       ) => boolean | null)
     | null = null;
-  private usedRequestIds: Map<string, number> = new Map(); // Request ID -> timestamp
+  private readonly replayGuard = new NIP46ReplayGuard();
   private cleanupInterval: NodeJS.Timeout | null = null; // For cleanup interval management
 
   constructor(options: NIP46BunkerOptions) {
@@ -125,10 +126,15 @@ export class NostrRemoteSignerBunker {
           },
         };
       },
-      beforeRequest: (request) =>
-        this.isReplayAttack(request.id)
-          ? { action: "drop" }
-          : { action: "continue" },
+      beforeRequest: (request) => {
+        const replay = this.replayGuard.isReplay(request.id);
+        if (replay) {
+          this.logger.warn("Replay attack detected", {
+            requestId: request.id,
+          });
+        }
+        return replay ? { action: "drop" } : { action: "continue" };
+      },
       handlers: {
         [NIP46Method.CONNECT]: (request, clientPubkey) =>
           this.handleConnect(request, clientPubkey),
@@ -176,7 +182,7 @@ export class NostrRemoteSignerBunker {
         }
         this.connectedClients.clear();
         this.pendingAuthChallenges.clear();
-        this.usedRequestIds.clear();
+        this.replayGuard.clear();
       },
     });
 
@@ -257,51 +263,6 @@ export class NostrRemoteSignerBunker {
   clearPermissionHandler(): void {
     this.permissionHandler = null;
     this.logger.debug("Custom permission handler cleared");
-  }
-
-  /**
-   * Check if a request ID has been used before (replay attack prevention)
-   * @private
-   */
-  private isReplayAttack(requestId: string): boolean {
-    const now = Date.now();
-    const requestTime = this.usedRequestIds.get(requestId);
-
-    if (requestTime !== undefined) {
-      // This request ID has been seen before
-      this.logger.warn("Replay attack detected", {
-        requestId,
-        originalTime: new Date(requestTime).toISOString(),
-        attemptTime: new Date(now).toISOString(),
-      });
-      return true;
-    }
-
-    // Store the request ID with current timestamp
-    this.usedRequestIds.set(requestId, now);
-
-    return false;
-  }
-
-  /**
-   * Clean up old request IDs to prevent memory leaks
-   * @private
-   */
-  private cleanupOldRequestIds(): void {
-    const now = Date.now();
-    const maxAge = 120000; // 2 minutes - reduced from 1 hour for better security
-    let cleaned = 0;
-
-    for (const [requestId, timestamp] of this.usedRequestIds.entries()) {
-      if (now - timestamp > maxAge) {
-        this.usedRequestIds.delete(requestId);
-        cleaned++;
-      }
-    }
-
-    if (cleaned > 0) {
-      this.logger.debug("Cleaned up old request IDs", { count: cleaned });
-    }
   }
 
   /**
@@ -389,7 +350,12 @@ export class NostrRemoteSignerBunker {
    * Periodic cleanup of expired data
    */
   private cleanup(): void {
-    this.cleanupOldRequestIds();
+    const cleanedRequestIds = this.replayGuard.cleanup();
+    if (cleanedRequestIds > 0) {
+      this.logger.debug("Cleaned up old request IDs", {
+        count: cleanedRequestIds,
+      });
+    }
 
     // Clean up expired auth challenges
     const now = Date.now();

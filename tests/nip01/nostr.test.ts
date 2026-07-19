@@ -3,14 +3,18 @@ import {
   NostrEvent,
   Filter,
   RelayEvent,
-  Relay,
   RelayReceivedEvent,
 } from "../../src";
-import { NostrRelay } from "../../src/testing";
+import {
+  dispatchRelayMessage,
+  getRelaySocket,
+  installNostrTestRelay,
+  NostrRelay,
+} from "../../src/testing";
 import { generateKeypair } from "../../src/utils/crypto";
 import { encrypt as encryptNIP04 } from "../../src/nip04";
 import { createMetadataEvent } from "../../src/nip01/event";
-import { getNostrInternals, asTestRelay, testUtils } from "../types";
+import { testUtils } from "../types";
 
 // Use ephemeral relay for all tests
 let ephemeralRelay: NostrRelay;
@@ -72,9 +76,8 @@ describe("Nostr Client", () => {
       client.addRelay(additionalRelay);
 
       // This test verifies the relay was added but doesn't need to connect
-      const relays = getNostrInternals(client).relays;
       const normalizedRelay = testUtils.normalizeRelayUrl(additionalRelay);
-      expect(relays.has(normalizedRelay)).toBe(true);
+      expect(client.getRelay(normalizedRelay)).toBeDefined();
     });
 
     test("should use one Relay identity across normalized public operations", () => {
@@ -84,7 +87,6 @@ describe("Nostr Client", () => {
       const existing = client.getRelay(ephemeralRelay.url);
       expect(client.addRelay(equivalentUrl)).toBe(existing);
       expect(client.getRelay(equivalentUrl)).toBe(existing);
-      expect(getNostrInternals(client).relays.size).toBe(1);
 
       client.removeRelay(equivalentUrl);
       expect(client.getRelay(ephemeralRelay.url)).toBeUndefined();
@@ -95,7 +97,7 @@ describe("Nostr Client", () => {
       expect(() =>
         client.removeRelay("https://not-a-relay.example"),
       ).not.toThrow();
-      expect(getNostrInternals(client).relays.size).toBe(1);
+      expect(client.getRelay(ephemeralRelay.url)).toBeDefined();
     });
 
     test("should connect to relays", async () => {
@@ -114,8 +116,8 @@ describe("Nostr Client", () => {
         challenge = nextChallenge;
       });
 
-      const relay = Array.from(getNostrInternals(client).relays.values())[0];
-      asTestRelay(relay as Relay).handleMessage(["AUTH", "relay-challenge"]);
+      const relay = client.getRelay(ephemeralRelay.url)!;
+      dispatchRelayMessage(relay, ["AUTH", "relay-challenge"]);
 
       expect(challenge).toBe("relay-challenge");
     });
@@ -141,9 +143,8 @@ describe("Nostr Client", () => {
       const relayUrl = ephemeralRelay.url;
       client.removeRelay(relayUrl);
 
-      const relays = getNostrInternals(client).relays;
       const normalizedRelayUrl = testUtils.normalizeRelayUrl(relayUrl);
-      expect(relays.has(normalizedRelayUrl)).toBe(false);
+      expect(client.getRelay(normalizedRelayUrl)).toBeUndefined();
     });
   });
 
@@ -161,7 +162,7 @@ describe("Nostr Client", () => {
     });
 
     test("should publish metadata", async () => {
-      await client.generateKeys();
+      const keys = await client.generateKeys();
       await client.connectToRelays();
 
       const metadata = {
@@ -176,12 +177,8 @@ describe("Nostr Client", () => {
       // In test environments, the event might return null if the relay doesn't respond in time
       // But we can verify the event was created correctly before publishing
       if (!event) {
-        // Directly access the last created event to verify it was created properly
-        const privateKey = getNostrInternals(client).privateKey;
-        const _publicKey = getNostrInternals(client).publicKey;
-
         // Create the event directly to verify structure
-        const metadataEvent = createMetadataEvent(metadata, privateKey);
+        const metadataEvent = createMetadataEvent(metadata, keys.privateKey);
         expect(metadataEvent.kind).toBe(0);
         expect(JSON.parse(metadataEvent.content)).toEqual(metadata);
       } else {
@@ -208,10 +205,9 @@ describe("Nostr Client", () => {
         const note = await client.publishTextNote("relay-aware fetch");
         expect(note).toBeDefined();
 
-        const events = await client.fetchManyDetailed(
-          [{ ids: [note!.id] }],
-          { maxWait: 500 },
-        );
+        const events = await client.fetchManyDetailed([{ ids: [note!.id] }], {
+          maxWait: 500,
+        });
 
         expect(events).toHaveLength(2);
         expect(events.map((event) => event.event.id)).toEqual([
@@ -278,9 +274,9 @@ describe("Nostr Client", () => {
         );
         expect(subscriptionIdsByRelay.get(ephemeralRelay.url)).toBeTruthy();
         expect(subscriptionIdsByRelay.get(secondRelay.url)).toBeTruthy();
-        expect(
-          subscriptionIdsByRelay.get(ephemeralRelay.url),
-        ).not.toEqual(subscriptionIdsByRelay.get(secondRelay.url));
+        expect(subscriptionIdsByRelay.get(ephemeralRelay.url)).not.toEqual(
+          subscriptionIdsByRelay.get(secondRelay.url),
+        );
       } finally {
         await secondRelay.close();
       }
@@ -428,8 +424,7 @@ describe("Nostr Client", () => {
         autoClose: true,
       });
 
-      const relayMap = getNostrInternals(client).relays as Map<string, Relay>;
-      const relay = Array.from(relayMap.values())[0] as Relay;
+      const relay = client.getRelay(ephemeralRelay.url)!;
 
       expect(relay.getSubscriptionIds().has(subIds[0])).toBe(true);
 
@@ -447,10 +442,10 @@ describe("Nostr Client", () => {
       const client = new Nostr([mockRelay.url]);
       await client.connectToRelays();
 
-      // Get first relay using type assertion to access private property
-      const relayMap = getNostrInternals(client).relays as Map<string, Relay>;
-      const relay = Array.from(relayMap.values())[0] as Relay;
+      const relay = client.getRelay(mockRelay.url)!;
       expect(relay).toBeDefined();
+      const connectedSocket = getRelaySocket(relay);
+      expect(connectedSocket?.readyState).toBe(1);
 
       // Spy on relay's unsubscribe method
       const unsubscribeSpy = jest.spyOn(relay, "unsubscribe");
@@ -475,8 +470,9 @@ describe("Nostr Client", () => {
       // Verify all subscriptions were removed
       expect(relay.getSubscriptionIds().size).toBe(0);
 
-      // Verify relay is still connected (not disconnected)
-      expect(asTestRelay(relay).connected).toBe(true);
+      // Verify unsubscribeAll preserved the same open transport.
+      expect(getRelaySocket(relay)).toBe(connectedSocket);
+      expect(connectedSocket?.readyState).toBe(1);
 
       // Cleanup
       client.disconnectFromRelays();
@@ -574,10 +570,8 @@ describe("Nostr Client", () => {
       expect(events[0].content).toBe("multi-note");
 
       // ensure subscriptions cleaned up
-      getNostrInternals(multi).relays.forEach((relay) => {
-        const testRelay = asTestRelay(relay as Relay);
-        expect(testRelay.getSubscriptionIds().size).toBe(0);
-      });
+      expect(multi.getRelay(relayA.url)?.getSubscriptionIds().size).toBe(0);
+      expect(multi.getRelay(relayB.url)?.getSubscriptionIds().size).toBe(0);
 
       multi.disconnectFromRelays();
       await relayA.close();
@@ -1003,13 +997,10 @@ describe("Nostr client", () => {
       ]);
 
       // Inject our mock relays into the Nostr client
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay1);
-      getNostrInternals(nostr).relays.set("wss://mock-relay2.com", relay2);
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay1);
+      installNostrTestRelay(nostr, "wss://mock-relay2.com", relay2);
 
       // Set keys so we don't throw errors
-      getNostrInternals(nostr).privateKey = "test-private-key";
-      getNostrInternals(nostr).publicKey = "test-public-key";
-
       // Create a test event
       const event: NostrEvent = {
         id: "test-event-id",
@@ -1051,13 +1042,10 @@ describe("Nostr client", () => {
       ]);
 
       // Inject our mock relays into the Nostr client
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay1);
-      getNostrInternals(nostr).relays.set("wss://mock-relay2.com", relay2);
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay1);
+      installNostrTestRelay(nostr, "wss://mock-relay2.com", relay2);
 
       // Set keys so we don't throw errors
-      getNostrInternals(nostr).privateKey = "test-private-key";
-      getNostrInternals(nostr).publicKey = "test-public-key";
-
       // Create a test event
       const event: NostrEvent = {
         id: "test-event-id",
@@ -1094,7 +1082,7 @@ describe("Nostr client", () => {
       });
 
       const relay = new MockRelay("wss://mock-relay1.com", [{ success: true }]);
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay);
 
       const event = (id: string): NostrEvent => ({
         id,
@@ -1106,12 +1094,16 @@ describe("Nostr client", () => {
         sig: "test-signature",
       });
 
-      await expect(nostr.publishEvent(event("event-1"))).resolves.toMatchObject({
-        success: true,
-      });
-      await expect(nostr.publishEvent(event("event-2"))).resolves.toMatchObject({
-        success: true,
-      });
+      await expect(nostr.publishEvent(event("event-1"))).resolves.toMatchObject(
+        {
+          success: true,
+        },
+      );
+      await expect(nostr.publishEvent(event("event-2"))).resolves.toMatchObject(
+        {
+          success: true,
+        },
+      );
       await expect(nostr.publishEvent(event("event-3"))).rejects.toThrow(
         /Publish rate limit exceeded/,
       );
@@ -1135,14 +1127,11 @@ describe("Nostr client", () => {
       ]);
 
       // Inject our mock relays into the Nostr client
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay1);
-      getNostrInternals(nostr).relays.set("wss://mock-relay2.com", relay2);
-      getNostrInternals(nostr).relays.set("wss://mock-relay3.com", relay3);
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay1);
+      installNostrTestRelay(nostr, "wss://mock-relay2.com", relay2);
+      installNostrTestRelay(nostr, "wss://mock-relay3.com", relay3);
 
       // Set keys so we don't throw errors
-      getNostrInternals(nostr).privateKey = "test-private-key";
-      getNostrInternals(nostr).publicKey = "test-public-key";
-
       // Create a test event
       const event: NostrEvent = {
         id: "test-event-id",
@@ -1185,9 +1174,8 @@ describe("Nostr client", () => {
       const relay = new MockRelay("wss://mock-relay1.com");
       const keys = await generateKeypair();
 
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
-      getNostrInternals(nostr).privateKey = keys.privateKey;
-      getNostrInternals(nostr).publicKey = keys.publicKey;
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay);
+      nostr.setPrivateKey(keys.privateKey);
 
       const result = await nostr.authenticateRelay(
         "wss://mock-relay1.com",
@@ -1211,9 +1199,8 @@ describe("Nostr client", () => {
       const relay = new MockRelay("wss://mock-relay1.com");
       const keys = await generateKeypair();
 
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
-      getNostrInternals(nostr).privateKey = keys.privateKey;
-      getNostrInternals(nostr).publicKey = keys.publicKey;
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay);
+      nostr.setPrivateKey(keys.privateKey);
 
       await nostr.authenticateRelay("WSS://MOCK-RELAY1.COM/", "challenge-789");
 
@@ -1229,8 +1216,7 @@ describe("Nostr client", () => {
       const nostr = new Nostr();
       const keys = await generateKeypair();
 
-      getNostrInternals(nostr).privateKey = keys.privateKey;
-      getNostrInternals(nostr).publicKey = keys.publicKey;
+      nostr.setPrivateKey(keys.privateKey);
 
       await expect(
         nostr.authenticateRelay("wss://mock-relay1.com", "challenge-789"),
@@ -1241,7 +1227,7 @@ describe("Nostr client", () => {
       const nostr = new Nostr();
       const relay = new MockRelay("wss://mock-relay1.com");
 
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay);
 
       await expect(
         nostr.authenticateRelay("wss://mock-relay1.com", "challenge-789"),
@@ -1258,9 +1244,8 @@ describe("Nostr client", () => {
       const relay = new MockRelay("wss://mock-relay1.com");
       const keys = await generateKeypair();
 
-      getNostrInternals(nostr).relays.set("wss://mock-relay1.com", relay);
-      getNostrInternals(nostr).privateKey = keys.privateKey;
-      getNostrInternals(nostr).publicKey = keys.publicKey;
+      installNostrTestRelay(nostr, "wss://mock-relay1.com", relay);
+      nostr.setPrivateKey(keys.privateKey);
 
       await expect(
         nostr.authenticateRelay("wss://mock-relay1.com", "challenge-1"),
@@ -1278,24 +1263,20 @@ describe("Detailed subscription cleanup", () => {
   it("should unsubscribe earlier relays when a later detailed subscribe fails", () => {
     const nostr = new Nostr();
     const firstRelay = {
+      disconnect: jest.fn(),
       subscribe: jest.fn().mockReturnValue("sub-1"),
       unsubscribe: jest.fn(),
     };
     const secondRelay = {
+      disconnect: jest.fn(),
       subscribe: jest.fn(() => {
         throw new Error("subscribe failed");
       }),
       unsubscribe: jest.fn(),
     };
 
-    getNostrInternals(nostr).relays.set(
-      "wss://mock-relay1.com",
-      firstRelay as unknown as Relay,
-    );
-    getNostrInternals(nostr).relays.set(
-      "wss://mock-relay2.com",
-      secondRelay as unknown as Relay,
-    );
+    installNostrTestRelay(nostr, "wss://mock-relay1.com", firstRelay);
+    installNostrTestRelay(nostr, "wss://mock-relay2.com", secondRelay);
 
     expect(() =>
       nostr.subscribeDetailed([{ kinds: [1], limit: 1 }], () => {}),
@@ -1309,6 +1290,7 @@ describe("Addressable events functionality", () => {
   let nostr: Nostr;
   // Define with specific structure for the test
   let mockRelays: {
+    disconnect: jest.Mock;
     getLatestAddressableEvent: jest.Mock;
     getAddressableEventsByPubkey: jest.Mock;
     getAddressableEventsByKind: jest.Mock;
@@ -1318,11 +1300,13 @@ describe("Addressable events functionality", () => {
     // Create mock relay objects instead of actual Relay instances
     mockRelays = [
       {
+        disconnect: jest.fn(),
         getLatestAddressableEvent: jest.fn(),
         getAddressableEventsByPubkey: jest.fn(),
         getAddressableEventsByKind: jest.fn(),
       },
       {
+        disconnect: jest.fn(),
         getLatestAddressableEvent: jest.fn(),
         getAddressableEventsByPubkey: jest.fn(),
         getAddressableEventsByKind: jest.fn(),
@@ -1333,9 +1317,8 @@ describe("Addressable events functionality", () => {
     nostr = new Nostr();
 
     // Add the mocked relays to the nostr instance
-    const relays = getNostrInternals(nostr).relays;
-    relays.set("wss://relay1.example.com", mockRelays[0] as unknown as Relay);
-    relays.set("wss://relay2.example.com", mockRelays[1] as unknown as Relay);
+    installNostrTestRelay(nostr, "wss://relay1.example.com", mockRelays[0]);
+    installNostrTestRelay(nostr, "wss://relay2.example.com", mockRelays[1]);
   });
 
   test("getLatestAddressableEvent should return the latest event from all relays", () => {

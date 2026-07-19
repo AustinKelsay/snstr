@@ -3,16 +3,14 @@ import {
   createAddressableEvent,
   createSignedEvent,
 } from "../../../src/nip01/event";
-import { Relay } from "../../../src/nip01/relay";
-import { asTestRelay } from "../../types";
+import { RelayEventStore } from "../../../src/nip01/relayEventStore";
 import { NostrEvent } from "../../../src/types/nostr";
 
 // Mock WebSocket
 jest.mock("websocket-polyfill", () => ({}));
 
 describe("Addressable Events (NIP-01 §7.1)", () => {
-  let relay: Relay;
-  let testRelay: ReturnType<typeof asTestRelay>;
+  let store: RelayEventStore;
   let user1Keypair: { privateKey: string; publicKey: string };
   let testEvents: {
     event1: NostrEvent;
@@ -22,9 +20,7 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
   };
 
   beforeEach(async () => {
-    // Create a relay instance and get test access to private methods
-    relay = new Relay("wss://test.relay");
-    testRelay = asTestRelay(relay);
+    store = new RelayEventStore();
 
     // Set up test data
     user1Keypair = await generateKeypair();
@@ -71,17 +67,17 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Different d-tag values create separate addressable events", async () => {
     // Process events with same pubkey and kind but different d-tag values
-    testRelay.eventStore.storeAddressable(testEvents.event1);
-    testRelay.eventStore.storeAddressable(testEvents.event2);
+    store.storeAddressable(testEvents.event1);
+    store.storeAddressable(testEvents.event2);
 
     // Get latest events for each d-tag value
-    const latest1 = relay.getLatestAddressableEvent(
+    const latest1 = store.getAddressable(
       30000,
       user1Keypair.publicKey,
       "value1",
     );
 
-    const latest2 = relay.getLatestAddressableEvent(
+    const latest2 = store.getAddressable(
       30000,
       user1Keypair.publicKey,
       "value2",
@@ -96,13 +92,13 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Newer event with same d-tag replaces older one", async () => {
     // Process original event
-    testRelay.eventStore.storeAddressable(testEvents.event1);
+    store.storeAddressable(testEvents.event1);
 
     // Process newer event with same d-tag
-    testRelay.eventStore.storeAddressable(testEvents.event3);
+    store.storeAddressable(testEvents.event3);
 
     // Get latest event
-    const latest = relay.getLatestAddressableEvent(
+    const latest = store.getAddressable(
       30000,
       user1Keypair.publicKey,
       "value1",
@@ -115,17 +111,17 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
 
   test("Different kinds with same d-tag are stored separately", async () => {
     // Process events with same pubkey and d-tag but different kinds
-    testRelay.eventStore.storeAddressable(testEvents.event1);
-    testRelay.eventStore.storeAddressable(testEvents.event4);
+    store.storeAddressable(testEvents.event1);
+    store.storeAddressable(testEvents.event4);
 
     // Get latest events for each kind
-    const latest1 = relay.getLatestAddressableEvent(
+    const latest1 = store.getAddressable(
       30000,
       user1Keypair.publicKey,
       "value1",
     );
 
-    const latest2 = relay.getLatestAddressableEvent(
+    const latest2 = store.getAddressable(
       30001,
       user1Keypair.publicKey,
       "value1",
@@ -170,10 +166,10 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
     // At this point, eventA.id < eventB.id is guaranteed
 
     // Scenario 1: Process larger ID event first, then smaller ID event
-    testRelay.processAddressableEvent(eventB); // Process B (larger id)
-    testRelay.processAddressableEvent(eventA); // Process A (smaller id)
+    store.storeAddressable(eventB); // Process B (larger id)
+    store.storeAddressable(eventA); // Process A (smaller id)
 
-    let latestEvent = relay.getLatestAddressableEvent(
+    let latestEvent = store.getAddressable(
       30000,
       user1Keypair.publicKey,
       dTagValue,
@@ -189,10 +185,10 @@ describe("Addressable Events (NIP-01 §7.1)", () => {
     // For this specific test targeting `processAddressableEvent` directly, the previous event is overwritten.
 
     // Scenario 2: Process smaller ID event first, then larger ID event
-    testRelay.processAddressableEvent(eventA); // Process A (smaller id)
-    testRelay.processAddressableEvent(eventB); // Process B (larger id)
+    store.storeAddressable(eventA); // Process A (smaller id)
+    store.storeAddressable(eventB); // Process B (larger id)
 
-    latestEvent = relay.getLatestAddressableEvent(
+    latestEvent = store.getAddressable(
       30000,
       user1Keypair.publicKey,
       dTagValue,

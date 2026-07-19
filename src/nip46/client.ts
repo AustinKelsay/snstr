@@ -3,7 +3,6 @@ import { LogLevel } from "../utils/logger";
 import { NIP46DiagnosticLogger } from "./utils/diagnostics";
 import { generateRequestId } from "./utils/request-response";
 import { NIP46ClientEngine } from "./internal/client-engine";
-import { PendingNIP46Request } from "./internal/request-correlator";
 import {
   NIP46ClientOptions,
   NIP46ConnectionError,
@@ -69,15 +68,6 @@ export class NostrRemoteSignerClient {
           `Failed to send request: ${this.errorMessage(error)}`,
         ),
     });
-  }
-
-  // Runtime-compatible private seams retained for the existing test contract.
-  private get connected(): boolean {
-    return this.engine.connected;
-  }
-
-  private get pendingRequests(): Map<string, PendingNIP46Request> {
-    return this.engine.pendingRequests;
   }
 
   /** Connect and retain the advanced facade's `ack`/secret return contract. */

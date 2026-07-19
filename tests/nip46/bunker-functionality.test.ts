@@ -1,13 +1,17 @@
 import {
   SimpleNIP46Client,
   SimpleNIP46Bunker,
+  Nostr,
   NostrRemoteSignerBunker,
   generateKeypair,
   verifySignature,
 } from "../../src";
 import { LogLevel } from "../../src/nip46";
+import { NIP46Method } from "../../src/nip46/types";
+import { NIP46Wire } from "../../src/nip46/internal/wire";
 import { NostrRelay } from "../../src/testing";
 import { NostrEvent } from "../../src/types/nostr";
+import { testUtils } from "../types";
 
 describe("NIP-46 Bunker Functionality", () => {
   let relay: NostrRelay;
@@ -369,6 +373,102 @@ describe("NIP-46 Bunker Functionality", () => {
 
       // Should not throw when stopping a bunker that was never started
       await expect(bunker.stop()).resolves.toBeUndefined();
+    });
+  });
+
+  describe("Replay protection", () => {
+    test("drops a duplicate request ID after the production bunker handler sees it", async () => {
+      const requester = await generateKeypair();
+      const warnings: string[] = [];
+      const bunker = new NostrRemoteSignerBunker({
+        userPubkey: userKeypair.publicKey,
+        signerPubkey: signerKeypair.publicKey,
+        relays: [relayUrl],
+        defaultPermissions: [NIP46Method.PING],
+        logger: {
+          error: () => {},
+          warn: (message) => warnings.push(message),
+          info: () => {},
+          debug: () => {},
+          trace: () => {},
+        },
+      });
+      bunker.setUserPrivateKey(userKeypair.privateKey);
+      bunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+      const sender = new Nostr([relayUrl]);
+      try {
+        await bunker.start();
+        await sender.connectToRelays();
+        const request = await NIP46Wire.createRequestEvent(
+          {
+            id: "replay-probe",
+            method: NIP46Method.PING,
+            params: [],
+          },
+          requester,
+          signerKeypair.publicKey,
+        );
+        const matchingResponses = () =>
+          relay.cache.filter(
+            (event) =>
+              event.kind === request.kind &&
+              event.pubkey === signerKeypair.publicKey &&
+              event.tags.some(
+                (tag) => tag[0] === "p" && tag[1] === requester.publicKey,
+              ),
+          );
+
+        await sender.publishEvent(request);
+        await testUtils.waitFor(() => matchingResponses().length === 1);
+
+        await sender.publishEvent(request);
+        await testUtils.waitFor(() =>
+          warnings.some((message) => message === "Replay attack detected"),
+        );
+
+        expect(matchingResponses()).toHaveLength(1);
+
+        await bunker.stop();
+        await bunker.start();
+        await sender.publishEvent(request);
+        await testUtils.waitFor(() => matchingResponses().length === 2);
+      } finally {
+        sender.disconnectFromRelays();
+        await bunker.stop().catch(() => {});
+      }
+    });
+
+    test("stop clears the bunker-owned cleanup interval", async () => {
+      const setIntervalSpy = jest.spyOn(globalThis, "setInterval");
+      const clearIntervalSpy = jest.spyOn(globalThis, "clearInterval");
+      const bunker = new NostrRemoteSignerBunker({
+        userPubkey: userKeypair.publicKey,
+        signerPubkey: signerKeypair.publicKey,
+        relays: [relayUrl],
+        defaultPermissions: [NIP46Method.PING],
+        rateLimitConfig: { cleanupIntervalMs: 300000 },
+      });
+      bunker.setUserPrivateKey(userKeypair.privateKey);
+      bunker.setSignerPrivateKey(signerKeypair.privateKey);
+
+      try {
+        await bunker.start();
+        const cleanupCallIndex = setIntervalSpy.mock.calls.findIndex(
+          ([, delay]) => delay === 60000,
+        );
+        expect(cleanupCallIndex).toBeGreaterThanOrEqual(0);
+        const cleanupTimer =
+          setIntervalSpy.mock.results[cleanupCallIndex].value;
+
+        await bunker.stop();
+
+        expect(clearIntervalSpy).toHaveBeenCalledWith(cleanupTimer);
+      } finally {
+        await bunker.stop().catch(() => {});
+        setIntervalSpy.mockRestore();
+        clearIntervalSpy.mockRestore();
+      }
     });
   });
 

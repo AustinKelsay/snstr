@@ -7,6 +7,7 @@ import {
   RelayStatus,
   NostrFilter,
 } from "../../../src/types/nostr";
+import { installNostrTestRelay } from "../../../src/testing";
 
 // Simulated relay for testing
 class MockRelay {
@@ -79,37 +80,20 @@ class MockRelay {
   }
 }
 
-// Interface for Nostr private members we need to access in tests
-interface NostrPrivateMembers {
-  privateKey: string;
-  publicKey: string;
-  relays: Map<string, MockRelay>; // Properly typed for our test context
-}
-
-// Extended Nostr class for testing that exposes private members
-class TestNostr extends Nostr {
-  getPrivateMembers(): NostrPrivateMembers {
-    return this as unknown as NostrPrivateMembers;
-  }
-
-  setPrivateKey(key: string): void {
-    this.getPrivateMembers().privateKey = key;
-  }
-
-  setPublicKey(key: string): void {
-    this.getPrivateMembers().publicKey = key;
-  }
-
-  setRelays(relays: Map<string, MockRelay>): void {
-    this.getPrivateMembers().relays = relays;
+function installMockRelays(
+  nostr: Nostr,
+  relays: ReadonlyMap<string, MockRelay>,
+): void {
+  for (const [url, relay] of relays) {
+    installNostrTestRelay(nostr, url, relay);
   }
 }
 
 describe("Nostr publish methods", () => {
-  let nostr: TestNostr;
+  let nostr: Nostr;
 
   beforeEach(() => {
-    nostr = new TestNostr();
+    nostr = new Nostr();
   });
 
   describe("publishEvent", () => {
@@ -130,12 +114,7 @@ describe("Nostr publish methods", () => {
       );
 
       // Inject mock relays
-      nostr.setRelays(relays);
-
-      // Set required keys
-      nostr.setPrivateKey("test-private-key");
-      nostr.setPublicKey("test-public-key");
-
+      installMockRelays(nostr, relays);
       // Create test event
       const event: NostrEvent = {
         id: "test-event-id",
@@ -175,12 +154,7 @@ describe("Nostr publish methods", () => {
       );
 
       // Inject mock relays
-      nostr.setRelays(relays);
-
-      // Set required keys
-      nostr.setPrivateKey("test-private-key");
-      nostr.setPublicKey("test-public-key");
-
+      installMockRelays(nostr, relays);
       // Create test event
       const event: NostrEvent = {
         id: "test-event-id",
@@ -205,12 +179,6 @@ describe("Nostr publish methods", () => {
 
     it("should handle having no relays configured", async () => {
       // Empty relays map
-      nostr.setRelays(new Map());
-
-      // Set required keys
-      nostr.setPrivateKey("test-private-key");
-      nostr.setPublicKey("test-public-key");
-
       // Create test event
       const event: NostrEvent = {
         id: "test-event-id",
@@ -256,12 +224,7 @@ describe("Nostr publish methods", () => {
       );
 
       // Inject mock relays
-      nostr.setRelays(relays);
-
-      // Set required keys
-      nostr.setPrivateKey("test-private-key");
-      nostr.setPublicKey("test-public-key");
-
+      installMockRelays(nostr, relays);
       // Create test event
       const event: NostrEvent = {
         id: "test-event-id",

@@ -5,12 +5,22 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
-import { RelayEventStore } from "../../../src/nip01/relayEventStore";
+import {
+  replaceRelayInboundValidator,
+  waitForRelayValidation,
+} from "../../../src/testing";
 import {
   useWebSocketImplementation,
   resetWebSocketImplementation,
 } from "../../../src/utils/websocket";
-import { afterEach, beforeEach, describe, expect, jest, test } from "@jest/globals";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  jest,
+  test,
+} from "@jest/globals";
 
 /**
  * Mock WebSocket interface for testing
@@ -37,13 +47,7 @@ describe("Relay Event Ordering Integration", () => {
   let relay: Relay;
   let onEventCallback: jest.Mock;
   let onEOSECallback: jest.Mock;
-
-  // Type assertion function to access private members for testing
-  const asTestable = (r: Relay) =>
-    r as unknown as {
-      flushSubscriptionBuffer: (subscriptionId: string) => void;
-      eventStore: RelayEventStore;
-    };
+  let restoreValidator: () => void;
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -72,16 +76,17 @@ describe("Relay Event Ordering Integration", () => {
     // Create a relay with a 50ms buffer flush delay
     relay = new Relay("wss://test-relay.com", { bufferFlushDelay: 50 });
 
-    // Expose private methods for testing
-    const testable = asTestable(relay);
-    testable.flushSubscriptionBuffer =
-      testable.flushSubscriptionBuffer.bind(relay);
+    restoreValidator = replaceRelayInboundValidator(
+      relay,
+      async (event) => event as NostrEvent,
+    );
   });
 
   afterEach(() => {
     jest.clearAllMocks();
     jest.useRealTimers();
     resetWebSocketImplementation();
+    restoreValidator?.();
     if (relay) {
       relay.disconnect();
     }
@@ -145,14 +150,13 @@ describe("Relay Event Ordering Integration", () => {
       sig: "sig",
     };
 
-    // Manually add events to the buffer
-    const store = asTestable(relay).eventStore;
     for (const event of [event1, event3, event4, event2]) {
-      store.addToBuffer(subscriptionId, event);
+      mockSocketInstance.onmessage?.({
+        data: JSON.stringify(["EVENT", subscriptionId, event]),
+      } as MessageEvent);
     }
-
-    // Directly call flushSubscriptionBuffer
-    asTestable(relay).flushSubscriptionBuffer(subscriptionId);
+    await waitForRelayValidation(relay, subscriptionId);
+    jest.advanceTimersByTime(50);
 
     // Now events should be delivered in the correct order
     expect(onEventCallback).toHaveBeenCalledTimes(4);
@@ -212,15 +216,17 @@ describe("Relay Event Ordering Integration", () => {
       sig: "sig",
     };
 
-    // Manually add events to the buffer
-    const store = asTestable(relay).eventStore;
-    store.addToBuffer(subscriptionId, event1);
-    store.addToBuffer(subscriptionId, event2);
+    for (const event of [event1, event2]) {
+      mockSocketInstance.onmessage?.({
+        data: JSON.stringify(["EVENT", subscriptionId, event]),
+      } as MessageEvent);
+    }
 
     // Simulate receiving EOSE
     mockSocketInstance.onmessage?.({
       data: JSON.stringify(["EOSE", subscriptionId]),
     } as MessageEvent);
+    await waitForRelayValidation(relay, subscriptionId);
 
     // EOSE should trigger immediate buffer flush
     expect(onEventCallback).toHaveBeenCalledTimes(2);
@@ -260,11 +266,9 @@ describe("Relay Event Ordering Integration", () => {
       sig: "sig",
     };
 
-    // Manually add events to the buffer
-    asTestable(relay).eventStore.addToBuffer(subscriptionId, event);
-
-    // Directly call flushSubscriptionBuffer
-    asTestable(relay).flushSubscriptionBuffer(subscriptionId);
+    mockSocketInstance.onmessage?.({
+      data: JSON.stringify(["EVENT", subscriptionId, event]),
+    } as MessageEvent);
 
     // No events should be delivered
     expect(onEventCallback).not.toHaveBeenCalled();

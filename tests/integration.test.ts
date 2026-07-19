@@ -2,7 +2,6 @@ import { Nostr } from "../src/nip01/nostr";
 import { NostrEvent, RelayEvent } from "../src/types/nostr";
 import { generateKeypair } from "../src/utils/crypto";
 import { startEphemeralRelay, stopEphemeralRelay } from "./utils/test-helpers";
-import { getNostrInternals } from "./types";
 
 describe("Nostr Client Integration", () => {
   let nostr: Nostr;
@@ -51,15 +50,10 @@ describe("Nostr Client Integration", () => {
 
     it("should handle connection timeouts gracefully", async () => {
       // Create a new client with a non-routable address to force timeout
-      const timeoutClient = new Nostr(["ws://10.255.255.255:8080"]);
+      const timeoutClient = new Nostr(["ws://10.255.255.255:8080"], {
+        relayOptions: { connectionTimeout: 500 },
+      });
       timeoutClient.setPrivateKey(privateKey);
-
-      // Set a very short timeout to make test fast
-      // Access the relay directly to set the timeout
-      const relays = getNostrInternals(timeoutClient).relays;
-      for (const relay of relays.values()) {
-        relay.setConnectionTimeout(500);
-      }
 
       // Track connection errors
       let errorCount = 0;

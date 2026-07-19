@@ -27,9 +27,9 @@ describe("RelayEventStore", () => {
     ["maxAddressableEvents", 1.5],
     ["maxAddressableEvents", Number.MAX_SAFE_INTEGER + 1],
   ] as const)("rejects invalid %s capacity %s", (option, value) => {
-    expect(
-      () => new RelayEventStore({ [option]: value }),
-    ).toThrow(`${option} must be a positive safe integer`);
+    expect(() => new RelayEventStore({ [option]: value })).toThrow(
+      `${option} must be a positive safe integer`,
+    );
   });
 
   test("drains buffered events in NIP-01 order", () => {
@@ -73,9 +73,7 @@ describe("RelayEventStore", () => {
     store.addToBuffer("new", event("new", 1));
 
     expect([...store.bufferIds()]).toEqual(["kept", "new"]);
-    expect(evictions).toEqual([
-      "Evicted event buffer for subscription: old",
-    ]);
+    expect(evictions).toEqual(["Evicted event buffer for subscription: old"]);
   });
 
   test("uses the lower event id when replaceable timestamps tie", () => {
@@ -85,6 +83,14 @@ describe("RelayEventStore", () => {
     store.storeReplaceable(event("m", 10, { kind: 0 }));
 
     expect(store.getReplaceable("pubkey", 0)?.id).toBe("a");
+  });
+
+  test("keeps the newer replaceable event when an older candidate arrives", () => {
+    const store = new RelayEventStore();
+    store.storeReplaceable(event("newer", 20, { kind: 0 }));
+    store.storeReplaceable(event("older", 10, { kind: 0 }));
+
+    expect(store.getReplaceable("pubkey", 0)?.id).toBe("newer");
   });
 
   test("bounds replaceable pubkeys and ignores misses for LRU accounting", () => {
@@ -126,11 +132,18 @@ describe("RelayEventStore", () => {
       event("other", 1, { kind: 30001, tags: [["d", "other"]] }),
     );
 
-    expect(store.getAddressable(30001, "pubkey", "profile")?.id).toBe(
-      "new",
-    );
+    expect(store.getAddressable(30001, "pubkey", "profile")?.id).toBe("new");
     expect(store.getAddressableByPubkey("pubkey")).toHaveLength(2);
     expect(store.getAddressableByKind(30001)).toHaveLength(2);
+  });
+
+  test("keeps the newer addressable event when an older candidate arrives", () => {
+    const store = new RelayEventStore();
+    const coordinate = { kind: 30001, tags: [["d", "profile"]] };
+    store.storeAddressable(event("newer", 20, coordinate));
+    store.storeAddressable(event("older", 10, coordinate));
+
+    expect(store.getAddressable(30001, "pubkey", "profile")?.id).toBe("newer");
   });
 
   test("bounds addressable storage and ignores misses for LRU accounting", () => {
