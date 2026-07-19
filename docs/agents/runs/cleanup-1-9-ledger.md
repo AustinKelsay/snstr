@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: item 1 / issue #131 merged into `staging`; item 2 / issue #132 passed Grok review and all local verification; local CodeRabbit findings fixed with clean rerun pending
+- Current status: item 1 / issue #131 merged into `staging`; item 2 / issue #132 passed Grok review, all local verification, and local CodeRabbit code review; PR publication pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -42,7 +42,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 | Issue                             | Type | Status          | Branch                                  | Review                                                   | Verified                            |
 | --------------------------------- | ---- | --------------- | --------------------------------------- | -------------------------------------------------------- | ----------------------------------- |
 | #131 NIP-46 diagnostic redaction  | AFK  | merged          | `feature/nip46-diagnostic-redaction`    | Grok approved; CodeRabbit local/hosted clean after fixes | Jest/Bun 1054/1054; hosted CI green |
-| #132 published declaration purity | AFK  | in review       | `feature/public-type-test-purity`       | Grok pass; CodeRabbit findings fixed, rerun pending      | Jest/Bun 1055/1055; all gates green |
+| #132 published declaration purity | AFK  | in review       | `feature/public-type-test-purity`       | Grok pass; CodeRabbit local code review clean            | Jest/Bun 1055/1055; all gates green |
 | #133 shared diagnostic seam       | AFK  | blocked by #132 | `feature/shared-diagnostics-completion` | pending                                                  | pending                             |
 | #134 NIP-47 service lifecycle     | AFK  | blocked by #133 | `feature/nip47-service-lifecycle`       | pending                                                  | pending                             |
 | #135 NIP-57 consolidation         | AFK  | blocked by #134 | `feature/nip57-client-consolidation`    | pending                                                  | pending                             |
