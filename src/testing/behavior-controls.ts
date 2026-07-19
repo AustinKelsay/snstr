@@ -43,17 +43,16 @@ export function dispatchRelayMessage(relay: Relay, message: unknown[]): void {
 export async function waitForRelayValidation(
   relay: Relay,
   subscriptionId: string,
-  timeoutMs = 1000,
+  maxMicrotaskTurns = 1000,
 ): Promise<void> {
   const pending = (
     relay as unknown as {
       pendingValidationCounts: Map<string, number>;
     }
   ).pendingValidationCounts;
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+  for (let turn = 0; turn < maxMicrotaskTurns; turn += 1) {
     if ((pending.get(subscriptionId) ?? 0) === 0) return;
-    await new Promise((resolve) => setTimeout(resolve, 1));
+    await Promise.resolve();
   }
   throw new Error(
     `Timed out waiting for inbound EVENT validation for ${subscriptionId}`,
@@ -171,59 +170,43 @@ export function replaceNip46RateLimiterDestroy(
   };
 }
 
-export interface NIP47ClientInitializationTransport {
-  connectToRelays(): Promise<void>;
-  subscribe(
-    filters: unknown[],
-    callback: (event: NostrEvent, relay: string) => void,
-  ): string[];
-  unsubscribe(ids: string[]): void;
-  disconnectFromRelays(): void;
-}
-
-export interface NIP47ClientInitializationHooks {
-  transport: NIP47ClientInitializationTransport;
-  waitForCapabilityDiscovery(): Promise<void>;
-  sendRequest(
-    request: NIP47Request,
-    expiration?: number,
-    allowDuringInitialization?: boolean,
-  ): Promise<NIP47Response>;
-  handleNotification?(event: NostrEvent): Promise<void>;
-}
-
-/** Install only the collaborators needed to exercise client initialization. */
-export function installNip47ClientInitializationHooks(
+/** Replace only the capability-discovery wait used during client initialization. */
+export function replaceNip47CapabilityDiscoveryWait(
   client: NostrWalletConnectClient,
-  hooks: NIP47ClientInitializationHooks,
+  wait: () => Promise<void>,
 ): () => void {
   const target = client as unknown as {
-    client: NIP47ClientInitializationTransport;
     waitForCapabilityDiscovery(): Promise<void>;
+  };
+  const original = target.waitForCapabilityDiscovery;
+  target.waitForCapabilityDiscovery = wait;
+  return () => {
+    target.waitForCapabilityDiscovery = original;
+  };
+}
+
+export type NIP47RequestSender = (
+  request: NIP47Request,
+  expiration?: number,
+  allowDuringInitialization?: boolean,
+) => Promise<NIP47Response>;
+
+/** Replace only request sending to exercise capability fallback outcomes. */
+export function replaceNip47RequestSender(
+  client: NostrWalletConnectClient,
+  send: NIP47RequestSender,
+): () => void {
+  const target = client as unknown as {
     sendRequest(
       request: NIP47Request,
       expiration?: number,
       allowDuringInitialization?: boolean,
     ): Promise<NIP47Response>;
-    handleNotification(event: NostrEvent): Promise<void>;
   };
-  const originals = {
-    client: target.client,
-    waitForCapabilityDiscovery: target.waitForCapabilityDiscovery,
-    sendRequest: target.sendRequest,
-    handleNotification: target.handleNotification,
-  };
-  target.client = hooks.transport;
-  target.waitForCapabilityDiscovery = () => hooks.waitForCapabilityDiscovery();
-  target.sendRequest = (request, expiration, allowDuringInitialization) =>
-    hooks.sendRequest(request, expiration, allowDuringInitialization);
-  target.handleNotification = (event) =>
-    hooks.handleNotification?.(event) ?? Promise.resolve();
+  const original = target.sendRequest;
+  target.sendRequest = send;
   return () => {
-    target.client = originals.client;
-    target.waitForCapabilityDiscovery = originals.waitForCapabilityDiscovery;
-    target.sendRequest = originals.sendRequest;
-    target.handleNotification = originals.handleNotification;
+    target.sendRequest = original;
   };
 }
 
@@ -251,17 +234,15 @@ export async function dispatchNip47ClientResponse(
   await target.handleResponse(event);
 }
 
-/** Process one service request and report whether correlation state leaked. */
-export async function processNip47ServiceRequest(
+/** Deliver one request through the production NIP-47 service protocol handler. */
+export async function dispatchNip47ServiceRequest(
   service: NostrWalletService,
   event: NostrEvent,
-): Promise<{ encryptionRetained: boolean }> {
+): Promise<void> {
   const target = service as unknown as {
-    requestEncryption: { has(id: string): boolean };
     handleEvent(value: NostrEvent): Promise<void>;
   };
   await target.handleEvent(event);
-  return { encryptionRetained: target.requestEncryption.has(event.id) };
 }
 
 export interface NostrTestRelay {

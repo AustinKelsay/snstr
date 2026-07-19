@@ -62,4 +62,19 @@ describe("public behavior test seams", () => {
       expect(targetedTests).not.toContain(privateShape);
     }
   });
+
+  test("keeps testing-entrypoint controls narrow and behavior-oriented", () => {
+    const behaviorControls = read("src/testing/behavior-controls.ts");
+
+    for (const broadControl of [
+      "installNip47ClientInitializationHooks",
+      "NIP47ClientInitializationHooks",
+      "NIP47ClientInitializationTransport",
+      "processNip47ServiceRequest",
+      "encryptionRetained",
+      "requestEncryption.has",
+    ]) {
+      expect(behaviorControls).not.toContain(broadControl);
+    }
+  });
 });

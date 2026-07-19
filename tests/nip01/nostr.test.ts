@@ -7,6 +7,7 @@ import {
 } from "../../src";
 import {
   dispatchRelayMessage,
+  getRelaySocket,
   installNostrTestRelay,
   NostrRelay,
 } from "../../src/testing";
@@ -443,6 +444,8 @@ describe("Nostr Client", () => {
 
       const relay = client.getRelay(mockRelay.url)!;
       expect(relay).toBeDefined();
+      const connectedSocket = getRelaySocket(relay);
+      expect(connectedSocket?.readyState).toBe(1);
 
       // Spy on relay's unsubscribe method
       const unsubscribeSpy = jest.spyOn(relay, "unsubscribe");
@@ -467,8 +470,9 @@ describe("Nostr Client", () => {
       // Verify all subscriptions were removed
       expect(relay.getSubscriptionIds().size).toBe(0);
 
-      // Verify relay is still connected (not disconnected)
-      await expect(relay.connect()).resolves.toBe(true);
+      // Verify unsubscribeAll preserved the same open transport.
+      expect(getRelaySocket(relay)).toBe(connectedSocket);
+      expect(connectedSocket?.readyState).toBe(1);
 
       // Cleanup
       client.disconnectFromRelays();

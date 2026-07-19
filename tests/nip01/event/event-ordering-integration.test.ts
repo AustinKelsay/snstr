@@ -5,7 +5,10 @@
 
 import { Relay } from "../../../src/nip01/relay";
 import { NostrEvent } from "../../../src/types/nostr";
-import { replaceRelayInboundValidator } from "../../../src/testing";
+import {
+  replaceRelayInboundValidator,
+  waitForRelayValidation,
+} from "../../../src/testing";
 import {
   useWebSocketImplementation,
   resetWebSocketImplementation,
@@ -45,12 +48,6 @@ describe("Relay Event Ordering Integration", () => {
   let onEventCallback: jest.Mock;
   let onEOSECallback: jest.Mock;
   let restoreValidator: () => void;
-
-  async function settleInboundValidation(): Promise<void> {
-    for (let index = 0; index < 4; index += 1) {
-      await Promise.resolve();
-    }
-  }
 
   beforeEach(() => {
     jest.useFakeTimers();
@@ -158,7 +155,7 @@ describe("Relay Event Ordering Integration", () => {
         data: JSON.stringify(["EVENT", subscriptionId, event]),
       } as MessageEvent);
     }
-    await settleInboundValidation();
+    await waitForRelayValidation(relay, subscriptionId);
     jest.advanceTimersByTime(50);
 
     // Now events should be delivered in the correct order
@@ -229,7 +226,7 @@ describe("Relay Event Ordering Integration", () => {
     mockSocketInstance.onmessage?.({
       data: JSON.stringify(["EOSE", subscriptionId]),
     } as MessageEvent);
-    await settleInboundValidation();
+    await waitForRelayValidation(relay, subscriptionId);
 
     // EOSE should trigger immediate buffer flush
     expect(onEventCallback).toHaveBeenCalledTimes(2);

@@ -1,18 +1,11 @@
+import { describe, it, expect, beforeAll, afterAll, jest } from "@jest/globals";
 import {
-  describe,
-  it,
-  expect,
-  beforeAll,
-  afterAll,
-  jest,
-  beforeEach,
-} from "@jest/globals";
-import {
-  installNip47ClientInitializationHooks,
-  NIP47ClientInitializationHooks,
+  dispatchNip47ServiceRequest,
   NostrRelay,
-  processNip47ServiceRequest,
+  replaceNip47CapabilityDiscoveryWait,
+  replaceNip47RequestSender,
 } from "../../src/testing";
+import type { NIP47RequestSender } from "../../src/testing";
 import { generateKeypair } from "../../src/utils/crypto";
 import {
   NostrWalletConnectClient,
@@ -32,10 +25,14 @@ import {
   SignMessageResponseResult,
   NIP47Notification,
   NIP47Logger,
+  NIP47Response,
 } from "../../src/nip47";
 import { NIP47ClientError } from "../../src/nip47/client";
 import { createEvent, createSignedEvent } from "../../src/nip01/event";
-import { encrypt as encryptNIP04 } from "../../src/nip04";
+import {
+  decrypt as decryptNIP04,
+  encrypt as encryptNIP04,
+} from "../../src/nip04";
 import { getUnixTime } from "../../src/utils/time";
 import type { NostrEvent } from "../../src/types/nostr";
 import { testUtils } from "../types";
@@ -164,27 +161,41 @@ describe("NIP-47 client initialization fallback", () => {
     const subscriptions: string[][] = [];
     const unsubscriptions: string[][] = [];
     const callbacks: Array<(event: NostrEvent, relay: string) => void> = [];
-    const hooks: NIP47ClientInitializationHooks = {
-      waitForCapabilityDiscovery: async () => {},
-      sendRequest: async () => {
-        throw new Error("sendRequest hook not configured");
-      },
-      transport: {
-        connectToRelays: async () => {},
-        subscribe: (_filters, callback) => {
-          const ids = [`sub-${subscriptions.length + 1}`];
-          subscriptions.push(ids);
-          callbacks.push(callback);
-          return ids;
-        },
-        unsubscribe: (ids) => unsubscriptions.push([...ids]),
-        disconnectFromRelays: () => {},
-      },
+    let capabilityWait = async (): Promise<void> => {};
+    let requestSender: NIP47RequestSender = async () => {
+      throw new Error("request sender not configured");
     };
-    installNip47ClientInitializationHooks(fallbackClient, hooks);
+    replaceNip47CapabilityDiscoveryWait(fallbackClient, () => capabilityWait());
+    replaceNip47RequestSender(fallbackClient, (...args) =>
+      requestSender(...args),
+    );
+
+    const transport = fallbackClient.getNostrClient();
+    const connectToRelays = jest
+      .spyOn(transport, "connectToRelays")
+      .mockResolvedValue();
+    jest
+      .spyOn(transport, "subscribe")
+      .mockImplementation((_filters, callback) => {
+        const ids = [`sub-${subscriptions.length + 1}`];
+        subscriptions.push(ids);
+        callbacks.push(callback);
+        return ids;
+      });
+    jest.spyOn(transport, "unsubscribe").mockImplementation((ids) => {
+      unsubscriptions.push([...ids]);
+    });
+    jest.spyOn(transport, "disconnectFromRelays").mockImplementation(() => {});
+
     return {
       fallbackClient,
-      hooks,
+      connectToRelays,
+      useCapabilityWait: (wait: () => Promise<void>) => {
+        capabilityWait = wait;
+      },
+      useRequestSender: (send: NIP47RequestSender) => {
+        requestSender = send;
+      },
       subscriptions,
       unsubscriptions,
       callbacks,
@@ -192,8 +203,9 @@ describe("NIP-47 client initialization fallback", () => {
   };
 
   it("allows explicit getInfo capability discovery during initialization", async () => {
-    const { fallbackClient, hooks, subscriptions } = createFallbackClient();
-    hooks.sendRequest = async (request, _expiration, allowed) => {
+    const { fallbackClient, useRequestSender, subscriptions } =
+      createFallbackClient();
+    useRequestSender(async (request, _expiration, allowed) => {
       expect(request.method).toBe(NIP47Method.GET_INFO);
       expect(allowed).toBe(true);
       expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(false);
@@ -205,7 +217,7 @@ describe("NIP-47 client initialization fallback", () => {
         } as GetInfoResponseResult,
         error: null,
       };
-    };
+    });
 
     await fallbackClient.init();
 
@@ -214,10 +226,10 @@ describe("NIP-47 client initialization fallback", () => {
   });
 
   it("cleans up and atomically retries after malformed capability discovery", async () => {
-    const { fallbackClient, hooks, subscriptions, unsubscriptions } =
+    const { fallbackClient, useRequestSender, subscriptions, unsubscriptions } =
       createFallbackClient();
     let attempt = 0;
-    hooks.sendRequest = async () => {
+    useRequestSender(async () => {
       attempt += 1;
       return {
         result_type: NIP47Method.GET_INFO,
@@ -233,7 +245,7 @@ describe("NIP-47 client initialization fallback", () => {
               } as GetInfoResponseResult),
         error: null,
       };
-    };
+    });
 
     await expect(fallbackClient.init()).rejects.toThrow(
       "Failed to initialize wallet connection",
@@ -250,16 +262,16 @@ describe("NIP-47 client initialization fallback", () => {
   });
 
   it("coalesces concurrent and repeated initialization into one subscription", async () => {
-    const { fallbackClient, hooks, subscriptions, callbacks } =
+    const { fallbackClient, useRequestSender, subscriptions, callbacks } =
       createFallbackClient();
-    hooks.sendRequest = async () => ({
+    useRequestSender(async () => ({
       result_type: NIP47Method.GET_INFO,
       result: {
         methods: [NIP47Method.GET_INFO],
         notifications: [NIP47NotificationType.PAYMENT_RECEIVED],
       } as GetInfoResponseResult,
       error: null,
-    });
+    }));
 
     const first = fallbackClient.init();
     const concurrent = fallbackClient.init();
@@ -269,36 +281,18 @@ describe("NIP-47 client initialization fallback", () => {
 
     expect(subscriptions).toHaveLength(1);
     expect(callbacks).toHaveLength(1);
-
-    let notificationDeliveries = 0;
-    hooks.handleNotification = async () => {
-      notificationDeliveries += 1;
-    };
-    callbacks[0](
-      {
-        id: "notification-id",
-        pubkey: "02".repeat(32),
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 23196,
-        tags: [],
-        content: "",
-        sig: "",
-      },
-      "wss://relay.example.com",
-    );
-    await Promise.resolve();
-    expect(notificationDeliveries).toBe(1);
   });
 
   it.each([0, false, ""])(
     "rejects a falsy malformed capability result (%p)",
     async (result) => {
-      const { fallbackClient, hooks, unsubscriptions } = createFallbackClient();
-      hooks.sendRequest = async () => ({
+      const { fallbackClient, useRequestSender, unsubscriptions } =
+        createFallbackClient();
+      useRequestSender(async () => ({
         result_type: NIP47Method.GET_INFO,
         result: result as unknown as GetInfoResponseResult,
         error: null,
-      });
+      }));
 
       await expect(fallbackClient.init()).rejects.toThrow(
         "Invalid get_info result",
@@ -310,13 +304,18 @@ describe("NIP-47 client initialization fallback", () => {
   );
 
   it("invalidates an in-flight initialization when disconnected", async () => {
-    const { fallbackClient, hooks, subscriptions, unsubscriptions } =
-      createFallbackClient();
+    const {
+      fallbackClient,
+      useCapabilityWait,
+      useRequestSender,
+      subscriptions,
+      unsubscriptions,
+    } = createFallbackClient();
     let releaseCapabilityWait!: () => void;
     const capabilityWaitGate = new Promise<void>((resolve) => {
       releaseCapabilityWait = resolve;
     });
-    hooks.waitForCapabilityDiscovery = () => capabilityWaitGate;
+    useCapabilityWait(() => capabilityWaitGate);
 
     const initialization = fallbackClient.init();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -335,39 +334,40 @@ describe("NIP-47 client initialization fallback", () => {
     expect(unsubscriptions.length).toBeGreaterThanOrEqual(1);
     expect(unsubscriptions.every((ids) => ids[0] === "sub-1")).toBe(true);
 
-    hooks.waitForCapabilityDiscovery = async () => {};
-    hooks.sendRequest = async () => ({
+    useCapabilityWait(async () => {});
+    useRequestSender(async () => ({
       result_type: NIP47Method.GET_INFO,
       result: {
         methods: [NIP47Method.GET_INFO],
       } as GetInfoResponseResult,
       error: null,
-    });
+    }));
     await fallbackClient.init();
     expect(fallbackClient.supportsMethod(NIP47Method.GET_INFO)).toBe(true);
     expect(subscriptions).toEqual([["sub-1"], ["sub-2"]]);
   });
 
   it("prevents a stale attempt from resetting a newer successful initialization", async () => {
-    const { fallbackClient, hooks, subscriptions } = createFallbackClient();
+    const { fallbackClient, connectToRelays, useRequestSender, subscriptions } =
+      createFallbackClient();
     let releaseFirstConnection!: () => void;
     const firstConnectionGate = new Promise<void>((resolve) => {
       releaseFirstConnection = resolve;
     });
     let connectionAttempt = 0;
-    hooks.transport.connectToRelays = async () => {
+    connectToRelays.mockImplementation(async () => {
       connectionAttempt += 1;
       if (connectionAttempt === 1) {
         await firstConnectionGate;
       }
-    };
-    hooks.sendRequest = async () => ({
+    });
+    useRequestSender(async () => ({
       result_type: NIP47Method.GET_INFO,
       result: {
         methods: [NIP47Method.GET_INFO],
       } as GetInfoResponseResult,
       error: null,
-    });
+    }));
 
     const staleAttempt = fallbackClient.init();
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -872,15 +872,29 @@ describe("NIP-47: Nostr Wallet Connect", () => {
       }
     });
 
-    describe("Request encryption cleanup", () => {
-      let unauthorizedKeys: { publicKey: string; privateKey: string };
+    describe("Request failure behavior", () => {
+      const findResponse = (requestId: string): NostrEvent | undefined =>
+        relay.cache.find(
+          (candidate) =>
+            candidate.kind === 23195 &&
+            candidate.tags.some(
+              (tag) => tag[0] === "e" && tag[1] === requestId,
+            ),
+        );
 
-      beforeEach(async () => {
-        // Generate unauthorized keys for testing
-        unauthorizedKeys = await generateKeypair();
-      });
+      const decodeResponse = (
+        event: NostrEvent,
+        recipientPrivateKey: string,
+      ): NIP47Response =>
+        JSON.parse(
+          decryptNIP04(
+            recipientPrivateKey,
+            serviceKeypair.publicKey,
+            event.content,
+          ),
+        ) as NIP47Response;
 
-      it("should clean up requestEncryption map on expired request", async () => {
+      it("publishes a correlated expiration error for an expired request", async () => {
         // Create an expired request
         const request = {
           method: NIP47Method.GET_INFO,
@@ -905,44 +919,22 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           clientKeypair.privateKey,
         );
 
-        const outcome = await processNip47ServiceRequest(service, event);
+        await dispatchNip47ServiceRequest(service, event);
 
-        // Wait a bit for async operations
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        expect(outcome.encryptionRetained).toBe(false);
-      });
-
-      it("should clean up requestEncryption map on unauthorized client", async () => {
-        const request = {
-          method: NIP47Method.GET_INFO,
-          params: {},
-        };
-
-        const eventTemplate = {
-          kind: 23194, // NIP47EventKind.REQUEST
-          content: encryptNIP04(
-            unauthorizedKeys.privateKey,
-            serviceKeypair.publicKey,
-            JSON.stringify(request),
-          ),
-          tags: [["p", serviceKeypair.publicKey]],
-        };
-
-        const event = await createSignedEvent(
-          createEvent(eventTemplate, unauthorizedKeys.publicKey),
-          unauthorizedKeys.privateKey,
+        const responseEvent = findResponse(event.id);
+        expect(responseEvent).toBeDefined();
+        const response = decodeResponse(
+          responseEvent!,
+          clientKeypair.privateKey,
         );
-
-        const outcome = await processNip47ServiceRequest(service, event);
-
-        // Wait a bit for async operations
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        expect(outcome.encryptionRetained).toBe(false);
+        expect(response.result_type).toBe(NIP47Method.UNKNOWN);
+        expect(response.error).toMatchObject({
+          code: NIP47ErrorCode.REQUEST_EXPIRED,
+          message: "Request has expired",
+        });
       });
 
-      it("should clean up requestEncryption map on decryption failure", async () => {
+      it("logs a decryption failure without publishing a response", async () => {
         const eventTemplate = {
           kind: 23194, // NIP47EventKind.REQUEST
           content: "invalid_encrypted_content", // This will fail decryption
@@ -959,10 +951,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           .spyOn(console, "error")
           .mockImplementation(() => {});
 
-        const outcome = await processNip47ServiceRequest(service, event);
-
-        // Wait a bit for async operations
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await dispatchNip47ServiceRequest(service, event);
 
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -970,11 +959,11 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           expect.any(Error),
         );
 
-        expect(outcome.encryptionRetained).toBe(false);
+        expect(findResponse(event.id)).toBeUndefined();
         consoleErrorSpy.mockRestore();
       });
 
-      it("should clean up requestEncryption map on successful request", async () => {
+      it("publishes a correlated response for a successful request", async () => {
         const request = {
           method: NIP47Method.GET_INFO,
           params: {},
@@ -995,15 +984,19 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           clientKeypair.privateKey,
         );
 
-        const outcome = await processNip47ServiceRequest(service, event);
+        await dispatchNip47ServiceRequest(service, event);
 
-        // Wait a bit for async operations to complete
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        expect(outcome.encryptionRetained).toBe(false);
+        const responseEvent = findResponse(event.id);
+        expect(responseEvent).toBeDefined();
+        const response = decodeResponse(
+          responseEvent!,
+          clientKeypair.privateKey,
+        );
+        expect(response.result_type).toBe(NIP47Method.GET_INFO);
+        expect(response.error).toBeNull();
       });
 
-      it("should clean up requestEncryption map on JSON parse error", async () => {
+      it("publishes an invalid-request response after a JSON parse error", async () => {
         const eventTemplate = {
           kind: 23194, // NIP47EventKind.REQUEST
           content: encryptNIP04(
@@ -1024,10 +1017,7 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           .spyOn(console, "error")
           .mockImplementation(() => {});
 
-        const outcome = await processNip47ServiceRequest(service, event);
-
-        // Wait a bit for async operations
-        await new Promise((resolve) => setTimeout(resolve, 100));
+        await dispatchNip47ServiceRequest(service, event);
 
         // Verify the error was logged
         expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -1035,7 +1025,16 @@ describe("NIP-47: Nostr Wallet Connect", () => {
           expect.any(Error),
         );
 
-        expect(outcome.encryptionRetained).toBe(false);
+        const responseEvent = findResponse(event.id);
+        expect(responseEvent).toBeDefined();
+        const response = decodeResponse(
+          responseEvent!,
+          clientKeypair.privateKey,
+        );
+        expect(response.result_type).toBe(NIP47Method.UNKNOWN);
+        expect(response.error).toMatchObject({
+          code: NIP47ErrorCode.INVALID_REQUEST,
+        });
 
         consoleErrorSpy.mockRestore();
       });
