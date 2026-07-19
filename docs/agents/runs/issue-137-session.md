@@ -5,8 +5,8 @@
 - Issue: #137
 - Fixed point before session: `8b970e4`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
-- Commits: `0de11d9`, `91ffafa`; final review-record commit pending
-- Status: Bun 1.3.9 watch compatibility fix green; local review reruns pending on PR #146
+- Commits: `0de11d9`, `91ffafa`, `45a1a4f`, `295d114`, `d8de419`; final review-record commit pending
+- Status: Bun 1.3.9 watch compatibility fix green; metadata review fix pending on PR #146
 
 ## Inputs
 
