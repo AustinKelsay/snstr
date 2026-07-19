@@ -9,7 +9,7 @@
 - Feature branches: one branch per approved ticket, created from the latest integrated `staging`
 - Human owner: plebdev
 - Started: 2026-07-18
-- Current status: item 1 / issue #131 merged into `staging`; item 2 / issue #132 passed Grok review, all local verification, and local CodeRabbit code review; PR publication pending
+- Current status: item 1 / issue #131 merged into `staging`; item 2 / issue #132 is open as PR #141 with hosted CI and CodeRabbit pending
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, domain docs, ADRs, CI, CodeRabbit)
 
 ## Goal
@@ -27,7 +27,7 @@ Complete cleanup items 1–9 from the staging audit end to end, branch by branch
 - Agent briefs: Grok 4.5 is the exclusive delegated sidecar; Cursor exposes the highest available tier as `cursor-grok-4.5-high`, which is used for all standards/spec passes
 - Review packets: `issue-131-review-packet.md`, `issue-132-review-packet.md`; created per later ticket
 - Local CodeRabbit report: `issue-131-coderabbit-local.md`, `issue-132-coderabbit-local.md`; created per later ticket
-- PR URL: #140 merged for issue #131; created per later ticket, always non-draft and targeting `staging`
+- PR URL: #140 merged for issue #131; #141 open for issue #132; created per later ticket, always non-draft and targeting `staging`
 
 ## Commands
 

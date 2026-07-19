@@ -5,8 +5,9 @@
 - Issue: #132
 - Fixed point before session: `cf705f0`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
-- Commit: pending
-- Status: implementation, independent Grok review, full verification, and local CodeRabbit code review complete
+- Commits: `0c111d7`, `20565a0`, `abfc836`, `dea7aa0`, `466d1d5`
+- PR: #141
+- Status: PR #141 open against `staging`; hosted CI and CodeRabbit pending
 
 ## Inputs
 
