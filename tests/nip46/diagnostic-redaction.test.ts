@@ -127,11 +127,15 @@ describe("NIP-46 diagnostic redaction", () => {
         connectionSecret,
         eventPlaintext,
         encryptionPlaintext,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         connectionSecret,
         eventPlaintext,
         encryptionPlaintext,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expect(renderDiagnostics(clientDiagnostics.diagnostics)).toContain(
         "sign_event",
@@ -190,11 +194,15 @@ describe("NIP-46 diagnostic redaction", () => {
         connectionSecret,
         eventPlaintext,
         encryptionPlaintext,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         connectionSecret,
         eventPlaintext,
         encryptionPlaintext,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expect(renderDiagnostics(clientDiagnostics.diagnostics)).toContain(
         "sign_event",
@@ -238,9 +246,13 @@ describe("NIP-46 diagnostic redaction", () => {
 
       expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
         connectionSecret,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         connectionSecret,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expect(renderDiagnostics(clientDiagnostics.diagnostics)).toContain(
         "Connect response requires secret",
@@ -289,10 +301,14 @@ describe("NIP-46 diagnostic redaction", () => {
       expectNoSensitiveDiagnostics(clientDiagnostics.diagnostics, [
         expectedSecret,
         rejectedSecret,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       expectNoSensitiveDiagnostics(bunkerDiagnostics.diagnostics, [
         expectedSecret,
         rejectedSecret,
+        userKeys.privateKey,
+        signerKeys.privateKey,
       ]);
       const failureDiagnostics = renderDiagnostics(
         bunkerDiagnostics.diagnostics,
@@ -307,6 +323,7 @@ describe("NIP-46 diagnostic redaction", () => {
 
   test("throwing diagnostics cannot alter public behavior", async () => {
     const userKeys = await generateKeypair();
+    const signerKeys = await generateKeypair();
     const setLevel = jest.fn(() => {
       throw new Error("set level failed");
     });
@@ -330,8 +347,31 @@ describe("NIP-46 diagnostic redaction", () => {
         }),
     ).not.toThrow();
 
-    const client = new SimpleNIP46Client([], { logger });
+    const bunker = new SimpleNIP46Bunker(
+      [relayUrl],
+      userKeys.publicKey,
+      signerKeys.publicKey,
+      {
+        defaultPermissions: ["ping"],
+        logger,
+      },
+    );
+    const client = new SimpleNIP46Client([relayUrl], { logger });
+    bunker.setUserPrivateKey(userKeys.privateKey);
+    bunker.setSignerPrivateKey(signerKeys.privateKey);
+
     expect(() => client.setLogLevel(LogLevel.TRACE)).not.toThrow();
     expect(setLevel).toHaveBeenCalledWith(LogLevel.TRACE);
+
+    try {
+      await bunker.start();
+      await expect(client.connect(bunker.getConnectionString())).resolves.toBe(
+        userKeys.publicKey,
+      );
+      await expect(client.ping()).resolves.toBe(true);
+    } finally {
+      await client.disconnect().catch(() => undefined);
+      await bunker.stop().catch(() => undefined);
+    }
   });
 });

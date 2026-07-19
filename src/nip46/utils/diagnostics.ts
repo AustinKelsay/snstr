@@ -19,6 +19,7 @@ const SENSITIVE_FIELD_NAMES = new Set([
   "eventdata",
   "params",
   "plaintext",
+  "privatekey",
   "result",
   "secret",
 ]);
