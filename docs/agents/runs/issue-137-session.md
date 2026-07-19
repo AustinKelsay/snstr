@@ -5,8 +5,8 @@
 - Issue: #137
 - Fixed point before session: `8b970e4`
 - Worker session: current Codex orchestrator; Grok 4.5 High reviewers
-- Commits: pending
-- Status: implementation green; review and final gates pending
+- Commits: `0de11d9`; review-fix commit pending
+- Status: implementation and CodeRabbit fixes green; clean review rerun and final gates pending
 
 ## Inputs
 
@@ -41,14 +41,14 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 | Lane | Suites | Tests | Time |
 | --- | ---: | ---: | ---: |
 | Baseline default Jest | 85 | 1096 | 58.793s |
-| Routine Jest | 84 | 1061 | 34.888s |
+| Routine Jest | 84 | 1062 | 32.391s |
 | Slow Jest | 2 | 40 | 43.189s |
-| Routine Bun | 84 | 1061 | 190.47s |
+| Routine Bun | 84 | 1062 | 190.51s |
 | Slow Bun | 2 | 40 | 40.38s |
 
-- The conservative final routine Jest run improved by 40.7%, exceeding the 40% target; an earlier confirming run completed in 32.309s.
-- `input-validation` dropped from 58.171s in the baseline parallel run to 31.561s in the conservative final routine run; its isolated Jest run is 25.294s.
-- Routine plus slow remains the complete 86-suite, 1101-test assurance set in both runtimes.
+- The post-review routine Jest run improved by 44.9%, exceeding the 40% target.
+- `input-validation` dropped from 58.171s in the baseline parallel run to 29.015s in the post-review routine run; its isolated Jest run is 25.294s.
+- Routine plus slow remains the complete 86-suite, 1102-test assurance set in both runtimes.
 
 ## Review
 
@@ -56,16 +56,16 @@ npx jest --json --outputFile=/tmp/snstr-issue-137-baseline.json
 - Design findings: Grok selected a two-file named security/performance lane, required full CI union coverage, and identified parser validation as the largest deterministic low-hanging wait removal
 - Standards findings: passed; the documentation command contract was corrected so complete coverage consistently names `test:coverage:all`
 - Spec findings: passed with no P0/P1 findings
-- Worthy fixes applied: aligned `AGENTS.md` and `CLAUDE.md` with the routine-versus-complete coverage contract
-- Findings ignored with reasons: pending final review
+- Worthy fixes applied: aligned `AGENTS.md` and `CLAUDE.md` with the routine-versus-complete coverage contract; expanded discovery to Jest-compatible `.spec.*` files; pinned routine and complete coverage wiring in tests; recorded the actual implementation commit in the ledger
+- Findings ignored with reasons: none; all three local CodeRabbit findings were valid and fixed
 
 ## Verification
 
 - Focused Jest/Bun input-validation: 33/33 in each runtime
-- Lane contract: 5/5
-- Routine Jest: 84/84 suites, 1061/1061 tests
+- Lane contract: 6/6 in Jest and Bun
+- Routine Jest: 84/84 suites, 1062/1062 tests
 - Slow Jest: 2/2 suites, 40/40 tests
-- Routine Bun: 84 files, 1061/1061 tests
+- Routine Bun: 84 files, 1062/1062 tests
 - Slow Bun: 2 files, 40/40 tests
 - Repository gates: command/package-manager policy, ESLint, strict TypeScript, build, examples, and pack pending final pass
 

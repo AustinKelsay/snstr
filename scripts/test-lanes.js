@@ -19,7 +19,7 @@ function discoverTestFiles(repoRoot) {
       const absolutePath = path.join(directory, entry.name);
       if (entry.isDirectory()) {
         visit(absolutePath);
-      } else if (/\.test\.[cm]?[jt]sx?$/.test(entry.name)) {
+      } else if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(entry.name)) {
         files.push(toPosixPath(path.relative(repoRoot, absolutePath)));
       }
     }

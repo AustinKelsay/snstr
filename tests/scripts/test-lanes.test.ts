@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 
-import { existsSync, readFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "fs";
+import { tmpdir } from "os";
 import path from "path";
 
 type TestLane = "all" | "routine" | "slow";
@@ -39,6 +47,25 @@ describe("test lane contract", () => {
     expect(routine.filter((file) => slow.includes(file))).toEqual([]);
   });
 
+  test("discovers both Jest test and spec filename conventions", () => {
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), "snstr-test-lanes-"));
+    const fixtureTests = path.join(fixtureRoot, "tests");
+
+    try {
+      mkdirSync(fixtureTests);
+      writeFileSync(path.join(fixtureTests, "alpha.test.ts"), "");
+      writeFileSync(path.join(fixtureTests, "beta.spec.ts"), "");
+      writeFileSync(path.join(fixtureTests, "not-a-test.ts"), "");
+
+      expect(lanes.discoverTestFiles(fixtureRoot)).toEqual([
+        "tests/alpha.test.ts",
+        "tests/beta.spec.ts",
+      ]);
+    } finally {
+      rmSync(fixtureRoot, { force: true, recursive: true });
+    }
+  });
+
   test("keeps targeted Jest runs compatible while excluding slow files by default", () => {
     const routineArgs = lanes.getJestArgsForLane("routine");
 
@@ -65,6 +92,12 @@ describe("test lane contract", () => {
     expect(packageJson.scripts["test:all"]).toBe(
       "npm test && npm run test:slow",
     );
+    expect(packageJson.scripts["test:coverage"]).toBe(
+      "node scripts/run-test-lane.js jest routine --coverage",
+    );
+    expect(packageJson.scripts["test:coverage:all"]).toBe(
+      "node scripts/run-test-lane.js jest all --coverage",
+    );
     expect(packageJson.scripts["test:bun"]).toBe(
       "node scripts/run-test-lane.js bun routine",
     );
@@ -86,5 +119,6 @@ describe("test lane contract", () => {
     expect(workflow).toContain("run: npm run test:slow");
     expect(workflow).toContain("run: bun run test:bun");
     expect(workflow).toContain("run: bun run test:bun:slow");
+    expect(workflow).toContain("run: npm run test:coverage:all");
   });
 });
