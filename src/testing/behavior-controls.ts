@@ -52,7 +52,15 @@ export async function waitForRelayValidation(
   ).pendingValidationCounts;
   for (let turn = 0; turn < maxMicrotaskTurns; turn += 1) {
     if ((pending.get(subscriptionId) ?? 0) === 0) return;
-    await Promise.resolve();
+    await new Promise<void>((resolve) => {
+      const channel = new MessageChannel();
+      channel.port1.onmessage = () => {
+        channel.port1.close();
+        channel.port2.close();
+        resolve();
+      };
+      channel.port2.postMessage(undefined);
+    });
   }
   throw new Error(
     `Timed out waiting for inbound EVENT validation for ${subscriptionId}`,

@@ -613,16 +613,18 @@ describe("Relay", () => {
         true,
       );
 
-      // Try to publish with a socket that's not in OPEN state
-      const result: PublishResponse = await relay.publish(event);
+      try {
+        // Try to publish with a socket that's not in OPEN state
+        const result: PublishResponse = await relay.publish(event);
 
-      // Should fail with not_connected reason
-      expect(result.success).toBe(false);
-      expect(result.reason).toBe("not_connected");
-      expect(result.relay).toBe(ephemeralRelay.url);
-
-      // Restore the original WebSocket
-      restoreSocket();
+        // Should fail with not_connected reason
+        expect(result.success).toBe(false);
+        expect(result.reason).toBe("not_connected");
+        expect(result.relay).toBe(ephemeralRelay.url);
+      } finally {
+        // Restore the original WebSocket
+        restoreSocket();
+      }
     });
 
     test("should support waitForAck option", async () => {
