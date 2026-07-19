@@ -6,7 +6,7 @@
 - Fixed point before session: `f4bda34`
 - Worker session: current Codex orchestrator; Grok 4.5 High standards/spec reviewers
 - Commit: `7ed8433`, `00104cc`, `21b4ad9`, `426c17b`
-- Status: local implementation and review complete; PR #140 open against `staging`; hosted rerun and CI pending for `426c17b`
+- Status: local and hosted review complete; PR #140 open against `staging`; all hosted gates passed for `4ea5fbc`
 
 ## Inputs
 
@@ -41,9 +41,9 @@
 - Final Bun after hosted fixes: 1054/1054 tests, 8173 assertions, 269.65 seconds
 - Build/package: commands and package-manager policy, lint, TypeScript, CJS/ESM builds, examples, and pack verification green
 - Local CodeRabbit: round 1 raised three valid code/test issues; all fixed; round 2 raised zero issues; round 3 raised one documentation-status inconsistency, fixed; round 4 raised zero issues
-- Hosted CodeRabbit: raised two valid major findings; both fixed with public regressions; final hosted rerun pending
+- Hosted CodeRabbit: raised two valid major findings; both fixed with public regressions; final hosted rerun passed
 - Grok hosted-fix review: initial pass found one additional permission interpolation; fixed after a public red test; follow-up verdict `APPROVE`
 
 ## Risks
 
-- No code risks remain open. Merge remains gated on the final hosted CodeRabbit rerun and CI for `426c17b`.
+- No code or hosted-gate risks remain open; `4ea5fbc` is ready to merge into `staging`.
