@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-tier-ab-api-surface`
 - Human owner: plebdev
 - Started: 2026-07-28
-- Current status: implementation + review fixes complete; preparing commits, CodeRabbit, staging PR
+- Current status: non-draft PR #163 open into staging; local CodeRabbit unavailable with fallback recorded
 - Skill setup status: present and verified
 
 ## Goal
@@ -26,8 +26,8 @@ Complete Tier A and Tier B cleanup end to end: close stale shipped issues, publi
 - Ticket sessions: orchestrator-driven under full-autonomy grant (no separate parked HITL)
 - Agent briefs: Grok/Opus bounded review sidecars for standards/spec; implementation on orchestrator + Opus sidecar
 - Review packets: inline standards/spec review in this run; worthy findings fixed
-- Local CodeRabbit report: pending
-- PR URL: pending
+- Local CodeRabbit report: `docs/agents/runs/archive/tier-ab-coderabbit-local.md` (unavailable fallback)
+- PR URL: https://github.com/AustinKelsay/snstr/pull/163
 
 ## Commands
 
@@ -61,7 +61,7 @@ Complete Tier A and Tier B cleanup end to end: close stale shipped issues, publi
 | Issue | Fixed point | Worker session | Commit | Review result | Checks |
 | --- | --- | --- | --- | --- | --- |
 | #155 | staging | orchestrator | (gh-only) | n/a | issues closed |
-| #156–#162 | staging | orchestrator + Opus implement | pending | standards/spec findings fixed | tsc, lint, 1076 routine |
+| #156–#162 | staging | orchestrator + Opus implement | `2195805` | standards/spec findings fixed | tsc, lint, 1076 routine, pack/commands verify |
 
 ## Open Questions
 
