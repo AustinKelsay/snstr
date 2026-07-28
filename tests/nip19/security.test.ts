@@ -22,6 +22,17 @@ import {
 } from "../../src/nip19/index";
 import { isValidRelayUrl, filterProfile } from "../../src/nip19/secure";
 import { bech32 } from "@scure/base";
+import type { DiagnosticLogger } from "../../src/utils/logger";
+
+function createLogger(): jest.Mocked<DiagnosticLogger> {
+  return {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+  };
+}
 
 describe("NIP-19: Comprehensive Security Tests", () => {
   // Test data
@@ -391,34 +402,23 @@ describe("NIP-19: Comprehensive Security Tests", () => {
         "wss://user:password@relay.example.com", // URL with credentials
       ];
 
-      // Spy on console.warn to verify it's called for invalid URLs
-      const originalWarn = console.warn;
-      const mockWarn = jest.fn();
-      console.warn = mockWarn;
+      const logger = createLogger();
+      maliciousUrls.forEach((url) => {
+        const encoded = createProfileWithCustomRelays([url]);
 
-      try {
-        maliciousUrls.forEach((url) => {
-          const encoded = createProfileWithCustomRelays([url]);
+        // The decoder doesn't throw on invalid URLs, but it should warn about them.
+        const decoded = decodeProfile(encoded as Bech32String, logger);
 
-          // The decoder doesn't throw on invalid URLs, but it should warn about them
-          const decoded = decodeProfile(encoded as Bech32String);
+        // The library code doesn't filter URLs, just warns about them.
+        expect(decoded.relays).toContain(url);
+        expect(logger.warn).toHaveBeenCalledWith(
+          "Invalid relay URL found while decoding nprofile",
+          { reason: "invalid-relay-url" },
+        );
+        expect(JSON.stringify(logger.warn.mock.calls)).not.toContain(url);
 
-          // The library code doesn't filter URLs, just warns about them
-          expect(decoded.relays).toContain(url);
-
-          // Verify a warning was issued
-          expect(mockWarn).toHaveBeenCalledWith(
-            expect.stringContaining(
-              `Warning: Invalid relay URL format found while decoding: ${url}`,
-            ),
-          );
-
-          mockWarn.mockClear();
-        });
-      } finally {
-        // Restore original console.warn
-        console.warn = originalWarn;
-      }
+        logger.warn.mockClear();
+      });
     });
 
     test("encodeProfile checks relay count", () => {

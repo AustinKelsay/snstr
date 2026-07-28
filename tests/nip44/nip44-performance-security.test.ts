@@ -23,7 +23,7 @@ function measureTime<T>(fn: () => T): { result: T; timeMs: number } {
   return { result, timeMs: end - start };
 }
 
-describe("NIP-44 Performance Tests", () => {
+describe("[slow] NIP-44 Performance Tests", () => {
   const testPrivateKey =
     "0000000000000000000000000000000000000000000000000000000000000001";
   const testPublicKey = getPublicKeyHex(testPrivateKey);
@@ -193,7 +193,7 @@ describe("NIP-44 Performance Tests", () => {
   });
 });
 
-describe("NIP-44 Security Tests", () => {
+describe("[slow] NIP-44 Security Tests", () => {
   describe("Constant-Time Comparison Security", () => {
     test("should have consistent timing for equal arrays", () => {
       const array1 = new Uint8Array(32).fill(0xaa);

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A supported `snstr/testing` subpath now owns the Node-only `NostrRelay` test Relay and framework-neutral Relay test-double types without leaking Jest into published application declarations.
+- Canonical NIP-01 client and Relay wire-message tuple types now provide one authoritative protocol definition.
+- Repository tooling now enforces npm 9.8.1 as the release package manager, Bun as a pinned compatibility runner, and explicit routine, slow, and complete test lanes.
+
+### Changed
+- Relay event storage, Nostr Relay registry management, NIP-47 protocol codecs and dispatch, NIP-46 request machinery, NIP-57 client behavior, and ephemeral Relay transport/session/filter responsibilities now live behind smaller internal modules while preserving their public 0.x facades.
+- Production diagnostics now use one compatible logger policy across Nostr, Relay, RelayPool, NIP-46, NIP-47, NIP-57, and stateless protocol helpers.
+- Structural regression tests now prefer public behavior and owned testing seams over private implementation shapes.
+
+### Fixed
+- NIP-44 decryption now rejects unsupported legacy payload versions and malformed v2 nonce sizes through the public decrypt path.
+- NIP-47 service initialization is idempotent, concurrent-safe, and restartable after disconnect.
+- NIP-57 client flows share cache, filter, invoice, and statistics behavior while preserving explicit limit values, including zero.
+- Ephemeral Relay shutdown now retains runtime error handling, releases transports when session cleanup rejects, and stops session polling without stale routes.
+
+### Security
+- NIP-46 connection secrets, private keys, decrypted payloads, and untrusted error text are excluded from diagnostic output.
+- Generic key, wire-format, and resource-limit validation now has canonical ownership so NIP-specific policies cannot silently drift.
+
 ## [0.5.0] - 2026-07-18
 
 ### Added

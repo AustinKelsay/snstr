@@ -32,9 +32,12 @@ npm run format                   # Format code with Prettier
 
 ### Testing
 ```bash
-npm test                         # Run all tests
-npm run test:watch              # Run tests in watch mode
-npm run test:coverage           # Generate coverage report
+npm test                         # Run the routine feedback lane
+npm run test:slow               # Run security/performance load tests
+npm run test:all                # Run the complete routine + slow inventory
+npm run test:watch              # Run routine tests in watch mode
+npm run test:coverage           # Generate routine coverage
+npm run test:coverage:all       # Generate complete coverage for review/CI
 npm run test:nip01              # Test core NIP-01 functionality
 npm run test:nip04              # Test specific NIP (replace 04 with any NIP number)
 npm run test:crypto             # Test all crypto functionality

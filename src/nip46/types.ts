@@ -3,6 +3,7 @@
  */
 
 import type { RateLimitConfig } from "./utils/rate-limiter";
+import type { DiagnosticLogger } from "../utils/logger";
 
 export interface NIP46Request {
   id: string;
@@ -95,6 +96,8 @@ export interface NIP46ClientOptions extends NIP46ConnectionOptions {
   debug?: boolean;
   authTimeout?: number; // Auth challenge timeout in milliseconds
   authDomainWhitelist?: string[]; // Allowed domains for auth URLs
+  /** Receives redacted NIP-46 diagnostics. The logger controls its own level. */
+  logger?: DiagnosticLogger;
 }
 
 /**
@@ -112,6 +115,8 @@ export interface NIP46BunkerOptions {
   metadata?: NIP46Metadata;
   debug?: boolean;
   rateLimitConfig?: RateLimitConfig;
+  /** Receives redacted NIP-46 diagnostics. The logger controls its own level. */
+  logger?: DiagnosticLogger;
 }
 
 /**
@@ -327,6 +332,8 @@ export interface SimpleNIP46BunkerOptions {
   defaultPermissions?: string[];
   secret?: string;
   debug?: boolean;
+  /** Receives redacted NIP-46 diagnostics. The logger controls its own level. */
+  logger?: DiagnosticLogger;
 }
 
 /**
@@ -336,4 +343,6 @@ export interface SimpleNIP46ClientOptions {
   timeout?: number;
   logLevel?: number; // Using LogLevel enum
   debug?: boolean;
+  /** Receives redacted NIP-46 diagnostics. The logger controls its own level. */
+  logger?: DiagnosticLogger;
 }

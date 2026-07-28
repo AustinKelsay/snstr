@@ -17,7 +17,7 @@
 
 import { Nostr, NostrEvent, generateKeypair } from "../../../src";
 import { createEvent, createSignedEvent } from "../../../src/nip01/event";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 
 // Create an ephemeral relay for the example
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";

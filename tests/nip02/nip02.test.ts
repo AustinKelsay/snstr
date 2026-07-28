@@ -1,5 +1,5 @@
 import { NostrEvent, NostrKind, ContactsEvent } from "../../src/types/nostr";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import {
   createSignedEvent,
   UnsignedEvent,

@@ -1,9 +1,9 @@
 import type { EventTemplate, NostrEvent } from "../types/nostr";
 import {
   sanitizeString,
-  SECURITY_LIMITS,
   validateEventContent,
 } from "../utils/security-validator";
+import { SECURITY_LIMITS } from "../utils/security-limits";
 
 export const REPORT_KIND = 1984;
 

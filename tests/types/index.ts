@@ -1,15 +1,12 @@
 import {
-  Nostr,
   NostrEvent,
   PublishOptions,
   PublishResponse,
   Relay,
   RelayEvent,
   RelayEventCallbacks,
-  Subscription,
 } from "../../src";
-import type { RelayConnectionOptions } from "../../src/types/protocol";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { normalizeRelayUrl as normalizeRelayUrlUtil } from "../../src/utils/relayUrl";
 
 /**
@@ -40,18 +37,10 @@ export interface MockRelay {
     authEvent: NostrEvent,
     options?: PublishOptions,
   ): Promise<PublishResponse>;
-  getLatestReplaceableEvent?(pubkey: string, kind: number): NostrEvent | undefined;
-}
-
-/**
- * Interface for accessing private members of the Nostr class during testing
- * DO NOT USE THIS IN PRODUCTION CODE!
- */
-export interface NostrInternals {
-  privateKey: string;
-  publicKey: string;
-  relays: Map<string, Relay | MockRelay>;
-  relayOptions?: RelayConnectionOptions;
+  getLatestReplaceableEvent?(
+    pubkey: string,
+    kind: number,
+  ): NostrEvent | undefined;
 }
 
 /**
@@ -59,60 +48,6 @@ export interface NostrInternals {
  */
 export function isMockRelay(relay: Relay | MockRelay): relay is MockRelay {
   return "publishResults" in relay;
-}
-
-/**
- * Safe cast from Nostr to NostrInternals for testing
- */
-export function getNostrInternals(client: Nostr): NostrInternals {
-  return client as unknown as NostrInternals;
-}
-
-/**
- * Interface for accessing private members of Relay class in tests
- * This provides type-safe access to internal implementation details
- * DO NOT USE THIS IN PRODUCTION CODE!
- */
-export interface RelayTestAccess {
-  // Public properties and methods from Relay
-  url: string;
-  connect(): Promise<boolean>;
-  disconnect(): void;
-  getSubscriptionIds(): Set<string>;
-  setConnectionTimeout(timeout: number): void;
-  getConnectionTimeout(): number;
-
-  // Private connection related properties
-  ws: WebSocket | null;
-  connectionPromise: Promise<boolean> | null;
-  autoReconnect: boolean;
-  maxReconnectAttempts: number;
-  maxReconnectDelay: number;
-  reconnectAttempts: number;
-  reconnectTimer: NodeJS.Timeout | null;
-  connected: boolean;
-
-  // Private internal state
-  subscriptions: Map<string, Subscription>;
-  eventBuffers: Map<string, NostrEvent[]>;
-  pendingValidationCounts: Map<string, number>;
-  status: string;
-
-  // Private internal methods
-  handleMessage(message: string[] | unknown[]): void;
-  processValidatedEvent(event: NostrEvent, subscriptionId: string): void;
-  processReplaceableEvent(event: NostrEvent): void;
-  processAddressableEvent(event: NostrEvent): void;
-  flushSubscriptionBuffer(subscriptionId: string): void;
-  scheduleReconnect(): void;
-}
-
-/**
- * Helper function to safely cast a Relay to RelayTestAccess for testing
- * This makes the code intention clearer than using "as any"
- */
-export function asTestRelay(relay: Relay): RelayTestAccess {
-  return relay as unknown as RelayTestAccess;
 }
 
 /**

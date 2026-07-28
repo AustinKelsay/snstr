@@ -1,8 +1,8 @@
 /**
- * Simplified test for NIP-47 client encryption tracking
+ * NIP-47 client encryption negotiation and response behavior
  *
- * This test verifies that the client correctly tracks and uses the same
- * encryption scheme for decrypting responses as was used for the request.
+ * These tests verify the negotiated request scheme through the wire event and
+ * prove the matching response path completes end to end.
  */
 
 import { generateKeypair } from "../../src/utils/crypto";
@@ -16,26 +16,10 @@ import {
   NIP47EncryptionScheme,
   NIP47ConnectionOptions,
   NIP47Logger,
-  NIP47Request,
 } from "../../src/nip47/types";
-import { NostrEvent } from "../../src/types/nostr";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { dispatchNip47ClientResponse, NostrRelay } from "../../src/testing";
 
-// Type-safe interface for accessing private client methods in tests
-interface ClientWithPrivateMethods {
-  sendRequest: (request: NIP47Request, expiration?: number) => Promise<unknown>;
-  handleResponse: (event: NostrEvent) => Promise<void>;
-  chooseEncryptionScheme: () => NIP47EncryptionScheme;
-  pendingRequests: Map<
-    string,
-    {
-      encryptionScheme: NIP47EncryptionScheme;
-      resolve: (response: unknown) => void;
-    }
-  >;
-}
-
-describe("NIP-47: Client encryption tracking (simplified)", () => {
+describe("NIP-47: Client encryption negotiation", () => {
   let relay: NostrRelay;
 
   beforeAll(async () => {
@@ -49,7 +33,7 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     }
   });
 
-  test("should track and use the correct encryption scheme for responses", async () => {
+  test("uses NIP-44 for the request and completes the response roundtrip", async () => {
     const serviceKeys = await generateKeypair();
     const clientKeys = await generateKeypair();
 
@@ -98,44 +82,6 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
 
     const client = new NostrWalletConnectClient(connectionOptions);
 
-    // Track what encryption was used
-    let requestEncryption: NIP47EncryptionScheme | undefined;
-    let responseDecryption: NIP47EncryptionScheme | undefined;
-
-    // Create a type-safe wrapper for accessing private methods
-    const clientWithPrivates = client as unknown as ClientWithPrivateMethods;
-
-    // Spy on the client's sendRequest to see what encryption it uses
-    const originalSendRequest = clientWithPrivates.sendRequest.bind(client);
-    clientWithPrivates.sendRequest = jest.fn(
-      async (request: NIP47Request, expiration?: number) => {
-        // Check the encryption scheme being used
-        const chooseEncryption =
-          clientWithPrivates.chooseEncryptionScheme.bind(client);
-        requestEncryption = chooseEncryption();
-        return originalSendRequest(request, expiration);
-      },
-    );
-
-    // Spy on handleResponse to see what decryption is used
-    const originalHandleResponse =
-      clientWithPrivates.handleResponse.bind(client);
-    clientWithPrivates.handleResponse = jest.fn(async (event: NostrEvent) => {
-      // The handleResponse now uses tracked encryption
-      const pendingRequests = clientWithPrivates.pendingRequests;
-
-      // Get request ID from e-tag
-      const eTag = event.tags.find((tag: string[]) => tag[0] === "e");
-      if (eTag && eTag[1]) {
-        const pending = pendingRequests.get(eTag[1]);
-        if (pending) {
-          responseDecryption = pending.encryptionScheme;
-        }
-      }
-
-      return originalHandleResponse(event);
-    });
-
     await client.init();
 
     // Wait for capabilities discovery
@@ -145,16 +91,20 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
     const balance = await client.getBalance();
     expect(balance).toBe(50000000);
 
-    // Verify that request and response used the same encryption
-    expect(requestEncryption).toBe(NIP47EncryptionScheme.NIP44_V2);
-    expect(responseDecryption).toBe(NIP47EncryptionScheme.NIP44_V2);
-    expect(requestEncryption).toBe(responseDecryption);
+    const request = relay.cache
+      .filter((event) => event.kind === 23194)
+      .reverse()
+      .find((event) => event.pubkey === client.getPublicKey());
+    expect(request?.tags).toContainEqual([
+      "encryption",
+      NIP47EncryptionScheme.NIP44_V2,
+    ]);
 
     await client.disconnect();
     await service.disconnect();
   }, 10000);
 
-  test("should fallback to NIP-04 when NIP-44 is not supported", async () => {
+  test("falls back to NIP-04 and completes the response roundtrip", async () => {
     const serviceKeys = await generateKeypair();
     const clientKeys = await generateKeypair();
 
@@ -193,30 +143,17 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
       preferredEncryption: NIP47EncryptionScheme.NIP44_V2,
     });
 
-    // Track encryption
-    let requestEncryption: NIP47EncryptionScheme | undefined;
-
-    // Use the same type-safe interface
-    const clientWithPrivates2 = client as unknown as ClientWithPrivateMethods;
-
-    const originalSendRequest = clientWithPrivates2.sendRequest.bind(client);
-    clientWithPrivates2.sendRequest = jest.fn(
-      async (request: NIP47Request, expiration?: number) => {
-        const chooseEncryption =
-          clientWithPrivates2.chooseEncryptionScheme.bind(client);
-        requestEncryption = chooseEncryption();
-        return originalSendRequest(request, expiration);
-      },
-    );
-
     await client.init();
     await new Promise((resolve) => setTimeout(resolve, 200));
 
     const info = await client.getInfo();
     expect(info).toBeDefined();
 
-    // Should have fallen back to NIP-04
-    expect(requestEncryption).toBe(NIP47EncryptionScheme.NIP04);
+    const request = relay.cache
+      .filter((event) => event.kind === 23194)
+      .reverse()
+      .find((event) => event.pubkey === client.getPublicKey());
+    expect(request?.tags.some((tag) => tag[0] === "encryption")).toBe(false);
 
     await client.disconnect();
     await service.disconnect();
@@ -239,21 +176,20 @@ describe("NIP-47: Client encryption tracking (simplified)", () => {
       relays: [relay.url],
       logger,
     });
-    const clientWithPrivates = client as unknown as ClientWithPrivateMethods;
-    clientWithPrivates.pendingRequests.set("request-id", {
-      encryptionScheme: NIP47EncryptionScheme.NIP04,
-      resolve: jest.fn(),
-    });
-
-    await clientWithPrivates.handleResponse({
-      id: "response-id",
-      pubkey: serviceKeys.publicKey,
-      created_at: Math.floor(Date.now() / 1000),
-      kind: 23195,
-      tags: [["e", "request-id"]],
-      content: "invalid-encrypted-content",
-      sig: "",
-    });
+    await dispatchNip47ClientResponse(
+      client,
+      "request-id",
+      NIP47EncryptionScheme.NIP04,
+      {
+        id: "response-id",
+        pubkey: serviceKeys.publicKey,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 23195,
+        tags: [["e", "request-id"]],
+        content: "invalid-encrypted-content",
+        sig: "",
+      },
+    );
 
     expect(errors).toEqual([
       expect.stringContaining("Error handling nip04 response event"),

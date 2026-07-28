@@ -6,7 +6,11 @@ import {
 } from "../types/nostr";
 import { verifySignature } from "../utils/crypto";
 import { getUnixTime } from "../utils/time";
-import { isValidPublicKeyPoint } from "../nip44";
+import { isValidPublicKeyPoint } from "../utils/key-validation";
+import {
+  isHexOfLength,
+  isLowercaseHexOfLength,
+} from "../utils/wire-validation";
 import { calculateEventHash } from "./serialization";
 
 type ValidationInvalidData =
@@ -68,19 +72,11 @@ export function isValidLowercasePublicKeyFormat(publicKey: string): boolean {
 }
 
 function isLowercaseHexString(value: unknown, length: number): value is string {
-  return (
-    typeof value === "string" &&
-    /^[0-9a-f]+$/.test(value) &&
-    value.length === length
-  );
+  return isLowercaseHexOfLength(value, length);
 }
 
 function isHexString(value: unknown, length: number): value is string {
-  return (
-    typeof value === "string" &&
-    /^[0-9a-fA-F]+$/.test(value) &&
-    value.length === length
-  );
+  return isHexOfLength(value, length);
 }
 
 function isValidCreatedAtTimestamp(value: unknown): value is number {

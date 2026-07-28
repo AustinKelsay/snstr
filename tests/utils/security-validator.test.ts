@@ -4,6 +4,17 @@ import {
   secureRandomHex,
   validateArrayAccess,
 } from "../../src/utils/security-validator";
+import type { DiagnosticLogger } from "../../src/utils/logger";
+
+function createLogger(): jest.Mocked<DiagnosticLogger> {
+  return {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+  };
+}
 
 describe("security-validator pure utilities with no public behavior route", () => {
   describe("direct unreachable array guards", () => {
@@ -37,14 +48,10 @@ describe("security-validator pure utilities with no public behavior route", () =
   });
 
   describe("direct bounded-map eviction coverage (the Relay maps are private and cannot be populated deterministically)", () => {
-    let warnSpy: jest.SpyInstance;
+    let logger: jest.Mocked<DiagnosticLogger>;
 
     beforeEach(() => {
-      warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      warnSpy.mockRestore();
+      logger = createLogger();
     });
 
     it("does nothing at the limit and evicts least-recently-used entries above it", () => {
@@ -52,9 +59,9 @@ describe("security-validator pure utilities with no public behavior route", () =
         ["a", 1],
         ["b", 2],
       ]);
-      enforceMemoryLimits(atLimit, 2, undefined, "at-limit");
+      enforceMemoryLimits(atLimit, 2, undefined, "at-limit", logger);
       expect([...atLimit.keys()]).toEqual(["a", "b"]);
-      expect(warnSpy).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
 
       const overLimit = new Map([
         ["a", 1],
@@ -67,13 +74,16 @@ describe("security-validator pure utilities with no public behavior route", () =
         ["c", 2],
       ]);
 
-      enforceMemoryLimits(overLimit, 2, accessTimes, "test-map");
+      enforceMemoryLimits(overLimit, 2, accessTimes, "test-map", logger);
 
       expect([...overLimit.keys()]).toEqual(["b", "c"]);
       expect([...accessTimes.keys()]).toEqual(["b", "c"]);
-      expect(warnSpy).toHaveBeenCalledWith(
-        "Security: Enforced memory limit for test-map, removed 1 entries (3 -> 2)",
-      );
+      expect(logger.warn).toHaveBeenCalledWith("Enforced memory limit", {
+        finalSize: 2,
+        initialSize: 3,
+        removedCount: 1,
+        scope: "test-map",
+      });
     });
 
     it("falls back to FIFO when access metadata cannot reach the target", () => {
@@ -84,13 +94,22 @@ describe("security-validator pure utilities with no public behavior route", () =
       ]);
       const incompleteAccessTimes = new Map([["missing", 0]]);
 
-      enforceMemoryLimits(values, 1, incompleteAccessTimes, "fallback-map");
+      enforceMemoryLimits(
+        values,
+        1,
+        incompleteAccessTimes,
+        "fallback-map",
+        logger,
+      );
 
       expect([...values.keys()]).toEqual(["c"]);
       expect(incompleteAccessTimes.has("missing")).toBe(true);
-      expect(warnSpy).toHaveBeenCalledWith(
-        "Security: Enforced memory limit for fallback-map, removed 2 entries (3 -> 1)",
-      );
+      expect(logger.warn).toHaveBeenCalledWith("Enforced memory limit", {
+        finalSize: 1,
+        initialSize: 3,
+        removedCount: 2,
+        scope: "fallback-map",
+      });
     });
   });
 });

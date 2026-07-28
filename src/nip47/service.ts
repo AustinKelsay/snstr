@@ -17,12 +17,6 @@ import {
   ERROR_CATEGORIES,
   ERROR_RECOVERY_HINTS,
   NIP47NotificationType,
-  NIP47RequestParams,
-  PayInvoiceParams,
-  MakeInvoiceParams,
-  LookupInvoiceParams,
-  ListTransactionsParams,
-  SignMessageParams,
   NIP47ResponseResult,
   NIP47EncryptionScheme,
 } from "./types";
@@ -34,6 +28,8 @@ import {
 import { maybeUnref } from "../utils/timers";
 import { Logger, LogLevel } from "../utils/logger";
 import type { DiagnosticLogger } from "../utils/logger";
+import { dispatchNIP47Request } from "./requestDispatcher";
+import { NIP47RequestParseError, parseNIP47Request } from "./protocol";
 
 /**
  * TTL Map implementation with automatic cleanup
@@ -106,8 +102,13 @@ class TTLMap<K, V> {
   }
 
   private startCleanup(): void {
+    if (this.cleanupInterval) return;
     this.cleanupInterval = setInterval(() => this.cleanup(), 30000);
     maybeUnref(this.cleanupInterval);
+  }
+
+  start(): void {
+    this.startCleanup();
   }
 
   destroy(): void {
@@ -189,6 +190,10 @@ export class NostrWalletService {
   private subIds: string[] = [];
   private authorizedClients: string[] = [];
   private requestEncryption: TTLMap<string, NIP47EncryptionScheme>; // Track encryption per request with TTL
+  private initialized = false;
+  private initializationPromise: Promise<void> | null = null;
+  private disconnectionPromise: Promise<void> | null = null;
+  private lifecycleGeneration = 0;
 
   constructor(
     options: NostrWalletServiceOptions,
@@ -236,26 +241,124 @@ export class NostrWalletService {
   /**
    * Initialize the service, connect to relays, and publish capabilities
    */
-  public async init(): Promise<void> {
-    // Connect to relays
-    await this.client.connectToRelays();
-    this.logger.info("Service connected to configured relays");
+  public init(): Promise<void> {
+    if (this.initialized) return Promise.resolve();
+    if (this.initializationPromise) return this.initializationPromise;
 
-    // Set up subscription to receive requests
-    this.setupSubscription();
-    this.logger.info("Service subscribed to requests");
+    const generation = this.lifecycleGeneration;
+    const initialization = this.initialize(generation).finally(() => {
+      if (this.initializationPromise === initialization) {
+        this.initializationPromise = null;
+      }
+    });
+    this.initializationPromise = initialization;
+    return initialization;
+  }
 
-    // Publish info event
-    await this.publishInfoEvent();
-    this.logger.info(
-      `Service published info event with methods: ${this.supportedMethods.join(", ")}`,
-    );
+  /** Perform one initialization attempt after any active disconnect completes. */
+  private async initialize(generation: number): Promise<void> {
+    if (this.disconnectionPromise) {
+      await this.disconnectionPromise;
+    }
+    this.assertInitializationCurrent(generation);
+    if (this.initialized) return;
+
+    let attemptSubIds: string[] = [];
+
+    try {
+      this.requestEncryption.start();
+
+      await this.client.connectToRelays();
+      this.assertInitializationCurrent(generation);
+      this.logger.info("Service connected to configured relays");
+
+      attemptSubIds = this.setupSubscription(generation);
+      this.subIds = attemptSubIds;
+      this.assertInitializationCurrent(generation);
+      this.logger.info("Service subscribed to requests");
+
+      await this.publishInfoEvent();
+      this.assertInitializationCurrent(generation);
+      this.logger.info(
+        `Service published info event with methods: ${this.supportedMethods.join(", ")}`,
+      );
+      this.initialized = true;
+    } catch (error) {
+      if (attemptSubIds.length > 0) {
+        this.client.unsubscribe(attemptSubIds);
+      }
+      if (this.subIds === attemptSubIds) {
+        this.subIds = [];
+      }
+      if (generation === this.lifecycleGeneration) {
+        this.initialized = false;
+        this.requestEncryption.destroy();
+        try {
+          await this.client.disconnectFromRelays();
+        } catch (disconnectError) {
+          this.logger.error(
+            "Error cleaning up failed service initialization:",
+            disconnectError instanceof Error
+              ? disconnectError
+              : String(disconnectError),
+          );
+        }
+      }
+      throw error;
+    }
+  }
+
+  /** Reject an initialization attempt invalidated by disconnect. */
+  private assertInitializationCurrent(generation: number): void {
+    if (generation !== this.lifecycleGeneration) {
+      throw new Error("Service initialization cancelled by disconnect");
+    }
   }
 
   /**
    * Disconnect from relays
    */
-  public async disconnect(): Promise<void> {
+  public disconnect(): Promise<void> {
+    if (this.disconnectionPromise) {
+      if (this.initializationPromise) {
+        this.lifecycleGeneration += 1;
+        const invalidatedInitialization = this.initializationPromise;
+        this.initializationPromise = null;
+        this.observeInvalidatedInitialization(invalidatedInitialization);
+      }
+      return this.disconnectionPromise;
+    }
+
+    this.lifecycleGeneration += 1;
+    this.initialized = false;
+    const invalidatedInitialization = this.initializationPromise;
+    this.initializationPromise = null;
+    this.observeInvalidatedInitialization(invalidatedInitialization);
+
+    const disconnection = this.performDisconnect(invalidatedInitialization).finally(
+      () => {
+        if (this.disconnectionPromise === disconnection) {
+          this.disconnectionPromise = null;
+        }
+      },
+    );
+    this.disconnectionPromise = disconnection;
+    return disconnection;
+  }
+
+  /** Prevent an expected cancellation from becoming an unhandled rejection. */
+  private observeInvalidatedInitialization(
+    initialization: Promise<void> | null,
+  ): void {
+    void initialization?.catch(() => {
+      // Awaiters still receive the original rejection from initialization.
+    });
+  }
+
+  /** Release all service-owned lifecycle resources. */
+  private async performDisconnect(
+    invalidatedInitialization: Promise<void> | null,
+  ): Promise<void> {
     try {
       // Clean up TTL map
       this.requestEncryption.destroy();
@@ -276,8 +379,16 @@ export class NostrWalletService {
         );
       }
 
+      if (invalidatedInitialization) {
+        try {
+          await invalidatedInitialization;
+        } catch {
+          // Disconnect intentionally invalidates an in-flight initialization.
+        }
+      }
+
       // Short delay to allow any other cleanup to complete
-      return new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         const t = setTimeout(resolve, 100);
         maybeUnref(t);
       });
@@ -334,14 +445,15 @@ export class NostrWalletService {
   /**
    * Set up subscription to receive requests
    */
-  private setupSubscription(): void {
+  private setupSubscription(generation: number): string[] {
     // Subscribe to request events directed at this service
     const filter = {
       kinds: [NIP47EventKind.REQUEST],
       "#p": [this.pubkey],
     };
 
-    this.subIds = this.client.subscribe([filter], (event: NostrEvent) => {
+    return this.client.subscribe([filter], (event: NostrEvent) => {
+      if (generation !== this.lifecycleGeneration) return;
       this.handleEvent(event);
     });
   }
@@ -419,7 +531,9 @@ export class NostrWalletService {
         }
       } catch (error) {
         if (error instanceof SecurityValidationError) {
-          this.logger.warn("NIP-47: Bounds checking error in expiration parsing");
+          this.logger.warn(
+            "NIP-47: Bounds checking error in expiration parsing",
+          );
         }
       }
 
@@ -549,9 +663,7 @@ export class NostrWalletService {
             event.content,
           );
         }
-        this.logger.trace(
-          "Successfully decrypted request content",
-        );
+        this.logger.trace("Successfully decrypted request content");
       } catch (decryptError) {
         this.logger.error(
           "Failed to decrypt message:",
@@ -562,7 +674,7 @@ export class NostrWalletService {
         return;
       }
 
-      nip47Request = JSON.parse(decryptedContent) as NIP47Request;
+      nip47Request = parseNIP47Request(decryptedContent);
 
       // Now that we have the request method, we can use it if an expiration occurs during processing
 
@@ -640,7 +752,9 @@ export class NostrWalletService {
         await this.sendErrorResponse(
           requesterClientPubkey,
           this.pubkey,
-          NIP47ErrorCode.INTERNAL_ERROR,
+          error instanceof NIP47RequestParseError
+            ? NIP47ErrorCode.INVALID_REQUEST
+            : NIP47ErrorCode.INTERNAL_ERROR,
           error instanceof Error ? error.message : "Internal server error",
           event.id,
           methodForError,
@@ -759,268 +873,13 @@ export class NostrWalletService {
     };
   }
 
-  /**
-   * Type guard for PayInvoiceParams
-   */
-  private isPayInvoiceParams(
-    method: NIP47Method,
-    params: NIP47RequestParams,
-  ): params is PayInvoiceParams {
-    return (
-      method === NIP47Method.PAY_INVOICE &&
-      typeof params === "object" &&
-      params !== null &&
-      typeof (params as PayInvoiceParams).invoice === "string" &&
-      ((params as PayInvoiceParams).amount === undefined ||
-        typeof (params as PayInvoiceParams).amount === "number") &&
-      ((params as PayInvoiceParams).maxfee === undefined ||
-        typeof (params as PayInvoiceParams).maxfee === "number")
-    );
-  }
-
-  /**
-   * Type guard for MakeInvoiceParams
-   */
-  private isMakeInvoiceParams(
-    method: NIP47Method,
-    params: NIP47RequestParams,
-  ): params is MakeInvoiceParams {
-    return (
-      method === NIP47Method.MAKE_INVOICE &&
-      typeof params === "object" &&
-      params !== null &&
-      typeof (params as MakeInvoiceParams).amount === "number" &&
-      ((params as MakeInvoiceParams).description === undefined ||
-        typeof (params as MakeInvoiceParams).description === "string") &&
-      ((params as MakeInvoiceParams).description_hash === undefined ||
-        typeof (params as MakeInvoiceParams).description_hash === "string") &&
-      ((params as MakeInvoiceParams).expiry === undefined ||
-        typeof (params as MakeInvoiceParams).expiry === "number")
-    );
-  }
-
-  /**
-   * Type guard for LookupInvoiceParams
-   */
-  private isLookupInvoiceParams(
-    method: NIP47Method,
-    params: NIP47RequestParams,
-  ): params is LookupInvoiceParams {
-    return (
-      method === NIP47Method.LOOKUP_INVOICE &&
-      typeof params === "object" &&
-      params !== null &&
-      // Must have at least one of payment_hash or invoice
-      (typeof (params as LookupInvoiceParams).payment_hash === "string" ||
-        typeof (params as LookupInvoiceParams).invoice === "string")
-    );
-  }
-
-  /**
-   * Type guard for ListTransactionsParams
-   */
-  private isListTransactionsParams(
-    method: NIP47Method,
-    params: NIP47RequestParams,
-  ): params is ListTransactionsParams {
-    return (
-      method === NIP47Method.LIST_TRANSACTIONS &&
-      typeof params === "object" &&
-      params !== null &&
-      ((params as ListTransactionsParams).from === undefined ||
-        typeof (params as ListTransactionsParams).from === "number") &&
-      ((params as ListTransactionsParams).until === undefined ||
-        typeof (params as ListTransactionsParams).until === "number") &&
-      ((params as ListTransactionsParams).limit === undefined ||
-        typeof (params as ListTransactionsParams).limit === "number") &&
-      ((params as ListTransactionsParams).offset === undefined ||
-        typeof (params as ListTransactionsParams).offset === "number") &&
-      ((params as ListTransactionsParams).unpaid === undefined ||
-        typeof (params as ListTransactionsParams).unpaid === "boolean") &&
-      ((params as ListTransactionsParams).type === undefined ||
-        typeof (params as ListTransactionsParams).type === "string")
-    );
-  }
-
-  /**
-   * Type guard for SignMessageParams
-   */
-  private isSignMessageParams(
-    method: NIP47Method,
-    params: NIP47RequestParams,
-  ): params is SignMessageParams {
-    return (
-      method === NIP47Method.SIGN_MESSAGE &&
-      typeof params === "object" &&
-      params !== null &&
-      typeof (params as SignMessageParams).message === "string"
-    );
-  }
-
-  /**
-   * Handle a request and produce a response
-   */
-  private async handleRequest(request: NIP47Request): Promise<NIP47Response> {
-    // Check if method is supported
-    if (!this.supportedMethods.includes(request.method)) {
-      return this.createErrorResponse(
-        request.method,
-        NIP47ErrorCode.INVALID_REQUEST,
-        `Method ${request.method} not supported`,
-      );
-    }
-
-    try {
-      let result;
-
-      // Execute the appropriate method
-      switch (request.method) {
-        case NIP47Method.GET_INFO:
-          result = await this.walletImpl.getInfo();
-          // Add encryption information to the result
-          result = {
-            ...result,
-            encryption: this.supportedEncryption,
-          };
-          break;
-
-        case NIP47Method.GET_BALANCE:
-          result = await this.walletImpl.getBalance();
-          break;
-
-        case NIP47Method.PAY_INVOICE:
-          if (this.isPayInvoiceParams(request.method, request.params)) {
-            result = await this.walletImpl.payInvoice(
-              request.params.invoice,
-              request.params.amount,
-              request.params.maxfee,
-            );
-          } else {
-            return this.createErrorResponse(
-              request.method,
-              NIP47ErrorCode.INVALID_REQUEST,
-              "Invalid parameters for pay_invoice method",
-            );
-          }
-          break;
-
-        case NIP47Method.MAKE_INVOICE:
-          if (this.isMakeInvoiceParams(request.method, request.params)) {
-            result = await this.walletImpl.makeInvoice(
-              request.params.amount,
-              request.params.description,
-              request.params.description_hash,
-              request.params.expiry,
-            );
-          } else {
-            return this.createErrorResponse(
-              request.method,
-              NIP47ErrorCode.INVALID_REQUEST,
-              "Invalid parameters for make_invoice method",
-            );
-          }
-          break;
-
-        case NIP47Method.LOOKUP_INVOICE:
-          if (this.isLookupInvoiceParams(request.method, request.params)) {
-            try {
-              result = await this.walletImpl.lookupInvoice({
-                payment_hash: request.params.payment_hash,
-                invoice: request.params.invoice,
-              });
-            } catch (error: unknown) {
-              const err = error as {
-                code?: NIP47ErrorCode;
-                message?: string;
-                data?: Record<string, unknown>;
-              };
-              // Enhance NOT_FOUND errors with more context for lookupInvoice
-              if (err.code === NIP47ErrorCode.NOT_FOUND) {
-                const lookupType = request.params.payment_hash
-                  ? "payment_hash"
-                  : "invoice";
-                const lookupValue =
-                  request.params.payment_hash || request.params.invoice;
-
-                return this.createErrorResponse(
-                  request.method,
-                  NIP47ErrorCode.NOT_FOUND,
-                  `Invoice not found: Could not find ${lookupType}: ${lookupValue} in the wallet's database`,
-                );
-              }
-              throw error;
-            }
-          } else {
-            return this.createErrorResponse(
-              request.method,
-              NIP47ErrorCode.INVALID_REQUEST,
-              "Invalid parameters for lookup_invoice method",
-            );
-          }
-          break;
-
-        case NIP47Method.LIST_TRANSACTIONS: {
-          if (this.isListTransactionsParams(request.method, request.params)) {
-            const transactions = await this.walletImpl.listTransactions(
-              request.params.from,
-              request.params.until,
-              request.params.limit,
-              request.params.offset,
-              request.params.unpaid,
-              request.params.type,
-            );
-            result = { transactions };
-          } else {
-            return this.createErrorResponse(
-              request.method,
-              NIP47ErrorCode.INVALID_REQUEST,
-              "Invalid parameters for list_transactions method",
-            );
-          }
-          break;
-        }
-
-        case NIP47Method.SIGN_MESSAGE:
-          if (this.isSignMessageParams(request.method, request.params)) {
-            if (!this.walletImpl.signMessage) {
-              return this.createErrorResponse(
-                request.method,
-                NIP47ErrorCode.INVALID_REQUEST,
-                "sign_message method not implemented by wallet",
-              );
-            }
-            result = await this.walletImpl.signMessage(request.params.message);
-          } else {
-            return this.createErrorResponse(
-              request.method,
-              NIP47ErrorCode.INVALID_REQUEST,
-              "Invalid parameters for sign_message method",
-            );
-          }
-          break;
-
-        default:
-          return this.createErrorResponse(
-            request.method,
-            NIP47ErrorCode.INVALID_REQUEST,
-            `Method ${request.method} not supported`,
-          );
-      }
-
-      return this.createSuccessResponse(request.method, result);
-    } catch (error: unknown) {
-      const err = error as {
-        code?: NIP47ErrorCode;
-        message?: string;
-        data?: Record<string, unknown>;
-      };
-      return this.createErrorResponse(
-        request.method,
-        err.code || NIP47ErrorCode.INTERNAL_ERROR,
-        err.message || "An error occurred processing the request",
-        err.data,
-      );
-    }
+  /** Delegate pure parameter validation and wallet invocation. */
+  private handleRequest(request: NIP47Request): Promise<NIP47Response> {
+    return dispatchNIP47Request(request, {
+      wallet: this.walletImpl,
+      supportedMethods: this.supportedMethods,
+      supportedEncryption: this.supportedEncryption,
+    });
   }
 
   /**

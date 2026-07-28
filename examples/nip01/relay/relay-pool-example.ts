@@ -17,7 +17,7 @@
 import { RelayPool } from "../../../src";
 import { createTextNote, createSignedEvent } from "../../../src/nip01/event";
 import { generateKeypair } from "../../../src/utils/crypto";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import type { NostrEvent } from "../../../src/types/nostr";
 
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";

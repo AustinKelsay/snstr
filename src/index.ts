@@ -27,6 +27,24 @@ export type {
 
 // Export types
 export * from "./types/nostr";
+export type {
+  NostrClientToServerEventMessage,
+  NostrServerToClientEventMessage,
+  NostrEventMessage,
+  NostrReqMessage,
+  NostrCloseMessage,
+  NostrOkMessage,
+  NostrEoseMessage,
+  NostrClosedMessage,
+  NostrNoticeMessage,
+  NostrRelayAuthMessage,
+  NostrClientAuthMessage,
+  NostrAuthMessage,
+  NostrClientMessage,
+  NostrRelayMessage,
+  NostrMessage,
+  RelayConnectionOptions,
+} from "./types/protocol";
 
 // Export utilities
 export {

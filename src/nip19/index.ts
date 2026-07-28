@@ -13,6 +13,13 @@ import {
   Bech32Result,
   SimpleBech32Result,
 } from "./types";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  reportDiagnostic,
+} from "../utils/diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "NIP-19" });
 
 // Re-export types
 export * from "./types";
@@ -414,7 +421,10 @@ export function encodeProfile(data: ProfileData): Bech32String {
 /**
  * Decodes an nprofile to profile data
  */
-export function decodeProfile(nprofile: Bech32String): ProfileData {
+export function decodeProfile(
+  nprofile: Bech32String,
+  logger: DiagnosticLogger = defaultLogger,
+): ProfileData {
   try {
     // Decode the bech32 string
     const { prefix, words } = decodeBech32WithLimit(nprofile);
@@ -450,8 +460,11 @@ export function decodeProfile(nprofile: Bech32String): ProfileData {
 
         // Warn about invalid relay URLs but still include them
         if (!isValidRelayUrl(relay)) {
-          console.warn(
-            `Warning: Invalid relay URL format found while decoding: ${relay}`,
+          reportDiagnostic(
+            logger,
+            "warn",
+            "Invalid relay URL found while decoding nprofile",
+            { reason: "invalid-relay-url" },
           );
         }
       }
@@ -542,7 +555,10 @@ export function encodeEvent(data: EventData): Bech32String {
 /**
  * Decodes an nevent to event data
  */
-export function decodeEvent(nevent: Bech32String): EventData {
+export function decodeEvent(
+  nevent: Bech32String,
+  logger: DiagnosticLogger = defaultLogger,
+): EventData {
   try {
     // Decode the bech32 string
     const { prefix, words } = decodeBech32WithLimit(nevent);
@@ -579,8 +595,11 @@ export function decodeEvent(nevent: Bech32String): EventData {
 
         // Warn about invalid relay URLs but still include them
         if (!isValidRelayUrl(relay)) {
-          console.warn(
-            `Warning: Invalid relay URL format found while decoding: ${relay}`,
+          reportDiagnostic(
+            logger,
+            "warn",
+            "Invalid relay URL found while decoding nevent",
+            { reason: "invalid-relay-url" },
           );
         }
       } else if (entry.type === TLVType.Author) {
@@ -702,7 +721,10 @@ export function encodeAddress(data: AddressData): Bech32String {
 /**
  * Decodes an naddr to address data
  */
-export function decodeAddress(naddr: Bech32String): AddressData {
+export function decodeAddress(
+  naddr: Bech32String,
+  logger: DiagnosticLogger = defaultLogger,
+): AddressData {
   try {
     // Decode the bech32 string
     const { prefix, words } = decodeBech32WithLimit(naddr);
@@ -737,8 +759,11 @@ export function decodeAddress(naddr: Bech32String): AddressData {
 
         // Warn about invalid relay URLs but still include them
         if (!isValidRelayUrl(relay)) {
-          console.warn(
-            `Warning: Invalid relay URL format found while decoding: ${relay}`,
+          reportDiagnostic(
+            logger,
+            "warn",
+            "Invalid relay URL found while decoding naddr",
+            { reason: "invalid-relay-url" },
           );
         }
       } else if (entry.type === TLVType.Author) {
@@ -834,7 +859,10 @@ function bytesToHex(bytes: Uint8Array): HexString {
 /**
  * Universal decoder for any NIP-19 entity
  */
-export function decode(bech32Str: Bech32String): DecodedEntity {
+export function decode(
+  bech32Str: Bech32String,
+  logger: DiagnosticLogger = defaultLogger,
+): DecodedEntity {
   // Basic validation for bech32 format
   if (!bech32Str.includes("1")) {
     throw new Error(
@@ -864,17 +892,17 @@ export function decode(bech32Str: Bech32String): DecodedEntity {
     case Prefix.Profile:
       return {
         type: Prefix.Profile,
-        data: decodeProfile(bech32Str),
+        data: decodeProfile(bech32Str, logger),
       };
     case Prefix.Event:
       return {
         type: Prefix.Event,
-        data: decodeEvent(bech32Str),
+        data: decodeEvent(bech32Str, logger),
       };
     case Prefix.Address:
       return {
         type: Prefix.Address,
-        data: decodeAddress(bech32Str),
+        data: decodeAddress(bech32Str, logger),
       };
     default:
       throw new Error(`Unknown prefix: ${prefix}`);

@@ -18,6 +18,22 @@ export type {
 
 // Import types for internal use
 import type { RelayInfo } from "../types/nostr";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  reportDiagnostic,
+  safeRelayDiagnostic,
+} from "../utils/diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "NIP-11" });
+
+export interface FetchRelayInformationOptions {
+  useCache?: boolean;
+  timeoutMs?: number;
+  /** Optional canonical diagnostic logger. */
+  logger?: DiagnosticLogger;
+}
 
 // Cache for relay information to avoid repeated requests
 const relayInfoCache: Record<
@@ -61,14 +77,16 @@ function isValidWebSocketURL(url: string): boolean {
  */
 export async function fetchRelayInformation(
   url: string,
-  options: { useCache?: boolean; timeoutMs?: number } = {},
+  options: FetchRelayInformationOptions = {},
 ): Promise<RelayInfo | null> {
   // Default options
-  const { useCache = true, timeoutMs = 5000 } = options;
+  const { useCache = true, timeoutMs = 5000, logger = defaultLogger } = options;
 
   // Validate the URL
   if (!isValidWebSocketURL(url)) {
-    console.error(`Invalid WebSocket URL: ${url}`);
+    reportDiagnostic(logger, "error", "Invalid WebSocket URL", {
+      relay: safeRelayDiagnostic(url),
+    });
     return null;
   }
 
@@ -120,7 +138,10 @@ export async function fetchRelayInformation(
 
     return null;
   } catch (error) {
-    console.error(`Failed to fetch relay information from ${url}:`, error);
+    reportDiagnostic(logger, "error", "Failed to fetch relay information", {
+      failureType: diagnosticFailureType(error),
+      relay: safeRelayDiagnostic(url),
+    });
 
     // Cache negative result
     if (useCache) {
@@ -147,8 +168,11 @@ export function clearRelayInfoCache() {
  * @param url - WebSocket URL of the relay (ws:// or wss://)
  * @returns Promise resolving to boolean indicating if NIP-11 is supported
  */
-export async function supportsNIP11(url: string): Promise<boolean> {
-  const info = await fetchRelayInformation(url);
+export async function supportsNIP11(
+  url: string,
+  options: FetchRelayInformationOptions = {},
+): Promise<boolean> {
+  const info = await fetchRelayInformation(url, options);
   return info !== null;
 }
 
@@ -162,8 +186,9 @@ export async function supportsNIP11(url: string): Promise<boolean> {
 export async function relaySupportsNIPs(
   url: string,
   nipNumbers: number[],
+  options: FetchRelayInformationOptions = {},
 ): Promise<boolean> {
-  const info = await fetchRelayInformation(url);
+  const info = await fetchRelayInformation(url, options);
 
   if (!info || !info.supported_nips) {
     return false;
@@ -179,8 +204,11 @@ export async function relaySupportsNIPs(
  * @param url - WebSocket URL of the relay (ws:// or wss://)
  * @returns Promise resolving to payment URL if available, null otherwise
  */
-export async function getRelayPaymentInfo(url: string): Promise<string | null> {
-  const info = await fetchRelayInformation(url);
+export async function getRelayPaymentInfo(
+  url: string,
+  options: FetchRelayInformationOptions = {},
+): Promise<string | null> {
+  const info = await fetchRelayInformation(url, options);
   return info?.payments_url || null;
 }
 
@@ -190,7 +218,10 @@ export async function getRelayPaymentInfo(url: string): Promise<string | null> {
  * @param url - WebSocket URL of the relay (ws:// or wss://)
  * @returns Promise resolving to boolean indicating if payments are required
  */
-export async function relayRequiresPayment(url: string): Promise<boolean> {
-  const info = await fetchRelayInformation(url);
+export async function relayRequiresPayment(
+  url: string,
+  options: FetchRelayInformationOptions = {},
+): Promise<boolean> {
+  const info = await fetchRelayInformation(url, options);
   return !!info?.limitation?.payments_required;
 }

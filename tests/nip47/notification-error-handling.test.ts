@@ -18,7 +18,7 @@ import {
   NIP47NotificationType,
   NIP47EncryptionScheme,
 } from "../../src/nip47/types";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 describe("NIP-47: Notification error handling", () => {
   let relay: NostrRelay;

@@ -35,8 +35,7 @@ export class NIP46RateLimiter {
     this.burstSize = config.burstSize ?? 10;
     this.cleanupIntervalMs = config.cleanupIntervalMs ?? 300000; // 5 minutes
 
-    // Start cleanup interval
-    this.startCleanup();
+    this.start();
   }
 
   /**
@@ -205,10 +204,9 @@ export class NIP46RateLimiter {
     history.lastCleanup = now;
   }
 
-  /**
-   * Start cleanup interval to prevent memory leaks
-   */
-  private startCleanup(): void {
+  /** Start periodic cleanup if it is not already running. */
+  start(): void {
+    if (this.cleanupInterval) return;
     this.cleanupInterval = setInterval(() => {
       this.performCleanup();
     }, this.cleanupIntervalMs).unref(); // Don't keep process alive

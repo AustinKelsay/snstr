@@ -9,7 +9,7 @@
 - Feature branch: `feature/cleanup-runtime-debt`
 - Human owner: plebdev
 - Started: 2026-07-14
-- Current status: implementation, integrated verification, and local final review complete; non-draft staging PR #108 open for hosted review
+- Current status: implementation and integrated verification complete; hosted gates passed; PR #108 merged into `staging`
 - Skill setup status: present and verified (`AGENTS.md`, GitHub issue tracker, triage labels, single-context domain docs)
 
 ## Goal

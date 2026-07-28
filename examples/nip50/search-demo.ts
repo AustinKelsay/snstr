@@ -1,7 +1,7 @@
 import { Nostr } from "../../src/nip01/nostr";
 import { generateKeypair } from "../../src/utils/crypto";
 import { createSignedEvent } from "../../src/nip01/event";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import { createSearchFilter } from "../../src/nip50";
 
 async function main() {

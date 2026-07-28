@@ -1,6 +1,6 @@
 import { Relay } from "../../../src/nip01/relay";
 import { RelayEvent, NostrEvent } from "../../../src/types/nostr";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import { createEvent, createSignedEvent } from "../../../src/nip01/event";
 import { validateRelayIngressEvent } from "../../../src/nip01/validation";
 import { getPublicKey } from "../../../src/utils/crypto";

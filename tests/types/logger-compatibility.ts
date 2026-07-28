@@ -6,6 +6,8 @@ import type {
   LoggerOptions,
   NIP47LogArgument,
   NIP47Logger,
+  NostrOptions,
+  RelayConnectionOptions,
   WarningLogger,
 } from "../../src";
 import type {
@@ -15,6 +17,7 @@ import type {
   LoggerOptions as WebLoggerOptions,
   NIP47LogArgument as WebNIP47LogArgument,
   NIP47Logger as WebNIP47Logger,
+  NostrOptions as WebNostrOptions,
   WarningLogger as WebWarningLogger,
 } from "../../src/entries/index.web";
 import type { LogData } from "../../src/nip02";
@@ -54,6 +57,9 @@ const canonicalFromLegacyNIP47: DiagnosticLogger = legacyNIP47Logger;
 const webLegacyNIP47Logger: WebNIP47Logger = diagnostic;
 const nip47Argument: NIP47LogArgument = diagnosticArgument;
 const webNIP47Argument: WebNIP47LogArgument = nip47Argument;
+const relayOptions: RelayConnectionOptions = { logger: diagnostic };
+const nostrOptions: NostrOptions = { logger: diagnostic, relayOptions };
+const webNostrOptions: WebNostrOptions = nostrOptions;
 
 export {
   diagnostic,
@@ -75,4 +81,7 @@ export {
   webLegacyNIP47Logger,
   nip47Argument,
   webNIP47Argument,
+  relayOptions,
+  nostrOptions,
+  webNostrOptions,
 };

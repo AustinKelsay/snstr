@@ -6,7 +6,7 @@ import {
   ParsedOkReason,
   NostrOkCallback,
 } from "../src";
-import { NostrRelay } from "../src/utils/ephemeral-relay";
+import { NostrRelay } from "../src/testing";
 import {
   createEvent,
   createSignedEvent,

@@ -12,7 +12,8 @@ NIP-44 replaces the older NIP-04 encryption with a more secure approach using Ch
 - Proper key derivation using HKDF
 - Message length hiding via a custom padding scheme
 - Secure nonce handling with 32-byte nonces
-- **Full version compatibility** supporting decryption of v0, v1, and v2 messages
+- Strict version handling that accepts defined v2 payloads and rejects reserved,
+  undefined, or unknown versions
 
 ## Basic Usage
 
@@ -72,7 +73,9 @@ Decrypts a message using NIP-44 encryption.
 - Returns: Decrypted message
 - Throws: Error if decryption fails (wrong keys, tampered message, etc.)
 
-**Note**: This implementation automatically detects and handles payload versions 0, 1, and 2, providing seamless backward compatibility.
+**Note**: This implementation accepts version 2 payloads. Version 0 is reserved,
+version 1 is deprecated and undefined, and every other version is reported as
+unsupported.
 
 ### `getNIP44SharedSecret(privateKey, publicKey)`
 
@@ -98,40 +101,39 @@ Performs constant-time comparison of two byte arrays to prevent timing attacks.
 
 This function is used internally to validate MACs securely, but is also exposed for use in other security-critical comparisons. Using constant-time comparison is important when comparing sensitive values like MACs, signatures, or hashes to prevent timing side-channel attacks.
 
-## Version Compatibility
+## Version Handling
 
-This implementation follows the NIP-44 specification requirement that clients:
+This implementation follows the NIP-44 version registry:
 - **MUST** include a version byte in encrypted payloads
-- **MUST** be able to decrypt versions 0 and 1
-- **MUST NOT** encrypt with version 0 ("Reserved")
-- **MUST NOT** encrypt with version 1 ("Deprecated and undefined")
+- Treat version 0 as reserved
+- Treat version 1 as deprecated and undefined
+- Use version 2 for the currently defined encryption algorithm
+- Report any version other than 2 as unsupported
 
 ### Version Support
 
 | Version | Encryption | Decryption | Notes |
 |---------|------------|------------|-------|
-| 0 | ❌ Not Supported | ✅ Supported | Per NIP-44: "Reserved. Implementations MUST NOT encrypt with this version." Decryption is supported. |
-| 1 | ❌ Not Supported | ✅ Supported | Per NIP-44: "Deprecated and undefined. Implementations MUST NOT encrypt with this version." Decryption is supported. |
+| 0 | ❌ Not Supported | ❌ Not Supported | Reserved; no algorithm is defined. |
+| 1 | ❌ Not Supported | ❌ Not Supported | Deprecated and undefined; no algorithm is defined. |
 | 2 | ✅ Supported (Default) | ✅ Supported | Current version, used by default for all encryption. |
 
 ### Default Behavior
 
 - **Encryption**: All messages are encrypted with NIP-44 version 2 (the current standard).
-- **Decryption**: Automatically detects and handles versions 0, 1, and 2
-
-**Note on V0/V1 Decryption Compatibility:**
-NIP-44 (Section: Decryption, Point 4) specifies that for decrypting versions 0 and 1: *"Implementations MUST be able to decrypt versions 0 and 1 for compatibility, **using the same algorithms as above** [i.e., version 2's algorithms] with the respective version byte. The `message_nonce` is 32 bytes, `mac` is 32 bytes. Clients MAY refuse to decrypt messages with these versions."*
-This implementation adheres to this directive by applying the NIP-44 v2 cryptographic pipeline (including key derivation with the "nip44-v2" salt, ChaCha20, and HMAC-SHA256) when attempting to decrypt payloads marked as v0 or v1. Therefore, successful decryption of v0/v1 payloads implies they were constructed in a manner compatible with the v2 cryptographic scheme, as guided by the NIP-44 decryption instructions.
+- **Decryption**: Rejects reserved, undefined, and unknown versions before key
+  derivation or decryption.
 
 ### Version Differences
 
-Currently, all versions use the same cryptographic primitives:
+Version 2 uses these cryptographic primitives:
 - ChaCha20 for encryption
 - HMAC-SHA256 for authentication
 - 32-byte nonces
 - 32-byte MAC tags
 
-The primary difference is the version byte in the payload, which enables future protocol upgrades.
+The version byte enables future protocol upgrades without assigning algorithms
+to reserved or undefined versions.
 
 ## Differences from NIP-04
 
@@ -149,8 +151,6 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
 ### Key Constants
 
 - `CURRENT_VERSION = 2` - Current NIP-44 version for encryption
-- `MIN_SUPPORTED_VERSION = 0` - Minimum supported version for decryption
-- `MAX_SUPPORTED_VERSION = 2` - Maximum supported version for decryption
 - `NONCE_SIZE_V2 = 32` - 32-byte nonce as required by NIP-44 v2
 - `KEY_SIZE = 32` - 32-byte key for ChaCha20
 - `MAC_SIZE_V2 = 32` - 32-byte MAC from HMAC-SHA256
@@ -194,9 +194,9 @@ This implementation follows the NIP-44 v2 specification exactly, with careful at
    - Validate decoded payload length (99 to 65,603 bytes)
 
 2. **Parse Payload** (NIP-44 spec section "Decryption" step 2)
-   - Decode base64 
-   - Extract version byte, validate it's between 0-2
-   - Extract nonce, ciphertext, and MAC based on version-specific sizes
+   - Decode base64
+   - Extract the version byte and require the defined version 2
+   - Extract the v2 nonce, ciphertext, and MAC
 
 3. **Key Derivation** (Same as encryption)
    - Calculate the same conversation key and message keys
@@ -247,7 +247,7 @@ This implementation has been thoroughly validated against the official [NIP-44 t
 - End-to-end encryption/decryption validation with various message lengths
 - Edge case handling (minimum and maximum message sizes)
 - Error handling for invalid inputs and tampered messages
-- Version compatibility tests across versions 0, 1, and 2
+- Version handling tests for v2 plus reserved, undefined, and unknown versions
 
 The official test vectors provide cryptographic certainty that our implementation correctly follows the NIP-44 specification and will interoperate with other compliant implementations.
 
@@ -312,7 +312,7 @@ This implementation has been validated against the [official NIP-44 test vectors
 
 Passing these test vectors ensures that this implementation correctly handles:
 - Key derivation according to the NIP-44 specification
-- Encryption and decryption across all supported versions (v0, v1, v2)
+- Version 2 encryption/decryption and unsupported-version rejection
 - Message authentication and padding as specified
 
 ## Implementation Details
@@ -343,4 +343,4 @@ The implementation properly handles x-only public keys (the standard for Nostr) 
 3. Constructing the correct compressed format (with 02/03 prefix) for ECDH operations
 4. Performing constant-time operations to avoid timing side-channels
 
-This approach ensures compatibility with Nostr's x-only public key format while maintaining the security properties required by the NIP-44 specification. 
+This approach ensures compatibility with Nostr's x-only public key format while maintaining the security properties required by the NIP-44 specification.

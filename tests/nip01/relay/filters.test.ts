@@ -8,9 +8,10 @@ import {
   Filter,
   NostrEvent,
   NostrKind,
+  RelayEvent,
 } from "../../../src/types/nostr";
 import { Relay } from "../../../src/nip01/relay";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { getRelaySocket, NostrRelay } from "../../../src/testing";
 import { createSignedEvent } from "../../../src/nip01/event";
 import { generateKeypair } from "../../../src/utils/crypto";
 import { testUtils } from "../../types";
@@ -62,6 +63,22 @@ describe("Enhanced NostrFilter Types", () => {
 
   // Test 1: Type validation for filters with new tag types
   describe("Filter Type Validation", () => {
+    test("rejects malformed REQ filters with a stable NOTICE", async () => {
+      const notice = new Promise<string>((resolve) => {
+        const handler = (_relayUrl: string, message: string) => {
+          relay.off(RelayEvent.Notice, handler);
+          resolve(message);
+        };
+        relay.on(RelayEvent.Notice, handler);
+      });
+
+      const socket = getRelaySocket(relay);
+      expect(socket).not.toBeNull();
+      socket?.send(JSON.stringify(["REQ", "invalid-filter", { kinds: "1" }]));
+
+      await expect(notice).resolves.toBe("invalid: REQ filters");
+    });
+
     test("should accept filters with all defined tag types", () => {
       // This test verifies TypeScript accepts the expanded type definition
       // Create a filter with all the standard tag types

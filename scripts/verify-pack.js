@@ -10,6 +10,7 @@
  */
 
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const { builtinModules } = require("module");
@@ -52,6 +53,230 @@ function readJson(filePath) {
 function fail(msg) {
   console.error(`[pack:verify] ${msg}`);
   process.exit(1);
+}
+
+function verifyNodeSubpathResolution(packageRoot) {
+  const checks = [
+    {
+      label: "CommonJS snstr/testing",
+      args: [
+        "-e",
+        'const api = require("snstr/testing"); if (typeof api.NostrRelay !== "function") process.exit(1);',
+      ],
+    },
+    {
+      label: "ESM snstr/testing",
+      args: [
+        "--input-type=module",
+        "-e",
+        'const api = await import("snstr/testing"); if (typeof api.NostrRelay !== "function") process.exit(1);',
+      ],
+    },
+    {
+      label: "legacy CommonJS ephemeral relay alias",
+      args: [
+        "-e",
+        'const api = require("snstr/utils/ephemeral-relay"); if (typeof api.NostrRelay !== "function") process.exit(1);',
+      ],
+    },
+    {
+      label: "legacy ESM ephemeral relay alias",
+      args: [
+        "--input-type=module",
+        "-e",
+        'const api = await import("snstr/utils/ephemeral-relay"); if (typeof api.NostrRelay !== "function") process.exit(1);',
+      ],
+    },
+  ];
+
+  for (const { label, args } of checks) {
+    try {
+      execFileSync(process.execPath, args, { cwd: packageRoot, stdio: "pipe" });
+    } catch (err) {
+      throw new Error(
+        `${label} did not resolve through package exports. ${err?.message ?? String(err)}`,
+      );
+    }
+  }
+}
+
+function verifyPackedTypeConsumer(tempDir) {
+  const fixturePath = path.join(tempDir, "consumer.mts");
+  fs.writeFileSync(
+    fixturePath,
+    [
+      'import { RelayEvent, type NostrEvent, type RelayInterface } from "snstr";',
+      'import { NostrRelay, type RelayTestContext, type RelayTestMock } from "snstr/testing";',
+      "",
+      "const mock: RelayTestMock = (id: string, accepted: boolean) => `${id}:${accepted}`;",
+      "declare const relay: RelayInterface;",
+      "declare const event: NostrEvent;",
+      "const context: RelayTestContext = {",
+      "  relay,",
+      "  originals: {},",
+      "  mocks: { send: mock, handlers: { [RelayEvent.OK]: mock } },",
+      "  capturedCallbacks: {},",
+      "};",
+      "void [mock, context, event, NostrRelay];",
+      "",
+    ].join("\n"),
+  );
+
+  const program = ts.createProgram({
+    rootNames: [fixturePath],
+    options: {
+      strict: true,
+      noEmit: true,
+      skipLibCheck: false,
+      types: [],
+      target: ts.ScriptTarget.ES2020,
+      module: ts.ModuleKind.NodeNext,
+      moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      lib: ["lib.es2020.d.ts", "lib.dom.d.ts"],
+    },
+  });
+  const diagnostics = ts.getPreEmitDiagnostics(program);
+  if (diagnostics.length === 0) return;
+
+  const formatted = ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+    getCanonicalFileName: (fileName) => fileName,
+    getCurrentDirectory: () => tempDir,
+    getNewLine: () => "\n",
+  });
+  throw new Error(`Packed no-Jest type consumer failed:\n${formatted}`);
+}
+
+function declarationFiles(root) {
+  const found = [];
+  const pending = [root];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const entryPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        pending.push(entryPath);
+      } else if (entry.name.endsWith(".d.ts")) {
+        found.push(entryPath);
+      }
+    }
+  }
+  return found;
+}
+
+function verifyPublishedDeclarationPurity(packageRoot) {
+  const forbiddenJestDeclarationPatterns = [
+    /\bjest\s*\./,
+    /\btypeof\s+jest\b/,
+    /\bnamespace\s+jest\b/,
+    /@types\/jest/,
+    /<reference\s+types=["']jest["']/,
+    /\bfrom\s+["'](?:@jest\/globals|jest)["']/,
+    /\bimport\s+["'](?:@jest\/globals|jest)["']/,
+    /\bimport\s*\(\s*["'](?:@jest\/globals|jest)["']\s*\)/,
+  ];
+  const polluted = declarationFiles(packageRoot).filter((declarationPath) => {
+    const declaration = fs.readFileSync(declarationPath, "utf8");
+    return forbiddenJestDeclarationPatterns.some((pattern) =>
+      pattern.test(declaration),
+    );
+  });
+  if (polluted.length === 0) return;
+
+  throw new Error(
+    `Published declarations reference Jest: ${polluted
+      .map((declarationPath) => path.relative(packageRoot, declarationPath))
+      .sort()
+      .map((declarationPath) => JSON.stringify(declarationPath))
+      .join(", ")}`,
+  );
+}
+
+function verifyPackedNodeSubpathResolution(cacheDir) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "snstr-pack-verify-"));
+  let failure;
+
+  try {
+    const packOutput = execFileSync(
+      "npm",
+      [
+        "pack",
+        "--ignore-scripts",
+        "--json",
+        "--cache",
+        cacheDir,
+        "--pack-destination",
+        tempDir,
+      ],
+      { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
+    );
+    const parsed = JSON.parse(packOutput);
+    const packInfo = Array.isArray(parsed) ? parsed[0] : parsed;
+    const tarballPath = path.join(tempDir, packInfo.filename);
+
+    fs.writeFileSync(
+      path.join(tempDir, "package.json"),
+      JSON.stringify({ private: true }),
+    );
+    const packageManifest = readJson(path.join(repoRoot, "package.json"));
+    const requiredConsumerTypes = [
+      "@types/crypto-js",
+      "@types/node",
+      "@types/ws",
+    ];
+    for (const dependency of requiredConsumerTypes) {
+      const version = packageManifest.devDependencies?.[dependency];
+      if (typeof version !== "string" || version.trim().length === 0) {
+        throw new Error(
+          `Packed consumer dependency ${JSON.stringify(dependency)} is missing from devDependencies`,
+        );
+      }
+    }
+    try {
+      execFileSync(
+        "npm",
+        [
+          "install",
+          "--ignore-scripts",
+          "--no-audit",
+          "--no-fund",
+          "--cache",
+          cacheDir,
+          tarballPath,
+          ...requiredConsumerTypes.map(
+            (dependency) =>
+              `${dependency}@${packageManifest.devDependencies[dependency]}`,
+          ),
+        ],
+        { cwd: tempDir, stdio: "pipe" },
+      );
+    } catch (err) {
+      const detail = err?.stderr
+        ? err.stderr.toString().trim()
+        : (err?.message ?? String(err));
+      throw new Error(`Packed consumer npm install failed. ${detail}`);
+    }
+    const packageRoot = path.join(tempDir, "node_modules", "snstr");
+    for (const forbiddenPackage of ["jest", "@types/jest"]) {
+      if (fs.existsSync(path.join(tempDir, "node_modules", forbiddenPackage))) {
+        throw new Error(
+          `Packed consumer unexpectedly installed ${forbiddenPackage}`,
+        );
+      }
+    }
+    verifyNodeSubpathResolution(packageRoot);
+    verifyPublishedDeclarationPurity(packageRoot);
+    verifyPackedTypeConsumer(tempDir);
+  } catch (err) {
+    failure = err;
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+
+  if (failure) {
+    fail(
+      `Packed package subpath verification failed. ${failure?.message ?? String(failure)}`,
+    );
+  }
 }
 
 function packageName(specifier) {
@@ -97,16 +322,23 @@ function collectDependencyReferences(source) {
 
 function verifyPlatformConditionOrder(exportsMap) {
   for (const [subpath, conditions] of Object.entries(exportsMap || {})) {
-    if (!conditions || typeof conditions !== "object" || Array.isArray(conditions)) {
+    if (
+      !conditions ||
+      typeof conditions !== "object" ||
+      Array.isArray(conditions)
+    ) {
       continue;
     }
 
-    const platforms = ["react-native", "browser"].filter((key) => key in conditions);
+    const platforms = ["react-native", "browser"].filter(
+      (key) => key in conditions,
+    );
     if (platforms.length === 0) continue;
 
     if (
       platforms.length === 2 &&
-      JSON.stringify(conditions["react-native"]) !== JSON.stringify(conditions.browser)
+      JSON.stringify(conditions["react-native"]) !==
+        JSON.stringify(conditions.browser)
     ) {
       fail(`${subpath} resolves browser and React Native to different targets`);
     }
@@ -201,7 +433,9 @@ function verifyWebEntryGraph(entryTarget) {
     for (const { kind, specifier } of collectDependencyReferences(source)) {
       if (specifier.startsWith(".")) {
         const resolved = path.resolve(path.dirname(filePath), specifier);
-        const relativeModule = path.relative(sourceRoot, resolved).replaceAll(path.sep, "/");
+        const relativeModule = path
+          .relative(sourceRoot, resolved)
+          .replaceAll(path.sep, "/");
         if (
           relativeModule.startsWith("../") ||
           forbiddenModules.some((forbidden) =>
@@ -225,7 +459,9 @@ function verifyWebEntryGraph(entryTarget) {
         builtins.has(dependency) ||
         forbiddenPackages.has(dependency)
       ) {
-        const relativeFile = path.relative(sourceRoot, filePath).replaceAll(path.sep, "/");
+        const relativeFile = path
+          .relative(sourceRoot, filePath)
+          .replaceAll(path.sep, "/");
         const exceptionKey = `${relativeFile}|${kind}|${specifier}`;
         if (allowedGuardedNodeReferences.has(exceptionKey)) {
           observedGuardedNodeReferences.add(exceptionKey);
@@ -242,11 +478,15 @@ function verifyWebEntryGraph(entryTarget) {
     (exception) => !observedGuardedNodeReferences.has(exception),
   );
   if (staleExceptions.length > 0) {
-    violations.push(`stale guarded dependency exceptions: ${staleExceptions.join(", ")}`);
+    violations.push(
+      `stale guarded dependency exceptions: ${staleExceptions.join(", ")}`,
+    );
   }
 
   if (violations.length > 0) {
-    fail(`Web entry dependency graph is not platform-safe: ${violations.join("; ")}`);
+    fail(
+      `Web entry dependency graph is not platform-safe: ${violations.join("; ")}`,
+    );
   }
 
   return {
@@ -273,13 +513,15 @@ collectExportTargets(pkg.exports, referenced);
 const referencedFiles = [...referenced].filter((p) => !p.endsWith("/"));
 
 // 1) Ensure the referenced targets exist on disk (after build).
-const missingOnDisk = referencedFiles.filter((p) => !fs.existsSync(path.join(repoRoot, p)));
+const missingOnDisk = referencedFiles.filter(
+  (p) => !fs.existsSync(path.join(repoRoot, p)),
+);
 if (missingOnDisk.length) {
   fail(
     `Missing files referenced by package.json: ${missingOnDisk
       .sort()
       .map((p) => JSON.stringify(p))
-      .join(", ")}`
+      .join(", ")}`,
   );
 }
 
@@ -319,10 +561,12 @@ try {
   packJson = execFileSync(
     "npm",
     ["pack", "--dry-run", "--ignore-scripts", "--json", "--cache", cacheDir],
-    { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }
+    { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] },
   );
 } catch (err) {
-  fail(`npm pack --dry-run failed. ${err && err.message ? err.message : String(err)}`);
+  fail(
+    `npm pack --dry-run failed. ${err && err.message ? err.message : String(err)}`,
+  );
 }
 
 let packInfo;
@@ -330,20 +574,48 @@ try {
   const parsed = JSON.parse(packJson);
   packInfo = Array.isArray(parsed) ? parsed[0] : parsed;
 } catch (err) {
-  fail(`Failed to parse npm pack JSON output. ${err && err.message ? err.message : String(err)}`);
+  fail(
+    `Failed to parse npm pack JSON output. ${err && err.message ? err.message : String(err)}`,
+  );
 }
 
 const packedPaths = new Set((packInfo.files || []).map((f) => f.path));
+const forbiddenTestSupportPaths = [
+  "dist/src/utils/test-helpers.js",
+  "dist/src/utils/test-helpers.d.ts",
+  "dist/esm/src/utils/test-helpers.js",
+  "dist/esm/src/utils/test-helpers.d.ts",
+  "dist/src/types/globals.d.ts",
+  "dist/esm/src/types/globals.d.ts",
+];
+const accidentallyPacked = forbiddenTestSupportPaths.filter((p) =>
+  packedPaths.has(p),
+);
+if (accidentallyPacked.length) {
+  fail(
+    `Private test helpers are included in the npm tarball: ${accidentallyPacked
+      .sort()
+      .map((p) => JSON.stringify(p))
+      .join(", ")}`,
+  );
+}
 const missingInTarball = referencedFiles.filter((p) => !packedPaths.has(p));
 if (missingInTarball.length) {
   fail(
     `Referenced files are not included in the npm tarball: ${missingInTarball
       .sort()
       .map((p) => JSON.stringify(p))
-      .join(", ")}`
+      .join(", ")}`,
   );
 }
 
+try {
+  verifyNodeSubpathResolution(repoRoot);
+} catch (err) {
+  fail(`Checkout subpath verification failed. ${err?.message ?? String(err)}`);
+}
+verifyPackedNodeSubpathResolution(cacheDir);
+
 console.log(
-  `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${webGraph.modules} web modules, ${webGraph.guardedNodeReferences} guarded Node fallbacks)`
+  `[pack:verify] OK (${referencedFiles.length} referenced targets, ${packedPaths.size} packed files, ${webGraph.modules} web modules, ${webGraph.guardedNodeReferences} guarded Node fallbacks)`,
 );

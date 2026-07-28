@@ -13,6 +13,14 @@ import {
   safeArrayAccess,
   SecurityValidationError,
 } from "../utils/security-validator";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  reportDiagnostic,
+} from "../utils/diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "NIP-09" });
 
 export interface DeletionRequestOptions {
   ids?: string[]; // event ids referenced with 'e' tags
@@ -58,7 +66,10 @@ export interface DeletionTargets {
 /**
  * Extract referenced ids, addresses and kinds from a deletion event
  */
-export function parseDeletionTargets(event: NostrEvent): DeletionTargets {
+export function parseDeletionTargets(
+  event: NostrEvent,
+  logger: DiagnosticLogger = defaultLogger,
+): DeletionTargets {
   const result: DeletionTargets = {
     ids: [],
     addresses: [],
@@ -92,11 +103,14 @@ export function parseDeletionTargets(event: NostrEvent): DeletionTargets {
     } catch (error) {
       if (error instanceof SecurityValidationError) {
         // Log bounds checking error but continue processing
-        if (typeof console !== "undefined" && console.warn) {
-          console.warn(
-            `NIP-09: Bounds checking error in tag processing: ${error.message}`,
-          );
-        }
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Bounds checking failed in deletion tag",
+          {
+            failureType: diagnosticFailureType(error),
+          },
+        );
       }
     }
   }
@@ -110,10 +124,11 @@ export function parseDeletionTargets(event: NostrEvent): DeletionTargets {
 export function isDeletionRequestForEvent(
   deletion: NostrEvent,
   event: NostrEvent,
+  logger: DiagnosticLogger = defaultLogger,
 ): boolean {
   if (deletion.kind !== NostrKind.Deletion) return false;
   if (deletion.pubkey !== event.pubkey) return false;
-  const targets = parseDeletionTargets(deletion);
+  const targets = parseDeletionTargets(deletion, logger);
   if (targets.ids.includes(event.id)) return true;
 
   // Safe access to d-tag with bounds checking
@@ -135,11 +150,14 @@ export function isDeletionRequestForEvent(
     }
   } catch (error) {
     if (error instanceof SecurityValidationError) {
-      if (typeof console !== "undefined" && console.warn) {
-        console.warn(
-          `NIP-09: Bounds checking error in d-tag processing: ${error.message}`,
-        );
-      }
+      reportDiagnostic(
+        logger,
+        "warn",
+        "Bounds checking failed in deletion d-tag",
+        {
+          failureType: diagnosticFailureType(error),
+        },
+      );
     }
   }
 

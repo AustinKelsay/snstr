@@ -11,7 +11,7 @@ import {
   resetWebSocketImplementation,
   useWebSocketImplementation,
 } from "../../src";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 const isBunRuntime =
   typeof (globalThis as typeof globalThis & { Bun?: unknown }).Bun !==

@@ -11,6 +11,14 @@ import {
   safeArrayAccess,
   SecurityValidationError,
 } from "../utils/security-validator";
+import type { DiagnosticLogger } from "../utils/logger";
+import {
+  createDefaultDiagnosticLogger,
+  diagnosticFailureType,
+  reportDiagnostic,
+} from "../utils/diagnostics";
+
+const defaultLogger = createDefaultDiagnosticLogger({ prefix: "NIP-10" });
 
 /** Event pointer used in thread references */
 export interface ThreadPointer {
@@ -82,7 +90,10 @@ export function createQuoteTag(pointer: ThreadPointer): string[] {
  * Parse thread references (e tags) from an event. Handles both
  * marked and deprecated positional e tags.
  */
-export function parseThreadReferences(event: NostrEvent): ThreadReferences {
+export function parseThreadReferences(
+  event: NostrEvent,
+  logger: DiagnosticLogger = defaultLogger,
+): ThreadReferences {
   const eTags = event.tags.filter((t) => {
     try {
       return validateArrayAccess(t, 0) && safeArrayAccess(t, 0) === "e";
@@ -128,8 +139,13 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(
-          `NIP-10: Bounds checking error in thread parsing: ${error.message}`,
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Bounds checking failed in thread tag",
+          {
+            failureType: diagnosticFailureType(error),
+          },
         );
       }
       continue; // Skip invalid tags
@@ -152,8 +168,11 @@ export function parseThreadReferences(event: NostrEvent): ThreadReferences {
       }
     } catch (error) {
       if (error instanceof SecurityValidationError) {
-        console.warn(
-          `NIP-10: Bounds checking error in positional parsing: ${error.message}`,
+        reportDiagnostic(
+          logger,
+          "warn",
+          "Bounds checking failed in positional thread parsing",
+          { failureType: diagnosticFailureType(error) },
         );
       }
     }

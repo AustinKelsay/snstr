@@ -1,5 +1,5 @@
 import { Nostr, NostrEvent, RelayEvent } from "../../../src";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import { createSignedEvent } from "../../../src/nip01/event";
 
 /**

@@ -13,7 +13,7 @@
  */
 
 import { Relay } from "../../../src/nip01/relay";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 import type { NostrEvent } from "../../../src/types/nostr";
 
 async function main() {

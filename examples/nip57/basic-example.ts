@@ -19,7 +19,7 @@ import {
 import { createSignedEvent, UnsignedEvent } from "../../src/nip01/event";
 
 // For a real ephemeral relay implementation
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 
 async function main() {
   console.log("NIP-57 Lightning Zaps Example");

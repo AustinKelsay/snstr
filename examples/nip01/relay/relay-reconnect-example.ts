@@ -14,7 +14,7 @@
  */
 
 import { Relay, RelayEvent } from "../../../src/index";
-import { NostrRelay } from "../../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../../src/testing";
 
 const USE_EPHEMERAL = process.env.USE_PUBLIC_RELAYS !== "true";
 const RELAY_PORT = 0;

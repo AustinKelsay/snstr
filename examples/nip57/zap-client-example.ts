@@ -21,7 +21,7 @@ import {
 } from "../../src";
 
 import { createSignedEvent } from "../../src/nip01/event";
-import { NostrRelay } from "../../src/utils/ephemeral-relay";
+import { NostrRelay } from "../../src/testing";
 import {
   fetchLnurlPayMetadata,
   buildZapCallbackUrl,

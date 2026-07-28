@@ -96,7 +96,7 @@ async function waitFor(
 }
 
 async function expectRestartClearsTransientState(): Promise<void> {
-  const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+  const { NostrRelay } = await import("../../src/testing");
   const relay = new NostrRelay(0);
   await relay.start();
   const publisher = new Relay(relay.url, {
@@ -163,7 +163,7 @@ describe("NostrRelay lifecycle", () => {
     const consoleDiagnostics = spyOnConsoleDiagnostics();
 
     try {
-      const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+      const { NostrRelay } = await import("../../src/testing");
       new NostrRelay(0);
 
       expect(consoleDiagnostics.log).not.toHaveBeenCalled();
@@ -181,7 +181,7 @@ describe("NostrRelay lifecycle", () => {
 
     try {
       process.env["DEBUG"] = "true";
-      const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+      const { NostrRelay } = await import("../../src/testing");
       const relay = new NostrRelay(0);
       let client: Relay | null = null;
 
@@ -214,7 +214,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("reports lifecycle diagnostics only through an injected logger", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const { logger, info } = createDiagnosticLogger();
     const relay = new NostrRelay(0, { logger });
 
@@ -227,8 +227,27 @@ describe("NostrRelay lifecycle", () => {
     ]);
   });
 
+  test("reports server errors that occur after startup", async () => {
+    const { NostrRelay } = await import("../../src/testing");
+    const { logger, warn } = createDiagnosticLogger();
+    const relay = new NostrRelay(0, { logger });
+
+    try {
+      await relay.start();
+
+      expect(() =>
+        relay.wss.emit("error", new Error("late failure")),
+      ).not.toThrow();
+      expect(warn).toHaveBeenCalledWith("Relay transport error", {
+        error: expect.any(Error),
+      });
+    } finally {
+      await relay.close();
+    }
+  });
+
   test("a throwing diagnostic logger cannot alter Relay lifecycle behavior", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const relay = new NostrRelay(0, {
       logger: createThrowingDiagnosticLogger(),
     });
@@ -253,7 +272,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("a failed fixed-port start can retry after the port is released", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const blocker = createServer();
     await new Promise<void>((resolve, reject) => {
       blocker.once("error", reject);
@@ -287,7 +306,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("the legacy numeric purge interval remains compatible", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const relay = new NostrRelay(0, 0.01);
     const event = await createRelayEvent("legacy purge interval");
 
@@ -303,7 +322,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("a repeated close waits for the active shutdown", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const relay = new NostrRelay(0);
     await relay.start();
 
@@ -319,7 +338,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("close disconnects an active Relay before it resolves", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const relay = new NostrRelay(0);
     await relay.start();
     const client = new Relay(relay.url, {
@@ -344,7 +363,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("shutdown does not accept a new Relay connection", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const relay = new NostrRelay(0);
     await relay.start();
     const firstClient = new Relay(relay.url, {
@@ -380,7 +399,7 @@ describe("NostrRelay lifecycle", () => {
 
   test("in-memory close waits for observable Relay cleanup", async () => {
     await withInMemoryTransport(async () => {
-      const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+      const { NostrRelay } = await import("../../src/testing");
       const relay = new NostrRelay(0);
       let disconnected = false;
 
@@ -407,7 +426,7 @@ describe("NostrRelay lifecycle", () => {
   });
 
   test("restart waits for shutdown and accepts a new Relay connection", async () => {
-    const { NostrRelay } = await import("../../src/utils/ephemeral-relay");
+    const { NostrRelay } = await import("../../src/testing");
     const { logger, info } = createDiagnosticLogger();
     const relay = new NostrRelay(0, { logger });
     await relay.start();
@@ -455,7 +474,7 @@ describe("NostrRelay lifecycle", () => {
   test("a purge interval does not keep an in-memory Relay process alive", async () => {
     const script = [
       "globalThis.Bun = {};",
-      "const { NostrRelay } = require('./src/utils/ephemeral-relay');",
+      "const { NostrRelay } = require('./src/testing');",
       "new NostrRelay(0, { purgeInterval: 0.01 }).start();",
     ].join("\n");
     const child = spawn(
