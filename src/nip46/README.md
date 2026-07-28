@@ -771,17 +771,9 @@ function isValidNip46RelayUrl(url: string): boolean
 function validateRequestPayload(request: NIP46Request): boolean
 function validateConnectionString(connectionString: string): boolean
 function validatePermission(permission: string): boolean
-
-// Throwing security helpers (from utils/security.ts — distinct from the
-// boolean isValidNip46* validators above)
-function validatePrivateKey(privateKey: string, context?: string): void
-function validateKeypairForCrypto(keypair: NIP46KeyPair, context?: string): void
-function validateBeforeSigning(userKeypair: NIP46KeyPair, eventData: unknown): void
-function validateBeforeEncryption(
-  userKeypair: NIP46KeyPair,
-  thirdPartyPubkey: string,
-  data: string,
-): void
+// Deprecated Compatibility Aliases (same boolean contracts as isValidNip46*):
+// validateEventContent, validatePubkey, validateEventId, validateSignature,
+// validatePrivateKey, validateRelayUrl
 
 // Rate limiting
 class NIP46RateLimiter {

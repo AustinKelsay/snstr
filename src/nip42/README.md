@@ -34,7 +34,8 @@ const authEvent = await createSignedAuthEvent(
   privateKey,
 );
 
-const isValid = await validateAuthEvent(authEvent, {
+// validateAuthEvent returns true on success and throws on failure
+await validateAuthEvent(authEvent, {
   challenge,
   relayUrl,
   validateSignatures: true,
@@ -49,7 +50,7 @@ const isValid = await validateAuthEvent(authEvent, {
 | `createAuthEventTemplate` | Build an Event Template with `relay` and `challenge` tags |
 | `createSignedAuthEvent` | Sign an auth Event for a given Relay challenge |
 | `isAuthEvent` | Structural check for a kind-22242 auth Event |
-| `validateAuthEvent` | Async validation against challenge, Relay URL, and optional drift |
+| `validateAuthEvent` | Async validation; returns `true` or throws on mismatch/invalid structure |
 | `parseAuthRequiredReason` | Extract text after an `auth-required:` closed reason prefix |
 | `NIP42ValidationOptions` | Options for signature checks, challenge, Relay URL, and timestamp drift |
 

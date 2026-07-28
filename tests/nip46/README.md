@@ -35,7 +35,7 @@ The test suite is organized into **7 focused test files** that provide complete 
 
 #### **`validator-unit.test.ts`** (565 lines)  
 **Input validation and security hardening**:
-- ✅ **NIP46Validator Methods** - All validation functions (pubkeys, signatures, events, etc.)
+- ✅ **Validator helpers** - Boolean `isValidNip46*` checks plus deprecated `validate*` aliases
 - ✅ **Security Error Handling** - Secure error responses and timing attack prevention
 - ✅ **Request ID Generation** - Cryptographically secure ID generation
 - ✅ **Private Key Security** - Key validation and secure handling
