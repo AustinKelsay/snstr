@@ -1,6 +1,7 @@
 import { NIP46Request, NIP46Method } from "../types";
 import { Logger, LogLevel } from "../../utils/logger";
 import { isHexOfLength, utf8ByteLength } from "../../utils/wire-validation";
+import { isValidPrivateKey } from "../../utils/key-validation";
 
 /**
  * Enhanced validation utilities for NIP-46 security
@@ -17,7 +18,7 @@ export const MAX_TAG_ELEMENT_LENGTH = 2048; // Maximum length per tag element
 /**
  * Validate event content size and structure
  */
-export function validateEventContent(content: string): boolean {
+export function isValidNip46EventContent(content: string): boolean {
   if (!content || typeof content !== "string") {
     return false;
   }
@@ -37,7 +38,7 @@ export function validateEventContent(content: string): boolean {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown JSON parsing error";
     SecureErrorHandler.logSecurityEvent(
-      "JSON parsing failed in validateEventContent",
+      "JSON parsing failed in isValidNip46EventContent",
       {
         error: SecureErrorHandler.sanitizeError(
           new Error(errorMessage),
@@ -135,29 +136,31 @@ function validateTags(tags: unknown): boolean {
 /**
  * Validate public key format (strict hex validation)
  */
-export function validatePubkey(pubkey: string): boolean {
+export function isValidNip46Pubkey(pubkey: string): boolean {
   return isHexOfLength(pubkey, 64);
 }
 
 /**
  * Validate event ID format
  */
-export function validateEventId(eventId: string): boolean {
+export function isValidNip46EventId(eventId: string): boolean {
   return isHexOfLength(eventId, 64);
 }
 
 /**
  * Validate signature format
  */
-export function validateSignature(signature: string): boolean {
+export function isValidNip46Signature(signature: string): boolean {
   return isHexOfLength(signature, 128);
 }
 
 /**
- * Validate private key format (for internal use)
+ * Validate private key material using the canonical secp256k1 key policy.
+ *
+ * Hex shape alone is insufficient: keys outside the curve order are rejected.
  */
-export function validatePrivateKey(privateKey: string): boolean {
-  return isHexOfLength(privateKey, 64);
+export function isValidNip46PrivateKey(privateKey: string): boolean {
+  return isValidPrivateKey(privateKey);
 }
 
 /**
@@ -193,7 +196,7 @@ export function validateRequestPayload(request: NIP46Request): boolean {
   }
 
   // Validate optional pubkey if present
-  if (request.pubkey && !validatePubkey(request.pubkey)) {
+  if (request.pubkey && !isValidNip46Pubkey(request.pubkey)) {
     return false;
   }
 
@@ -238,7 +241,7 @@ export function validateParams(params: string[]): boolean {
 /**
  * Validate relay URL format
  */
-export function validateRelayUrl(url: string): boolean {
+export function isValidNip46RelayUrl(url: string): boolean {
   if (!url || typeof url !== "string") {
     return false;
   }
@@ -267,7 +270,7 @@ export function validateRelayUrl(url: string): boolean {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown URL parsing error";
     SecureErrorHandler.logSecurityEvent(
-      "URL parsing failed in validateRelayUrl",
+      "URL parsing failed in isValidNip46RelayUrl",
       {
         error: SecureErrorHandler.sanitizeError(
           new Error(errorMessage),
@@ -338,14 +341,14 @@ export function validateConnectionString(connectionString: string): boolean {
 
     // Extract and validate pubkey from hostname
     const pubkey = url.hostname;
-    if (!validatePubkey(pubkey)) {
+    if (!isValidNip46Pubkey(pubkey)) {
       return false;
     }
 
     // Validate relay URLs if present
     const relays = url.searchParams.getAll("relay");
     for (const relay of relays) {
-      if (!validateRelayUrl(relay)) {
+      if (!isValidNip46RelayUrl(relay)) {
         return false;
       }
     }
@@ -442,6 +445,24 @@ export function validateTimestamp(
   // Reject timestamps too far in the past or future
   return age >= 0 && age <= maxAgeSeconds;
 }
+
+/** @deprecated Use isValidNip46EventContent. Compatibility Alias until next major (ADR 0003). */
+export const validateEventContent = isValidNip46EventContent;
+
+/** @deprecated Use isValidNip46Pubkey. Compatibility Alias until next major (ADR 0003). */
+export const validatePubkey = isValidNip46Pubkey;
+
+/** @deprecated Use isValidNip46EventId. Compatibility Alias until next major (ADR 0003). */
+export const validateEventId = isValidNip46EventId;
+
+/** @deprecated Use isValidNip46Signature. Compatibility Alias until next major (ADR 0003). */
+export const validateSignature = isValidNip46Signature;
+
+/** @deprecated Use isValidNip46PrivateKey. Compatibility Alias until next major (ADR 0003). */
+export const validatePrivateKey = isValidNip46PrivateKey;
+
+/** @deprecated Use isValidNip46RelayUrl. Compatibility Alias until next major (ADR 0003). */
+export const validateRelayUrl = isValidNip46RelayUrl;
 
 /**
  * Secure error handler to prevent information disclosure

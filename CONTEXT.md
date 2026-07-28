@@ -23,3 +23,11 @@ _Avoid_: Query, search parameters
 **NIP**:
 A Nostr Implementation Possibility that defines a protocol behavior or interoperable extension.
 _Avoid_: Plugin, feature spec
+
+**Public Facade**:
+The supported public class or function that callers should use for a capability when multiple wrappers exist.
+_Avoid_: Primary API, recommended entrypoint (use this term instead)
+
+**Compatibility Alias**:
+A deprecated public export retained for 0.x consumers until the next major release removes it.
+_Avoid_: Legacy shim, soft export

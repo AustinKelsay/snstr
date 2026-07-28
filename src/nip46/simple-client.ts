@@ -14,7 +14,12 @@ import {
   SimpleNIP46ClientOptions,
 } from "./types";
 
-/** Lightweight public facade over the canonical NIP-46 client engine. */
+/**
+ * Lightweight demo/compat wrapper over the canonical NIP-46 client engine.
+ *
+ * @deprecated Use NostrRemoteSignerClient instead. Retained for demo/compat use only as a
+ * Compatibility Alias through 0.x; planned removal in the next major (ADR 0003).
+ */
 export class SimpleNIP46Client {
   private readonly logger: NIP46DiagnosticLogger;
   private readonly engine: NIP46ClientEngine;

@@ -24,9 +24,9 @@ NIP-46 defines a protocol for remote signing of Nostr events, allowing applicati
 - **Connection String Security**: URL validation with injection prevention
 
 ### 🏗️ **Dual Implementation Architecture**
-- **Full-Featured Implementation**: Complete NIP-46 protocol with all advanced features
-- **Simplified Implementation**: Lightweight version for basic use cases and learning
-- **Flexible API Design**: Choose the complexity level that fits your needs
+- **Full-Featured Implementation**: Complete NIP-46 protocol with all advanced features. This is the production Public Facade.
+- **Simplified Implementation**: Lightweight demo/compat version, deprecated as a Compatibility Alias and planned for removal in the next major (ADR 0003)
+- **Flexible API Design**: Use Full for production; use Simple only for demos, learning, or existing 0.x code
 
 ### 🚀 **Production-Ready Features**
 - **Dual Encryption Support**: Both NIP-04 (AES-CBC) and NIP-44 (ChaCha20+HMAC)
@@ -56,7 +56,10 @@ import {
 - Comprehensive security validation
 - Production-ready error handling
 
-### Simplified Implementation (Great for Learning)
+### Simplified Implementation (Demo/Compat, Deprecated)
+
+> Deprecated: `SimpleNIP46Client` and `SimpleNIP46Bunker` are demo/compat Compatibility Aliases kept through 0.x and planned for removal in the next major (ADR 0003). New code should use `NostrRemoteSignerClient` / `NostrRemoteSignerBunker`.
+
 ```typescript
 import { 
   SimpleNIP46Client, 
@@ -757,22 +760,28 @@ function createSuccessResponse(id: string, result: string): NIP46Response
 function createErrorResponse(id: string, error: string): NIP46Response
 
 // Security validation utilities
-class NIP46Validator {
-  static validatePubkey(pubkey: string): boolean
-  static validatePrivateKey(privateKey: string): boolean
-  static validateEventContent(content: string): boolean
-  static validateRequestPayload(request: NIP46Request): boolean
-  static validateConnectionString(connectionString: string): boolean
-  static validateRelayUrl(url: string): boolean
-  static validatePermission(permission: string): boolean
-}
+// The legacy validate* names for the boolean validators remain exported as
+// deprecated Compatibility Aliases (ADR 0003).
+function isValidNip46Pubkey(pubkey: string): boolean
+function isValidNip46PrivateKey(privateKey: string): boolean
+function isValidNip46EventId(eventId: string): boolean
+function isValidNip46Signature(signature: string): boolean
+function isValidNip46EventContent(content: string): boolean
+function isValidNip46RelayUrl(url: string): boolean
+function validateRequestPayload(request: NIP46Request): boolean
+function validateConnectionString(connectionString: string): boolean
+function validatePermission(permission: string): boolean
 
-// Security validation functions:
-  static validatePrivateKey(privateKey: string, context?: string): void
-  static validateKeypairForCrypto(keypair: NIP46KeyPair, context?: string): void
-  static validateBeforeSigning(userKeypair: NIP46KeyPair, eventData: any): void
-  static validateBeforeEncryption(userKeypair: NIP46KeyPair, thirdPartyPubkey: string, data: string): void
-}
+// Throwing security helpers (from utils/security.ts — distinct from the
+// boolean isValidNip46* validators above)
+function validatePrivateKey(privateKey: string, context?: string): void
+function validateKeypairForCrypto(keypair: NIP46KeyPair, context?: string): void
+function validateBeforeSigning(userKeypair: NIP46KeyPair, eventData: unknown): void
+function validateBeforeEncryption(
+  userKeypair: NIP46KeyPair,
+  thirdPartyPubkey: string,
+  data: string,
+): void
 
 // Rate limiting
 class NIP46RateLimiter {

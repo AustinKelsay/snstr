@@ -422,6 +422,8 @@ The project is organized with detailed documentation for different components:
 - **[NIP-17](src/nip17/README.md)**: Gift wrapped direct messages
 - **[NIP-19](src/nip19/README.md)**: Bech32-encoded entities
 - **[NIP-21](src/nip21/README.md)**: URI scheme for nostr links
+- **[NIP-29](src/nip29/README.md)**: Relay-based groups
+- **[NIP-42](src/nip42/README.md)**: Client authentication to relays
 - **[NIP-44](src/nip44/README.md)**: Versioned encryption
 - **[NIP-46](src/nip46/README.md)**: Remote signing protocol
 - **[NIP-47](src/nip47/README.md)**: Nostr Wallet Connect

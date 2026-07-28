@@ -754,7 +754,12 @@ class ZapClientCore {
   }
 }
 
-/** Comprehensive public NIP-57 facade retained for 0.x compatibility. */
+/**
+ * Canonical Public Facade for NIP-57 Lightning Zaps.
+ *
+ * Prefer this class over `ZapClient`, which is retained only as a
+ * Compatibility Alias through the 0.x line.
+ */
 export class NostrZapClient {
   private core: ZapClientCore;
 
@@ -867,6 +872,8 @@ export class NostrZapClient {
 
 /**
  * Client for working with NIP-57 Zaps
+ *
+ * @deprecated Use NostrZapClient instead. Compatibility Alias retained through 0.x; planned removal in the next major (ADR 0003).
  */
 export class ZapClient {
   private core: ZapClientCore;

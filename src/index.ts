@@ -26,7 +26,59 @@ export type {
 } from "./nip01/nostr";
 
 // Export types
-export * from "./types/nostr";
+// Explicit allowlist instead of a star export so the public type surface stays intentional (ADR 0003).
+export {
+  RelayEvent,
+  RelayStatus,
+  NostrKind,
+  WebSocketReadyState,
+  RelayErrorType,
+  NIP20Prefix,
+} from "./types/nostr";
+export type {
+  NostrEvent,
+  EventTemplate,
+  NostrFilter,
+  Filter,
+  Subscription,
+  RelayReceivedEvent,
+  RelayEventCallbacks,
+  RelayEventHandler,
+  PublishOptions,
+  PublishResponse,
+  SubscriptionOptions,
+  SubscriptionResponse,
+  FeeSchedule,
+  RelayFees,
+  RelayLimitation,
+  RelayInfo,
+  RelayInformation,
+  RelayStats,
+  RelayGroup,
+  ReconnectionStrategy,
+  RelayCapabilities,
+  MetricsCollectorOptions,
+  RelayMessageStats,
+  ProfileMetadata,
+  RelayDebugOptions,
+  RelayError,
+  RelayInterface,
+  ValidationOptions,
+  EventOfKind,
+  MetadataEvent,
+  TextNoteEvent,
+  RecommendRelayEvent,
+  ContactsEvent,
+  DirectMessageEvent,
+  DeletionEvent,
+  RepostEvent,
+  ReactionEvent,
+  BadgeAwardEvent,
+  TaggedEvent,
+  TagValues,
+  EventTags,
+  ParsedOkReason,
+} from "./types/nostr";
 export type {
   NostrClientToServerEventMessage,
   NostrServerToClientEventMessage,
@@ -117,13 +169,7 @@ export {
 } from "./nip11";
 export { fetchRelayInformation as getRelayInfo } from "./nip11";
 
-// Export NIP-11 types
-export type {
-  RelayInfo,
-  RelayLimitation,
-  RelayFees,
-  FeeSchedule,
-} from "./nip11";
+// NIP-11 relay-information types are the canonical `types/nostr` declarations exported above.
 
 // Export NIP-44 utilities
 export {
@@ -293,10 +339,7 @@ export {
   createQuoteTag,
   parseThreadReferences,
 } from "./nip10";
-export type {
-  ThreadPointer,
-  ThreadReferences,
-} from "./nip10";
+export type { ThreadPointer, ThreadReferences } from "./nip10";
 
 // Export signer utilities
 export {
@@ -352,15 +395,12 @@ export type {
   ZapStats,
 } from "./nip57";
 
-export {
-  NostrZapClient,
-  ZapClient,
-} from "./nip57/client";
+export { NostrZapClient, ZapClient } from "./nip57";
 export type {
   ZapClientOptions,
   ZapInvoiceResult,
   ZapFilterOptions,
-} from "./nip57/client";
+} from "./nip57";
 
 export {
   fetchLnurlPayMetadata,
@@ -416,10 +456,7 @@ export {
   getWriteRelays,
   RELAY_LIST_KIND,
 } from "./nip65";
-export type {
-  RelayListEntry,
-  RelayListEvent,
-} from "./nip65";
+export type { RelayListEntry, RelayListEvent } from "./nip65";
 
 // NIP-56 reporting
 export {
