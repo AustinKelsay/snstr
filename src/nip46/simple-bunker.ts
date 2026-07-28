@@ -35,6 +35,9 @@ interface ClientSession {
  *
  * This class implements the signer-side of the NIP-46 Remote Signing protocol.
  * It is designed to be lightweight and easy to use.
+ *
+ * @deprecated Use NostrRemoteSignerBunker instead. Retained for demo/compat use only as a
+ * Compatibility Alias through 0.x; planned removal in the next major (ADR 0003).
  */
 export class SimpleNIP46Bunker {
   private readonly engine: NIP46BunkerEngine;

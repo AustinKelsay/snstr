@@ -118,6 +118,8 @@ if (calculatedHash !== parsedInvoice.descriptionHash) {
 
 The `NostrZapClient` provides a simple, high-level interface for working with zaps:
 
+`NostrZapClient` is the canonical Public Facade for NIP-57; `ZapClient` remains exported only as a Compatibility Alias and is deprecated for removal in the next major release (ADR 0003).
+
 ```typescript
 import { Nostr, NostrZapClient } from 'snstr';
 

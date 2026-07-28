@@ -9,7 +9,7 @@
  *
  * Two implementations are provided:
  *
- * 1. NostrRemoteSignerClient/NostrRemoteSignerBunker:
+ * 1. NostrRemoteSignerClient/NostrRemoteSignerBunker (production Public Facade):
  *    - Full-featured implementation with all NIP-46 capabilities
  *    - Supports auth challenges via URL
  *    - Handles permissions for specific event kinds
@@ -17,16 +17,15 @@
  *    - Connection metadata for better UX
  *    - Secret token support for secure connections
  *
- * 2. SimpleNIP46Client/SimpleNIP46Bunker:
- *    - Simplified implementation for basic use cases
+ * 2. SimpleNIP46Client/SimpleNIP46Bunker (demo/compat Compatibility Alias, deprecated for 1.0):
+ *    - Simplified implementation for demos, learning, and 0.x compatibility
  *    - Minimal code with core functionality
  *    - NIP-04 encryption only
  *    - Basic permission handling
  *    - No auth challenges or metadata support
- *    - Good for learning and simple applications
  *
- * Choose the implementation that best fits your needs based on the complexity
- * and security requirements of your application.
+ * Use the Full implementation for production. The Simple implementation must not grow new
+ * capabilities; it is deprecated and planned for removal in the next major (ADR 0003).
  */
 
 // Export types
@@ -63,15 +62,15 @@ export {
   MAX_TAGS_COUNT,
   MAX_TAG_ELEMENT_LENGTH,
   // Validation functions
-  validateEventContent,
-  validatePubkey,
-  validateEventId,
-  validateSignature,
-  validatePrivateKey,
+  isValidNip46EventContent,
+  isValidNip46Pubkey,
+  isValidNip46EventId,
+  isValidNip46Signature,
+  isValidNip46PrivateKey,
+  isValidNip46RelayUrl,
   validateRequestPayload,
   isValidMethod,
   validateParams,
-  validateRelayUrl,
   validatePermission,
   validateConnectionString,
   validateAndParseJson,
@@ -79,6 +78,13 @@ export {
   validateTimestamp,
   // Error handler class
   SecureErrorHandler,
+  // Deprecated validator Compatibility Aliases (planned removal in next major, ADR 0003)
+  validateEventContent,
+  validatePubkey,
+  validateEventId,
+  validateSignature,
+  validatePrivateKey,
+  validateRelayUrl,
 } from "./utils/validator";
 
 // Re-export utility functions from crypto to make the API more convenient

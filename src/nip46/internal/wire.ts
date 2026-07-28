@@ -7,7 +7,7 @@ import {
   MAX_CONTENT_SIZE,
   MAX_ID_LENGTH,
   MAX_PARAMS_COUNT,
-  validatePubkey,
+  isValidNip46Pubkey,
 } from "../utils/validator";
 
 export const NIP46_EVENT_KIND = 24133;
@@ -111,7 +111,7 @@ export class NIP46Wire {
     const pubkey = payload.pubkey;
     return (
       pubkey === undefined ||
-      (typeof pubkey === "string" && validatePubkey(pubkey))
+      (typeof pubkey === "string" && isValidNip46Pubkey(pubkey))
     );
   }
 

@@ -16,6 +16,10 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for diagrams and a visual explanation o
 
 ## Examples
 
+> **Note:** Prefer `NostrRemoteSignerClient` / `NostrRemoteSignerBunker` for production.
+> Examples that still use `SimpleNIP46*` are demo/compat only; those classes are
+> Compatibility Aliases deprecated for the next major release (ADR 0003).
+
 ### Unified Example (`unified-example.ts`) - RECOMMENDED
 
 A single comprehensive example that shows the core functionality:

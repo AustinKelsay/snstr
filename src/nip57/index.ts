@@ -17,7 +17,7 @@ import type { DiagnosticLogger } from "../utils/logger";
 export type { LnurlSuccessAction, LnurlInvoiceResponse } from "./types";
 
 // Export values and types from client.ts
-export { NostrZapClient } from "./client";
+export { NostrZapClient, ZapClient } from "./client";
 export type {
   ZapClientOptions,
   ZapInvoiceResult,

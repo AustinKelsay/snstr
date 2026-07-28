@@ -1,5 +1,11 @@
 import {
   validateRequestPayload,
+  isValidNip46EventContent,
+  isValidNip46Pubkey,
+  isValidNip46PrivateKey,
+  isValidNip46Signature,
+  isValidNip46EventId,
+  isValidNip46RelayUrl,
   validateEventContent,
   validatePubkey,
   validatePrivateKey as validatePrivateKeyFormat,
@@ -67,7 +73,7 @@ describe("NIP-46 Validator Unit Tests", () => {
     });
   });
 
-  describe("validateEventContent", () => {
+  describe("isValidNip46EventContent", () => {
     test("validates valid event content", () => {
       const validEvent = {
         kind: 1,
@@ -75,89 +81,115 @@ describe("NIP-46 Validator Unit Tests", () => {
         created_at: Math.floor(Date.now() / 1000),
         tags: [],
       };
+      expect(isValidNip46EventContent(JSON.stringify(validEvent))).toBe(true);
       expect(validateEventContent(JSON.stringify(validEvent))).toBe(true);
     });
 
     test("rejects invalid content", () => {
-      expect(validateEventContent("")).toBe(false);
+      expect(isValidNip46EventContent("")).toBe(false);
+      expect(isValidNip46EventContent("invalid json")).toBe(false);
+      expect(isValidNip46EventContent("x".repeat(70000))).toBe(false);
       expect(validateEventContent("invalid json")).toBe(false);
-      expect(validateEventContent("x".repeat(70000))).toBe(false);
     });
   });
 
-  describe("validatePubkey", () => {
+  describe("isValidNip46Pubkey", () => {
     test("validates valid pubkeys", () => {
+      expect(isValidNip46Pubkey(validKeypair.publicKey)).toBe(true);
+      expect(isValidNip46Pubkey("a".repeat(64))).toBe(true);
+      expect(isValidNip46Pubkey("A".repeat(64))).toBe(true);
       expect(validatePubkey(validKeypair.publicKey)).toBe(true);
-      expect(validatePubkey("a".repeat(64))).toBe(true);
-      expect(validatePubkey("A".repeat(64))).toBe(true);
     });
 
     test("rejects invalid pubkeys", () => {
-      expect(validatePubkey("")).toBe(false);
+      expect(isValidNip46Pubkey("")).toBe(false);
+      expect(isValidNip46Pubkey("invalid")).toBe(false);
+      expect(isValidNip46Pubkey("g".repeat(64))).toBe(false);
+      expect(isValidNip46Pubkey(null as unknown as string)).toBe(false);
       expect(validatePubkey("invalid")).toBe(false);
-      expect(validatePubkey("g".repeat(64))).toBe(false);
-      expect(validatePubkey(null as unknown as string)).toBe(false);
     });
   });
 
-  describe("validatePrivateKeyFormat", () => {
+  describe("isValidNip46PrivateKey", () => {
     test("validates valid private keys", () => {
+      expect(isValidNip46PrivateKey(validKeypair.privateKey)).toBe(true);
+      expect(isValidNip46PrivateKey("b".repeat(64))).toBe(true);
       expect(validatePrivateKeyFormat(validKeypair.privateKey)).toBe(true);
-      expect(validatePrivateKeyFormat("b".repeat(64))).toBe(true);
     });
 
     test("rejects invalid private keys", () => {
-      expect(validatePrivateKeyFormat("")).toBe(false);
+      expect(isValidNip46PrivateKey("")).toBe(false);
+      expect(isValidNip46PrivateKey("invalid")).toBe(false);
+      expect(isValidNip46PrivateKey("z".repeat(64))).toBe(false);
       expect(validatePrivateKeyFormat("invalid")).toBe(false);
-      expect(validatePrivateKeyFormat("z".repeat(64))).toBe(false);
+    });
+
+    test("rejects hex keys outside the secp256k1 curve order", () => {
+      expect(isValidNip46PrivateKey("f".repeat(64))).toBe(false);
+      expect(isValidNip46PrivateKey("0".repeat(64))).toBe(false);
     });
   });
 
-  describe("validateSignature", () => {
+  describe("isValidNip46Signature", () => {
     test("validates valid signatures", () => {
+      expect(isValidNip46Signature("c".repeat(128))).toBe(true);
+      expect(isValidNip46Signature("C".repeat(128))).toBe(true);
       expect(validateSignature("c".repeat(128))).toBe(true);
-      expect(validateSignature("C".repeat(128))).toBe(true);
     });
 
     test("rejects invalid signatures", () => {
-      expect(validateSignature("")).toBe(false);
+      expect(isValidNip46Signature("")).toBe(false);
+      expect(isValidNip46Signature("invalid")).toBe(false);
+      expect(isValidNip46Signature("z".repeat(128))).toBe(false);
       expect(validateSignature("invalid")).toBe(false);
-      expect(validateSignature("z".repeat(128))).toBe(false);
     });
 
     test("validates signatures correctly with various formats", () => {
-      expect(validateSignature("a".repeat(128))).toBe(true);
-      expect(validateSignature("A".repeat(128))).toBe(true);
-      expect(validateSignature("1234567890abcdef".repeat(8))).toBe(true);
+      expect(isValidNip46Signature("a".repeat(128))).toBe(true);
+      expect(isValidNip46Signature("A".repeat(128))).toBe(true);
+      expect(isValidNip46Signature("1234567890abcdef".repeat(8))).toBe(true);
 
-      expect(validateSignature("")).toBe(false);
-      expect(validateSignature("a".repeat(127))).toBe(false);
-      expect(validateSignature("a".repeat(129))).toBe(false);
-      expect(validateSignature("xyz" + "a".repeat(125))).toBe(false);
+      expect(isValidNip46Signature("")).toBe(false);
+      expect(isValidNip46Signature("a".repeat(127))).toBe(false);
+      expect(isValidNip46Signature("a".repeat(129))).toBe(false);
+      expect(isValidNip46Signature("xyz" + "a".repeat(125))).toBe(false);
     });
   });
 
-  describe("validateEventId", () => {
+  describe("isValidNip46EventId", () => {
     test("validates valid event IDs", () => {
+      expect(isValidNip46EventId("d".repeat(64))).toBe(true);
+      expect(isValidNip46EventId("D".repeat(64))).toBe(true);
       expect(validateEventId("d".repeat(64))).toBe(true);
-      expect(validateEventId("D".repeat(64))).toBe(true);
     });
 
     test("rejects invalid event IDs", () => {
-      expect(validateEventId("")).toBe(false);
+      expect(isValidNip46EventId("")).toBe(false);
+      expect(isValidNip46EventId("invalid")).toBe(false);
+      expect(isValidNip46EventId("z".repeat(64))).toBe(false);
       expect(validateEventId("invalid")).toBe(false);
-      expect(validateEventId("z".repeat(64))).toBe(false);
     });
 
     test("validates event IDs correctly with various formats", () => {
-      expect(validateEventId("a".repeat(64))).toBe(true);
-      expect(validateEventId("A".repeat(64))).toBe(true);
-      expect(validateEventId("1234567890abcdef".repeat(4))).toBe(true);
+      expect(isValidNip46EventId("a".repeat(64))).toBe(true);
+      expect(isValidNip46EventId("A".repeat(64))).toBe(true);
+      expect(isValidNip46EventId("1234567890abcdef".repeat(4))).toBe(true);
 
-      expect(validateEventId("")).toBe(false);
-      expect(validateEventId("a".repeat(63))).toBe(false);
-      expect(validateEventId("a".repeat(65))).toBe(false);
-      expect(validateEventId("xyz" + "a".repeat(61))).toBe(false);
+      expect(isValidNip46EventId("")).toBe(false);
+      expect(isValidNip46EventId("a".repeat(63))).toBe(false);
+      expect(isValidNip46EventId("a".repeat(65))).toBe(false);
+      expect(isValidNip46EventId("xyz" + "a".repeat(61))).toBe(false);
+    });
+  });
+
+  describe("deprecated validator Compatibility Aliases", () => {
+    test("aliases resolve to the canonical isValidNip46* implementations", () => {
+      expect(validateEventContent).toBe(isValidNip46EventContent);
+      expect(validatePubkey).toBe(isValidNip46Pubkey);
+      expect(validateEventId).toBe(isValidNip46EventId);
+      expect(validateSignature).toBe(isValidNip46Signature);
+      expect(validatePrivateKeyFormat).toBe(isValidNip46PrivateKey);
+      expect(validateRelayUrl).toBe(isValidNip46RelayUrl);
     });
   });
 
@@ -188,15 +220,17 @@ describe("NIP-46 Validator Unit Tests", () => {
     });
   });
 
-  describe("validateRelayUrl", () => {
+  describe("isValidNip46RelayUrl", () => {
     test("validates valid relay URLs", () => {
+      expect(isValidNip46RelayUrl("ws://localhost:3792")).toBe(true);
+      expect(isValidNip46RelayUrl("wss://relay.example.com")).toBe(true);
       expect(validateRelayUrl("ws://localhost:3792")).toBe(true);
-      expect(validateRelayUrl("wss://relay.example.com")).toBe(true);
     });
 
     test("rejects invalid URLs", () => {
-      expect(validateRelayUrl("")).toBe(false);
-      expect(validateRelayUrl("http://example.com")).toBe(false);
+      expect(isValidNip46RelayUrl("")).toBe(false);
+      expect(isValidNip46RelayUrl("http://example.com")).toBe(false);
+      expect(isValidNip46RelayUrl("invalid")).toBe(false);
       expect(validateRelayUrl("invalid")).toBe(false);
     });
   });

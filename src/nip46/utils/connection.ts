@@ -22,8 +22,8 @@ export function buildConnectionString(
 import { NIP46ConnectionError, NIP46SecurityError } from "../types";
 import type { NIP46ConnectionInfo, NIP46Metadata } from "../types";
 import {
-  validatePubkey,
-  validateRelayUrl,
+  isValidNip46Pubkey,
+  isValidNip46RelayUrl,
   validatePermission,
   sanitizeString,
 } from "./validator";
@@ -118,7 +118,7 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
       : afterProtocol.slice(0, delimiterStart);
 
   // Validate pubkey using secure validator
-  if (!validatePubkey(pubkey)) {
+  if (!isValidNip46Pubkey(pubkey)) {
     throw new NIP46ConnectionError(
       "Invalid signer public key in connection string",
     );
@@ -131,7 +131,7 @@ export function parseConnectionString(str: string): NIP46ConnectionInfo {
     const allRelays = url.searchParams.getAll("relay");
     const relays = allRelays.filter((relay) => {
       // Use enhanced relay validation
-      return validateRelayUrl(relay);
+      return isValidNip46RelayUrl(relay);
     });
 
     // Fail fast if all relay URLs are invalid

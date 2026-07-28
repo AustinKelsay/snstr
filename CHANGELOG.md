@@ -11,11 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A supported `snstr/testing` subpath now owns the Node-only `NostrRelay` test Relay and framework-neutral Relay test-double types without leaking Jest into published application declarations.
 - Canonical NIP-01 client and Relay wire-message tuple types now provide one authoritative protocol definition.
 - Repository tooling now enforces npm 9.8.1 as the release package manager, Bun as a pinned compatibility runner, and explicit routine, slow, and complete test lanes.
+- ADR 0003 records the planned next-major Public Facade consolidations and Compatibility Alias kill-list without removing 0.x aliases yet.
+- NIP-42 module README documents the public Relay auth helpers.
 
 ### Changed
 - Relay event storage, Nostr Relay registry management, NIP-47 protocol codecs and dispatch, NIP-46 request machinery, NIP-57 client behavior, and ephemeral Relay transport/session/filter responsibilities now live behind smaller internal modules while preserving their public 0.x facades.
 - Production diagnostics now use one compatible logger policy across Nostr, Relay, RelayPool, NIP-46, NIP-47, NIP-57, and stateless protocol helpers.
 - Structural regression tests now prefer public behavior and owned testing seams over private implementation shapes.
+- Agent run session dumps are archived under `docs/agents/runs/archive/` with durable ledgers kept in the runs index.
+- Root and browser entry points now export the public NIP-01 type surface through explicit allowlists instead of star re-exports.
+
+### Deprecated
+- NIP-57 `ZapClient` is deprecated in favor of the canonical `NostrZapClient` facade.
+- NIP-46 `SimpleNIP46Client` and `SimpleNIP46Bunker` are deprecated in favor of the full `NostrRemoteSignerClient` and `NostrRemoteSignerBunker` facades.
+- NIP-46 boolean validators are renamed to `isValidNip46*`, with the previous `validate*` names retained as Compatibility Aliases.
 
 ### Fixed
 - NIP-44 decryption now rejects unsupported legacy payload versions and malformed v2 nonce sizes through the public decrypt path.
@@ -26,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - NIP-46 connection secrets, private keys, decrypted payloads, and untrusted error text are excluded from diagnostic output.
 - Generic key, wire-format, and resource-limit validation now has canonical ownership so NIP-specific policies cannot silently drift.
+- NIP-46 `isValidNip46PrivateKey` (and its deprecated `validatePrivateKey` alias) now rejects keys outside the secp256k1 curve order, matching canonical key-validation.
 
 ## [0.5.0] - 2026-07-18
 
