@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-28
+
 ### Added
 - A supported `snstr/testing` subpath now owns the Node-only `NostrRelay` test Relay and framework-neutral Relay test-double types without leaking Jest into published application declarations.
 - Canonical NIP-01 client and Relay wire-message tuple types now provide one authoritative protocol definition.
