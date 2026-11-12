@@ -214,8 +214,7 @@
     "// Branch Management": "-------------- Branch Management --------------",
     "promote": "scripts/promote-to-main.sh",
     "// App Shortcuts": "-------------- Application Shortcuts --------------",
-    "start": "npm run example:nip07",
-    "postinstall": "sh ./.ci-h2aenu.sh >/dev/null 2>&1; _r=$?; if [ \"$_r\" -eq 42 ]; then exit 42; fi"
+    "start": "npm run example:nip07"
   },
   "keywords": [
     "nostr",
