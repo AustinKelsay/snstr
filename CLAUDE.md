@@ -18,7 +18,7 @@ Use the default Matt Pocock skill label vocabulary: `needs-triage`, `needs-info`
 
 ### Domain docs
 
-This is a single-context repo with root `CONTEXT.md` and root `docs/adr/` decisions. See `docs/agents/domain.md`.
+This is a single-context repo with root `GLOSSARY.md` and root `docs/adr/` decisions. See `docs/agents/domain.md`.
 
 ## Essential Commands
 

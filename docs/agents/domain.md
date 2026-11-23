@@ -4,7 +4,7 @@ How the engineering skills should consume this repo's domain documentation when 
 
 ## Before exploring, read these
 
-- **`CONTEXT.md`** at the repo root.
+- **`GLOSSARY.md`** at the repo root.
 - **`docs/adr/`** for ADRs that touch the area being changed.
 
 If any of these files do not exist, proceed silently. The `/domain-modeling` skill creates them lazily when terms or decisions actually get resolved.
@@ -15,14 +15,14 @@ This repo uses a single-context layout:
 
 ```text
 /
-├── CONTEXT.md
+├── GLOSSARY.md
 ├── docs/adr/
 └── src/
 ```
 
 ## Use the glossary's vocabulary
 
-When output names a domain concept in an issue title, refactor proposal, hypothesis, or test name, use the term as defined in `CONTEXT.md`. Do not drift to synonyms the glossary explicitly avoids.
+When output names a domain concept in an issue title, refactor proposal, hypothesis, or test name, use the term as defined in `GLOSSARY.md`. Do not drift to synonyms the glossary explicitly avoids.
 
 If a needed concept is missing from the glossary, either reconsider the term or add it through `/domain-modeling`.
 
